@@ -5,11 +5,13 @@ export const ProviderEnum = z.enum(['openai', 'anthropic', 'local_mock']);
 export const RawStreamEventSchema = z.object({
   event_id: z.string().uuid(),
   ingest_timestamp: z.string().datetime(),
-  source_ip: z.string().ip().optional(),
+  source_ip: z.string().optional(),
   provider: ProviderEnum,
   protocol_version: z.string().optional(),
-  payload: z.record(z.unknown()),
-  headers: z.record(z.string()).optional(),
+  // Zod 3.x behavior for records: z.record(keySchema, valueSchema) OR z.record(valueSchema)
+  // We'll use z.record(z.string(), z.unknown()) to be explicit and compatible
+  payload: z.record(z.string(), z.unknown()),
+  headers: z.record(z.string(), z.string()).optional(),
   trace_id: z.string().optional(),
 });
 
@@ -37,7 +39,7 @@ export const ParsedStreamEventSchema = z.object({
     input_tokens: z.number().default(0),
     output_tokens: z.number().default(0),
   }).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type ParsedStreamEvent = z.infer<typeof ParsedStreamEventSchema>;

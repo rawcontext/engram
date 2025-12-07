@@ -2,18 +2,18 @@
   "name": "interface-service",
   "version": "0.0.0",
   "dependencies": {
-    "next": "^14.2.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@clerk/nextjs": "^5.0.0",
-    "zod": "^3.23.4",
+    "next": "^16.0.7",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "@clerk/nextjs": "^6.36.0",
+    "zod": "^4.1.13",
     "@the-soul/events": "workspace:*",
     "@the-soul/logger": "workspace:*"
   },
   "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/node": "^20.12.7",
-    "typescript": "^5.4.5"
+    "@types/react": "^19.2.7",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
   },
   "scripts": {
     "build": "next build"
