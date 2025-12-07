@@ -6,5 +6,8 @@
     "@the-soul/storage": "workspace:*",
     "@the-soul/memory-core": "workspace:*",
     "@modelcontextprotocol/sdk": "^0.6.0"
+  },
+  "scripts": {
+    "build": "echo 'Build success'"
   }
 }

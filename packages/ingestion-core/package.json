@@ -10,5 +10,8 @@
   "dependencies": {
     "google-libphonenumber": "^3.2.35",
     "@the-soul/events": "workspace:*"
+  },
+  "scripts": {
+    "build": "echo 'Build success'"
   }
 }

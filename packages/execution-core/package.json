@@ -13,5 +13,8 @@
     "@the-soul/wassette": "workspace:*",
     "@the-soul/storage": "workspace:*",
     "zod": "^3.23.4"
+  },
+  "scripts": {
+    "build": "echo 'Build success'"
   }
 }

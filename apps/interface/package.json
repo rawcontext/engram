@@ -14,5 +14,8 @@
     "@types/react": "^18.2.0",
     "@types/node": "^20.12.7",
     "typescript": "^5.4.5"
+  },
+  "scripts": {
+    "build": "next build"
   }
 }

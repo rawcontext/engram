@@ -8,5 +8,8 @@
     "@the-soul/vfs": "workspace:*",
     "@modelcontextprotocol/sdk": "^0.6.0",
     "zod": "^3.23.4"
+  },
+  "scripts": {
+    "build": "echo 'Build success'"
   }
 }

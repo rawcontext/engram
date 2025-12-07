@@ -10,5 +10,8 @@
   "dependencies": {
     "kafkajs": "^2.2.4",
     "redis": "^4.6.13"
+  },
+  "scripts": {
+    "build": "echo 'Build success'"
   }
 }

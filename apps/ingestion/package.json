@@ -4,5 +4,8 @@
   "dependencies": {
     "@the-soul/logger": "workspace:*",
     "@the-soul/events": "workspace:*"
+  },
+  "scripts": {
+    "build": "echo 'Build success'"
   }
 }

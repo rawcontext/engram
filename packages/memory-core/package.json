@@ -12,5 +12,8 @@
     "ulid": "^2.3.0",
     "date-fns": "^3.6.0",
     "@the-soul/storage": "workspace:*"
+  },
+  "scripts": {
+    "build": "echo 'Build success'"
   }
 }

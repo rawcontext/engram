@@ -9,5 +9,8 @@
   },
   "dependencies": {
     "pino": "^9.0.0"
+  },
+  "scripts": {
+    "build": "echo 'Build success'"
   }
 }

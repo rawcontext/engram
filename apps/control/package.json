@@ -3,8 +3,11 @@
   "version": "0.0.0",
   "dependencies": {
     "@the-soul/logger": "workspace:*",
-    "@mastra/core": "^0.1.33",
+    "@mastra/core": "latest",
     "zod": "^3.23.4",
     "ai": "^3.0.0"
+  },
+  "scripts": {
+    "build": "echo 'Build success'"
   }
 }
