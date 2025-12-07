@@ -1,10 +1,40 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { createNodeLogger, pino } from "@the-soul/logger";
+import { GraphPruner } from "@the-soul/memory-core";
 import { createFalkorClient } from "@the-soul/storage";
 import { z } from "zod";
 
+// Initialize Logger (stderr for MCP safety)
+const logger = createNodeLogger(
+	{
+		service: "memory-service",
+		level: "info",
+		base: { component: "server" },
+	},
+	pino.destination(2),
+);
+
 // Initialize Services
 const falkor = createFalkorClient();
+const pruner = new GraphPruner(falkor);
+
+// Pruning Job
+const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function startPruningJob() {
+	// Start the periodic job
+	setInterval(async () => {
+		try {
+			logger.info("Starting scheduled graph pruning...");
+			// Default retention: 30 days
+			const deleted = await pruner.pruneHistory();
+			logger.info({ deleted }, "Graph pruning complete");
+		} catch (error) {
+			logger.error({ err: error }, "Graph pruning failed");
+		}
+	}, PRUNE_INTERVAL_MS);
+}
 
 // Initialize MCP Server
 const server = new McpServer({
@@ -30,6 +60,7 @@ server.tool(
 			};
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : String(error);
+			logger.error({ err: error }, "read_graph failed");
 			return {
 				content: [{ type: "text", text: `Error: ${message}` }],
 				isError: true,
@@ -63,6 +94,7 @@ server.tool(
 			};
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : String(error);
+			logger.error({ err: error }, "get_session_history failed");
 			return {
 				content: [{ type: "text", text: `Error: ${message}` }],
 				isError: true,
@@ -72,14 +104,19 @@ server.tool(
 );
 
 // Start Server
+export { server };
+
 async function main() {
 	await falkor.connect();
+	startPruningJob();
 	const transport = new StdioServerTransport();
 	await server.connect(transport);
-	console.error("Soul Memory MCP Server running on stdio");
+	logger.info("Soul Memory MCP Server running on stdio");
 }
 
-main().catch((err) => {
-	console.error("Fatal error:", err);
-	process.exit(1);
-});
+if (import.meta.main) {
+	main().catch((err) => {
+		console.error("Fatal error:", err); // Fallback if logger fails
+		process.exit(1);
+	});
+}

@@ -109,13 +109,18 @@ server.registerTool(
 	}) as any,
 );
 
+// Export for testing
+export { server, vfs, patchManager };
+
 async function main() {
 	const transport = new StdioServerTransport();
 	await server.connect(transport);
 	logger.error("Soul Execution MCP Server running on stdio");
 }
 
-main().catch((err) => {
-	logger.error({ err }, "Fatal error");
-	process.exit(1);
-});
+if (import.meta.main) {
+	main().catch((err) => {
+		logger.error({ err }, "Fatal error");
+		process.exit(1);
+	});
+}

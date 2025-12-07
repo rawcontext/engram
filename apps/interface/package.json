@@ -4,11 +4,14 @@
 	"dependencies": {
 		"@clerk/nextjs": "^6.36.0",
 		"@huggingface/transformers": "^3.8.1",
+		"@react-three/drei": "^10.7.7",
+		"@react-three/fiber": "^9.4.2",
 		"@the-soul/events": "workspace:*",
 		"@the-soul/logger": "workspace:*",
 		"@the-soul/memory-core": "workspace:*",
 		"@the-soul/search-core": "workspace:*",
 		"@the-soul/storage": "workspace:*",
+		"@types/three": "^0.181.0",
 		"@xyflow/react": "^12.10.0",
 		"dagre": "^0.8.5",
 		"graphql": "^16.8.1",
@@ -25,15 +28,19 @@
 		"sonic-boom": "^4.2.0",
 		"swr": "^2.3.7",
 		"thread-stream": "^4.0.0",
+		"three": "^0.181.2",
+		"ws": "^8.18.3",
 		"zod": "^4.1.13"
 	},
 	"devDependencies": {
-		"@types/react": "^19.2.7",
 		"@types/node": "^24.10.1",
+		"@types/react": "^19.2.7",
+		"@types/ws": "^8.18.1",
 		"typescript": "^5.9.3"
 	},
 	"scripts": {
-		"dev": "next dev -p 4000",
+		"dev": "bun server.ts",
+		"start": "bun server.ts",
 		"build": "next build",
 		"typecheck": "tsc --noEmit",
 		"generate-docs": "next-openapi-gen generate"

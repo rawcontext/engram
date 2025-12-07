@@ -27,7 +27,7 @@ export class DiffExtractor {
 				} else {
 					// Check partial match
 					let partial = false;
-					for (let i = 1; i < this.startMarker.length; i++) {
+					for (let i = this.startMarker.length - 1; i > 0; i--) {
 						if (this.buffer.endsWith(this.startMarker.slice(0, i))) {
 							content += this.buffer.slice(0, this.buffer.length - i);
 							this.buffer = this.buffer.slice(this.buffer.length - i);
@@ -51,7 +51,7 @@ export class DiffExtractor {
 				} else {
 					// Check partial match for end marker
 					let partial = false;
-					for (let i = 1; i < this.endMarker.length; i++) {
+					for (let i = this.endMarker.length - 1; i > 0; i--) {
 						if (this.buffer.endsWith(this.endMarker.slice(0, i))) {
 							diffFragment += this.buffer.slice(0, this.buffer.length - i);
 							this.buffer = this.buffer.slice(this.buffer.length - i);

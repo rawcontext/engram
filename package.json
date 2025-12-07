@@ -21,6 +21,8 @@
 		"@biomejs/biome": "^2.3.8",
 		"@modelcontextprotocol/sdk": "^1.24.3",
 		"@qdrant/js-client-rest": "^1.16.2",
+		"@the-soul/events": "workspace:*",
+		"@the-soul/storage": "workspace:*",
 		"falkordb": "^6.3.1",
 		"turbo": "^2.6.3",
 		"typescript": "^5.9.3",

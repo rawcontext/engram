@@ -1,12 +1,9 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Soul System Interface",
-  description: "Interface for the Soul System",
+  title: "Soul System | Neural Observatory",
+  description: "Observe and analyze AI consciousness streams",
 };
 
 export default function RootLayout({
@@ -16,7 +13,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className="grid-bg">
+        <div className="relative z-10">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }
