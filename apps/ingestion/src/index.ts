@@ -27,9 +27,11 @@ const server = Bun.serve({
     if (url.pathname === "/health") return new Response("OK");
 
     if (url.pathname === "/ingest" && req.method === "POST") {
+      // Use unknown first to satisfy Biome
+      let rawBody: unknown;
       try {
-        const body = await req.json();
-        const rawEvent = RawStreamEventSchema.parse(body);
+        rawBody = await req.json();
+        const rawEvent = RawStreamEventSchema.parse(rawBody);
         const provider = rawEvent.provider;
         const sessionId = rawEvent.headers?.["x-session-id"] || rawEvent.event_id;
 
@@ -57,7 +59,7 @@ const server = Bun.serve({
           delta.thought = extracted.thought;
         }
 
-        // 3. Extract Diffs (from remaining content)
+        // 3. Extract Diffs
         if (delta.content) {
           let diffExtractor = diffExtractors.get(sessionId);
           if (!diffExtractor) {
@@ -76,10 +78,6 @@ const server = Bun.serve({
         if (delta.thought) {
           delta.thought = redactor.redact(delta.thought);
         }
-        // Diff content usually shouldn't be redacted blindly (might break code),
-        // but if it contains secrets/PII it should be.
-        // For V1, let's trust code generation or use targeted redaction.
-        // We'll skip redacting diff for now to avoid breaking patch syntax with [EMAIL] replacements.
 
         // 5. Publish
         await kafka.sendEvent("parsed_events", sessionId, {
@@ -92,8 +90,24 @@ const server = Bun.serve({
           headers: { "Content-Type": "application/json" },
         });
       } catch (e: unknown) {
-        console.error(e);
+        console.error("Ingestion Error:", e);
         const message = e instanceof Error ? e.message : String(e);
+
+        // DLQ Logic
+        try {
+          // Check if rawBody has event_id safely
+          const body = rawBody as Record<string, unknown>;
+          const dlqKey = (body?.event_id as string) || "unknown";
+
+          await kafka.sendEvent("ingestion.dead_letter", dlqKey, {
+            error: message,
+            payload: rawBody,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (dlqError) {
+          console.error("Failed to send to DLQ:", dlqError);
+        }
+
         return new Response(JSON.stringify({ error: message }), { status: 400 });
       }
     }

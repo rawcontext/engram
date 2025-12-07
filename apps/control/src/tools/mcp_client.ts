@@ -38,18 +38,20 @@ export class McpToolAdapter {
     const inputSchema = z.object({}).passthrough();
     const outputSchema = z.object({}).passthrough();
 
+    const executeFn = async ({ context }: { context: unknown }) => {
+      const result = await this.client.callTool({
+        name: toolName,
+        arguments: context as Record<string, unknown>,
+      });
+      return result;
+    };
+
     return createStep({
       id: toolName,
       inputSchema,
       outputSchema,
       // biome-ignore lint/suspicious/noExplicitAny: Dynamic typing requires bypass for Mastra integration
-      execute: (async ({ context }: { context: unknown }) => {
-        const result = await this.client.callTool({
-          name: toolName,
-          arguments: context as Record<string, unknown>,
-        });
-        return result;
-      }) as unknown as any,
+      execute: executeFn as any,
     });
   }
 }
