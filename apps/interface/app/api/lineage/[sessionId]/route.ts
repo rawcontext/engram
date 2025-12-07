@@ -1,8 +1,30 @@
 import { createFalkorClient } from "@the-soul/storage";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 const falkor = createFalkorClient();
 
+export const _LineageParams = z.object({
+  sessionId: z.string(),
+});
+
+export const _LineageResponse = z.object({
+  nodes: z.array(z.record(z.string(), z.any())),
+  links: z.array(
+    z.object({
+      source: z.string(),
+      target: z.string(),
+      type: z.string(),
+      properties: z.record(z.string(), z.any()).optional(),
+    }),
+  ),
+});
+
+/**
+ * Get lineage graph for a session
+ * @pathParams LineageParams
+ * @response LineageResponse
+ */
 export async function GET(_request: Request, { params }: { params: { sessionId: string } }) {
   try {
     const { sessionId } = params;

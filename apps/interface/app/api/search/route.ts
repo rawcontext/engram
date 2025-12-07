@@ -17,6 +17,21 @@ const SearchRequestSchema = z.object({
     .optional(),
 });
 
+export const _SearchResponseSchema = z.object({
+  results: z.array(
+    z.object({
+      document: z.string(),
+      score: z.number(),
+      originalIndex: z.number(),
+    }),
+  ),
+});
+
+/**
+ * Search the knowledge graph
+ * @body SearchRequestSchema
+ * @response SearchResponseSchema
+ */
 export const POST = async (req: Request) => {
   return validate(SearchRequestSchema as unknown as z.ZodSchema<unknown>)(req, async (data) => {
     const { query, limit, filters } = data as z.infer<typeof SearchRequestSchema>;

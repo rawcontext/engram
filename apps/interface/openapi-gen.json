@@ -1,0 +1,20 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "The Soul API",
+    "version": "1.0.0",
+    "description": "Observability and Control Interface for The Soul"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local server"
+    }
+  ],
+  "apiDir": "app/api",
+  "schemaType": "zod",
+  "outputFile": "public/openapi.json",
+  "docsUrl": "/api-docs",
+  "includeOpenApiRoutes": true,
+  "debug": true
+}
