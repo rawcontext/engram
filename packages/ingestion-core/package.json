@@ -1,0 +1,13 @@
+{
+  "name": "@the-soul/ingestion-core",
+  "version": "0.0.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@types/node": "^20.12.7"
+  },
+  "dependencies": {
+    "google-libphonenumber": "^3.2.35"
+  }
+}
