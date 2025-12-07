@@ -2,6 +2,11 @@
   "name": "execution-service",
   "version": "0.0.0",
   "dependencies": {
-    "@the-soul/logger": "workspace:*"
+    "@the-soul/logger": "workspace:*",
+    "@the-soul/execution-core": "workspace:*",
+    "@the-soul/wassette": "workspace:*",
+    "@the-soul/vfs": "workspace:*",
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "zod": "^3.23.4"
   }
 }
