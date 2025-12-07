@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { createActor, fromPromise } from "xstate";
 import type { ContextAssembler } from "../context/assembler";
@@ -6,7 +6,13 @@ import { type AgentContext, agentMachine } from "../state/machine";
 import type { MultiMcpAdapter } from "../tools/mcp_client";
 import { createNodeLogger } from "@the-soul/logger";
 
-const mockModel = openai("gpt-4-turbo");
+const xai = createOpenAI({
+  name: 'xai',
+  baseURL: 'https://api.x.ai/v1',
+  apiKey: process.env.XAI_API_KEY,
+});
+
+const model = xai("grok-4-1-fast-reasoning");
 const logger = createNodeLogger({ service: "control-service", component: "decision-engine" });
 
 export class DecisionEngine {
@@ -46,7 +52,7 @@ export class DecisionEngine {
 						// const tools = await this.mcpAdapter.listTools();
 
 						const result = await generateText({
-							model: mockModel,
+							model: model,
 							prompt: `${ctx.contextString || ""}\nUser: ${ctx.input}`,
 						});
 
