@@ -32,6 +32,23 @@ export class KafkaClient {
     return consumer;
   }
 
+  /**
+   * Sends an event to a topic with a specific key to ensure partitioning order.
+   * This effectively acts as the Stream Multiplexer/De-multiplexer entry point.
+   */
+  public async sendEvent(topic: string, key: string, message: any): Promise<void> {
+    const producer = await this.getProducer();
+    await producer.send({
+      topic,
+      messages: [
+        {
+          key, // Ensures all events with same key go to same partition
+          value: JSON.stringify(message)
+        }
+      ]
+    });
+  }
+
   public async disconnect() {
     if (this.producer) {
       await this.producer.disconnect();
