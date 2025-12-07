@@ -5,7 +5,6 @@ export interface AgentContext {
   input: string;
   contextString?: string;
   thoughts: string[];
-  // Using unknown instead of any where possible, but keeping arrays flexible
   // biome-ignore lint/suspicious/noExplicitAny: Tool calls structure varies
   currentToolCalls: any[];
   // biome-ignore lint/suspicious/noExplicitAny: Tool outputs vary
@@ -13,6 +12,7 @@ export interface AgentContext {
   finalResponse?: string;
   // biome-ignore lint/suspicious/noExplicitAny: History structure varies
   history: any[];
+  error?: string;
 }
 
 export const agentMachine = createMachine({
@@ -25,6 +25,7 @@ export const agentMachine = createMachine({
     currentToolCalls: [],
     toolOutputs: [],
     history: [],
+    error: undefined,
   } as AgentContext,
   states: {
     idle: {
@@ -38,7 +39,7 @@ export const agentMachine = createMachine({
     analyzing: {
       invoke: {
         src: "fetchContext",
-        input: ({ context }) => context, // Pass context as input to actor
+        input: ({ context }) => context,
         onDone: {
           target: "deliberating",
           actions: assign(({ event }) => ({
@@ -46,6 +47,12 @@ export const agentMachine = createMachine({
           })),
         },
         onError: { target: "idle" },
+      },
+      after: {
+        10000: {
+          target: "idle",
+          actions: assign({ error: "Analysis timed out" }),
+        },
       },
     },
     deliberating: {
@@ -68,6 +75,16 @@ export const agentMachine = createMachine({
             })),
           },
         ],
+        onError: {
+          target: "idle",
+          actions: assign({ error: "Thought generation failed" }),
+        },
+      },
+      after: {
+        30000: {
+          target: "idle",
+          actions: assign({ error: "Deliberation timed out" }),
+        },
       },
     },
     acting: {
@@ -81,6 +98,16 @@ export const agentMachine = createMachine({
           })),
         },
         onError: { target: "reviewing" },
+      },
+      after: {
+        // Heartbeat / Watchdog logic: Timeout after 30s
+        30000: {
+          target: "reviewing",
+          actions: assign({
+            error: "Tool execution timed out",
+            toolOutputs: [{ error: "Timeout" }], // Mock error output
+          }),
+        },
       },
     },
     reviewing: {

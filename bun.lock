@@ -101,7 +101,7 @@
       },
       "devDependencies": {
         "@the-soul/tsconfig": "workspace:*",
-        "bun-types": "^1.1.6",
+        "bun-types": "^1.3.4",
       },
     },
     "packages/events": {
