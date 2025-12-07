@@ -4,6 +4,10 @@ const nextConfig = {
     "@huggingface/transformers",
     "onnxruntime-node",
     "sharp",
+    "pino",
+    "pino-pretty",
+    "thread-stream",
+    "sonic-boom"
   ],
 };
 

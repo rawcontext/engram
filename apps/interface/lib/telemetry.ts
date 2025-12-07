@@ -1,14 +1,7 @@
-// import { createLogger } from "@the-soul/logger";
+import { createNodeLogger } from "@the-soul/logger";
 import type { NextResponse } from "next/server";
 
-// const logger = createLogger({ component: "api-telemetry" });
-
-// Simple logger for Next.js compatibility
-const logger = {
-    info: (data: any) => console.log(JSON.stringify(data)),
-    error: (data: any) => console.error(JSON.stringify(data)),
-    warn: (data: any) => console.warn(JSON.stringify(data)),
-};
+const logger = createNodeLogger({ service: "interface-service", component: "api-telemetry" });
 
 export const trackUsage = (
     req: Request,
