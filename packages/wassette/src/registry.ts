@@ -1,10 +1,10 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export interface ToolDefinition {
   name: string;
   description: string;
-  runtime: 'python' | 'javascript';
-  entryPoint: string; 
+  runtime: "python" | "javascript";
+  entryPoint: string;
   parameters: z.ZodSchema;
 }
 

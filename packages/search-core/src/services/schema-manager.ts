@@ -1,16 +1,16 @@
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { QdrantClient } from "@qdrant/js-client-rest";
 
 export class SchemaManager {
   private client: QdrantClient;
-  private collectionName = 'soul_memory';
+  private collectionName = "soul_memory";
 
-  constructor(url: string = 'http://localhost:6333') {
+  constructor(url: string = "http://localhost:6333") {
     this.client = new QdrantClient({ url });
   }
 
   async ensureCollection() {
     const response = await this.client.getCollections();
-    const exists = response.collections.some(c => c.name === this.collectionName);
+    const exists = response.collections.some((c) => c.name === this.collectionName);
 
     if (!exists) {
       console.log(`Creating collection ${this.collectionName}...`);
@@ -18,14 +18,14 @@ export class SchemaManager {
         vectors: {
           dense: {
             size: 384, // e5-small dimension
-            distance: 'Cosine',
+            distance: "Cosine",
           },
         },
         sparse_vectors: {
           sparse: {
             index: {
               on_disk: false,
-              datatype: 'float16',
+              datatype: "float16",
             },
           },
         },

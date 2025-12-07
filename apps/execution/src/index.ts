@@ -33,7 +33,7 @@ server.tool(
         isError: true,
       };
     }
-  }
+  },
 );
 
 server.tool(
@@ -55,7 +55,7 @@ server.tool(
         isError: true,
       };
     }
-  }
+  },
 );
 
 server.tool(
@@ -69,26 +69,26 @@ server.tool(
     try {
       // 1. Load Runtime (Python/JS)
       // For V1, assuming 'python'
-      const module = await loader.load('python'); 
-      
+      const module = await loader.load("python");
+
       // 2. Prepare VFS (Write args to stdin or file?)
       // Executor handles args?
       // In our design, wrapper reads stdin.
       // DEFAULT_CONFIG.stdin = args_json; // simplified config update
-      
+
       // 3. Execute
       const result = await executor.execute(module, [tool_name]); // Pass tool name as arg to wrapper?
-      
+
       return {
         content: [{ type: "text", text: result.stdout }],
       };
     } catch (e: any) {
-       return {
+      return {
         content: [{ type: "text", text: `Error: ${e.message}` }],
         isError: true,
       };
     }
-  }
+  },
 );
 
 async function main() {

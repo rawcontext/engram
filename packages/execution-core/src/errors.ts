@@ -1,4 +1,4 @@
-export type ExecutionErrorType = 'UserError' | 'SystemError';
+export type ExecutionErrorType = "UserError" | "SystemError";
 
 export interface ExecutionError {
   type: ExecutionErrorType;
@@ -7,6 +7,6 @@ export interface ExecutionError {
 }
 
 export const isUserError = (err: any): boolean => {
-    // Logic to distinguish syntax/runtime errors from sandbox crashes
-    return true; // Default
+  // Logic to distinguish syntax/runtime errors from sandbox crashes
+  return true; // Default
 };

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const VectorPointSchema = z.object({
   id: z.string().uuid(),
@@ -13,7 +13,7 @@ export const VectorPointSchema = z.object({
     content: z.string(), // The text chunk
     node_id: z.string(), // Link back to Graph Node
     session_id: z.string(),
-    type: z.enum(['thought', 'code', 'doc']),
+    type: z.enum(["thought", "code", "doc"]),
     timestamp: z.number(), // Epoch
     file_path: z.string().optional(),
   }),
@@ -27,8 +27,8 @@ export interface SearchQuery {
   threshold?: number;
   filters?: {
     session_id?: string;
-    type?: 'thought' | 'code';
+    type?: "thought" | "code";
     time_range?: { start: number; end: number };
   };
-  strategy: 'hybrid' | 'dense' | 'sparse';
+  strategy: "hybrid" | "dense" | "sparse";
 }

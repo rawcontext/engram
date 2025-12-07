@@ -11,6 +11,6 @@ export const DEFAULT_CONFIG: WassetteConfig = {
   timeoutMs: 5000, // 5s
   env: {},
   preopens: {
-    '/sandbox': '/app' // Default mount
-  }
+    "/sandbox": "/app", // Default mount
+  },
 };

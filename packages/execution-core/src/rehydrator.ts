@@ -1,10 +1,10 @@
-import { FalkorClient, createBlobStore } from '@the-soul/storage';
-import { VirtualFileSystem, PatchManager } from '@the-soul/vfs';
-import { MAX_DATE } from '@the-soul/memory-core';
+import { FalkorClient, createBlobStore } from "@the-soul/storage";
+import { VirtualFileSystem, PatchManager } from "@the-soul/vfs";
+import { MAX_DATE } from "@the-soul/memory-core";
 
 export class Rehydrator {
   private blobStore = createBlobStore();
-  
+
   constructor(private falkor: FalkorClient) {}
 
   async rehydrate(sessionId: string, targetTime: number = Date.now()): Promise<VirtualFileSystem> {
@@ -26,21 +26,21 @@ export class Rehydrator {
     let lastSnapshotTime = 0;
 
     if (snapshots && snapshots.length > 0) {
-        const snap = snapshots[0]; // Format depends on RedisGraph output structure
-        // Assuming [ { "s.vfs_state_blob_ref": "...", ... } ] or similar mapped object
-        // TODO: Handle RedisGraph raw response parsing
-        const blobRef = snap[0]; 
-        lastSnapshotTime = snap[1];
+      const snap = snapshots[0]; // Format depends on RedisGraph output structure
+      // Assuming [ { "s.vfs_state_blob_ref": "...", ... } ] or similar mapped object
+      // TODO: Handle RedisGraph raw response parsing
+      const blobRef = snap[0];
+      lastSnapshotTime = snap[1];
 
-        // Load Blob
-        const blobContent = await this.blobStore.read(blobRef);
-        await vfs.loadSnapshot(Buffer.from(blobContent)); // Assuming blob read returns string, convert to buffer? 
-        // Actually blobStore.read returns string. loadSnapshot expects Buffer (gzip). 
-        // Need to fix types or logic. Assuming blobStore handles binary as base64 or similar?
-        // For 'fs' store, readFile encoding 'utf-8'.
-        // We should probably store as base64 string in blob store if text-only, or buffer.
-        // Let's assume re-hydrating from JSON string (uncompressed) for V1 simplicity if blob store saves text.
-        // vfs.root = JSON.parse(blobContent);
+      // Load Blob
+      const blobContent = await this.blobStore.read(blobRef);
+      await vfs.loadSnapshot(Buffer.from(blobContent)); // Assuming blob read returns string, convert to buffer?
+      // Actually blobStore.read returns string. loadSnapshot expects Buffer (gzip).
+      // Need to fix types or logic. Assuming blobStore handles binary as base64 or similar?
+      // For 'fs' store, readFile encoding 'utf-8'.
+      // We should probably store as base64 string in blob store if text-only, or buffer.
+      // Let's assume re-hydrating from JSON string (uncompressed) for V1 simplicity if blob store saves text.
+      // vfs.root = JSON.parse(blobContent);
     }
 
     // 2. Apply Diffs from Snapshot Time to Target Time
@@ -55,13 +55,13 @@ export class Rehydrator {
        RETURN d.file_path, d.patch_content
        ORDER BY d.vt_start ASC
     `;
-    
+
     // This query is global! Need to filter by Session.
     // ... logic to filter by session ...
-    
+
     // Apply patches
     // ...
-    
+
     return vfs;
   }
 }

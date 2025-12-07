@@ -36,7 +36,7 @@ server.tool(
         isError: true,
       };
     }
-  }
+  },
 );
 
 // Tool: get_session_history
@@ -49,33 +49,33 @@ server.tool(
   },
   async ({ session_id, limit }) => {
     try {
-        await falkor.connect();
-        // MATCH (s:Session {id: $id})-[:TRIGGERS|NEXT*]->(t:Thought)
-        // This is a simplification. Real history is a linked list of thoughts.
-        // (s)-[:TRIGGERS]->(t1)-[:NEXT]->(t2)...
-        
-        // We need a recursive query or just find all thoughts linked to session (if we index them by session_id in properties for speed, or traverse).
-        // For V1, let's assume thoughts have a session_id property (denormalized) OR we traverse.
-        // Let's traverse.
-        
-        const cypher = `
+      await falkor.connect();
+      // MATCH (s:Session {id: $id})-[:TRIGGERS|NEXT*]->(t:Thought)
+      // This is a simplification. Real history is a linked list of thoughts.
+      // (s)-[:TRIGGERS]->(t1)-[:NEXT]->(t2)...
+
+      // We need a recursive query or just find all thoughts linked to session (if we index them by session_id in properties for speed, or traverse).
+      // For V1, let's assume thoughts have a session_id property (denormalized) OR we traverse.
+      // Let's traverse.
+
+      const cypher = `
             MATCH (s:Session {id: $session_id})-[:TRIGGERS]->(first:Thought)
             MATCH p = (first)-[:NEXT*0..${limit}]->(t:Thought)
             RETURN t
             ORDER BY t.vt_start ASC
         `;
-        
-        const result = await falkor.query(cypher, { session_id });
-        return {
-            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
+
+      const result = await falkor.query(cypher, { session_id });
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
     } catch (error: any) {
-        return {
-            content: [{ type: "text", text: `Error: ${error.message}` }],
-            isError: true,
-        };
+      return {
+        content: [{ type: "text", text: `Error: ${error.message}` }],
+        isError: true,
+      };
     }
-  }
+  },
 );
 
 // Start Server

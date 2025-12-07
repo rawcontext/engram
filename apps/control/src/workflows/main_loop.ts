@@ -3,9 +3,9 @@ import { z } from "zod";
 
 // V1 Scaffold Hack: Using 'any' to bypass strict type checks for 'Step' usage
 // until we have concrete Mastra 0.24 API details.
-// The error "Step only refers to a type" persists even with extension, 
+// The error "Step only refers to a type" persists even with extension,
 // suggesting 'Step' is purely an interface in this build or imported incorrectly.
-// We'll use a plain object or a mock class that 'implements' Step if needed, 
+// We'll use a plain object or a mock class that 'implements' Step if needed,
 // but for now, casting to 'any' is the fastest way to unblock the build.
 
 const thinkStep = {
@@ -32,6 +32,6 @@ export const mainLoop = new Workflow({
 } as any);
 
 // Add steps
-if (typeof (mainLoop as any).step === 'function') {
-    (mainLoop as any).step(thinkStep).then(actStep);
+if (typeof (mainLoop as any).step === "function") {
+  (mainLoop as any).step(thinkStep).then(actStep);
 }

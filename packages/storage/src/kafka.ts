@@ -1,17 +1,17 @@
-import { Kafka, Producer, Consumer } from 'kafkajs';
+import { Kafka, Producer, Consumer } from "kafkajs";
 
 export class KafkaClient {
   private kafka: Kafka;
   private producer: Producer | null = null;
 
-  constructor(brokers: string[] = ['localhost:9092'], clientId: string = 'soul-client') {
+  constructor(brokers: string[] = ["localhost:9092"], clientId: string = "soul-client") {
     this.kafka = new Kafka({
       clientId,
       brokers,
       retry: {
         initialRetryTime: 100,
-        retries: 8
-      }
+        retries: 8,
+      },
     });
   }
 
@@ -43,9 +43,9 @@ export class KafkaClient {
       messages: [
         {
           key, // Ensures all events with same key go to same partition
-          value: JSON.stringify(message)
-        }
-      ]
+          value: JSON.stringify(message),
+        },
+      ],
     });
   }
 
@@ -57,6 +57,6 @@ export class KafkaClient {
 }
 
 export const createKafkaClient = (clientId: string) => {
-  const brokers = (process.env.REDPANDA_BROKERS || 'localhost:9092').split(',');
+  const brokers = (process.env.REDPANDA_BROKERS || "localhost:9092").split(",");
   return new KafkaClient(brokers, clientId);
 };

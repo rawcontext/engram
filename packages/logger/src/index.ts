@@ -1,4 +1,4 @@
-import pino from 'pino';
+import pino from "pino";
 
 export interface LoggerOptions {
   level?: string;
@@ -7,16 +7,16 @@ export interface LoggerOptions {
 
 export const createLogger = (options: LoggerOptions = {}) => {
   return pino({
-    level: options.level || 'info',
+    level: options.level || "info",
     base: {
-      component: options.component || 'unknown',
+      component: options.component || "unknown",
     },
     formatters: {
       level: (label) => {
         return { severity: label.toUpperCase() };
       },
     },
-    messageKey: 'message',
+    messageKey: "message",
     timestamp: pino.stdTimeFunctions.isoTime,
   });
 };

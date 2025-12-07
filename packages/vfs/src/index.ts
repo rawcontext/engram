@@ -1,2 +1,2 @@
-export * from './vfs';
-export * from './patch';
+export * from "./vfs";
+export * from "./patch";
