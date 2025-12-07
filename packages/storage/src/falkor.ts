@@ -10,7 +10,9 @@ export class FalkorClient {
 	}
 
 	async connect() {
-		await this.client.connect();
+		if (!this.client.isOpen) {
+			await this.client.connect();
+		}
 	}
 
 	async query(cypher: string, params: Record<string, unknown> = {}): Promise<unknown> {
