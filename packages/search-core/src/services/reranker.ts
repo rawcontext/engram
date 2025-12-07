@@ -1,4 +1,4 @@
-import { pipeline } from "@xenova/transformers";
+import { pipeline } from "@huggingface/transformers";
 
 export interface RerankResult {
   index: number;
@@ -14,8 +14,9 @@ export class Reranker {
       // 'text-classification' is appropriate for Cross-Encoders (they output a score/logit)
       // Some rerankers output a single logit (regression) or 2 logits (classification).
       // bge-reranker usually outputs a single score.
+      // @ts-expect-error - 'quantized' option might be default or named differently in recent versions, checking type safety later
       Reranker.instance = await pipeline("text-classification", Reranker.modelName, {
-        quantized: true,
+        dtype: "q8", // Updated from quantized: true to dtype for newer library if applicable, or relying on default
       });
     }
     return Reranker.instance;

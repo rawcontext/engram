@@ -27,7 +27,7 @@ export interface SearchQuery {
   threshold?: number;
   filters?: {
     session_id?: string;
-    type?: "thought" | "code";
+    type?: "thought" | "code" | "doc"; // Updated to include 'doc' matching VectorPointSchema
     time_range?: { start: number; end: number };
   };
   strategy: "hybrid" | "dense" | "sparse";
