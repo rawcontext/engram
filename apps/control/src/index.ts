@@ -1,63 +1,83 @@
 import { createKafkaClient, createFalkorClient } from "@the-soul/storage";
+import { createNodeLogger } from "@the-soul/logger";
 import { ContextAssembler } from "./context/assembler";
 import { SessionManager } from "./session/manager";
-import { McpToolAdapter } from "./tools/mcp_client";
+import { McpToolAdapter, MultiMcpAdapter } from "./tools/mcp_client";
+
+const logger = createNodeLogger({ service: "control-service", component: "main" });
 
 // Initialize Services
 const kafka = createKafkaClient("control-service");
 const falkor = createFalkorClient();
 
-// Initialize MCP Adapter
-// For V1 scaffold: We'll spawn 'bun run apps/execution/src/index.ts' if local.
-const mcpAdapter = new McpToolAdapter("bun", ["run", "../../apps/execution/src/index.ts"]);
+// Initialize MCP Adapters
+// 1. Wassette (Official Binary)
+const wassettePath = `${process.env.HOME}/.local/bin/wassette`;
+const wassetteAdapter = new McpToolAdapter(wassettePath, ["serve", "--stdio"]);
+
+// 2. Execution Service (VFS, TimeTravel)
+// Using 'bun' to run the execution service script
+const executionAdapter = new McpToolAdapter("bun", ["run", "../../apps/execution/src/index.ts"]);
+
+// Unified Adapter
+const multiAdapter = new MultiMcpAdapter();
+multiAdapter.addAdapter(wassetteAdapter);
+multiAdapter.addAdapter(executionAdapter);
 
 // Initialize Core Logic
 // TODO: Replace with real SearchRetriever when available or mocked properly
 const contextAssembler = new ContextAssembler(
-  {} as unknown as import("@the-soul/search-core").SearchRetriever,
-  falkor,
+	{} as unknown as import("@the-soul/search-core").SearchRetriever,
+	falkor,
 );
 
-const sessionManager = new SessionManager(contextAssembler, mcpAdapter, falkor);
+const sessionManager = new SessionManager(contextAssembler, multiAdapter, falkor);
 
-// Connect to DB
+// Connect to DB and MCP
 async function init() {
-  await falkor.connect();
-  console.log("FalkorDB connected");
+	await falkor.connect();
+	logger.info("FalkorDB connected");
+	
+	try {
+		await multiAdapter.connectAll();
+		logger.info("All MCP Servers connected");
+	} catch (error) {
+		logger.error({ error }, "Failed to connect to MCP Servers");
+	}
 }
 
 // Kafka Consumer
 const startConsumer = async () => {
-  await init();
+	await init();
 
-  const consumer = await kafka.createConsumer("control-group");
-  await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
+	const consumer = await kafka.createConsumer("control-group");
+	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
 
-  await consumer.run({
-    eachMessage: async ({ message }) => {
-      try {
-        const value = message.value?.toString();
-        if (!value) return;
-        const event = JSON.parse(value);
+	await consumer.run({
+		eachMessage: async ({ message }) => {
+			try {
+				const value = message.value?.toString();
+				if (!value) return;
+				const event = JSON.parse(value);
 
-        // Filter for user messages or system triggers
-        if (event.type === "content" && event.role === "user") {
-          console.log(`[Control] Received user input: ${event.content}`);
-          // Trigger Session Manager
-          const sessionId = event.metadata?.session_id || event.original_event_id;
-          if (!sessionId) {
-             console.warn("No session_id in event metadata");
-             return;
-          }
-          await sessionManager.handleInput(sessionId, event.content);
-        }
-      } catch (e) {
-        console.error("Control processing error", e);
-      }
-    },
-  });
+				// Filter for user messages or system triggers
+				if (event.type === "content" && event.role === "user") {
+					logger.info({ content: event.content }, "Received user input");
+					// Trigger Session Manager
+					const sessionId = event.metadata?.session_id || event.original_event_id;
+					if (!sessionId) {
+						logger.warn("No session_id in event metadata");
+						return;
+					}
+					await sessionManager.handleInput(sessionId, event.content);
+				}
+			} catch (e) {
+				logger.error({ error: e }, "Control processing error");
+			}
+		},
+	});
 };
 
 // Start
-console.log("Control Service starting...");
+logger.info("Control Service starting...");
 startConsumer().catch(console.error);

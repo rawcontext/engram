@@ -4,8 +4,10 @@ import { createActor, fromPromise } from "xstate";
 import type { ContextAssembler } from "../context/assembler";
 import { type AgentContext, agentMachine } from "../state/machine";
 import type { MultiMcpAdapter } from "../tools/mcp_client";
+import { createNodeLogger } from "@the-soul/logger";
 
 const mockModel = openai("gpt-4-turbo");
+const logger = createNodeLogger({ service: "control-service", component: "decision-engine" });
 
 export class DecisionEngine {
 	private actor;
@@ -75,7 +77,7 @@ export class DecisionEngine {
 					}),
 					streamResponse: fromPromise(async ({ input }) => {
 						const ctx = input as AgentContext;
-						console.log("Response:", ctx.finalResponse);
+						logger.info({ response: ctx.finalResponse }, "Agent Response");
 						return {};
 					}),
 					recoverError: fromPromise(async ({ input }) => {

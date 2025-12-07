@@ -1,4 +1,7 @@
 import type { FalkorClient } from "@the-soul/storage";
+import { createNodeLogger } from "@the-soul/logger";
+
+const logger = createNodeLogger({ service: "control-service", component: "session-initializer" });
 
 export class SessionInitializer {
   constructor(private falkor: FalkorClient) {}
@@ -28,6 +31,7 @@ export class SessionInitializer {
     `;
 
     await this.falkor.query(createQuery, { id: sessionId, now });
-    console.log(`[SessionInitializer] Created new Session: ${sessionId}`);
+    logger.info({ sessionId }, "Created new Session");
   }
 }
+

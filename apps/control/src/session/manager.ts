@@ -1,8 +1,11 @@
 import { DecisionEngine } from "../engine/decision";
 import type { ContextAssembler } from "../context/assembler";
-import type { McpToolAdapter } from "../tools/mcp_client";
+import type { MultiMcpAdapter } from "../tools/mcp_client";
 import { SessionInitializer } from "./initializer";
 import type { FalkorClient } from "@the-soul/storage";
+import { createNodeLogger } from "@the-soul/logger";
+
+const logger = createNodeLogger({ service: "control-service", component: "session-manager" });
 
 export class SessionManager {
   private sessions = new Map<string, DecisionEngine>();
@@ -10,7 +13,7 @@ export class SessionManager {
 
   constructor(
     private contextAssembler: ContextAssembler,
-    private mcpAdapter: McpToolAdapter,
+    private mcpAdapter: MultiMcpAdapter,
     falkor: FalkorClient
   ) {
     this.initializer = new SessionInitializer(falkor);
@@ -23,7 +26,7 @@ export class SessionManager {
     // 2. Get or Create Engine (Actor)
     let engine = this.sessions.get(sessionId);
     if (!engine) {
-      console.log(`[SessionManager] Spawning new DecisionEngine for ${sessionId}`);
+      logger.info({ sessionId }, "Spawning new DecisionEngine");
       engine = new DecisionEngine(this.contextAssembler, this.mcpAdapter);
       engine.start();
       this.sessions.set(sessionId, engine);
