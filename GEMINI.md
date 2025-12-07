@@ -14,7 +14,7 @@ This project is a **Turborepo** monorepo managed with **Bun**.
   - `memory`: Memory management service (interacting with vector/graph DBs).
   - `search`: Search service.
 - **`packages/`**: Shared libraries and core logic.
-  - `events`, `execution-core`, `infra`, `ingestion-core`, `logger`, `memory-core`, `search-core`, `storage`, `tsconfig`, `vfs`, `wassette`.
+  - `events`, `execution-core`, `infra`, `ingestion-core`, `logger`, `memory-core`, `search-core`, `storage`, `tsconfig`, `vfs`.
 - **`docker-compose.dev.yml`**: Defines the local development infrastructure.
 
 ## Infrastructure
@@ -65,3 +65,5 @@ The system relies on the following services (defined in `docker-compose.dev.yml`
 
 - **Context7 MCP**: You **MUST** always use the Context7 MCP when working with a library.
 - **Research First**: You **MUST** always perform web searches before working with a library to learn idiomatic patterns and view examples.
+
+---
