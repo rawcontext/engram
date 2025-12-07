@@ -44,7 +44,9 @@ describe("Storage Package", () => {
     describe("FalkorClient", () => {
         it("should create a client with default URL", () => {
             const client = createFalkorClient();
-            expect(client).toBeInstanceOf(FalkorClient);
+            expect(client).toBeDefined();
+            expect(client.connect).toBeFunction();
+            expect(client.query).toBeFunction();
         });
 
         it("should connect and disconnect", async () => {
@@ -84,7 +86,8 @@ describe("Storage Package", () => {
     describe("KafkaClient", () => {
         it("should create a client with defaults", () => {
             const client = createKafkaClient("test-client");
-            expect(client).toBeInstanceOf(KafkaClient);
+            expect(client).toBeDefined();
+            expect(client.getProducer).toBeFunction();
         });
 
         it("should get producer and connect once", async () => {

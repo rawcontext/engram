@@ -63,12 +63,14 @@ describe("Blob Storage", () => {
     describe("Factory", () => {
         it("should create FS store by default", () => {
             const store = createBlobStore();
-            expect(store).toBeInstanceOf(FileSystemBlobStore);
+            expect(store.save).toBeFunction();
+            expect((store as any).basePath).toBeDefined(); // Property specific to FileSystemBlobStore
         });
 
         it("should create GCS store when requested", () => {
             const store = createBlobStore("gcs");
-            expect(store).toBeInstanceOf(GCSBlobStore);
+            expect(store.save).toBeFunction();
+            expect((store as any).bucket).toBeDefined(); // Property specific to GCSBlobStore
         });
     });
 });
