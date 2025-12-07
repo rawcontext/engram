@@ -1,6 +1,7 @@
 export interface StreamDelta {
   content?: string;
-  thought?: string; // Added thought field
+  thought?: string;
+  diff?: string; // Added diff field
   toolCall?: {
     index?: number;
     id?: string;

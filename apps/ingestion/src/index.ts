@@ -1,6 +1,7 @@
 import { RawStreamEventSchema } from "@the-soul/events";
 import {
   AnthropicParser,
+  DiffExtractor,
   OpenAIParser,
   Redactor,
   type StreamDelta,
@@ -13,10 +14,9 @@ const redactor = new Redactor();
 const anthropicParser = new AnthropicParser();
 const openaiParser = new OpenAIParser();
 
-// In-memory state for thinking extraction (per session)
-// Note: In a production multi-instance setup, this should be replaced by
-// processing raw events from Kafka in a stateful consumer, or using sticky sessions.
-const extractors = new Map<string, ThinkingExtractor>();
+// In-memory state for extractors (per session)
+const thinkingExtractors = new Map<string, ThinkingExtractor>();
+const diffExtractors = new Map<string, DiffExtractor>();
 
 // Simple Bun Server
 const server = Bun.serve({
@@ -45,35 +45,43 @@ const server = Bun.serve({
           return new Response("Ignored event (no delta)", { status: 200 });
         }
 
-        // 2. Extract Thinking (Stateful)
+        // 2. Extract Thinking
         if (delta.content) {
-          let extractor = extractors.get(sessionId);
+          let extractor = thinkingExtractors.get(sessionId);
           if (!extractor) {
             extractor = new ThinkingExtractor();
-            extractors.set(sessionId, extractor);
+            thinkingExtractors.set(sessionId, extractor);
           }
-
-          // Process content through extractor
           const extracted = extractor.process(delta.content);
-
-          // Update delta with extracted content/thought
           delta.content = extracted.content;
           delta.thought = extracted.thought;
-
-          // If both empty (buffered partial tag), we might send an empty event or skip?
-          // Better to send empty update to keep alive?
-          // If content became empty because it's all buffered, we should probably not redact/send empty content string.
         }
 
-        // 3. Redact
+        // 3. Extract Diffs (from remaining content)
+        if (delta.content) {
+          let diffExtractor = diffExtractors.get(sessionId);
+          if (!diffExtractor) {
+            diffExtractor = new DiffExtractor();
+            diffExtractors.set(sessionId, diffExtractor);
+          }
+          const extracted = diffExtractor.process(delta.content);
+          delta.content = extracted.content;
+          delta.diff = extracted.diff;
+        }
+
+        // 4. Redact
         if (delta.content) {
           delta.content = redactor.redact(delta.content);
         }
         if (delta.thought) {
           delta.thought = redactor.redact(delta.thought);
         }
+        // Diff content usually shouldn't be redacted blindly (might break code),
+        // but if it contains secrets/PII it should be.
+        // For V1, let's trust code generation or use targeted redaction.
+        // We'll skip redacting diff for now to avoid breaking patch syntax with [EMAIL] replacements.
 
-        // 4. Publish
+        // 5. Publish
         await kafka.sendEvent("parsed_events", sessionId, {
           ...delta,
           original_event_id: rawEvent.event_id,
