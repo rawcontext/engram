@@ -35,5 +35,5 @@ export interface SearchQuery {
     type?: SearchType;
     time_range?: { start: number; end: number };
   };
-  strategy: "hybrid" | "dense" | "sparse";
+  strategy?: "hybrid" | "dense" | "sparse"; // Made optional
 }
