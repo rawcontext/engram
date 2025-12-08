@@ -1,63 +1,83 @@
-import { pipeline } from "@huggingface/transformers";
+import { AutoTokenizer, pipeline } from "@huggingface/transformers";
 
 /**
  * BM25-based sparse vector generator for hybrid search.
- * Uses term frequency with sublinear scaling and document length normalization.
+ * Uses BERT tokenizer for vocabulary-based indexing and BM25 scoring.
  */
 class BM25Sparse {
 	// BM25 parameters
 	private k1 = 1.2; // Term frequency saturation parameter
 	private b = 0.75; // Length normalization parameter
 	private avgDocLength = 100; // Assumed average document length
-	private vocabSize = 30000; // Hash space for token indices
+
+	// Tokenizer instance (lazy loaded)
+	private static tokenizer: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>> | null =
+		null;
+	private static tokenizerPromise: Promise<
+		Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>>
+	> | null = null;
 
 	/**
-	 * Simple tokenizer: lowercase, split on non-alphanumeric, filter short tokens
+	 * Get or initialize the BERT tokenizer.
+	 * Uses bert-base-uncased vocabulary (30522 tokens).
 	 */
-	private tokenize(text: string): string[] {
-		return text
-			.toLowerCase()
-			.split(/[^a-z0-9]+/)
-			.filter((t) => t.length > 1);
+	private async getTokenizer() {
+		if (BM25Sparse.tokenizer) {
+			return BM25Sparse.tokenizer;
+		}
+		if (!BM25Sparse.tokenizerPromise) {
+			BM25Sparse.tokenizerPromise = AutoTokenizer.from_pretrained("Xenova/bert-base-uncased");
+		}
+		BM25Sparse.tokenizer = await BM25Sparse.tokenizerPromise;
+		return BM25Sparse.tokenizer;
 	}
 
 	/**
-	 * Hash a string to a consistent integer index within vocab range.
-	 * Uses FNV-1a hash for good distribution.
+	 * Tokenize text using BERT tokenizer and return token IDs.
+	 * Filters out special tokens ([CLS], [SEP], [PAD]).
 	 */
-	private hashToken(token: string): number {
-		let hash = 2166136261; // FNV offset basis
-		for (let i = 0; i < token.length; i++) {
-			hash ^= token.charCodeAt(i);
-			hash = Math.imul(hash, 16777619); // FNV prime
+	private async tokenize(text: string): Promise<number[]> {
+		const tokenizer = await this.getTokenizer();
+		const encoded = tokenizer(text, { add_special_tokens: false });
+		// Extract token IDs from tensor
+		const inputIds = encoded.input_ids;
+		const ids: number[] = [];
+		// Handle both tensor and array formats
+		if (inputIds.data) {
+			for (const id of inputIds.data) {
+				ids.push(Number(id));
+			}
+		} else if (Array.isArray(inputIds)) {
+			for (const id of inputIds.flat()) {
+				ids.push(Number(id));
+			}
 		}
-		// Ensure positive index within vocab range
-		return Math.abs(hash) % this.vocabSize;
+		return ids;
 	}
 
 	/**
 	 * Generate sparse vector from text using BM25-like scoring.
-	 * Returns indices (token hashes) and values (BM25 weights).
+	 * Returns indices (BERT vocabulary token IDs) and values (BM25 weights).
 	 */
-	embed(text: string): { indices: number[]; values: number[] } {
-		const tokens = this.tokenize(text);
-		if (tokens.length === 0) {
+	async embed(text: string): Promise<{ indices: number[]; values: number[] }> {
+		const tokenIds = await this.tokenize(text);
+		if (tokenIds.length === 0) {
 			return { indices: [], values: [] };
 		}
 
-		// Count term frequencies
-		const termFreqs = new Map<string, number>();
-		for (const token of tokens) {
-			termFreqs.set(token, (termFreqs.get(token) || 0) + 1);
+		// Count term frequencies by token ID
+		const termFreqs = new Map<number, number>();
+		for (const tokenId of tokenIds) {
+			termFreqs.set(tokenId, (termFreqs.get(tokenId) || 0) + 1);
 		}
 
 		// Calculate BM25-like weights
-		const docLength = tokens.length;
+		const docLength = tokenIds.length;
 		const lengthNorm = 1 - this.b + this.b * (docLength / this.avgDocLength);
 
 		const indexValuePairs: Array<[number, number]> = [];
 
-		for (const [term, tf] of termFreqs) {
+		for (const [tokenId, tf] of termFreqs) {
 			// BM25 term frequency component (without IDF since we don't have corpus stats)
 			// Using sublinear TF scaling: tf / (tf + k1 * lengthNorm)
 			const tfScore = tf / (tf + this.k1 * lengthNorm);
@@ -65,24 +85,15 @@ class BM25Sparse {
 			// Apply log scaling to smooth weights
 			const weight = Math.log1p(tfScore * 10);
 
-			const index = this.hashToken(term);
-			indexValuePairs.push([index, weight]);
+			indexValuePairs.push([tokenId, weight]);
 		}
 
 		// Sort by index for consistent ordering (Qdrant expects sorted indices)
 		indexValuePairs.sort((a, b) => a[0] - b[0]);
 
-		// Handle hash collisions by summing weights for same index
-		const merged = new Map<number, number>();
-		for (const [idx, val] of indexValuePairs) {
-			merged.set(idx, (merged.get(idx) || 0) + val);
-		}
-
-		const sortedEntries = Array.from(merged.entries()).sort((a, b) => a[0] - b[0]);
-
 		return {
-			indices: sortedEntries.map(([idx]) => idx),
-			values: sortedEntries.map(([, val]) => val),
+			indices: indexValuePairs.map(([idx]) => idx),
+			values: indexValuePairs.map(([, val]) => val),
 		};
 	}
 }
@@ -125,8 +136,8 @@ export class TextEmbedder {
 
 	/**
 	 * Generate sparse vector using BM25-based term weighting.
-	 * Returns indices (hashed token IDs) and values (BM25 weights).
-	 * Used for keyword matching in hybrid search alongside dense vectors.
+	 * Returns indices (BERT vocabulary token IDs) and values (BM25 weights).
+	 * Uses proper tokenization for better keyword matching in hybrid search.
 	 */
 	async embedSparse(text: string): Promise<{ indices: number[]; values: number[] }> {
 		return this.sparseEmbedder.embed(text);
