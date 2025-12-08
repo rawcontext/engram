@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { createNodeLogger, pino } from "@engram/logger";
 import { GraphPruner } from "@engram/memory-core";
 import { createFalkorClient, createKafkaClient } from "@engram/storage";
+import { createRedisPublisher } from "@engram/storage/redis";
 import { z } from "zod";
 
 // Initialize Logger (stderr for MCP safety)
@@ -19,6 +20,7 @@ const logger = createNodeLogger(
 // Initialize Services
 const falkor = createFalkorClient();
 const kafka = createKafkaClient("memory-service");
+const redis = createRedisPublisher();
 const pruner = new GraphPruner(falkor);
 
 // Pruning Job
@@ -106,6 +108,18 @@ async function startPersistenceConsumer() {
 				});
 
 				logger.info({ eventId, sessionId }, "Persisted event to graph");
+
+				// Publish to Redis for real-time WebSocket streaming
+				await redis.publishSessionUpdate(sessionId, {
+					type: "node_created",
+					data: {
+						id: eventId,
+						type,
+						role,
+						content,
+						timestamp: event.timestamp || new Date().toISOString(),
+					},
+				});
 
 				// Publish 'memory.node_created' for Search Service
 				await kafka.sendEvent("memory.node_created", eventId, {

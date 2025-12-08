@@ -1,7 +1,9 @@
 import { WebSocket } from 'ws';
 import { createFalkorClient } from '@engram/storage/falkor';
+import { createRedisSubscriber, type SessionUpdate } from '@engram/storage/redis';
 
 const falkor = createFalkorClient();
+const redisSubscriber = createRedisSubscriber();
 
 interface LineageNode {
     id: string;
@@ -16,88 +18,57 @@ interface LineageLink {
     type: string;
 }
 
-// Keep track of active intervals to clear them on disconnect
-const activeIntervals = new WeakMap<WebSocket, NodeJS.Timeout>();
-
-export function handleSessionConnection(ws: WebSocket, sessionId: string) {
+export async function handleSessionConnection(ws: WebSocket, sessionId: string) {
     console.log(`[WS] Client connected to session ${sessionId}`);
 
-    // Send initial "connected" message if needed
-    // ws.send(JSON.stringify({ type: 'status', message: 'connected' }));
-
-    // Setup polling for this session
-    // In a real prod scenario, we'd listen to Kafka or Redis PubSub.
-    // For now, to satisfy the requirement of "real-time updates" via WS,
-    // we'll poll the DB and push changes.
-    
-    let lastNodeCount = 0;
-    let lastEventCount = 0;
-
-    const poll = async () => {
+    // Subscribe to Redis channel for real-time updates
+    const unsubscribe = await redisSubscriber.subscribe(sessionId, (update: SessionUpdate) => {
         if (ws.readyState !== WebSocket.OPEN) return;
 
-        try {
-            await falkor.connect();
-
-            // 1. Fetch Lineage (Simplified query for counts/diffing)
-            // We reuse the logic from the API route roughly
-            const lineageQuery = `
-                MATCH (s:Session {id: $sessionId})
-                OPTIONAL MATCH p = (s)-[:TRIGGERS|NEXT*0..100]->(n)
-                RETURN count(distinct n) as nodeCount
-            `;
-            
-            // biome-ignore lint/suspicious/noExplicitAny: FalkorDB response
-            const lineageRes: any = await falkor.query(lineageQuery, { sessionId });
-            const currentNodeCount = Number(lineageRes?.[0]?.nodeCount || 0);
-
-            // 2. Fetch Replay/Timeline count
-            const replayQuery = `
-                MATCH (s:Session {id: $sessionId})-[:TRIGGERS]->(t:Thought)
-                RETURN count(t) as eventCount
-            `;
-             // biome-ignore lint/suspicious/noExplicitAny: FalkorDB response
-            const replayRes: any = await falkor.query(replayQuery, { sessionId });
-            const currentEventCount = Number(replayRes?.[0]?.eventCount || 0);
-
-            // If changed, fetch full data and push
-            // Note: This is inefficient for large graphs, but fine for prototype/small sessions.
-            if (currentNodeCount !== lastNodeCount) {
-                 const fullLineageData = await getFullLineage(sessionId);
-                 ws.send(JSON.stringify({ type: 'lineage', data: fullLineageData }));
-                 lastNodeCount = currentNodeCount;
-            }
-
-            if (currentEventCount !== lastEventCount) {
-                const fullReplayData = await getFullTimeline(sessionId);
-                ws.send(JSON.stringify({ type: 'replay', data: fullReplayData }));
-                lastEventCount = currentEventCount;
-            }
-
-        } catch (error) {
-            console.error('[WS] Polling error:', error);
-            // Optionally send error to client
-        }
-    };
-
-    // Poll every 1 second
-    const interval = setInterval(poll, 1000);
-    activeIntervals.set(ws, interval);
-
-    // Initial poll
-    poll();
-
-    ws.on('close', () => {
-        console.log(`[WS] Client disconnected from session ${sessionId}`);
-        const interval = activeIntervals.get(ws);
-        if (interval) clearInterval(interval);
+        // Forward the update to the WebSocket client
+        // The client can handle incremental updates or request full refresh
+        ws.send(JSON.stringify({
+            type: 'update',
+            data: update,
+        }));
     });
 
-    ws.on('message', (message) => {
+    // Send initial data (one-time fetch)
+    try {
+        await falkor.connect();
+
+        // Fetch initial lineage
+        const lineageData = await getFullLineage(sessionId);
+        if (lineageData.nodes.length > 0) {
+            ws.send(JSON.stringify({ type: 'lineage', data: lineageData }));
+        }
+
+        // Fetch initial timeline
+        const timelineData = await getFullTimeline(sessionId);
+        if (timelineData.timeline.length > 0) {
+            ws.send(JSON.stringify({ type: 'replay', data: timelineData }));
+        }
+    } catch (error) {
+        console.error('[WS] Initial fetch error:', error);
+    }
+
+    ws.on('close', async () => {
+        console.log(`[WS] Client disconnected from session ${sessionId}`);
+        await unsubscribe();
+    });
+
+    ws.on('message', async (message) => {
         try {
             const data = JSON.parse(message.toString());
-            if (data.type === 'subscribe') {
-                // Handled by connection logic currently
+
+            // Client can request a full refresh if needed
+            if (data.type === 'refresh') {
+                await falkor.connect();
+                const lineageData = await getFullLineage(sessionId);
+                ws.send(JSON.stringify({ type: 'lineage', data: lineageData }));
+
+                const timelineData = await getFullTimeline(sessionId);
+                ws.send(JSON.stringify({ type: 'replay', data: timelineData }));
             }
         } catch (e) {
             console.error('[WS] Invalid message', e);
@@ -105,7 +76,7 @@ export function handleSessionConnection(ws: WebSocket, sessionId: string) {
     });
 }
 
-// Helpers to fetch full data (duplicated from API routes for now to keep independent)
+// Helpers to fetch full data
 async function getFullLineage(sessionId: string) {
     const query = `
       MATCH (s:Session {id: $sessionId})
@@ -114,9 +85,6 @@ async function getFullLineage(sessionId: string) {
     `;
     // biome-ignore lint/suspicious/noExplicitAny: FalkorDB response
     const res: any = await falkor.query(query, { sessionId });
-    
-    // FalkorDB TS returns an array of objects where keys match RETURN alias
-    // [{ s: Node, path_nodes: Node[], path_edges: Edge[] }, ...]
 
     const internalIdToUuid = new Map<number, string>();
     const nodes: any[] = [];
@@ -134,7 +102,7 @@ async function getFullLineage(sessionId: string) {
                      }
                  }
              }
-             
+
              const pathNodes = row.path_nodes;
              if (Array.isArray(pathNodes)) {
                  for (const n of pathNodes) {
@@ -151,7 +119,7 @@ async function getFullLineage(sessionId: string) {
                  }
              }
         }
-        
+
         // Now process edges
         for (const row of res) {
             const pathEdges = row.path_edges;
@@ -160,9 +128,7 @@ async function getFullLineage(sessionId: string) {
                     if (e) {
                         const sourceUuid = internalIdToUuid.get(e.sourceId || e.srcNodeId);
                         const targetUuid = internalIdToUuid.get(e.destinationId || e.destNodeId);
-                        // Fallback for different library versions property names if needed
-                        // But test script showed sourceId/destinationId
-                        
+
                         if (sourceUuid && targetUuid) {
                             links.push({
                                 source: sourceUuid,

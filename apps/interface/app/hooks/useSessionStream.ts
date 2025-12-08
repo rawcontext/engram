@@ -128,8 +128,14 @@ export function useSessionStream({ sessionId, onLineageUpdate, onReplayUpdate }:
               break;
 
             case 'update':
-              // Combined update
-              if (message.lineage) {
+              // Real-time incremental update from Redis Pub/Sub
+              // For now, request a full refresh to get latest data
+              // This could be optimized to do incremental updates client-side
+              if (message.data?.type === 'node_created') {
+                // New node was created - request full refresh
+                ws.send(JSON.stringify({ type: 'refresh' }));
+              } else if (message.lineage) {
+                // Legacy combined update format
                 setState(prev => ({ ...prev, lineage: message.lineage }));
                 onLineageUpdate?.(message.lineage);
               }

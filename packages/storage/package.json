@@ -8,7 +8,8 @@
 		".": "./src/index.ts",
 		"./falkor": "./src/falkor.ts",
 		"./kafka": "./src/kafka.ts",
-		"./blob": "./src/blob.ts"
+		"./blob": "./src/blob.ts",
+		"./redis": "./src/redis.ts"
 	},
 	"devDependencies": {
 		"typescript": "^5.9.3",
