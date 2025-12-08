@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
-import { TimeTravelService } from "./time-travel";
-import type { Rehydrator } from "./rehydrator";
 import { VirtualFileSystem } from "@engram/vfs";
+import type { Rehydrator } from "./rehydrator";
+import { TimeTravelService } from "./time-travel";
 
 // Mock VirtualFileSystem
 const mockVFS = new VirtualFileSystem();

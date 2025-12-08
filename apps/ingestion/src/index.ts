@@ -1,5 +1,4 @@
-import { createServer } from "http";
-import { RawStreamEventSchema, type RawStreamEvent } from "@engram/events";
+import { type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
 import {
 	AnthropicParser,
 	DiffExtractor,
@@ -10,6 +9,7 @@ import {
 	XAIParser,
 } from "@engram/ingestion-core";
 import { createKafkaClient } from "@engram/storage";
+import { createServer } from "http";
 
 const kafka = createKafkaClient("ingestion-service");
 const redactor = new Redactor();

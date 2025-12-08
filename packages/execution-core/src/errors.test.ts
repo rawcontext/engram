@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isUserError, type ExecutionError } from "./errors";
+import { type ExecutionError, isUserError } from "./errors";
 
 describe("Execution Errors", () => {
 	it("isUserError should return true by default", () => {

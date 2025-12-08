@@ -9,7 +9,13 @@ function getRedisUrl(): string {
 }
 
 export interface SessionUpdate {
-	type: "lineage" | "timeline" | "node_created" | "session_created" | "session_updated" | "session_closed";
+	type:
+		| "lineage"
+		| "timeline"
+		| "node_created"
+		| "session_created"
+		| "session_updated"
+		| "session_closed";
 	sessionId: string;
 	data: unknown;
 	timestamp: number;
@@ -44,7 +50,10 @@ export function createRedisPublisher() {
 		}
 	};
 
-	const publishSessionUpdate = async (sessionId: string, update: Omit<SessionUpdate, "sessionId" | "timestamp">) => {
+	const publishSessionUpdate = async (
+		sessionId: string,
+		update: Omit<SessionUpdate, "sessionId" | "timestamp">,
+	) => {
 		const conn = await connect();
 		const channel = `session:${sessionId}:updates`;
 		const message: SessionUpdate = {
@@ -58,7 +67,7 @@ export function createRedisPublisher() {
 	// Publish to the global sessions channel for homepage updates
 	const publishGlobalSessionEvent = async (
 		eventType: "session_created" | "session_updated" | "session_closed",
-		sessionData: unknown
+		sessionData: unknown,
 	) => {
 		const conn = await connect();
 		const message: SessionUpdate = {
@@ -99,12 +108,15 @@ export function createRedisSubscriber() {
 		return client;
 	};
 
-	const subscribe = async (channelOrSessionId: string, callback: (message: SessionUpdate) => void) => {
+	const subscribe = async (
+		channelOrSessionId: string,
+		callback: (message: SessionUpdate) => void,
+	) => {
 		const conn = await connect();
 		// Support both session-specific channels and global channels
 		const channel = channelOrSessionId.includes(":")
-			? channelOrSessionId  // Already a full channel name (e.g., "sessions:updates")
-			: `session:${channelOrSessionId}:updates`;  // Session ID, build channel name
+			? channelOrSessionId // Already a full channel name (e.g., "sessions:updates")
+			: `session:${channelOrSessionId}:updates`; // Session ID, build channel name
 
 		// Track callbacks per channel
 		if (!subscriptions.has(channel)) {

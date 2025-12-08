@@ -9,8 +9,8 @@ mock.module("@engram/storage", () => ({
 	}),
 }));
 
-import { Rehydrator } from "./rehydrator";
 import type { FalkorClient } from "@engram/storage";
+import { Rehydrator } from "./rehydrator";
 
 describe("Rehydrator", () => {
 	const mockFalkorQuery = mock(async () => []);

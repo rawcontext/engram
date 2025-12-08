@@ -1,59 +1,59 @@
-import { describe, it, expect, mock, spyOn } from "bun:test";
+import { describe, expect, it, mock, spyOn } from "bun:test";
 import { BatchIndexer } from "./batch-indexer";
 import type { SearchIndexer } from "./indexer";
 
 describe("BatchIndexer", () => {
-    it("should buffer items and flush on limit", async () => {
-        const mockIndexNode = mock(async () => {});
-        const mockIndexer = {
-            indexNode: mockIndexNode
-        } as unknown as SearchIndexer;
+	it("should buffer items and flush on limit", async () => {
+		const mockIndexNode = mock(async () => {});
+		const mockIndexer = {
+			indexNode: mockIndexNode,
+		} as unknown as SearchIndexer;
 
-        const batcher = new BatchIndexer(mockIndexer, { batchSize: 2 });
-        
-        // Add 1 - buffer
-        batcher.add({ id: "1" } as any);
-        expect(mockIndexNode).not.toHaveBeenCalled();
+		const batcher = new BatchIndexer(mockIndexer, { batchSize: 2 });
 
-        // Add 2 - flush
-        batcher.add({ id: "2" } as any);
-        
-        // Wait for p-queue (async processing)
-        // Since we didn't mock p-queue, it runs immediately or on microtask
-        await new Promise(resolve => setTimeout(resolve, 0));
-        
-        expect(mockIndexNode).toHaveBeenCalledTimes(2);
-    });
+		// Add 1 - buffer
+		batcher.add({ id: "1" } as any);
+		expect(mockIndexNode).not.toHaveBeenCalled();
 
-    it("should flush on timeout", async () => {
-        const mockIndexNode = mock(async () => {});
-        const mockIndexer = {
-            indexNode: mockIndexNode
-        } as unknown as SearchIndexer;
+		// Add 2 - flush
+		batcher.add({ id: "2" } as any);
 
-        // Short interval
-        const batcher = new BatchIndexer(mockIndexer, { batchSize: 10, flushInterval: 50 });
-        
-        batcher.add({ id: "1" } as any);
-        expect(mockIndexNode).not.toHaveBeenCalled();
+		// Wait for p-queue (async processing)
+		// Since we didn't mock p-queue, it runs immediately or on microtask
+		await new Promise((resolve) => setTimeout(resolve, 0));
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+		expect(mockIndexNode).toHaveBeenCalledTimes(2);
+	});
 
-        expect(mockIndexNode).toHaveBeenCalledTimes(1);
-    });
+	it("should flush on timeout", async () => {
+		const mockIndexNode = mock(async () => {});
+		const mockIndexer = {
+			indexNode: mockIndexNode,
+		} as unknown as SearchIndexer;
 
-    it("should flush on shutdown", async () => {
-        const mockIndexNode = mock(async () => {});
-        const mockIndexer = {
-            indexNode: mockIndexNode
-        } as unknown as SearchIndexer;
+		// Short interval
+		const batcher = new BatchIndexer(mockIndexer, { batchSize: 10, flushInterval: 50 });
 
-        const batcher = new BatchIndexer(mockIndexer, { batchSize: 10 });
-        
-        batcher.add({ id: "1" } as any);
-        
-        await batcher.shutdown();
-        
-        expect(mockIndexNode).toHaveBeenCalledTimes(1);
-    });
+		batcher.add({ id: "1" } as any);
+		expect(mockIndexNode).not.toHaveBeenCalled();
+
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		expect(mockIndexNode).toHaveBeenCalledTimes(1);
+	});
+
+	it("should flush on shutdown", async () => {
+		const mockIndexNode = mock(async () => {});
+		const mockIndexer = {
+			indexNode: mockIndexNode,
+		} as unknown as SearchIndexer;
+
+		const batcher = new BatchIndexer(mockIndexer, { batchSize: 10 });
+
+		batcher.add({ id: "1" } as any);
+
+		await batcher.shutdown();
+
+		expect(mockIndexNode).toHaveBeenCalledTimes(1);
+	});
 });

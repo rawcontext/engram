@@ -1,5 +1,5 @@
-import { apiError, apiSuccess } from "@lib/api-response";
 import { createFalkorClient } from "@engram/storage/falkor";
+import { apiError, apiSuccess } from "@lib/api-response";
 
 const falkor = createFalkorClient();
 
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
 
 					const lastEventAt = props.lastEventAt || null;
 					const now = Date.now();
-					const isActive = lastEventAt ? (now - lastEventAt) < ACTIVE_THRESHOLD_MS : false;
+					const isActive = lastEventAt ? now - lastEventAt < ACTIVE_THRESHOLD_MS : false;
 
 					sessions.push({
 						id: sessionId,
@@ -90,8 +90,8 @@ export async function GET(request: Request) {
 		}
 
 		// Separate active and recent sessions
-		const activeSessions = sessions.filter(s => s.isActive);
-		const recentSessions = sessions.filter(s => !s.isActive);
+		const activeSessions = sessions.filter((s) => s.isActive);
+		const recentSessions = sessions.filter((s) => !s.isActive);
 
 		// Get total count for pagination
 		// biome-ignore lint/suspicious/noExplicitAny: FalkorDB unknown return

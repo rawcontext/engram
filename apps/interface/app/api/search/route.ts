@@ -1,6 +1,6 @@
+import { SearchRetriever } from "@engram/search-core";
 import { apiError, apiSuccess } from "@lib/api-response";
 import { validate } from "@lib/validate";
-import { SearchRetriever } from "@engram/search-core";
 import { z } from "zod";
 
 // Initialize retriever (singleton behavior handled internally or by module caching)

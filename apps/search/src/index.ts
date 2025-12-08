@@ -1,6 +1,6 @@
-import { createServer } from "http";
 import { SchemaManager, SearchIndexer, SearchRetriever } from "@engram/search-core";
 import { createKafkaClient } from "@engram/storage";
+import { createServer } from "http";
 
 export class SearchService {
 	constructor(
@@ -24,7 +24,11 @@ export class SearchService {
 				topic: _topic,
 				partition: _partition,
 				message,
-			}: { topic: any; partition: any; message: any }) => {
+			}: {
+				topic: any;
+				partition: any;
+				message: any;
+			}) => {
 				try {
 					const value = message.value?.toString();
 					if (!value) return;
@@ -93,7 +97,7 @@ const server = createServer(async (req, res) => {
 		req.on("end", async () => {
 			try {
 				const parsed = JSON.parse(body);
-				const results = await service.retriever.search(parsed);
+				const results = await retriever.search(parsed);
 				res.writeHead(200, { "Content-Type": "application/json" });
 				res.end(JSON.stringify(results));
 			} catch (e: unknown) {

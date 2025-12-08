@@ -1,6 +1,6 @@
 import { createServer } from "http";
-import { parse } from "url";
 import next from "next";
+import { parse } from "url";
 import { WebSocketServer } from "ws";
 import { handleSessionConnection, handleSessionsConnection } from "./lib/websocket-server";
 

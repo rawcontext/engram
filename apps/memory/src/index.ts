@@ -1,9 +1,9 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createNodeLogger, pino } from "@engram/logger";
 import { GraphPruner } from "@engram/memory-core";
 import { createFalkorClient, createKafkaClient } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
 // Initialize Logger (stderr for MCP safety)
@@ -51,8 +51,17 @@ async function startPersistenceConsumer() {
 				const value = message.value?.toString();
 				if (!value) return;
 				const event = JSON.parse(value);
-                
-                logger.info({ event_summary: { id: event.event_id, meta: event.metadata, orig: event.original_event_id } }, "Memory received event");
+
+				logger.info(
+					{
+						event_summary: {
+							id: event.event_id,
+							meta: event.metadata,
+							orig: event.original_event_id,
+						},
+					},
+					"Memory received event",
+				);
 
 				const sessionId = event.metadata?.session_id || event.original_event_id; // ingestion might need to pass session_id better
 
@@ -65,11 +74,11 @@ async function startPersistenceConsumer() {
 				await falkor.connect();
 
 				// 1. Check if session already exists
-				const existingSession = await falkor.query(
-					`MATCH (s:Session {id: $sessionId}) RETURN s`,
-					{ sessionId },
-				);
-				const isNewSession = !existingSession || (Array.isArray(existingSession) && existingSession.length === 0);
+				const existingSession = await falkor.query(`MATCH (s:Session {id: $sessionId}) RETURN s`, {
+					sessionId,
+				});
+				const isNewSession =
+					!existingSession || (Array.isArray(existingSession) && existingSession.length === 0);
 
 				// 2. Ensure Session Exists and update lastEventAt
 				const now = Date.now();

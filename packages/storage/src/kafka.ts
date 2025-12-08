@@ -1,5 +1,5 @@
-// @ts-ignore - @confluentinc/kafka-javascript doesn't have proper TypeScript definitions
 import { createRequire } from "module";
+
 const require = createRequire(import.meta.url);
 const { Kafka } = require("@confluentinc/kafka-javascript").KafkaJS;
 
@@ -57,7 +57,7 @@ export class KafkaClient {
 
 	public async getProducer(): Promise<Producer> {
 		if (!this.producer) {
-			// @ts-ignore - accessing kafka instance
+			// @ts-expect-error - accessing kafka instance
 			this.producer = this.kafka.producer({
 				"bootstrap.servers": this.brokers,
 				"client.id": "engram-producer",
@@ -69,7 +69,7 @@ export class KafkaClient {
 	}
 
 	public async createConsumer(groupId: string): Promise<Consumer> {
-		// @ts-ignore - accessing kafka instance
+		// @ts-expect-error - accessing kafka instance
 		const internalConsumer = this.kafka.consumer({
 			"bootstrap.servers": this.brokers,
 			"group.id": groupId,

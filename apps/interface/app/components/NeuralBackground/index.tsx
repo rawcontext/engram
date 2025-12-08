@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useMemo, useEffect } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import * as THREE from 'three';
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 
 // Vertex shader for the neural particles
 const vertexShader = `
@@ -115,229 +115,229 @@ const lineFragmentShader = `
 `;
 
 function NeuralParticles({ count = 500 }: { count?: number }) {
-  const points = useRef<THREE.Points>(null);
-  const { size, viewport } = useThree();
+	const points = useRef<THREE.Points>(null);
+	const { size, viewport } = useThree();
 
-  const particlesPosition = useMemo(() => {
-    const positions = new Float32Array(count * 3);
-    const scales = new Float32Array(count);
-    const randomness = new Float32Array(count * 3);
+	const particlesPosition = useMemo(() => {
+		const positions = new Float32Array(count * 3);
+		const scales = new Float32Array(count);
+		const randomness = new Float32Array(count * 3);
 
-    for (let i = 0; i < count; i++) {
-      // Distribute in a sphere/cloud shape
-      const radius = 4 + Math.random() * 6;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
+		for (let i = 0; i < count; i++) {
+			// Distribute in a sphere/cloud shape
+			const radius = 4 + Math.random() * 6;
+			const theta = Math.random() * Math.PI * 2;
+			const phi = Math.acos(2 * Math.random() - 1);
 
-      positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 6;
-      positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+			positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+			positions[i * 3 + 1] = (Math.random() - 0.5) * 6;
+			positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
 
-      scales[i] = 0.5 + Math.random() * 1.5;
+			scales[i] = 0.5 + Math.random() * 1.5;
 
-      randomness[i * 3] = Math.random();
-      randomness[i * 3 + 1] = Math.random();
-      randomness[i * 3 + 2] = Math.random();
-    }
+			randomness[i * 3] = Math.random();
+			randomness[i * 3 + 1] = Math.random();
+			randomness[i * 3 + 2] = Math.random();
+		}
 
-    return { positions, scales, randomness };
-  }, [count]);
+		return { positions, scales, randomness };
+	}, [count]);
 
-  const uniforms = useMemo(
-    () => ({
-      uTime: { value: 0 },
-      uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
-      uSize: { value: 30 },
-    }),
-    []
-  );
+	const uniforms = useMemo(
+		() => ({
+			uTime: { value: 0 },
+			uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+			uSize: { value: 30 },
+		}),
+		[],
+	);
 
-  useFrame((state) => {
-    if (points.current) {
-      const material = points.current.material as THREE.ShaderMaterial;
-      material.uniforms.uTime.value = state.clock.elapsedTime;
-    }
-  });
+	useFrame((state) => {
+		if (points.current) {
+			const material = points.current.material as THREE.ShaderMaterial;
+			material.uniforms.uTime.value = state.clock.elapsedTime;
+		}
+	});
 
-  return (
-    <points ref={points}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={particlesPosition.positions.length / 3}
-          array={particlesPosition.positions}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-aScale"
-          count={particlesPosition.scales.length}
-          array={particlesPosition.scales}
-          itemSize={1}
-        />
-        <bufferAttribute
-          attach="attributes-aRandomness"
-          count={particlesPosition.randomness.length / 3}
-          array={particlesPosition.randomness}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <shaderMaterial
-        vertexShader={vertexShader}
-        fragmentShader={fragmentShader}
-        uniforms={uniforms}
-        transparent
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  );
+	return (
+		<points ref={points}>
+			<bufferGeometry>
+				<bufferAttribute
+					attach="attributes-position"
+					count={particlesPosition.positions.length / 3}
+					array={particlesPosition.positions}
+					itemSize={3}
+				/>
+				<bufferAttribute
+					attach="attributes-aScale"
+					count={particlesPosition.scales.length}
+					array={particlesPosition.scales}
+					itemSize={1}
+				/>
+				<bufferAttribute
+					attach="attributes-aRandomness"
+					count={particlesPosition.randomness.length / 3}
+					array={particlesPosition.randomness}
+					itemSize={3}
+				/>
+			</bufferGeometry>
+			<shaderMaterial
+				vertexShader={vertexShader}
+				fragmentShader={fragmentShader}
+				uniforms={uniforms}
+				transparent
+				depthWrite={false}
+				blending={THREE.AdditiveBlending}
+			/>
+		</points>
+	);
 }
 
 function NeuralConnections({ count = 50 }: { count?: number }) {
-  const lines = useRef<THREE.LineSegments>(null);
+	const lines = useRef<THREE.LineSegments>(null);
 
-  const connectionData = useMemo(() => {
-    const positions: number[] = [];
-    const starts: number[] = [];
-    const ends: number[] = [];
-    const progresses: number[] = [];
+	const connectionData = useMemo(() => {
+		const positions: number[] = [];
+		const starts: number[] = [];
+		const ends: number[] = [];
+		const progresses: number[] = [];
 
-    for (let i = 0; i < count; i++) {
-      // Random start point
-      const startRadius = 2 + Math.random() * 4;
-      const startTheta = Math.random() * Math.PI * 2;
-      const startX = startRadius * Math.cos(startTheta);
-      const startY = (Math.random() - 0.5) * 4;
-      const startZ = startRadius * Math.sin(startTheta);
+		for (let i = 0; i < count; i++) {
+			// Random start point
+			const startRadius = 2 + Math.random() * 4;
+			const startTheta = Math.random() * Math.PI * 2;
+			const startX = startRadius * Math.cos(startTheta);
+			const startY = (Math.random() - 0.5) * 4;
+			const startZ = startRadius * Math.sin(startTheta);
 
-      // Random end point
-      const endRadius = 2 + Math.random() * 4;
-      const endTheta = Math.random() * Math.PI * 2;
-      const endX = endRadius * Math.cos(endTheta);
-      const endY = (Math.random() - 0.5) * 4;
-      const endZ = endRadius * Math.sin(endTheta);
+			// Random end point
+			const endRadius = 2 + Math.random() * 4;
+			const endTheta = Math.random() * Math.PI * 2;
+			const endX = endRadius * Math.cos(endTheta);
+			const endY = (Math.random() - 0.5) * 4;
+			const endZ = endRadius * Math.sin(endTheta);
 
-      // Create line segments
-      const segments = 10;
-      for (let j = 0; j < segments; j++) {
-        const t1 = j / segments;
-        const t2 = (j + 1) / segments;
+			// Create line segments
+			const segments = 10;
+			for (let j = 0; j < segments; j++) {
+				const t1 = j / segments;
+				const t2 = (j + 1) / segments;
 
-        positions.push(
-          startX + (endX - startX) * t1,
-          startY + (endY - startY) * t1,
-          startZ + (endZ - startZ) * t1,
-          startX + (endX - startX) * t2,
-          startY + (endY - startY) * t2,
-          startZ + (endZ - startZ) * t2
-        );
+				positions.push(
+					startX + (endX - startX) * t1,
+					startY + (endY - startY) * t1,
+					startZ + (endZ - startZ) * t1,
+					startX + (endX - startX) * t2,
+					startY + (endY - startY) * t2,
+					startZ + (endZ - startZ) * t2,
+				);
 
-        starts.push(startX, startY, startZ, startX, startY, startZ);
-        ends.push(endX, endY, endZ, endX, endY, endZ);
-        progresses.push(t1, t2);
-      }
-    }
+				starts.push(startX, startY, startZ, startX, startY, startZ);
+				ends.push(endX, endY, endZ, endX, endY, endZ);
+				progresses.push(t1, t2);
+			}
+		}
 
-    return {
-      positions: new Float32Array(positions),
-      starts: new Float32Array(starts),
-      ends: new Float32Array(ends),
-      progresses: new Float32Array(progresses),
-    };
-  }, [count]);
+		return {
+			positions: new Float32Array(positions),
+			starts: new Float32Array(starts),
+			ends: new Float32Array(ends),
+			progresses: new Float32Array(progresses),
+		};
+	}, [count]);
 
-  const uniforms = useMemo(
-    () => ({
-      uTime: { value: 0 },
-    }),
-    []
-  );
+	const uniforms = useMemo(
+		() => ({
+			uTime: { value: 0 },
+		}),
+		[],
+	);
 
-  useFrame((state) => {
-    if (lines.current) {
-      const material = lines.current.material as THREE.ShaderMaterial;
-      material.uniforms.uTime.value = state.clock.elapsedTime;
-    }
-  });
+	useFrame((state) => {
+		if (lines.current) {
+			const material = lines.current.material as THREE.ShaderMaterial;
+			material.uniforms.uTime.value = state.clock.elapsedTime;
+		}
+	});
 
-  return (
-    <lineSegments ref={lines}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={connectionData.positions.length / 3}
-          array={connectionData.positions}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-aStart"
-          count={connectionData.starts.length / 3}
-          array={connectionData.starts}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-aEnd"
-          count={connectionData.ends.length / 3}
-          array={connectionData.ends}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-aProgress"
-          count={connectionData.progresses.length}
-          array={connectionData.progresses}
-          itemSize={1}
-        />
-      </bufferGeometry>
-      <shaderMaterial
-        vertexShader={lineVertexShader}
-        fragmentShader={lineFragmentShader}
-        uniforms={uniforms}
-        transparent
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </lineSegments>
-  );
+	return (
+		<lineSegments ref={lines}>
+			<bufferGeometry>
+				<bufferAttribute
+					attach="attributes-position"
+					count={connectionData.positions.length / 3}
+					array={connectionData.positions}
+					itemSize={3}
+				/>
+				<bufferAttribute
+					attach="attributes-aStart"
+					count={connectionData.starts.length / 3}
+					array={connectionData.starts}
+					itemSize={3}
+				/>
+				<bufferAttribute
+					attach="attributes-aEnd"
+					count={connectionData.ends.length / 3}
+					array={connectionData.ends}
+					itemSize={3}
+				/>
+				<bufferAttribute
+					attach="attributes-aProgress"
+					count={connectionData.progresses.length}
+					array={connectionData.progresses}
+					itemSize={1}
+				/>
+			</bufferGeometry>
+			<shaderMaterial
+				vertexShader={lineVertexShader}
+				fragmentShader={lineFragmentShader}
+				uniforms={uniforms}
+				transparent
+				depthWrite={false}
+				blending={THREE.AdditiveBlending}
+			/>
+		</lineSegments>
+	);
 }
 
 function Scene() {
-  const groupRef = useRef<THREE.Group>(null);
+	const groupRef = useRef<THREE.Group>(null);
 
-  useFrame((state) => {
-    if (groupRef.current) {
-      // Slow rotation
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.05;
-    }
-  });
+	useFrame((state) => {
+		if (groupRef.current) {
+			// Slow rotation
+			groupRef.current.rotation.y = state.clock.elapsedTime * 0.05;
+		}
+	});
 
-  return (
-    <group ref={groupRef}>
-      <NeuralParticles count={400} />
-      <NeuralConnections count={30} />
-    </group>
-  );
+	return (
+		<group ref={groupRef}>
+			<NeuralParticles count={400} />
+			<NeuralConnections count={30} />
+		</group>
+	);
 }
 
 export function NeuralBackground() {
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        zIndex: 0,
-      }}
-    >
-      <Canvas
-        camera={{ position: [0, 0, 8], fov: 60 }}
-        style={{ background: 'transparent' }}
-        gl={{ alpha: true, antialias: true }}
-      >
-        <Scene />
-      </Canvas>
-    </div>
-  );
+	return (
+		<div
+			style={{
+				position: "absolute",
+				top: 0,
+				left: 0,
+				width: "100%",
+				height: "100%",
+				pointerEvents: "none",
+				zIndex: 0,
+			}}
+		>
+			<Canvas
+				camera={{ position: [0, 0, 8], fov: 60 }}
+				style={{ background: "transparent" }}
+				gl={{ alpha: true, antialias: true }}
+			>
+				<Scene />
+			</Canvas>
+		</div>
+	);
 }

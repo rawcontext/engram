@@ -36,7 +36,7 @@ describe("Redactor", () => {
 
 	it("should handle empty or null input", () => {
 		expect(redactor.redact("")).toBe("");
-		// @ts-ignore
+		// @ts-expect-error
 		expect(redactor.redact(null)).toBe(null);
 	});
 });
