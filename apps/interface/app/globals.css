@@ -397,3 +397,149 @@ input::placeholder {
   border-radius: 50%;
   box-shadow: 0 0 6px rgba(var(--neural-cyan), 0.8);
 }
+
+/* Enhanced React Flow styling */
+.react-flow__edge-path {
+  stroke-linecap: round !important;
+  transition: stroke-width 0.3s ease, opacity 0.3s ease !important;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3 !important;
+  opacity: 1 !important;
+}
+
+.react-flow__node {
+  transition: transform 0.2s ease, filter 0.2s ease !important;
+}
+
+.react-flow__node:hover {
+  z-index: 1000 !important;
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(8, 10, 15, 0.85) !important;
+}
+
+/* Message card animations */
+@keyframes message-appear {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.message-card-enter {
+  animation: message-appear 0.3s ease-out forwards;
+}
+
+/* Subtle breathing animation for highlighted elements */
+@keyframes subtle-breathe {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.highlight-breathe {
+  animation: subtle-breathe 2s ease-in-out infinite;
+}
+
+/* Connection line animation */
+@keyframes flow-dash {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 5 5;
+  animation: flow-dash 0.5s linear infinite;
+}
+
+/* Improved focus ring for accessibility */
+.react-flow__node:focus-visible,
+.react-flow__edge:focus-visible {
+  outline: 2px solid rgba(var(--neural-cyan), 0.6) !important;
+  outline-offset: 4px !important;
+  border-radius: 12px !important;
+}
+
+/* Stats bar styling */
+.stats-bar {
+  backdrop-filter: blur(12px);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--void-light), 0.9),
+    rgba(var(--void), 0.8)
+  );
+}
+
+/* Thinking block collapse animation */
+@keyframes collapse-content {
+  from {
+    max-height: 200px;
+    opacity: 1;
+  }
+  to {
+    max-height: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes expand-content {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 200px;
+    opacity: 1;
+  }
+}
+
+/* Smooth scrollbar for timeline */
+.timeline-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--neural-purple), 0.3) transparent;
+}
+
+.timeline-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.timeline-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb {
+  background: rgba(var(--neural-purple), 0.3);
+  border-radius: 2px;
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--neural-purple), 0.5);
+}
+
+/* Node hover glow effect */
+@keyframes node-glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(var(--neural-purple), 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(var(--neural-purple), 0.6));
+  }
+}
+
+.node-highlighted {
+  animation: node-glow-pulse 1.5s ease-in-out infinite;
+}
