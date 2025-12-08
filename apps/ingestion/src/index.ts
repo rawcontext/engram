@@ -26,7 +26,13 @@ export class IngestionProcessor {
 
 	async processEvent(rawEvent: RawStreamEvent) {
 		const provider = rawEvent.provider;
-		const sessionId = rawEvent.headers?.["x-session-id"] || rawEvent.event_id;
+		const headers = rawEvent.headers || {};
+		const sessionId = headers["x-session-id"] || rawEvent.event_id;
+
+		// Extract project context from headers
+		const workingDir = headers["x-working-dir"] || null;
+		const gitRemote = headers["x-git-remote"] || null;
+		const agentType = headers["x-agent-type"] || "unknown";
 
 		// 1. Parse
 		let delta: StreamDelta | null = null;
@@ -81,6 +87,9 @@ export class IngestionProcessor {
 			timestamp: rawEvent.ingest_timestamp,
 			metadata: {
 				session_id: sessionId,
+				working_dir: workingDir,
+				git_remote: gitRemote,
+				agent_type: agentType,
 			},
 		});
 
