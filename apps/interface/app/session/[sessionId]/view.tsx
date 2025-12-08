@@ -4,6 +4,7 @@ import type { GraphNode } from "@lib/types";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Suspense, useCallback, useState } from "react";
+import { EngramLogo } from "../../components/EngramLogo";
 import { LineageGraph } from "../../components/LineageGraph";
 import { SessionReplay } from "../../components/SessionReplay";
 import { useSessionStream } from "../../hooks/useSessionStream";
@@ -82,79 +83,57 @@ export function SessionView({ sessionId }: { sessionId: string }) {
 
 	return (
 		<div style={{ minHeight: "100vh", position: "relative" }}>
-			{/* Three.js Neural Background */}
-			<div style={{ position: "fixed", inset: 0, pointerEvents: "none", opacity: 0.4 }}>
+			{/* Three.js Neural Background - fixed for glassmorphism */}
+			<div style={{ position: "fixed", inset: 0, pointerEvents: "none", opacity: 0.4, zIndex: 1 }}>
 				<Suspense fallback={null}>
 					<NeuralBackground />
 				</Suspense>
+				<Particles />
 			</div>
-			<Particles />
 
-			{/* Header - Monochrome with amber accent */}
+			{/* Header - Glassmorphism with EngramLogo */}
 			<header
 				style={{
 					position: "sticky",
 					top: 0,
 					zIndex: 50,
-					background: "rgba(12, 14, 20, 0.95)",
-					backdropFilter: "blur(20px)",
-					borderBottom: "1px solid rgba(148, 163, 184, 0.1)",
+					// Glassmorphism - balanced translucency
+					background: `linear-gradient(
+						180deg,
+						rgba(8, 10, 15, 0.35) 0%,
+						rgba(15, 20, 30, 0.3) 100%
+					)`,
+					backdropFilter: "blur(8px) saturate(150%)",
+					WebkitBackdropFilter: "blur(8px) saturate(150%)",
+					borderBottom: "1px solid rgba(0, 245, 212, 0.15)",
+					boxShadow:
+						"inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,0,0,0.1), 0 4px 30px rgba(0,0,0,0.3)",
 				}}
 			>
 				<div
 					style={{
-						padding: "16px",
+						padding: "8px 16px",
 						display: "flex",
 						alignItems: "center",
 						justifyContent: "space-between",
 					}}
 				>
 					{/* Logo and nav */}
-					<div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+					<div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
 						<Link
 							href="/"
 							style={{
 								display: "flex",
 								alignItems: "center",
-								gap: "12px",
+								gap: "10px",
 								textDecoration: "none",
 							}}
 						>
-							<div
-								style={{
-									position: "relative",
-									width: "32px",
-									height: "32px",
-								}}
-							>
-								<div
-									style={{
-										width: "32px",
-										height: "32px",
-										borderRadius: "50%",
-										border: "1px solid rgba(251, 191, 36, 0.4)",
-										background:
-											"radial-gradient(circle at 30% 30%, rgba(251, 191, 36, 0.2), transparent 60%)",
-									}}
-								/>
-								<div
-									style={{
-										position: "absolute",
-										top: "50%",
-										left: "50%",
-										transform: "translate(-50%, -50%)",
-										width: "12px",
-										height: "12px",
-										borderRadius: "50%",
-										background: "radial-gradient(circle, rgba(251, 191, 36, 0.9), transparent 70%)",
-										boxShadow: "0 0 15px rgba(251, 191, 36, 0.5)",
-									}}
-								/>
-							</div>
+							<EngramLogo size={40} />
 							<span
 								style={{
 									fontFamily: "Orbitron, sans-serif",
-									fontSize: "18px",
+									fontSize: "16px",
 									fontWeight: 600,
 									letterSpacing: "0.1em",
 									color: "rgb(251, 191, 36)",

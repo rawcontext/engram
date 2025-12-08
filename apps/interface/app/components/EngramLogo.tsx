@@ -312,7 +312,11 @@ const fragmentShader = `
   }
 `;
 
-export function EngramLogo() {
+interface EngramLogoProps {
+	size?: number; // Display size in pixels (default: 160)
+}
+
+export function EngramLogo({ size = 160 }: EngramLogoProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const glRef = useRef<WebGLRenderingContext | null>(null);
 	const programRef = useRef<WebGLProgram | null>(null);
@@ -407,8 +411,8 @@ export function EngramLogo() {
 			width={400}
 			height={400}
 			style={{
-				width: "160px",
-				height: "160px",
+				width: `${size}px`,
+				height: `${size}px`,
 				display: "block",
 				flexShrink: 0,
 			}}
