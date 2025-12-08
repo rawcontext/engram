@@ -150,57 +150,57 @@ async function startPersistenceConsumer() {
 					);
 				}
 
-				// 5. Create Thought/Event Node (LEGACY - kept for backward compatibility)
-				// TODO: Remove once UI is updated to use Turn nodes
+				// 5. LEGACY ThoughtNode creation - DISABLED
+				// The Turn-based system above handles all node creation now.
+				// Set ENABLE_LEGACY_THOUGHTS=true to re-enable for debugging.
+				if (process.env.ENABLE_LEGACY_THOUGHTS === "true") {
+					const type = event.type || "unknown";
+					const content = event.content || event.thought || "";
+					const role = event.role || "system";
+					const eventId = event.original_event_id || crypto.randomUUID();
+					const eventTimestamp = event.timestamp || new Date().toISOString();
+
+					const createQuery = `
+						MATCH (s:Session {id: $sessionId})
+						CREATE (t:Thought {
+							id: $eventId,
+							type: $type,
+							role: $role,
+							content: $content,
+							vt_start: timestamp(),
+							timestamp: $timestamp
+						})
+						MERGE (s)-[:TRIGGERS]->(t)
+						RETURN t
+					`;
+
+					await falkor.query(createQuery, {
+						sessionId,
+						eventId,
+						type,
+						role,
+						content,
+						timestamp: eventTimestamp,
+					});
+
+					const chainQuery = `
+						MATCH (s:Session {id: $sessionId})-[:TRIGGERS]->(prev:Thought)
+						WHERE prev.id <> $eventId
+						WITH prev ORDER BY prev.vt_start DESC LIMIT 1
+						MATCH (curr:Thought {id: $eventId})
+						MERGE (prev)-[:NEXT]->(curr)
+					`;
+
+					await falkor.query(chainQuery, { sessionId, eventId });
+					logger.info({ eventId, sessionId }, "Persisted legacy thought to graph");
+				}
+
+				// Publish to Redis for real-time WebSocket streaming
+				const eventId = event.original_event_id || crypto.randomUUID();
 				const type = event.type || "unknown";
 				const content = event.content || event.thought || "";
 				const role = event.role || "system";
-				const eventId = event.original_event_id || crypto.randomUUID();
 
-				// Create Node
-				// We use a simplified model where everything is a 'Thought' for now, distinguished by properties
-				// Ideally we should use labels like :Thought:UserMessage etc.
-				const eventTimestamp = event.timestamp || new Date().toISOString();
-
-				// First, create the thought and link to session
-				const createQuery = `
-					MATCH (s:Session {id: $sessionId})
-					CREATE (t:Thought {
-						id: $eventId,
-						type: $type,
-						role: $role,
-						content: $content,
-						vt_start: timestamp(),
-						timestamp: $timestamp
-					})
-					MERGE (s)-[:TRIGGERS]->(t)
-					RETURN t
-				`;
-
-				await falkor.query(createQuery, {
-					sessionId,
-					eventId,
-					type,
-					role,
-					content,
-					timestamp: eventTimestamp,
-				});
-
-				// Chain thoughts with NEXT relationship for lineage tracking
-				// Find the previous thought (most recent by vt_start) and link to the new one
-				const chainQuery = `
-					MATCH (s:Session {id: $sessionId})-[:TRIGGERS]->(prev:Thought)
-					WHERE prev.id <> $eventId
-					WITH prev ORDER BY prev.vt_start DESC LIMIT 1
-					MATCH (curr:Thought {id: $eventId})
-					MERGE (prev)-[:NEXT]->(curr)
-				`;
-
-				await falkor.query(chainQuery, { sessionId, eventId });
-
-				logger.info({ eventId, sessionId }, "Persisted event to graph");
-
-				// Publish to Redis for real-time WebSocket streaming
 				await redis.publishSessionUpdate(sessionId, {
 					type: "node_created",
 					data: {
@@ -212,10 +212,10 @@ async function startPersistenceConsumer() {
 					},
 				});
 
-				// Publish 'memory.node_created' for Search Service
+				// Publish 'memory.node_created' for Search Service (still needed for indexing)
 				await kafka.sendEvent("memory.node_created", eventId, {
 					id: eventId,
-					labels: ["Thought"],
+					labels: ["Turn"], // Changed from Thought to Turn
 					properties: { content, role, type },
 				});
 			} catch (e) {

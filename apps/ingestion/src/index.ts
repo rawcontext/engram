@@ -80,9 +80,44 @@ export class IngestionProcessor {
 			delta.thought = redactor.redact(delta.thought);
 		}
 
-		// 5. Publish
+		// 5. Map fields to ParsedStreamEvent schema
+		// StreamDelta uses camelCase, ParsedStreamEvent uses snake_case
+		const tool_call = delta.toolCall
+			? {
+					id: delta.toolCall.id || "",
+					name: delta.toolCall.name || "",
+					arguments_delta: delta.toolCall.args || "",
+					index: delta.toolCall.index || 0,
+				}
+			: undefined;
+
+		const usage = delta.usage
+			? {
+					input_tokens: delta.usage.input || 0,
+					output_tokens: delta.usage.output || 0,
+				}
+			: undefined;
+
+		// Determine the event type
+		// Override type if thought is present (ThinkingExtractor extracts but doesn't change type)
+		let eventType = delta.type;
+		if (delta.thought) {
+			eventType = "thought";
+		} else if (!eventType) {
+			if (delta.toolCall) eventType = "tool_call";
+			else if (delta.usage) eventType = "usage";
+			else if (delta.content) eventType = "content";
+		}
+
+		// 6. Publish
 		await this.kafkaClient.sendEvent("parsed_events", sessionId, {
-			...delta,
+			type: eventType,
+			role: delta.role,
+			content: delta.content,
+			thought: delta.thought,
+			diff: delta.diff ? { file: undefined, hunk: delta.diff } : undefined,
+			tool_call,
+			usage,
 			original_event_id: rawEvent.event_id,
 			timestamp: rawEvent.ingest_timestamp,
 			metadata: {
