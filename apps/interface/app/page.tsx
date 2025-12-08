@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { SessionBrowser } from "./components/SessionBrowser";
+import { EngramLogo } from "./components/EngramLogo";
 
 // Dynamically import Three.js background to avoid SSR issues
 const NeuralBackground = dynamic(
@@ -202,7 +203,7 @@ export default function HomePage() {
 				paddingBottom: `${FOOTER_HEIGHT + 24}px`, // Safe area: footer height + extra padding
 			}}
 		>
-			{/* Background decorations - absolute positioned */}
+			{/* Background decorations */}
 			<div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
 				<Suspense fallback={null}>
 					<NeuralBackground />
@@ -229,67 +230,9 @@ export default function HomePage() {
 					}}
 				>
 					{/* Logo/Brand area */}
-					<div style={{ textAlign: "center", marginBottom: "3rem" }}>
-						{/* Animated orbital rings */}
-						<div
-							style={{
-								position: "relative",
-								width: "120px",
-								height: "120px",
-								margin: "0 auto 2rem auto",
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-							}}
-						>
-							{/* Outer ring */}
-							<div
-								style={{
-									position: "absolute",
-									width: "120px",
-									height: "120px",
-									borderRadius: "50%",
-									border: "1px solid rgba(251,191,36,0.2)",
-									animation: "spin 30s linear infinite reverse",
-								}}
-							/>
-							{/* Middle ring */}
-							<div
-								style={{
-									position: "absolute",
-									width: "90px",
-									height: "90px",
-									borderRadius: "50%",
-									border: "1px solid rgba(148,163,184,0.3)",
-									animation: "spin 20s linear infinite",
-								}}
-							/>
-							{/* Inner ring with glow */}
-							<div
-								style={{
-									position: "absolute",
-									width: "60px",
-									height: "60px",
-									borderRadius: "50%",
-									border: "1px solid rgba(251,191,36,0.5)",
-									background:
-										"radial-gradient(circle at 30% 30%, rgba(251,191,36,0.2), transparent 60%)",
-									boxShadow: "0 0 20px rgba(251,191,36,0.2), inset 0 0 20px rgba(251,191,36,0.1)",
-								}}
-							/>
-							{/* Core glow */}
-							<div
-								style={{
-									position: "absolute",
-									width: "24px",
-									height: "24px",
-									borderRadius: "50%",
-									background:
-										"radial-gradient(circle, rgba(251,191,36,1), rgba(251,191,36,0.5) 40%, transparent 70%)",
-									boxShadow: "0 0 30px rgba(251,191,36,0.8), 0 0 60px rgba(251,191,36,0.4)",
-								}}
-							/>
-						</div>
+					<div style={{ textAlign: "center", marginBottom: "2rem" }}>
+						{/* Animated Engram Neural Network Logo */}
+						<EngramLogo />
 
 						<h1
 							className="font-display text-glow"
