@@ -30,14 +30,6 @@ export class SearchIndexer {
 
 		if (!content) return; // Nothing to index
 
-		// Generate Vectors
-		let denseVector: number[];
-		if (isCode) {
-			denseVector = await this.codeEmbedder.embed(content);
-		} else {
-			denseVector = await this.textEmbedder.embed(content);
-		}
-
 		// Generate sparse vector for hybrid search (BM25-based keyword matching)
 		const sparseVector = await this.textEmbedder.embedSparse(content);
 
@@ -51,21 +43,37 @@ export class SearchIndexer {
 			file_path: node.file_path,
 		};
 
-		// Upsert
-		// Qdrant JS client structure for point:
-		// { id, vector: { name: vector }, payload }
-		await this.client.upsert(this.collectionName, {
-			points: [
-				{
-					id: node.id, // Use Node ID as Point ID (must be UUID)
-					// Named vectors map
-					vector: {
-						dense: denseVector,
-						sparse: sparseVector,
+		// Generate vector and use the appropriate named vector field
+		// Code uses code_dense (768d nomic-embed-text-v1)
+		// Text uses text_dense (384d e5-small)
+		if (isCode) {
+			const codeVector = await this.codeEmbedder.embed(content);
+			await this.client.upsert(this.collectionName, {
+				points: [
+					{
+						id: node.id,
+						vector: {
+							code_dense: codeVector,
+							sparse: sparseVector,
+						},
+						payload,
 					},
-					payload,
-				},
-			],
-		});
+				],
+			});
+		} else {
+			const textVector = await this.textEmbedder.embed(content);
+			await this.client.upsert(this.collectionName, {
+				points: [
+					{
+						id: node.id,
+						vector: {
+							text_dense: textVector,
+							sparse: sparseVector,
+						},
+						payload,
+					},
+				],
+			});
+		}
 	}
 }

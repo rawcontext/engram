@@ -1,13 +1,21 @@
 import { z } from "zod";
 
+// Sparse vector schema for BM25-based keyword search
+const SparseVectorSchema = z.object({
+	indices: z.array(z.number()),
+	values: z.array(z.number()),
+});
+
+// Vector point schema with separate text/code dense vectors
 export const VectorPointSchema = z.object({
 	id: z.string().uuid(),
 	vectors: z.object({
-		dense: z.array(z.number()), // 384d to 1536d
-		sparse: z.object({
-			indices: z.array(z.number()),
-			values: z.array(z.number()),
-		}),
+		// Text dense vector: 384d (e5-small)
+		text_dense: z.array(z.number()).optional(),
+		// Code dense vector: 768d (nomic-embed-text-v1)
+		code_dense: z.array(z.number()).optional(),
+		// Sparse vector for hybrid search
+		sparse: SparseVectorSchema,
 	}),
 	payload: z.object({
 		content: z.string(), // The text chunk

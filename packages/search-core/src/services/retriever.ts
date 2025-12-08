@@ -2,17 +2,20 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 import { DEFAULT_SEARCH_CONFIG } from "../config";
 import type { SearchQuery } from "../models/schema";
 import { QueryClassifier } from "./classifier";
+import { CodeEmbedder } from "./code-embedder";
 import { TextEmbedder } from "./text-embedder";
 
 export class SearchRetriever {
 	private client: QdrantClient;
 	private textEmbedder: TextEmbedder;
+	private codeEmbedder: CodeEmbedder;
 	private classifier: QueryClassifier;
 	private collectionName = "engram_memory";
 
 	constructor(url: string = "http://localhost:6333") {
 		this.client = new QdrantClient({ url });
 		this.textEmbedder = new TextEmbedder();
+		this.codeEmbedder = new CodeEmbedder();
 		this.classifier = new QueryClassifier();
 	}
 
@@ -35,7 +38,12 @@ export class SearchRetriever {
 
 		const effectiveThreshold = threshold ?? DEFAULT_SEARCH_CONFIG.minScore[strategy];
 
-		const vector = await this.textEmbedder.embedQuery(text);
+		// Determine which vector field and embedder to use based on type filter
+		const isCodeSearch = filters?.type === "code";
+		const vectorName = isCodeSearch ? "code_dense" : "text_dense";
+		const vector = isCodeSearch
+			? await this.codeEmbedder.embedQuery(text)
+			: await this.textEmbedder.embedQuery(text);
 
 		// Build Filter
 		const filter: Record<string, unknown> = {};
@@ -56,7 +64,7 @@ export class SearchRetriever {
 		if (strategy === "dense" || strategy === "hybrid") {
 			const denseResults = await this.client.search(this.collectionName, {
 				vector: {
-					name: "dense",
+					name: vectorName,
 					vector: vector,
 				},
 				filter: Object.keys(filter).length > 0 ? filter : undefined,
