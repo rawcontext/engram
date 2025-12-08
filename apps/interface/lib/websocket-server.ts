@@ -230,21 +230,18 @@ async function getAllSessions(limit = 50) {
 			const node = row.s;
 			if (node && node.properties) {
 				const props = node.properties;
-				// Handle both property naming conventions
-				const sessionStartedAt = (props.started_at || props.startedAt || now) as number;
-				const sessionLastEventAt = (row.lastEventAt ||
-					props.lastEventAt ||
-					sessionStartedAt) as number;
+				const sessionStartedAt = props.started_at ?? now;
+				const sessionLastEventAt = props.last_event_at ?? row.lastEventAt ?? sessionStartedAt;
 				const isActive = now - sessionLastEventAt < activeThreshold;
 
 				const session = {
-					id: props.id as string,
-					title: (props.title || null) as string | null,
-					userId: (props.user_id || "unknown") as string,
+					id: props.id,
+					title: props.title ?? null,
+					userId: props.user_id ?? "unknown",
 					startedAt: sessionStartedAt,
 					lastEventAt: sessionLastEventAt,
-					eventCount: (row.eventCount || 0) as number,
-					preview: (props.preview || null) as string | null,
+					eventCount: row.eventCount ?? 0,
+					preview: props.preview ?? null,
 					isActive,
 				};
 

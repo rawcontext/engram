@@ -92,15 +92,15 @@ export async function GET(request: Request) {
 					const previewRes = await falkor.query<PreviewRow>(previewQuery, { sessionId });
 					const preview = previewRes?.[0]?.preview ?? previewRes?.[0]?.[0] ?? null;
 
-					const lastEventAt = props.lastEventAt ?? null;
+					const lastEventAt = props.last_event_at ?? null;
 					const now = Date.now();
 					const isActive = lastEventAt ? now - lastEventAt < ACTIVE_THRESHOLD_MS : false;
 
 					sessions.push({
 						id: sessionId,
 						title: props.title ?? null,
-						userId: props.userId ?? props.user_id ?? "unknown",
-						startedAt: props.startedAt ?? props.started_at ?? 0,
+						userId: props.user_id ?? "unknown",
+						startedAt: props.started_at ?? 0,
 						lastEventAt,
 						eventCount: eventCount,
 						preview: preview ? truncatePreview(preview, 150) : null,

@@ -52,10 +52,8 @@ export interface BitemporalProperties {
 export interface SessionProperties extends Partial<BitemporalProperties> {
 	id: string;
 	started_at?: number;
-	startedAt?: number;
-	lastEventAt?: number;
+	last_event_at?: number;
 	title?: string;
-	userId?: string;
 	user_id?: string;
 	preview?: string;
 	[key: string]: unknown;

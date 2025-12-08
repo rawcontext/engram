@@ -80,13 +80,13 @@ async function startPersistenceConsumer() {
 				const isNewSession =
 					!existingSession || (Array.isArray(existingSession) && existingSession.length === 0);
 
-				// 2. Ensure Session Exists and update lastEventAt
+				// 2. Ensure Session Exists and update last_event_at
 				const now = Date.now();
 				await falkor.query(
 					`MERGE (s:Session {id: $sessionId})
-                     ON CREATE SET s.started_at = $now, s.lastEventAt = $now
-                     ON MATCH SET s.lastEventAt = $now`,
-					{ sessionId, now },
+                     ON CREATE SET s.started_at = $now, s.last_event_at = $now, s.user_id = $userId
+                     ON MATCH SET s.last_event_at = $now`,
+					{ sessionId, now, userId: event.metadata?.user_id || "unknown" },
 				);
 
 				// 3. If new session, publish to global sessions channel for homepage
@@ -94,12 +94,12 @@ async function startPersistenceConsumer() {
 					await redis.publishGlobalSessionEvent("session_created", {
 						id: sessionId,
 						title: null,
-						userId: event.metadata?.user_id || "unknown",
-						startedAt: now,
-						lastEventAt: now,
-						eventCount: 1,
+						user_id: event.metadata?.user_id || "unknown",
+						started_at: now,
+						last_event_at: now,
+						event_count: 1,
 						preview: null,
-						isActive: true,
+						is_active: true,
 					});
 					logger.info({ sessionId }, "Published session_created event");
 				}
