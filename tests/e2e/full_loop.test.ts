@@ -56,8 +56,8 @@ describe("E2E Full Loop", () => {
 
         for (let i = 0; i < maxRetries; i++) {
             try {
-                // Assuming interface runs on port 4000
-                const res = await fetch(`http://localhost:4000/api/replay/${sessionId}`);
+                // Assuming interface runs on port 5000
+                const res = await fetch(`http://localhost:5000/api/replay/${sessionId}`);
                 if (res.ok) {
                     const json = await res.json();
                     if (json.data?.timeline?.length > 0) {

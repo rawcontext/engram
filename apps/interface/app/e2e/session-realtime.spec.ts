@@ -5,7 +5,7 @@
  * including WebSocket connections and polling fallback.
  *
  * Prerequisites:
- * - Interface app running on localhost:4000
+ * - Interface app running on localhost:5000
  * - Backend services running (FalkorDB, etc.)
  *
  * Run with: npx playwright test app/e2e/session-realtime.spec.ts
@@ -14,7 +14,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 // Test configuration
-const BASE_URL = 'http://localhost:4000';
+const BASE_URL = 'http://localhost:5000';
 const TEST_SESSION_ID = '327875f7-d3c6-4fb6-b792-4c6e34d526e0';
 
 test.describe('Session Page Real-time Features', () => {

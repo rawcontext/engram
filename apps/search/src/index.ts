@@ -64,7 +64,7 @@ export class SearchService {
 }
 
 // Main execution
-const PORT = 31416;
+const PORT = 5002;
 
 const schemaManager = new SchemaManager();
 const indexer = new SearchIndexer();

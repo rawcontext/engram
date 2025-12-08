@@ -120,7 +120,7 @@ async function startConsumer() {
 startConsumer().catch(console.error);
 
 // Simple HTTP Server (Node.js compatible)
-const PORT = 31415;
+const PORT = 5001;
 
 const server = createServer(async (req, res) => {
 	const url = new URL(req.url || "", `http://localhost:${PORT}`);

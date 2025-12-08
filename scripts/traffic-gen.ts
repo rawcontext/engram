@@ -7,7 +7,7 @@ const kafka = createKafkaClient("traffic-gen");
 async function main() {
     const sessionId = randomUUID();
     console.log(`\n=== LIVE SESSION READY ===`);
-    console.log(`\n🔗 URL: http://localhost:4000/session/${sessionId}`);
+    console.log(`\n🔗 URL: http://localhost:5000/session/${sessionId}`);
     console.log(`\n==========================`);
         console.log(`\n⏳ Waiting 5 seconds for you to open the browser...`);
     
@@ -53,7 +53,7 @@ async function main() {
     
             console.log("\n🚀 STARTING TRAFFIC GENERATION...");
     
-            console.log(`🔗 URL: http://localhost:4000/session/${sessionId}\n`);
+            console.log(`🔗 URL: http://localhost:5000/session/${sessionId}\n`);
     
             console.log(`\n⏳ Pausing 5 seconds for you to click...`);
     

@@ -137,7 +137,7 @@ describe('useSessionStream', () => {
     Object.defineProperty(window, 'location', {
       value: {
         protocol: 'http:',
-        host: 'localhost:4000',
+        host: 'localhost:5000',
       },
       writable: true,
     });
@@ -148,7 +148,7 @@ describe('useSessionStream', () => {
       await vi.advanceTimersByTimeAsync(50);
     });
 
-    expect(mockWebSocketInstance?.url).toBe('ws://localhost:4000/api/ws/session/test-session-123');
+    expect(mockWebSocketInstance?.url).toBe('ws://localhost:5000/api/ws/session/test-session-123');
   });
 
   it('should set isConnected to true when WebSocket connects', async () => {
