@@ -74,6 +74,7 @@ function SessionCard({
 
 	return (
 		<button
+			type="button"
 			onClick={onClick}
 			onMouseEnter={onHover}
 			onMouseLeave={onLeave}

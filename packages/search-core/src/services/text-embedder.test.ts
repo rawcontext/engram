@@ -17,8 +17,29 @@ const mockPipeline = mock(async (task: string, _model: string) => {
 	throw new Error("Unknown task");
 });
 
+// Simple vocabulary-like mock for tokenizer
+// Returns token IDs based on simple hash for testing
+const mockTokenizer = (_text: string, _options?: unknown) => {
+	// Simple mock: generate token IDs based on word positions
+	const words = _text.toLowerCase().split(/\s+/).filter(Boolean);
+	const ids = words.map((w, i) => {
+		// Create pseudo-stable IDs: hash-like value for each word
+		let hash = 0;
+		for (const c of w) hash = (hash * 31 + c.charCodeAt(0)) % 30000;
+		return hash || i + 100;
+	});
+	return {
+		input_ids: { data: ids },
+	};
+};
+
+const mockAutoTokenizer = {
+	from_pretrained: mock(async () => mockTokenizer),
+};
+
 mock.module("@huggingface/transformers", () => ({
 	pipeline: mockPipeline,
+	AutoTokenizer: mockAutoTokenizer,
 }));
 
 describe("TextEmbedder", () => {

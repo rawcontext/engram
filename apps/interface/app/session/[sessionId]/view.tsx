@@ -374,6 +374,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
 											</h3>
 										</div>
 										<button
+											type="button"
 											onClick={() => setSelectedNode(null)}
 											style={{
 												padding: "6px",

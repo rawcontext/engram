@@ -91,8 +91,7 @@ export class GraphPruner {
 
 			const result = await this.client.query(deleteQuery);
 			const firstRow = result?.[0];
-			const batchDeleted =
-				(firstRow?.deleted_count as number) ?? (firstRow?.[0] as number) ?? 0;
+			const batchDeleted = (firstRow?.deleted_count as number) ?? (firstRow?.[0] as number) ?? 0;
 
 			totalDeleted += batchDeleted;
 			batchesProcessed++;
@@ -149,7 +148,7 @@ export class GraphPruner {
 		const jsonlContent = lines.join("\n");
 
 		// Save to blob storage
-		const uri = await this.archiveStore!.save(jsonlContent);
+		const uri = await this.archiveStore?.save(jsonlContent);
 
 		return {
 			count: rows.length,

@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { SchemaManager, VECTOR_DIMENSIONS } from "./schema-manager";
 
 const mockCreateCollection = mock(async () => {});

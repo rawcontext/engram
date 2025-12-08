@@ -3,8 +3,8 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { SessionBrowser } from "./components/SessionBrowser";
 import { EngramLogo } from "./components/EngramLogo";
+import { SessionBrowser } from "./components/SessionBrowser";
 
 // Dynamically import Three.js background to avoid SSR issues
 const NeuralBackground = dynamic(

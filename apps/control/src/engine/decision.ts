@@ -4,7 +4,7 @@ import { generateText, tool } from "ai";
 import { createActor, fromPromise } from "xstate";
 import { z } from "zod";
 import type { ContextAssembler } from "../context/assembler";
-import { type AgentContext, type ToolCall, agentMachine } from "../state/machine";
+import { type AgentContext, agentMachine, type ToolCall } from "../state/machine";
 import type { MultiMcpAdapter } from "../tools/mcp_client";
 
 const model = xai("grok-4-1-fast-reasoning");

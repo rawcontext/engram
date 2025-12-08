@@ -110,7 +110,7 @@ export class ContextAssembler {
 				sessionId,
 			});
 			return fallbackResult.map((r) => r.thought);
-		} catch (error) {
+		} catch (_error) {
 			// If graph query fails, return empty history
 			return [];
 		}
@@ -144,7 +144,7 @@ export class ContextAssembler {
 				.map((r) => r.payload?.content as string)
 				.filter(Boolean)
 				.slice(0, 3); // Limit to top 3 most relevant
-		} catch (error) {
+		} catch (_error) {
 			// If search fails, return empty
 			return [];
 		}
@@ -181,7 +181,7 @@ export class ContextAssembler {
 					const remainingChars = remainingTokens * CHARS_PER_TOKEN;
 					if (remainingChars > 100) {
 						// Only truncate if meaningful
-						const truncated = section.content.slice(0, remainingChars - 20) + "... [truncated]";
+						const truncated = `${section.content.slice(0, remainingChars - 20)}... [truncated]`;
 						included.push({ ...section, content: truncated });
 						break;
 					}

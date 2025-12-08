@@ -11,8 +11,7 @@ class BM25Sparse {
 	private avgDocLength = 100; // Assumed average document length
 
 	// Tokenizer instance (lazy loaded)
-	private static tokenizer: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>> | null =
-		null;
+	private static tokenizer: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>> | null = null;
 	private static tokenizerPromise: Promise<
 		Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>>
 	> | null = null;

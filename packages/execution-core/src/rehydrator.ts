@@ -59,10 +59,11 @@ export class Rehydrator {
 			ORDER BY d.vt_start ASC
 		`;
 
-		const diffs = await this.falkor.query<{ file_path: string; patch_content: string }>(
-			diffQuery,
-			{ sessionId, lastSnapshotTime, targetTime },
-		);
+		const diffs = await this.falkor.query<{ file_path: string; patch_content: string }>(diffQuery, {
+			sessionId,
+			lastSnapshotTime,
+			targetTime,
+		});
 
 		// Apply patches in order
 		if (diffs && Array.isArray(diffs)) {

@@ -225,6 +225,7 @@ function ReasoningTrace({
 			onMouseLeave={() => setIsHovered(false)}
 		>
 			<button
+				type="button"
 				onClick={onToggle}
 				style={{
 					width: "100%",

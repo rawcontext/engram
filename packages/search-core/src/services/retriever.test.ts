@@ -7,6 +7,7 @@ const mockQdrantClient = {
 
 const mockEmbedder = {
 	embedQuery: mock(async () => new Array(384).fill(0.1)),
+	embedSparseQuery: mock(async () => ({ indices: [100, 200, 300], values: [0.5, 0.3, 0.2] })),
 };
 
 const mockClassifier = {
@@ -27,6 +28,7 @@ mock.module("./text-embedder", () => ({
 			return mockEmbedder;
 		}
 		embedQuery = mockEmbedder.embedQuery;
+		embedSparseQuery = mockEmbedder.embedSparseQuery;
 	},
 }));
 
@@ -50,7 +52,7 @@ describe("SearchRetriever", () => {
 		expect(mockQdrantClient.search).toHaveBeenCalled();
 		const call = mockQdrantClient.search.mock.calls[0];
 		expect(call[0]).toBe("engram_memory");
-		expect(call[1].vector.name).toBe("dense");
+		expect(call[1].vector.name).toBe("text_dense");
 	});
 
 	it("should use classifier if strategy not provided", async () => {

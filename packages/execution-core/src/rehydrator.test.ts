@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Mock @engram/storage before importing the unit under test
 const mockBlobStoreRead = mock(async () => "{}");
@@ -62,7 +62,9 @@ describe("Rehydrator", () => {
 		const mockSnapshot = ["blob-ref-123", 1000];
 		// First call: snapshot found, second call: no diffs
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
-		mockBlobStoreRead.mockResolvedValueOnce(JSON.stringify({ root: { name: "", type: "directory", children: {} } }));
+		mockBlobStoreRead.mockResolvedValueOnce(
+			JSON.stringify({ root: { name: "", type: "directory", children: {} } }),
+		);
 
 		await rehydrator.rehydrate("session-1");
 
@@ -76,8 +78,16 @@ describe("Rehydrator", () => {
 
 		// Diffs returned from session-filtered query
 		const mockDiffs = [
-			{ file_path: "/src/app.ts", patch_content: "@@ -1,0 +1,1 @@\n+console.log('hello');", vt_start: 1000 },
-			{ file_path: "/src/app.ts", patch_content: "@@ -1,1 +1,2 @@\n console.log('hello');\n+console.log('world');", vt_start: 2000 },
+			{
+				file_path: "/src/app.ts",
+				patch_content: "@@ -1,0 +1,1 @@\n+console.log('hello');",
+				vt_start: 1000,
+			},
+			{
+				file_path: "/src/app.ts",
+				patch_content: "@@ -1,1 +1,2 @@\n console.log('hello');\n+console.log('world');",
+				vt_start: 2000,
+			},
 		];
 		mockFalkorQuery.mockResolvedValueOnce(mockDiffs);
 
@@ -90,7 +100,9 @@ describe("Rehydrator", () => {
 	it("should pass lastSnapshotTime to diff query", async () => {
 		const mockSnapshot = ["blob-ref-123", 5000];
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
-		mockBlobStoreRead.mockResolvedValueOnce(JSON.stringify({ root: { name: "", type: "directory", children: {} } }));
+		mockBlobStoreRead.mockResolvedValueOnce(
+			JSON.stringify({ root: { name: "", type: "directory", children: {} } }),
+		);
 
 		await rehydrator.rehydrate("session-1", 10000);
 
