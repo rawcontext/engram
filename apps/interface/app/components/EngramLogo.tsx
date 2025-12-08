@@ -410,10 +410,10 @@ export function EngramLogo() {
 			width={400}
 			height={400}
 			style={{
-				width: "200px",
-				height: "200px",
+				width: "160px",
+				height: "160px",
 				display: "block",
-				margin: "0 auto 1rem auto",
+				flexShrink: 0,
 			}}
 		/>
 	);

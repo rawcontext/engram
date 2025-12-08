@@ -187,7 +187,8 @@ export default function HomePage() {
 		}
 	};
 
-	// Footer height for safe area calculation
+	// Header/Footer heights for safe area calculation
+	const HEADER_HEIGHT = 140;
 	const FOOTER_HEIGHT = 48;
 
 	return (
@@ -199,7 +200,7 @@ export default function HomePage() {
 				display: "flex",
 				flexDirection: "column",
 				alignItems: "center",
-				paddingTop: "3rem",
+				paddingTop: `${HEADER_HEIGHT + 24}px`, // Safe area: header height + extra padding
 				paddingBottom: `${FOOTER_HEIGHT + 24}px`, // Safe area: footer height + extra padding
 			}}
 		>
@@ -210,6 +211,91 @@ export default function HomePage() {
 				</Suspense>
 				<Particles />
 			</div>
+
+			{/* Fixed Header - Safe Area */}
+			<header
+				style={{
+					position: "fixed",
+					top: 0,
+					left: 0,
+					right: 0,
+					height: `${HEADER_HEIGHT}px`,
+					zIndex: 50,
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					// Solid background to prevent content showing through
+					backgroundColor: "rgb(8, 10, 15)",
+					// Bottom border with subtle line
+					borderBottom: "1px solid rgba(100, 116, 139, 0.15)",
+					// Subtle inner glow
+					boxShadow: "inset 0 -1px 0 rgba(255,255,255,0.02), 0 4px 20px rgba(0,0,0,0.5)",
+				}}
+			>
+				{/* Inner container matching body width */}
+				<div
+					style={{
+						width: "100%",
+						maxWidth: "1600px",
+						padding: "0 2rem",
+						display: "flex",
+						alignItems: "center",
+						gap: "1.5rem",
+					}}
+				>
+					{/* Gradient accent line at bottom */}
+					<div
+						style={{
+							position: "absolute",
+							bottom: 0,
+							left: "50%",
+							transform: "translateX(-50%)",
+							width: "100%",
+							maxWidth: "1600px",
+							padding: "0 2rem",
+							pointerEvents: "none",
+						}}
+					>
+						<div
+							style={{
+								width: "300px",
+								height: "1px",
+								background: "linear-gradient(90deg, rgba(251,191,36,0.4), transparent)",
+							}}
+						/>
+					</div>
+
+					{/* Logo */}
+					<EngramLogo />
+
+					{/* Name & Tagline */}
+					<div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+						<h1
+							className="font-display text-glow"
+							style={{
+								fontSize: "2rem",
+								fontWeight: 700,
+								letterSpacing: "0.1em",
+								marginBottom: "0.25rem",
+								lineHeight: 1,
+							}}
+						>
+							ENGRAM
+						</h1>
+						<p
+							style={{
+								color: "rgb(148,163,184)",
+								fontSize: "0.65rem",
+								letterSpacing: "0.3em",
+								textTransform: "uppercase",
+								lineHeight: 1,
+							}}
+						>
+							Neural Observatory
+						</p>
+					</div>
+				</div>
+			</header>
 
 			{/* Full-width content container */}
 			<div
@@ -229,34 +315,6 @@ export default function HomePage() {
 						transform: mounted ? "translateY(0)" : "translateY(2rem)",
 					}}
 				>
-					{/* Logo/Brand area */}
-					<div style={{ textAlign: "center", marginBottom: "2rem" }}>
-						{/* Animated Engram Neural Network Logo */}
-						<EngramLogo />
-
-						<h1
-							className="font-display text-glow"
-							style={{
-								fontSize: "2.5rem",
-								fontWeight: 700,
-								letterSpacing: "0.1em",
-								marginBottom: "1rem",
-							}}
-						>
-							ENGRAM
-						</h1>
-						<p
-							style={{
-								color: "rgb(148,163,184)",
-								fontSize: "0.875rem",
-								letterSpacing: "0.3em",
-								textTransform: "uppercase",
-							}}
-						>
-							Neural Observatory
-						</p>
-					</div>
-
 					{/* UUID input - at top */}
 					<form onSubmit={handleSubmit} style={{ maxWidth: "480px", margin: "0 auto 2rem auto" }}>
 						<div
