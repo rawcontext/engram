@@ -12,7 +12,6 @@ const MESSAGE_TYPES = {
 	RESPONSE: "response",
 	TURN: "turn",
 	TOOLCALL: "toolcall",
-	FILETOUCH: "filetouch",
 } as const;
 
 type MessageType = (typeof MESSAGE_TYPES)[keyof typeof MESSAGE_TYPES];
@@ -168,8 +167,6 @@ function consolidateTimeline(timeline: TimelineEvent[]): ConsolidatedMessage[] {
 					msgType = MESSAGE_TYPES.TURN;
 				} else if (type.includes(MESSAGE_TYPES.TOOLCALL)) {
 					msgType = MESSAGE_TYPES.TOOLCALL;
-				} else if (type.includes(MESSAGE_TYPES.FILETOUCH)) {
-					msgType = MESSAGE_TYPES.FILETOUCH;
 				} else if (type.includes(MESSAGE_TYPES.RESPONSE)) {
 					msgType = MESSAGE_TYPES.RESPONSE;
 				} else if (type.includes(MESSAGE_TYPES.ACTION)) {
@@ -645,201 +642,6 @@ function TurnHeader({ turnNumber }: { turnNumber: string }) {
 	);
 }
 
-// FileTouch card - Green palette (matches FileTouch nodes in graph)
-function FileTouchCard({
-	filePath,
-	toolName,
-	diffContent,
-}: {
-	filePath: string;
-	toolName?: string;
-	diffContent?: string;
-}) {
-	const [isExpanded, setIsExpanded] = useState(false);
-
-	const getToolIcon = (tool?: string) => {
-		switch (tool?.toLowerCase()) {
-			case "read":
-				return "📖";
-			case "edit":
-				return "✏️";
-			case "write":
-				return "📝";
-			case "glob":
-				return "🔍";
-			case "grep":
-				return "🔎";
-			default:
-				return "📄";
-		}
-	};
-
-	// Generate mock diff preview based on tool type (in real app, this would come from API)
-	const getDiffPreview = () => {
-		if (diffContent) return diffContent;
-		// Simulated preview based on file path
-		const fileName = filePath.split("/").pop() || "file";
-		if (toolName === "edit" || toolName === "write") {
-			return `+ import { ThrottlerGuard } from '@nestjs/throttler';\n  @UseGuards(AuthGuard)\n+ @UseGuards(ThrottlerGuard)`;
-		}
-		if (toolName === "read") {
-			return `  export class ${fileName.replace(/\.\w+$/, "")} {\n    constructor() { ... }\n  }`;
-		}
-		return `  // ${fileName}\n  ...`;
-	};
-
-	const diffPreview = getDiffPreview();
-	const previewLines = diffPreview.split("\n").slice(0, 3).join("\n");
-	const hasMoreLines = diffPreview.split("\n").length > 3;
-
-	return (
-		<div
-			style={{
-				background:
-					"linear-gradient(135deg, rgba(34, 197, 94, 0.04) 0%, rgba(34, 197, 94, 0.08) 100%)",
-				borderRadius: "8px",
-				border: "1px solid rgba(34, 197, 94, 0.2)",
-				borderLeft: "3px solid rgb(34, 197, 94)",
-				overflow: "hidden",
-			}}
-		>
-			{/* Header row */}
-			<div
-				style={{
-					display: "flex",
-					alignItems: "center",
-					gap: "10px",
-					padding: "10px 14px",
-				}}
-			>
-				<span style={{ fontSize: "14px" }}>{getToolIcon(toolName)}</span>
-				<div style={{ flex: 1, minWidth: 0 }}>
-					{toolName && (
-						<span
-							style={{
-								fontFamily: "JetBrains Mono, monospace",
-								fontSize: "9px",
-								fontWeight: 600,
-								color: "rgb(34, 197, 94)",
-								letterSpacing: "0.1em",
-								textTransform: "uppercase",
-								marginRight: "8px",
-							}}
-						>
-							{toolName}
-						</span>
-					)}
-					<span
-						style={{
-							fontFamily: "JetBrains Mono, monospace",
-							fontSize: "11px",
-							color: "rgba(200, 220, 200, 0.9)",
-							wordBreak: "break-all",
-						}}
-					>
-						{filePath}
-					</span>
-				</div>
-				{/* Expand/collapse button */}
-				<button
-					type="button"
-					onClick={() => setIsExpanded(!isExpanded)}
-					style={{
-						padding: "4px 8px",
-						borderRadius: "4px",
-						background: isExpanded ? "rgba(34, 197, 94, 0.2)" : "rgba(34, 197, 94, 0.1)",
-						border: "1px solid rgba(34, 197, 94, 0.3)",
-						color: "rgb(34, 197, 94)",
-						fontSize: "9px",
-						fontFamily: "JetBrains Mono, monospace",
-						fontWeight: 600,
-						cursor: "pointer",
-						display: "flex",
-						alignItems: "center",
-						gap: "4px",
-						transition: "all 0.2s ease",
-					}}
-				>
-					<svg
-						width="10"
-						height="10"
-						viewBox="0 0 10 10"
-						fill="none"
-						style={{
-							transition: "transform 0.2s ease",
-							transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-						}}
-					>
-						<path
-							d="M3 1L7 5L3 9"
-							stroke="currentColor"
-							strokeWidth="1.5"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-					</svg>
-					{isExpanded ? "HIDE" : "DIFF"}
-				</button>
-			</div>
-
-			{/* Collapsible code diff area */}
-			<div
-				style={{
-					maxHeight: isExpanded ? "200px" : "0",
-					opacity: isExpanded ? 1 : 0,
-					overflow: "hidden",
-					transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-				}}
-			>
-				<div
-					style={{
-						margin: "0 10px 10px 10px",
-						padding: "10px 12px",
-						background: "rgba(0, 0, 0, 0.3)",
-						borderRadius: "6px",
-						border: "1px solid rgba(34, 197, 94, 0.15)",
-						fontFamily: "JetBrains Mono, monospace",
-						fontSize: "10px",
-						lineHeight: "1.6",
-						whiteSpace: "pre",
-						overflowX: "auto",
-					}}
-				>
-					{(isExpanded ? diffPreview : previewLines).split("\n").map((line, i) => {
-						const isAddition = line.startsWith("+");
-						const isDeletion = line.startsWith("-");
-						return (
-							<div
-								key={i}
-								style={{
-									color: isAddition
-										? "rgb(74, 222, 128)"
-										: isDeletion
-											? "rgb(248, 113, 113)"
-											: "rgba(180, 200, 180, 0.8)",
-									background: isAddition
-										? "rgba(74, 222, 128, 0.1)"
-										: isDeletion
-											? "rgba(248, 113, 113, 0.1)"
-											: "transparent",
-									marginLeft: "-12px",
-									marginRight: "-12px",
-									paddingLeft: "12px",
-									paddingRight: "12px",
-								}}
-							>
-								{line}
-							</div>
-						);
-					})}
-					{!isExpanded && hasMoreLines && (
-						<div style={{ color: "rgba(100, 116, 139, 0.5)", marginTop: "4px" }}>...</div>
-					)}
-				</div>
-			</div>
-		</div>
-	);
-}
 
 // ToolCall card - Violet/Purple palette (matches ToolCall nodes in graph)
 // File operations now show file_path directly on the ToolCall
@@ -1111,7 +913,6 @@ function StatsHeader({ messages }: { messages: ConsolidatedMessage[] }) {
 	const reasoningCount = messages.filter((m) => m.isThinkingBlock).length;
 	const toolCallCount = messages.filter((m) => m.type === MESSAGE_TYPES.TOOLCALL).length;
 	const responseCount = messages.filter((m) => m.type === MESSAGE_TYPES.RESPONSE).length;
-	const fileTouchCount = messages.filter((m) => m.type === MESSAGE_TYPES.FILETOUCH).length;
 	const turnCount = messages.filter((m) => m.type === MESSAGE_TYPES.TURN).length;
 	const [mounted, setMounted] = useState(false);
 
@@ -1137,12 +938,6 @@ function StatsHeader({ messages }: { messages: ConsolidatedMessage[] }) {
 			value: toolCallCount,
 			color: "rgb(139, 92, 246)",
 			glowColor: "rgba(139, 92, 246, 0.5)",
-		},
-		{
-			label: "FILES",
-			value: fileTouchCount,
-			color: "rgb(34, 197, 94)",
-			glowColor: "rgba(34, 197, 94, 0.5)",
 		},
 		{
 			label: "OUTPUT",
@@ -1627,41 +1422,6 @@ export function SessionReplay({ data, selectedNodeId, onEventHover }: SessionRep
 										filePath={msg.filePath}
 										fileAction={msg.fileAction}
 									/>
-								</div>
-							);
-						}
-
-						// FileTouch card
-						if (msg.type === MESSAGE_TYPES.FILETOUCH) {
-							return (
-								<div
-									key={`${msg.id}-${i}`}
-									style={{
-										animation: `fadeInUp 0.3s ease-out ${i * 0.03}s backwards`,
-										position: "relative",
-										paddingLeft: "32px",
-										opacity: isHighlighted ? 1 : 0.4,
-										transition: "opacity 0.2s ease",
-									}}
-									onMouseEnter={() => handleHover(msg.nodeIds)}
-									onMouseLeave={() => handleHover(null)}
-								>
-									{/* Timeline node - green for files */}
-									<div
-										style={{
-											position: "absolute",
-											left: "4px",
-											top: "10px",
-											width: "16px",
-											height: "16px",
-											borderRadius: "50%",
-											background: "rgb(15, 20, 30)",
-											border: "3px solid rgb(34, 197, 94)",
-											boxShadow: "0 0 10px rgba(34, 197, 94, 0.4)",
-											zIndex: 1,
-										}}
-									/>
-									<FileTouchCard filePath={msg.content} toolName={msg.toolName} />
 								</div>
 							);
 						}

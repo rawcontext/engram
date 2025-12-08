@@ -249,7 +249,6 @@ const getGridLayout = (nodes: Node[], edges: Edge[], centerX: number, centerY: n
 
 // Node type configurations - Monochrome + Amber palette
 // Silver/White (session), Amber (turn), Cyan (reasoning), Purple (toolcall)
-// Note: filetouch style kept for backwards compatibility with legacy data
 const nodeTypeConfig = {
 	session: {
 		// Silver/White - clean, prominent session hub
@@ -302,25 +301,8 @@ const nodeTypeConfig = {
 			</svg>
 		),
 	},
-	filetouch: {
-		// Green - file operations (legacy, kept for backwards compatibility)
-		border: "rgba(34, 197, 94, 0.7)",
-		bg: "rgba(34, 197, 94, 0.1)",
-		glow: "rgba(34, 197, 94, 0.5)",
-		text: "rgb(34, 197, 94)",
-		icon: (
-			<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-				/>
-			</svg>
-		),
-	},
 	toolcall: {
-		// Violet/Purple - tool execution (action layer between reasoning and filetouch)
+		// Violet/Purple - tool execution (file operations stored as properties)
 		border: "rgba(139, 92, 246, 0.7)",
 		bg: "rgba(139, 92, 246, 0.1)",
 		glow: "rgba(139, 92, 246, 0.5)",
@@ -1006,8 +988,6 @@ export function LineageGraph({
 				return "rgb(34, 211, 238)"; // Cyan
 			case "toolcall":
 				return "rgb(139, 92, 246)"; // Violet/Purple
-			case "filetouch":
-				return "rgb(34, 197, 94)"; // Green
 			// Legacy types
 			case "thought":
 				return "rgb(251, 191, 36)"; // Amber

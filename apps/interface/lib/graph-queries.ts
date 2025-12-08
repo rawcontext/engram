@@ -12,9 +12,16 @@ const falkor = createFalkorClient();
 // Type Definitions
 // =============================================================================
 
+// Explicit node structure from list comprehension
+interface PathNodeExplicit {
+	nodeId: number;
+	nodeLabels: string[];
+	nodeProps: Record<string, unknown>;
+}
+
 interface LineageRow {
 	s?: SessionNode;
-	path_nodes?: FalkorNode[];
+	path_nodes?: PathNodeExplicit[];
 	path_edges?: FalkorEdge[];
 }
 
@@ -131,10 +138,14 @@ export async function getSessionLineage(sessionId: string): Promise<LineageData>
 	await falkor.connect();
 
 	// Query 1: Get the session and all connected nodes via path traversal
+	// Note: We use list comprehension with labels() and properties() to ensure correct parsing
+	// The FalkorDB JS client can misparse node labels from raw path node extraction
 	const query = `
 		MATCH (s:Session {id: $sessionId})
 		OPTIONAL MATCH p = (s)-${LINEAGE_EDGE_PATTERN}->(n)
-		RETURN s, nodes(p) as path_nodes, relationships(p) as path_edges
+		RETURN s,
+			[node in nodes(p) | {nodeId: id(node), nodeLabels: labels(node), nodeProps: properties(node)}] as path_nodes,
+			relationships(p) as path_edges
 	`;
 
 	const res = await falkor.query<LineageRow>(query, { sessionId });
@@ -196,18 +207,19 @@ export async function getSessionLineage(sessionId: string): Promise<LineageData>
 				}
 			}
 
-			// Path nodes
+			// Path nodes - using explicit structure from list comprehension
+			// Each node is: {nodeId: id(node), nodeLabels: labels(node), nodeProps: properties(node)}
 			const pathNodes = row.path_nodes;
 			if (Array.isArray(pathNodes)) {
 				for (const n of pathNodes) {
-					if (n) {
-						const uuid = n.properties?.id as string | undefined;
+					if (n && n.nodeProps) {
+						const uuid = n.nodeProps.id as string | undefined;
 						if (uuid) {
-							internalIdToUuid.set(n.id, uuid);
+							internalIdToUuid.set(n.nodeId, uuid);
 							if (!nodesMap.has(uuid)) {
-								const label = n.labels?.[0] || "Unknown";
+								const label = n.nodeLabels?.[0] || "Unknown";
 								nodesMap.set(uuid, {
-									...n.properties,
+									...n.nodeProps,
 									id: uuid,
 									label,
 									type: label.toLowerCase(),
