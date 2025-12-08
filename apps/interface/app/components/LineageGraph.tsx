@@ -40,7 +40,7 @@ const nodeHeight = 50;
 // Now holds a Set of IDs to support highlighting the entire parent chain
 const HighlightContext = createContext<Set<string>>(new Set());
 
-// Horizontal tree layout: Session -> Turns -> Reasoning/FileTouch (left to right)
+// Horizontal tree layout: Session -> Turns -> Reasoning -> ToolCall (left to right)
 const getRadialLayout = (nodes: Node[], edges: Edge[], centerX: number, centerY: number) => {
 	if (nodes.length === 0) return { nodes: [], edges };
 
@@ -67,17 +67,16 @@ const getRadialLayout = (nodes: Node[], edges: Edge[], centerX: number, centerY:
 			const seqB = (b.data?.sequence_index as number) ?? 0;
 			return seqA - seqB;
 		});
-	const fileTouchNodes = nodes
-		.filter((n) => (n.data?.type as string)?.toLowerCase() === "filetouch")
+	const toolCallNodes = nodes
+		.filter((n) => (n.data?.type as string)?.toLowerCase() === "toolcall")
 		.sort((a, b) => {
-			// FileTouch nodes don't have sequence_index, use vt_start timestamp instead
-			const vtA = (a.data?.vt_start as number) ?? 0;
-			const vtB = (b.data?.vt_start as number) ?? 0;
-			return vtA - vtB; // Ascending by time (earliest first)
+			const seqA = (a.data?.sequence_index as number) ?? 0;
+			const seqB = (b.data?.sequence_index as number) ?? 0;
+			return seqA - seqB;
 		});
 	const otherNodes = nodes.filter((n) => {
 		const type = (n.data?.type as string)?.toLowerCase();
-		return type !== "session" && type !== "turn" && type !== "reasoning" && type !== "filetouch";
+		return type !== "session" && type !== "turn" && type !== "reasoning" && type !== "toolcall";
 	});
 
 	// Build parent-child map from edges
@@ -93,7 +92,7 @@ const getRadialLayout = (nodes: Node[], edges: Edge[], centerX: number, centerY:
 
 	// Group children by parent Turn
 	const reasoningByParent = new Map<string, Node[]>();
-	const fileTouchByParent = new Map<string, Node[]>();
+	const toolCallByParent = new Map<string, Node[]>();
 	for (const node of reasoningNodes) {
 		const parentId = childToParent.get(node.id);
 		if (parentId) {
@@ -102,46 +101,38 @@ const getRadialLayout = (nodes: Node[], edges: Edge[], centerX: number, centerY:
 			reasoningByParent.set(parentId, list);
 		}
 	}
-	for (const node of fileTouchNodes) {
+	for (const node of toolCallNodes) {
 		const parentId = childToParent.get(node.id);
 		if (parentId) {
-			const list = fileTouchByParent.get(parentId) || [];
+			const list = toolCallByParent.get(parentId) || [];
 			list.push(node);
-			fileTouchByParent.set(parentId, list);
+			toolCallByParent.set(parentId, list);
 		}
 	}
 
-	// Sort children within each parent group by vt_start (ascending - earliest first at top)
-	for (const [parentId, children] of fileTouchByParent) {
-		children.sort((a, b) => {
-			const vtA = (a.data?.vt_start as number) ?? 0;
-			const vtB = (b.data?.vt_start as number) ?? 0;
-			return vtA - vtB; // Ascending by time
-		});
-	}
-
-	// Calculate height needed for each Turn's subtree
+	// Calculate height needed for each Turn's subtree (considering all child types)
 	const turnHeights = new Map<string, number>();
 	for (const turn of turnNodes) {
 		const reasoningCount = reasoningByParent.get(turn.id)?.length || 0;
-		const fileTouchCount = fileTouchByParent.get(turn.id)?.length || 0;
-		const maxChildren = Math.max(reasoningCount, fileTouchCount, 1);
+		const toolCallCount = toolCallByParent.get(turn.id)?.length || 0;
+		const maxChildren = Math.max(reasoningCount, toolCallCount, 1);
 		const height = maxChildren * nodeHeight + (maxChildren - 1) * (childGap - nodeHeight);
 		turnHeights.set(turn.id, Math.max(height, nodeHeight));
 	}
 
 	// Calculate total height of all Turn subtrees
-	const totalHeight = Array.from(turnHeights.values()).reduce((sum, h) => sum + h, 0) +
+	const totalHeight =
+		Array.from(turnHeights.values()).reduce((sum, h) => sum + h, 0) +
 		(turnNodes.length - 1) * rowGap;
 
 	// Starting Y position to center the tree vertically
 	const startY = centerY - totalHeight / 2;
 
-	// Column X positions
+	// Column X positions (4 columns: Session, Turn, Reasoning, ToolCall)
 	const sessionX = centerX - columnGap * 1.5;
-	const turnX = centerX - columnGap / 2;
-	const reasoningX = centerX + columnGap / 2;
-	const fileTouchX = centerX + columnGap * 1.5;
+	const turnX = centerX - columnGap * 0.5;
+	const reasoningX = centerX + columnGap * 0.5;
+	const toolCallX = centerX + columnGap * 1.5;
 
 	const layoutedNodes: Node[] = [];
 	const turnPositions = new Map<string, { x: number; y: number }>();
@@ -173,7 +164,8 @@ const getRadialLayout = (nodes: Node[], edges: Edge[], centerX: number, centerY:
 	for (const [parentId, children] of reasoningByParent) {
 		const parentPos = turnPositions.get(parentId);
 		if (!parentPos) continue;
-		const totalChildHeight = children.length * nodeHeight + (children.length - 1) * (childGap - nodeHeight);
+		const totalChildHeight =
+			children.length * nodeHeight + (children.length - 1) * (childGap - nodeHeight);
 		const startChildY = parentPos.y + nodeHeight / 2 - totalChildHeight / 2;
 		children.forEach((node, index) => {
 			layoutedNodes.push({
@@ -188,18 +180,20 @@ const getRadialLayout = (nodes: Node[], edges: Edge[], centerX: number, centerY:
 		});
 	}
 
-	// Place FileTouch nodes (column to right of Reasoning)
-	for (const [parentId, children] of fileTouchByParent) {
+	// Place ToolCall nodes (column to right of Reasoning)
+	for (const [parentId, children] of toolCallByParent) {
 		const parentPos = turnPositions.get(parentId);
 		if (!parentPos) continue;
-		const totalChildHeight = children.length * nodeHeight + (children.length - 1) * (childGap - nodeHeight);
+		const totalChildHeight =
+			children.length * nodeHeight + (children.length - 1) * (childGap - nodeHeight);
 		const startChildY = parentPos.y + nodeHeight / 2 - totalChildHeight / 2;
 		children.forEach((node, index) => {
+			const yPos = startChildY + index * childGap;
 			layoutedNodes.push({
 				...node,
 				position: {
-					x: fileTouchX - nodeWidth / 2,
-					y: startChildY + index * childGap,
+					x: toolCallX - nodeWidth / 2,
+					y: yPos,
 				},
 				targetPosition: Position.Left,
 				sourcePosition: Position.Right,
@@ -207,9 +201,9 @@ const getRadialLayout = (nodes: Node[], edges: Edge[], centerX: number, centerY:
 		});
 	}
 
-	// Place any orphan reasoning/filetouch nodes that don't have parents
+	// Place any orphan nodes that don't have parents
 	const placedIds = new Set(layoutedNodes.map((n) => n.id));
-	const orphanNodes = [...reasoningNodes, ...fileTouchNodes, ...otherNodes].filter(
+	const orphanNodes = [...reasoningNodes, ...toolCallNodes, ...otherNodes].filter(
 		(n) => !placedIds.has(n.id),
 	);
 
@@ -254,7 +248,8 @@ const getGridLayout = (nodes: Node[], edges: Edge[], centerX: number, centerY: n
 };
 
 // Node type configurations - Monochrome + Amber palette
-// Silver/White (session), Amber (turn), Cyan (reasoning), Green (filetouch)
+// Silver/White (session), Amber (turn), Cyan (reasoning), Purple (toolcall)
+// Note: filetouch style kept for backwards compatibility with legacy data
 const nodeTypeConfig = {
 	session: {
 		// Silver/White - clean, prominent session hub
@@ -308,7 +303,7 @@ const nodeTypeConfig = {
 		),
 	},
 	filetouch: {
-		// Green - file operations
+		// Green - file operations (legacy, kept for backwards compatibility)
 		border: "rgba(34, 197, 94, 0.7)",
 		bg: "rgba(34, 197, 94, 0.1)",
 		glow: "rgba(34, 197, 94, 0.5)",
@@ -320,6 +315,23 @@ const nodeTypeConfig = {
 					strokeLinejoin="round"
 					strokeWidth={1.5}
 					d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+				/>
+			</svg>
+		),
+	},
+	toolcall: {
+		// Violet/Purple - tool execution (action layer between reasoning and filetouch)
+		border: "rgba(139, 92, 246, 0.7)",
+		bg: "rgba(139, 92, 246, 0.1)",
+		glow: "rgba(139, 92, 246, 0.5)",
+		text: "rgb(139, 92, 246)",
+		icon: (
+			<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
 				/>
 			</svg>
 		),
@@ -982,7 +994,7 @@ export function LineageGraph({
 		onNodeHover?.(null);
 	}, [onNodeHover]);
 
-	// Custom minimap node color - Monochrome + Amber palette
+	// Custom minimap node color - Full palette with ToolCall
 	const minimapNodeColor = useCallback((node: Node) => {
 		const type = (node.data?.type as string)?.toLowerCase();
 		switch (type) {
@@ -992,6 +1004,8 @@ export function LineageGraph({
 				return "rgb(251, 191, 36)"; // Amber
 			case "reasoning":
 				return "rgb(34, 211, 238)"; // Cyan
+			case "toolcall":
+				return "rgb(139, 92, 246)"; // Violet/Purple
 			case "filetouch":
 				return "rgb(34, 197, 94)"; // Green
 			// Legacy types

@@ -11,6 +11,7 @@ const MESSAGE_TYPES = {
 	SYSTEM: "system",
 	RESPONSE: "response",
 	TURN: "turn",
+	TOOLCALL: "toolcall",
 	FILETOUCH: "filetouch",
 } as const;
 
@@ -33,6 +34,13 @@ interface ConsolidatedMessage {
 	nodeIds: string[];
 	isStreaming?: boolean;
 	toolName?: string;
+	// ToolCall specific fields
+	toolType?: string;
+	toolStatus?: string;
+	argumentsPreview?: string;
+	// File operation fields (now embedded in ToolCall)
+	filePath?: string;
+	fileAction?: string;
 }
 
 // Detect if content is a thinking/reasoning block
@@ -158,6 +166,8 @@ function consolidateTimeline(timeline: TimelineEvent[]): ConsolidatedMessage[] {
 				let msgType: MessageType = MESSAGE_TYPES.THOUGHT;
 				if (type.includes(MESSAGE_TYPES.TURN)) {
 					msgType = MESSAGE_TYPES.TURN;
+				} else if (type.includes(MESSAGE_TYPES.TOOLCALL)) {
+					msgType = MESSAGE_TYPES.TOOLCALL;
 				} else if (type.includes(MESSAGE_TYPES.FILETOUCH)) {
 					msgType = MESSAGE_TYPES.FILETOUCH;
 				} else if (type.includes(MESSAGE_TYPES.RESPONSE)) {
@@ -172,6 +182,14 @@ function consolidateTimeline(timeline: TimelineEvent[]): ConsolidatedMessage[] {
 
 				// Use graphNodeId for highlighting if available, fallback to event id
 				const graphNodeId = (event as { graphNodeId?: string }).graphNodeId || nodeId;
+				const toolCallEvent = event as {
+					toolName?: string;
+					toolType?: string;
+					toolStatus?: string;
+					argumentsPreview?: string;
+					filePath?: string;
+					fileAction?: string;
+				};
 				messages.push({
 					id: nodeId || `msg-${messages.length}`,
 					type: msgType,
@@ -180,7 +198,12 @@ function consolidateTimeline(timeline: TimelineEvent[]): ConsolidatedMessage[] {
 					tokenCount: (event as { tokenCount?: number }).tokenCount || 0,
 					isThinkingBlock: false,
 					nodeIds: [graphNodeId],
-					toolName: (event as { toolName?: string }).toolName,
+					toolName: toolCallEvent.toolName,
+					toolType: toolCallEvent.toolType,
+					toolStatus: toolCallEvent.toolStatus,
+					argumentsPreview: toolCallEvent.argumentsPreview,
+					filePath: toolCallEvent.filePath,
+					fileAction: toolCallEvent.fileAction,
 				});
 			}
 		}
@@ -593,7 +616,14 @@ function TurnHeader({ turnNumber }: { turnNumber: string }) {
 					boxShadow: "0 0 10px rgba(251, 191, 36, 0.2)",
 				}}
 			>
-				<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgb(251, 191, 36)" strokeWidth="2">
+				<svg
+					width="12"
+					height="12"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="rgb(251, 191, 36)"
+					strokeWidth="2"
+				>
 					<circle cx="12" cy="12" r="3" />
 					<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83" />
 				</svg>
@@ -717,9 +747,7 @@ function FileTouchCard({
 					style={{
 						padding: "4px 8px",
 						borderRadius: "4px",
-						background: isExpanded
-							? "rgba(34, 197, 94, 0.2)"
-							: "rgba(34, 197, 94, 0.1)",
+						background: isExpanded ? "rgba(34, 197, 94, 0.2)" : "rgba(34, 197, 94, 0.1)",
 						border: "1px solid rgba(34, 197, 94, 0.3)",
 						color: "rgb(34, 197, 94)",
 						fontSize: "9px",
@@ -805,9 +833,7 @@ function FileTouchCard({
 						);
 					})}
 					{!isExpanded && hasMoreLines && (
-						<div style={{ color: "rgba(100, 116, 139, 0.5)", marginTop: "4px" }}>
-							...
-						</div>
+						<div style={{ color: "rgba(100, 116, 139, 0.5)", marginTop: "4px" }}>...</div>
 					)}
 				</div>
 			</div>
@@ -815,9 +841,275 @@ function FileTouchCard({
 	);
 }
 
-// Stats header with animated counters - Monochrome + Cyan for reasoning
+// ToolCall card - Violet/Purple palette (matches ToolCall nodes in graph)
+// File operations now show file_path directly on the ToolCall
+function ToolCallCard({
+	toolName,
+	toolType,
+	status,
+	argumentsPreview,
+	filePath,
+	fileAction,
+}: {
+	toolName: string;
+	toolType?: string;
+	status?: string;
+	argumentsPreview?: string;
+	filePath?: string;
+	fileAction?: string;
+}) {
+	const [isExpanded, setIsExpanded] = useState(false);
+
+	// Get icon based on tool type
+	const getToolIcon = () => {
+		// If it's a file operation with a file path, show file-specific icons
+		if (filePath) {
+			switch (fileAction?.toLowerCase()) {
+				case "read":
+					return "📖";
+				case "edit":
+					return "✏️";
+				case "create":
+				case "write":
+					return "📝";
+				case "search":
+					return "🔍";
+				default:
+					return "📄";
+			}
+		}
+		switch (toolType?.toLowerCase()) {
+			case "file_read":
+				return "📖";
+			case "file_write":
+			case "file_edit":
+				return "✏️";
+			case "file_glob":
+			case "file_grep":
+				return "🔍";
+			case "bash_exec":
+				return "⚡";
+			case "web_fetch":
+			case "web_search":
+				return "🌐";
+			case "agent_spawn":
+				return "🤖";
+			case "mcp":
+				return "🔌";
+			default:
+				return "⚙️";
+		}
+	};
+
+	// Status indicator color
+	const getStatusColor = () => {
+		switch (status?.toLowerCase()) {
+			case "success":
+				return "rgb(34, 197, 94)"; // Green
+			case "error":
+				return "rgb(248, 113, 113)"; // Red
+			case "pending":
+				return "rgb(251, 191, 36)"; // Amber
+			default:
+				return "rgb(139, 92, 246)"; // Purple
+		}
+	};
+
+	return (
+		<div
+			style={{
+				background:
+					"linear-gradient(135deg, rgba(139, 92, 246, 0.04) 0%, rgba(139, 92, 246, 0.08) 100%)",
+				borderRadius: "8px",
+				border: "1px solid rgba(139, 92, 246, 0.2)",
+				borderLeft: "3px solid rgb(139, 92, 246)",
+				overflow: "hidden",
+			}}
+		>
+			{/* Header row */}
+			<div
+				style={{
+					display: "flex",
+					alignItems: "center",
+					gap: "10px",
+					padding: "10px 14px",
+				}}
+			>
+				<span style={{ fontSize: "14px" }}>{getToolIcon()}</span>
+				<div style={{ flex: 1, minWidth: 0 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+						<span
+							style={{
+								fontFamily: "JetBrains Mono, monospace",
+								fontSize: "10px",
+								fontWeight: 600,
+								color: "rgb(139, 92, 246)",
+								letterSpacing: "0.08em",
+								textTransform: "uppercase",
+							}}
+						>
+							TOOL
+						</span>
+						{toolType && (
+							<span
+								style={{
+									fontFamily: "JetBrains Mono, monospace",
+									fontSize: "8px",
+									fontWeight: 500,
+									color: "rgba(139, 92, 246, 0.7)",
+									padding: "2px 6px",
+									background: "rgba(139, 92, 246, 0.1)",
+									borderRadius: "4px",
+									letterSpacing: "0.05em",
+								}}
+							>
+								{toolType}
+							</span>
+						)}
+						{status && (
+							<span
+								style={{
+									width: "6px",
+									height: "6px",
+									borderRadius: "50%",
+									background: getStatusColor(),
+									boxShadow: `0 0 8px ${getStatusColor()}`,
+								}}
+							/>
+						)}
+					</div>
+					<span
+						style={{
+							fontFamily: "JetBrains Mono, monospace",
+							fontSize: "11px",
+							color: "rgba(200, 190, 230, 0.9)",
+							wordBreak: "break-all",
+						}}
+					>
+						{toolName}
+					</span>
+					{/* File path display - shown when tool operates on a file */}
+					{filePath && (
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								gap: "6px",
+								marginTop: "4px",
+								padding: "4px 8px",
+								background: "rgba(34, 197, 94, 0.08)",
+								borderRadius: "4px",
+								border: "1px solid rgba(34, 197, 94, 0.15)",
+							}}
+						>
+							{fileAction && (
+								<span
+									style={{
+										fontFamily: "JetBrains Mono, monospace",
+										fontSize: "8px",
+										fontWeight: 600,
+										color: "rgb(34, 197, 94)",
+										letterSpacing: "0.1em",
+										textTransform: "uppercase",
+									}}
+								>
+									{fileAction}
+								</span>
+							)}
+							<span
+								style={{
+									fontFamily: "JetBrains Mono, monospace",
+									fontSize: "10px",
+									color: "rgba(200, 220, 200, 0.9)",
+									wordBreak: "break-all",
+								}}
+							>
+								{filePath}
+							</span>
+						</div>
+					)}
+				</div>
+				{/* Expand/collapse button */}
+				{argumentsPreview && (
+					<button
+						type="button"
+						onClick={() => setIsExpanded(!isExpanded)}
+						style={{
+							padding: "4px 8px",
+							borderRadius: "4px",
+							background: isExpanded ? "rgba(139, 92, 246, 0.2)" : "rgba(139, 92, 246, 0.1)",
+							border: "1px solid rgba(139, 92, 246, 0.3)",
+							color: "rgb(139, 92, 246)",
+							fontSize: "9px",
+							fontFamily: "JetBrains Mono, monospace",
+							fontWeight: 600,
+							cursor: "pointer",
+							display: "flex",
+							alignItems: "center",
+							gap: "4px",
+							transition: "all 0.2s ease",
+						}}
+					>
+						<svg
+							width="10"
+							height="10"
+							viewBox="0 0 10 10"
+							fill="none"
+							style={{
+								transition: "transform 0.2s ease",
+								transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+							}}
+						>
+							<path
+								d="M3 1L7 5L3 9"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							/>
+						</svg>
+						{isExpanded ? "HIDE" : "ARGS"}
+					</button>
+				)}
+			</div>
+
+			{/* Collapsible arguments preview area */}
+			{argumentsPreview && (
+				<div
+					style={{
+						maxHeight: isExpanded ? "200px" : "0",
+						opacity: isExpanded ? 1 : 0,
+						overflow: "hidden",
+						transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+					}}
+				>
+					<div
+						style={{
+							margin: "0 10px 10px 10px",
+							padding: "10px 12px",
+							background: "rgba(0, 0, 0, 0.3)",
+							borderRadius: "6px",
+							border: "1px solid rgba(139, 92, 246, 0.15)",
+							fontFamily: "JetBrains Mono, monospace",
+							fontSize: "10px",
+							lineHeight: "1.6",
+							color: "rgba(180, 170, 210, 0.9)",
+							whiteSpace: "pre-wrap",
+							wordBreak: "break-word",
+						}}
+					>
+						{argumentsPreview}
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
+// Stats header with animated counters - Full palette including ToolCalls
 function StatsHeader({ messages }: { messages: ConsolidatedMessage[] }) {
 	const reasoningCount = messages.filter((m) => m.isThinkingBlock).length;
+	const toolCallCount = messages.filter((m) => m.type === MESSAGE_TYPES.TOOLCALL).length;
 	const responseCount = messages.filter((m) => m.type === MESSAGE_TYPES.RESPONSE).length;
 	const fileTouchCount = messages.filter((m) => m.type === MESSAGE_TYPES.FILETOUCH).length;
 	const turnCount = messages.filter((m) => m.type === MESSAGE_TYPES.TURN).length;
@@ -839,6 +1131,12 @@ function StatsHeader({ messages }: { messages: ConsolidatedMessage[] }) {
 			value: reasoningCount,
 			color: "rgb(34, 211, 238)",
 			glowColor: "rgba(34, 211, 238, 0.5)",
+		},
+		{
+			label: "TOOLS",
+			value: toolCallCount,
+			color: "rgb(139, 92, 246)",
+			glowColor: "rgba(139, 92, 246, 0.5)",
 		},
 		{
 			label: "FILES",
@@ -1287,6 +1585,48 @@ export function SessionReplay({ data, selectedNodeId, onEventHover }: SessionRep
 										/>
 									</div>
 									<TurnHeader turnNumber={msg.content} />
+								</div>
+							);
+						}
+
+						// ToolCall card
+						if (msg.type === MESSAGE_TYPES.TOOLCALL) {
+							return (
+								<div
+									key={`${msg.id}-${i}`}
+									style={{
+										animation: `fadeInUp 0.3s ease-out ${i * 0.03}s backwards`,
+										position: "relative",
+										paddingLeft: "32px",
+										opacity: isHighlighted ? 1 : 0.4,
+										transition: "opacity 0.2s ease",
+									}}
+									onMouseEnter={() => handleHover(msg.nodeIds)}
+									onMouseLeave={() => handleHover(null)}
+								>
+									{/* Timeline node - purple for tool calls */}
+									<div
+										style={{
+											position: "absolute",
+											left: "4px",
+											top: "10px",
+											width: "16px",
+											height: "16px",
+											borderRadius: "50%",
+											background: "rgb(15, 20, 30)",
+											border: "3px solid rgb(139, 92, 246)",
+											boxShadow: "0 0 10px rgba(139, 92, 246, 0.4)",
+											zIndex: 1,
+										}}
+									/>
+									<ToolCallCard
+										toolName={msg.toolName || msg.content}
+										toolType={msg.toolType}
+										status={msg.toolStatus}
+										argumentsPreview={msg.argumentsPreview}
+										filePath={msg.filePath}
+										fileAction={msg.fileAction}
+									/>
 								</div>
 							);
 						}

@@ -98,19 +98,25 @@ export interface SessionsData {
 /**
  * Edge types used in the Turn-based graph structure:
  * - HAS_TURN: Session -> Turn
- * - CONTAINS: Turn -> Reasoning
- * - TOUCHES: Turn -> FileTouch
  * - NEXT: Turn -> Turn (sequential linking)
+ * - CONTAINS: Turn -> Reasoning
+ * - INVOKES: Turn -> ToolCall
+ * - TRIGGERS: Reasoning -> ToolCall (causal link)
+ * - YIELDS: ToolCall -> Observation
+ *
+ * Note: File operations are stored as properties on ToolCall nodes (file_path, file_action)
  */
 export const EDGE_TYPES = {
 	HAS_TURN: "HAS_TURN",
-	CONTAINS: "CONTAINS",
-	TOUCHES: "TOUCHES",
 	NEXT: "NEXT",
+	CONTAINS: "CONTAINS",
+	INVOKES: "INVOKES",
+	TRIGGERS: "TRIGGERS",
+	YIELDS: "YIELDS",
 } as const;
 
-// Combined edge pattern for path traversal
-const LINEAGE_EDGE_PATTERN = "[:HAS_TURN|CONTAINS|TOUCHES|NEXT*0..100]";
+// Combined edge pattern for path traversal (includes all lineage edges)
+const LINEAGE_EDGE_PATTERN = "[:HAS_TURN|CONTAINS|INVOKES|TRIGGERS|YIELDS|NEXT*0..100]";
 
 // =============================================================================
 // Query Functions
@@ -118,7 +124,8 @@ const LINEAGE_EDGE_PATTERN = "[:HAS_TURN|CONTAINS|TOUCHES|NEXT*0..100]";
 
 /**
  * Get full lineage graph for a session
- * Returns all Turn, Reasoning, and FileTouch nodes connected to the session
+ * Returns all Turn, Reasoning, ToolCall, and Observation nodes connected to the session
+ * Lineage: Reasoning -[TRIGGERS]-> ToolCall (file_path stored on ToolCall)
  */
 export async function getSessionLineage(sessionId: string): Promise<LineageData> {
 	await falkor.connect();
@@ -137,7 +144,30 @@ export async function getSessionLineage(sessionId: string): Promise<LineageData>
 		MATCH (s:Session {id: $sessionId})-[r:HAS_TURN]->(t:Turn)
 		RETURN s.id as sourceId, t.id as targetId, type(r) as relType
 	`;
-	const hasTurnRes = await falkor.query<{ sourceId: string; targetId: string; relType: string }>(hasTurnQuery, { sessionId });
+	const hasTurnRes = await falkor.query<{ sourceId: string; targetId: string; relType: string }>(
+		hasTurnQuery,
+		{ sessionId },
+	);
+
+	// Query 3: Explicitly get INVOKES edges (Turn -> ToolCall)
+	const invokesQuery = `
+		MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[r:INVOKES]->(tc:ToolCall)
+		RETURN t.id as sourceId, tc.id as targetId, type(r) as relType
+	`;
+	const invokesRes = await falkor.query<{ sourceId: string; targetId: string; relType: string }>(
+		invokesQuery,
+		{ sessionId },
+	);
+
+	// Query 4: Explicitly get TRIGGERS edges (Reasoning -> ToolCall)
+	const triggersQuery = `
+		MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[:CONTAINS]->(r:Reasoning)-[e:TRIGGERS]->(tc:ToolCall)
+		RETURN r.id as sourceId, tc.id as targetId, type(e) as relType
+	`;
+	const triggersRes = await falkor.query<{ sourceId: string; targetId: string; relType: string }>(
+		triggersQuery,
+		{ sessionId },
+	);
 
 	const internalIdToUuid = new Map<number, string>();
 	const nodesMap = new Map<string, LineageNode>();
@@ -218,27 +248,37 @@ export async function getSessionLineage(sessionId: string): Promise<LineageData>
 		}
 	}
 
-	// Add HAS_TURN edges from explicit query (these may be missed by path traversal edge extraction)
-	if (hasTurnRes && Array.isArray(hasTurnRes)) {
-		for (const row of hasTurnRes) {
-			const sourceId = row.sourceId;
-			const targetId = row.targetId;
-			const edgeType = row.relType || "HAS_TURN";
+	// Helper to add edges from explicit queries
+	const addExplicitEdges = (
+		results: { sourceId: string; targetId: string; relType: string }[] | undefined,
+		defaultType: string,
+	) => {
+		if (results && Array.isArray(results)) {
+			for (const row of results) {
+				const sourceId = row.sourceId;
+				const targetId = row.targetId;
+				const edgeType = row.relType || defaultType;
 
-			if (sourceId && targetId) {
-				const edgeKey = `${sourceId}->${targetId}:${edgeType}`;
-				if (!seenEdges.has(edgeKey)) {
-					seenEdges.add(edgeKey);
-					links.push({
-						source: sourceId,
-						target: targetId,
-						type: edgeType,
-						properties: {},
-					});
+				if (sourceId && targetId) {
+					const edgeKey = `${sourceId}->${targetId}:${edgeType}`;
+					if (!seenEdges.has(edgeKey)) {
+						seenEdges.add(edgeKey);
+						links.push({
+							source: sourceId,
+							target: targetId,
+							type: edgeType,
+							properties: {},
+						});
+					}
 				}
 			}
 		}
-	}
+	};
+
+	// Add explicit edges (these may be missed by path traversal edge extraction)
+	addExplicitEdges(hasTurnRes, "HAS_TURN");
+	addExplicitEdges(invokesRes, "INVOKES");
+	addExplicitEdges(triggersRes, "TRIGGERS");
 
 	return {
 		nodes: Array.from(nodesMap.values()),
@@ -247,8 +287,9 @@ export async function getSessionLineage(sessionId: string): Promise<LineageData>
 }
 
 /**
- * Get timeline of events for a session (Turns, Reasoning, and FileTouch nodes)
+ * Get timeline of events for a session (Turns, Reasoning, and ToolCall nodes)
  * Returns a flat timeline that SessionReplay can process
+ * File operations are stored as properties on ToolCall nodes (file_path, file_action)
  */
 export async function getSessionTimeline(sessionId: string): Promise<TimelineData> {
 	await falkor.connect();
@@ -267,15 +308,19 @@ export async function getSessionTimeline(sessionId: string): Promise<TimelineDat
 		RETURN t.id as turnId, r
 		ORDER BY t.sequence_index ASC, r.sequence_index ASC
 	`;
-	const reasoningResult = await falkor.query<{ turnId?: string; r?: FalkorNode }>(reasoningQuery, { sessionId });
+	const reasoningResult = await falkor.query<{ turnId?: string; r?: FalkorNode }>(reasoningQuery, {
+		sessionId,
+	});
 
-	// Query 3: Get all FileTouch nodes for this session's Turns
-	const fileTouchQuery = `
-		MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[:TOUCHES]->(f:FileTouch)
-		RETURN t.id as turnId, f
-		ORDER BY t.sequence_index ASC, f.sequence_index ASC
+	// Query 3: Get all ToolCall nodes for this session's Turns
+	const toolCallQuery = `
+		MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[:INVOKES]->(tc:ToolCall)
+		RETURN t.id as turnId, tc
+		ORDER BY t.sequence_index ASC, tc.sequence_index ASC
 	`;
-	const fileTouchResult = await falkor.query<{ turnId?: string; f?: FalkorNode }>(fileTouchQuery, { sessionId });
+	const toolCallResult = await falkor.query<{ turnId?: string; tc?: FalkorNode }>(toolCallQuery, {
+		sessionId,
+	});
 
 	// Build maps of turnId -> child nodes
 	const reasoningByTurn = new Map<string, FalkorNode[]>();
@@ -291,15 +336,15 @@ export async function getSessionTimeline(sessionId: string): Promise<TimelineDat
 		}
 	}
 
-	const fileTouchByTurn = new Map<string, FalkorNode[]>();
-	if (Array.isArray(fileTouchResult)) {
-		for (const row of fileTouchResult) {
+	const toolCallByTurn = new Map<string, FalkorNode[]>();
+	if (Array.isArray(toolCallResult)) {
+		for (const row of toolCallResult) {
 			const turnId = row.turnId;
-			const fileTouch = row.f;
-			if (turnId && fileTouch) {
-				const list = fileTouchByTurn.get(turnId) || [];
-				list.push(fileTouch);
-				fileTouchByTurn.set(turnId, list);
+			const toolCall = row.tc;
+			if (turnId && toolCall) {
+				const list = toolCallByTurn.get(turnId) || [];
+				list.push(toolCall);
+				toolCallByTurn.set(turnId, list);
 			}
 		}
 	}
@@ -347,7 +392,7 @@ export async function getSessionTimeline(sessionId: string): Promise<TimelineDat
 					const content = (r.properties.preview || r.properties.content) as string;
 					if (content) {
 						timeline.push({
-							id: r.properties.id as string || `${turnId}-reasoning`,
+							id: (r.properties.id as string) || `${turnId}-reasoning`,
 							type: "thought",
 							content: `<thinking>${content}</thinking>`,
 							timestamp,
@@ -356,19 +401,29 @@ export async function getSessionTimeline(sessionId: string): Promise<TimelineDat
 				}
 			}
 
-			// Add filetouch events (file operations)
-			const fileTouchNodes = fileTouchByTurn.get(turnId) || [];
-			for (const f of fileTouchNodes) {
-				if (f?.properties) {
-					const filePath = f.properties.file_path as string;
-					const toolName = f.properties.tool_name as string;
-					if (filePath) {
+			// Add toolcall events (tool invocations with optional file info)
+			const toolCallNodes = toolCallByTurn.get(turnId) || [];
+			for (const tc of toolCallNodes) {
+				if (tc?.properties) {
+					const toolName = tc.properties.tool_name as string;
+					const toolType = tc.properties.tool_type as string;
+					const status = tc.properties.status as string;
+					const argsPreview = tc.properties.arguments_preview as string;
+					const filePath = tc.properties.file_path as string | null;
+					const fileAction = tc.properties.file_action as string | null;
+					if (toolName) {
 						timeline.push({
-							id: f.properties.id as string || `${turnId}-filetouch`,
-							type: "filetouch",
-							content: filePath,
+							id: (tc.properties.id as string) || `${turnId}-toolcall`,
+							type: "toolcall",
+							content: toolName,
 							timestamp,
-							toolName: toolName || "file",
+							toolName,
+							toolType,
+							toolStatus: status,
+							argumentsPreview: argsPreview,
+							filePath,
+							fileAction,
+							graphNodeId: tc.properties.id as string,
 						});
 					}
 				}
@@ -412,7 +467,9 @@ export async function getAllSessions(options: {
 		SKIP ${offset} LIMIT ${limit}
 	`;
 
-	const result = await falkor.query<{ s?: SessionNode; [key: number]: SessionNode | undefined }>(cypher);
+	const result = await falkor.query<{ s?: SessionNode; [key: number]: SessionNode | undefined }>(
+		cypher,
+	);
 
 	const sessions: SessionListItem[] = [];
 	const now = Date.now();
@@ -483,7 +540,9 @@ export async function getAllSessions(options: {
 /**
  * Get sessions optimized for WebSocket (with aggregated counts)
  */
-export async function getSessionsForWebSocket(limit = 50): Promise<{ active: SessionListItem[]; recent: SessionListItem[] }> {
+export async function getSessionsForWebSocket(
+	limit = 50,
+): Promise<{ active: SessionListItem[]; recent: SessionListItem[] }> {
 	await falkor.connect();
 
 	const cypher = `
