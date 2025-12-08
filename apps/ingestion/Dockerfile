@@ -1,7 +1,7 @@
 # Stage 1: Builder
-FROM oven/bun:1 AS builder
+FROM oven/bun:1.3.4 AS builder
 WORKDIR /app
-COPY package.json bun.lockb turbo.json ./
+COPY package.json bun.lock turbo.json ./
 COPY apps/ingestion ./apps/ingestion
 COPY packages ./packages
 # Install dependencies (including dev for build steps)
@@ -10,7 +10,7 @@ RUN bun install --frozen-lockfile
 RUN bun run build --filter=ingestion-service...
 
 # Stage 2: Runner
-FROM oven/bun:1-alpine AS runner
+FROM oven/bun:1.3.4-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
