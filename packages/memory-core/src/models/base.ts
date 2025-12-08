@@ -8,14 +8,26 @@ export type {
 	FalkorNode,
 	FalkorResult,
 	FalkorRow,
+	// FileTouch (new)
+	FileTouchNode as FalkorFileTouchNode,
+	FileTouchProperties,
 	QueryParam,
 	QueryParams,
+	// Reasoning (new)
+	ReasoningNode as FalkorReasoningNode,
+	ReasoningProperties,
+	// Session
 	SessionNode as FalkorSessionNode,
 	SessionProperties,
+	// Deprecated: Thought
 	ThoughtNode as FalkorThoughtNode,
 	ThoughtProperties,
+	// ToolCall
 	ToolCallNode as FalkorToolCallNode,
 	ToolCallProperties,
+	// Turn (new)
+	TurnNode as FalkorTurnNode,
+	TurnProperties,
 } from "@engram/storage/falkor";
 
 // =============================================================================

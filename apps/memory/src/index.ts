@@ -5,6 +5,7 @@ import { createRedisPublisher } from "@engram/storage/redis";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { TurnAggregator } from "./turn-aggregator";
 
 // Initialize Logger (stderr for MCP safety)
 const logger = createNodeLogger(
@@ -22,9 +23,11 @@ const falkor = createFalkorClient();
 const kafka = createKafkaClient("memory-service");
 const redis = createRedisPublisher();
 const pruner = new GraphPruner(falkor);
+const turnAggregator = new TurnAggregator(falkor, logger);
 
 // Pruning Job
 const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const TURN_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 function startPruningJob() {
 	// Start the periodic job
@@ -38,6 +41,17 @@ function startPruningJob() {
 			logger.error({ err: error }, "Graph pruning failed");
 		}
 	}, PRUNE_INTERVAL_MS);
+}
+
+function startTurnCleanupJob() {
+	// Clean up stale turns every 5 minutes (turns inactive for 30 mins)
+	setInterval(async () => {
+		try {
+			await turnAggregator.cleanupStaleTurns(30 * 60 * 1000);
+		} catch (error) {
+			logger.error({ err: error }, "Turn cleanup failed");
+		}
+	}, TURN_CLEANUP_INTERVAL_MS);
 }
 
 // Kafka Consumer for Persistence
@@ -80,13 +94,34 @@ async function startPersistenceConsumer() {
 				const isNewSession =
 					!existingSession || (Array.isArray(existingSession) && existingSession.length === 0);
 
-				// 2. Ensure Session Exists and update last_event_at
+				// 2. Ensure Session Exists and update last_event_at + project context
 				const now = Date.now();
+				const workingDir = event.metadata?.working_dir || null;
+				const gitRemote = event.metadata?.git_remote || null;
+				const agentType = event.metadata?.agent_type || "unknown";
+
 				await falkor.query(
 					`MERGE (s:Session {id: $sessionId})
-                     ON CREATE SET s.started_at = $now, s.last_event_at = $now, s.user_id = $userId
-                     ON MATCH SET s.last_event_at = $now`,
-					{ sessionId, now, userId: event.metadata?.user_id || "unknown" },
+                     ON CREATE SET
+                        s.started_at = $now,
+                        s.last_event_at = $now,
+                        s.user_id = $userId,
+                        s.working_dir = $workingDir,
+                        s.git_remote = $gitRemote,
+                        s.agent_type = $agentType
+                     ON MATCH SET
+                        s.last_event_at = $now,
+                        s.working_dir = COALESCE($workingDir, s.working_dir),
+                        s.git_remote = COALESCE($gitRemote, s.git_remote),
+                        s.agent_type = CASE WHEN $agentType <> 'unknown' THEN $agentType ELSE s.agent_type END`,
+					{
+						sessionId,
+						now,
+						userId: event.metadata?.user_id || "unknown",
+						workingDir,
+						gitRemote,
+						agentType,
+					},
 				);
 
 				// 3. If new session, publish to global sessions channel for homepage
@@ -104,8 +139,19 @@ async function startPersistenceConsumer() {
 					logger.info({ sessionId }, "Published session_created event");
 				}
 
-				// 4. Create Thought/Event Node
-				// Determine type and content
+				// 4. Aggregate into Turn nodes (new hierarchical model)
+				// This creates Turn, Reasoning, and FileTouch nodes
+				try {
+					await turnAggregator.processEvent(event, sessionId);
+				} catch (aggError) {
+					logger.error(
+						{ err: aggError, sessionId },
+						"Turn aggregation failed, continuing with legacy",
+					);
+				}
+
+				// 5. Create Thought/Event Node (LEGACY - kept for backward compatibility)
+				// TODO: Remove once UI is updated to use Turn nodes
 				const type = event.type || "unknown";
 				const content = event.content || event.thought || "";
 				const role = event.role || "system";
@@ -253,6 +299,7 @@ export { server };
 async function main() {
 	await falkor.connect();
 	startPruningJob();
+	startTurnCleanupJob();
 	startPersistenceConsumer().catch((err) => {
 		logger.error({ err }, "Failed to start persistence consumer");
 	});

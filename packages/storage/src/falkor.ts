@@ -56,9 +56,16 @@ export interface SessionProperties extends Partial<BitemporalProperties> {
 	title?: string;
 	user_id?: string;
 	preview?: string;
+	// Project context
+	working_dir?: string;
+	git_remote?: string;
+	agent_type?: string;
+	summary?: string;
+	embedding?: number[];
 	[key: string]: unknown;
 }
 
+// DEPRECATED: Use TurnProperties instead
 export interface ThoughtProperties extends Partial<BitemporalProperties> {
 	id: string;
 	type: string;
@@ -66,6 +73,42 @@ export interface ThoughtProperties extends Partial<BitemporalProperties> {
 	content: string;
 	timestamp?: string;
 	preview?: string;
+	[key: string]: unknown;
+}
+
+export interface TurnProperties extends Partial<BitemporalProperties> {
+	id: string;
+	user_content: string;
+	user_content_hash: string;
+	assistant_preview: string;
+	assistant_blob_ref?: string;
+	embedding?: number[];
+	sequence_index: number;
+	files_touched?: string[];
+	tool_calls_count?: number;
+	input_tokens?: number;
+	output_tokens?: number;
+	[key: string]: unknown;
+}
+
+export interface ReasoningProperties extends Partial<BitemporalProperties> {
+	id: string;
+	content_hash: string;
+	preview: string;
+	blob_ref?: string;
+	reasoning_type?: string;
+	sequence_index: number;
+	embedding?: number[];
+	[key: string]: unknown;
+}
+
+export interface FileTouchProperties extends Partial<BitemporalProperties> {
+	id: string;
+	file_path: string;
+	action: string;
+	diff_preview?: string;
+	lines_added?: number;
+	lines_removed?: number;
 	[key: string]: unknown;
 }
 
@@ -82,7 +125,10 @@ export interface ToolCallProperties extends Partial<BitemporalProperties> {
 // =============================================================================
 
 export type SessionNode = FalkorNode<SessionProperties>;
-export type ThoughtNode = FalkorNode<ThoughtProperties>;
+export type ThoughtNode = FalkorNode<ThoughtProperties>; // DEPRECATED
+export type TurnNode = FalkorNode<TurnProperties>;
+export type ReasoningNode = FalkorNode<ReasoningProperties>;
+export type FileTouchNode = FalkorNode<FileTouchProperties>;
 export type ToolCallNode = FalkorNode<ToolCallProperties>;
 
 // =============================================================================
@@ -142,7 +188,8 @@ export class FalkorClient {
 		params: QueryParams = {},
 	): Promise<FalkorResult<T>> {
 		if (!this.graph) await this.connect();
-		const result = await this.graph?.query(cypher, { params });
+		// After connect(), graph is guaranteed to be set
+		const result = await this.graph!.query(cypher, { params });
 		return result.data as FalkorResult<T>;
 	}
 
