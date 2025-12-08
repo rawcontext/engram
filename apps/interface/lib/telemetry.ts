@@ -11,8 +11,7 @@ export const trackUsage = (
 	status: number,
 	duration: number,
 	userId?: string,
-	// biome-ignore lint/suspicious/noExplicitAny: Flexible metadata
-	meta?: Record<string, any>,
+	meta?: Record<string, unknown>,
 ) => {
 	logger.info({
 		event: "api_request",

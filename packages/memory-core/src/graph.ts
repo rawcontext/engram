@@ -1,4 +1,4 @@
-import type { FalkorClient } from "@engram/storage";
+import type { FalkorClient, QueryParams } from "@engram/storage";
 import type { BaseNode } from "./models/base";
 import { createBitemporal, MAX_DATE, now } from "./utils/time";
 
@@ -18,7 +18,7 @@ export class GraphWriter {
 
 		const query = `CREATE (n:${label} { ${propsString} })`;
 
-		await this.client.query(query, nodeData);
+		await this.client.query(query, nodeData as QueryParams);
 	}
 
 	async writeEdge(

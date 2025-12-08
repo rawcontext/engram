@@ -1,14 +1,14 @@
 export interface GraphNode {
 	id: string;
 	label: string;
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 export interface GraphLink {
 	source: string;
 	target: string;
 	type: string;
-	properties?: Record<string, any>;
+	properties?: Record<string, unknown>;
 }
 
 export interface LineageResponse {
@@ -18,8 +18,7 @@ export interface LineageResponse {
 
 export interface TimelineEvent {
 	id: string;
-	// biome-ignore lint/suspicious/noExplicitAny: Dynamic payload
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 export interface ReplayResponse {

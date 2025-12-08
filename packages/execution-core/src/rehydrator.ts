@@ -28,8 +28,8 @@ export class Rehydrator {
 			const snap = snapshots[0]; // Format depends on RedisGraph output structure
 			// Assuming [ { "s.vfs_state_blob_ref": "...", ... } ] or similar mapped object
 			// TODO: Handle RedisGraph raw response parsing
-			const blobRef = snap[0];
-			_lastSnapshotTime = snap[1];
+			const blobRef = snap[0] as string;
+			_lastSnapshotTime = snap[1] as number;
 
 			// Load Blob
 			const blobContent = await this.blobStore.read(blobRef);

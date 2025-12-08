@@ -24,8 +24,11 @@ export class CodeEmbedder {
 		const extractor = await CodeEmbedder.getInstance();
 		// Truncate to 512 tokens (e5-small limit) for now.
 		// Real code embedding needs chunking (sliding window).
-		// @ts-expect-error: pipeline returns a function that is callable
-		const output = await extractor(code.slice(0, 2000), { pooling: "mean", normalize: true });
+		const extractFn = extractor as (
+			text: string,
+			opts: { pooling: string; normalize: boolean },
+		) => Promise<{ data: Float32Array }>;
+		const output = await extractFn(code.slice(0, 2000), { pooling: "mean", normalize: true });
 		return Array.from(output.data);
 	}
 }

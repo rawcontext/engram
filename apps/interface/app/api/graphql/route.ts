@@ -10,7 +10,6 @@ const yoga = createYoga({
 	fetchAPI: { Response },
 });
 
-// biome-ignore lint/suspicious/noExplicitAny: Next.js Context type mismatch with Yoga
-const handle = (req: Request, context: any) => yoga.handleRequest(req, context);
+const handle = (req: Request, context: Record<string, unknown>) => yoga.handleRequest(req, context);
 
 export { handle as GET, handle as POST };

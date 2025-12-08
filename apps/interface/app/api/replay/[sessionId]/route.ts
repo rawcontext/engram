@@ -1,8 +1,12 @@
-import { createFalkorClient } from "@engram/storage/falkor";
+import { createFalkorClient, type FalkorNode } from "@engram/storage/falkor";
 import { apiError, apiSuccess } from "@lib/api-response";
 import { z } from "zod";
 
 const falkor = createFalkorClient();
+
+interface ReplayRow {
+	t?: FalkorNode;
+}
 
 export const _ReplayParams = z.object({
 	sessionId: z.string(),
@@ -32,20 +36,20 @@ export async function GET(_request: Request, props: { params: Promise<{ sessionI
             ORDER BY t.vt_start ASC
         `;
 
-		// biome-ignore lint/suspicious/noExplicitAny: FalkorDB unknown return
-		const result: any = await falkor.query(cypher, { sessionId });
+		const result = await falkor.query(cypher, { sessionId });
 
 		// Transform result: FalkorDB returns named columns { t: Node }
 		// We want a flat array of objects
-		const timeline = [];
+		const timeline: Record<string, unknown>[] = [];
 		if (Array.isArray(result)) {
-			for (const row of result) {
+			for (const r of result) {
+				const row = r as ReplayRow;
 				// Access by column name 't' (from RETURN t)
 				const node = row.t;
 				if (node && node.properties) {
 					timeline.push({
 						...node.properties,
-						id: node.properties.id || node.id,
+						id: (node.properties.id as string) || String(node.id),
 						type: "thought",
 					});
 				}

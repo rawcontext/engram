@@ -71,9 +71,10 @@ export class DecisionEngine {
 							// It is `step.execute({ inputData })`.
 							// We need to cast args to inputData.
 							const step = this.mcpAdapter.createMastraStep(call.toolName);
-							// Using 'any' to call execute as it might be typed strictly
-							// biome-ignore lint/suspicious/noExplicitAny: Bypassing Mastra strict typing for dynamic tool
-							const result = await (step as any).execute({ inputData: call.args });
+							const executeStep = step as unknown as {
+								execute: (opts: { inputData: unknown }) => Promise<unknown>;
+							};
+							const result = await executeStep.execute({ inputData: call.args });
 							results.push(result);
 						}
 						return { toolOutputs: results };

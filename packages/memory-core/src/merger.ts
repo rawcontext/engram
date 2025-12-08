@@ -1,4 +1,4 @@
-import type { FalkorClient } from "@engram/storage";
+import type { FalkorClient, QueryParams } from "@engram/storage";
 
 export class GraphMerger {
 	constructor(private client: FalkorClient) {}
@@ -10,16 +10,15 @@ export class GraphMerger {
             RETURN type(r) as type, startNode(r) = s as isOutgoing, n.id as neighborId, properties(r) as props
         `;
 
-		// biome-ignore lint/suspicious/noExplicitAny: FalkorDB result
-		const edgesResult: any = await this.client.query(edgesQuery, { sourceId });
+		const edgesResult = await this.client.query(edgesQuery, { sourceId });
 
 		if (!Array.isArray(edgesResult)) return;
 
 		for (const row of edgesResult) {
-			const type = row[0];
-			const isOutgoing = row[1];
-			const neighborId = row[2];
-			const props = row[3] || {};
+			const type = row[0] as string;
+			const isOutgoing = row[1] as boolean;
+			const neighborId = row[2] as string;
+			const props = (row[3] || {}) as QueryParams;
 
 			// Re-create edge to target
 			let createQuery = "";

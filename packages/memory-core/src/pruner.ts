@@ -25,12 +25,12 @@ export class GraphPruner {
       RETURN count(n) as deleted_count
     `;
 
-		// biome-ignore lint/suspicious/noExplicitAny: FalkorDB raw response type unknown
-		const result: any = await this.client.query(query);
+		const result = await this.client.query(query);
 
 		// Parse result (assuming standard RedisGraph response structure)
 		// [[deleted_count]]
-		const deletedCount = result?.[0]?.[0] || 0;
-		return deletedCount as number;
+		const firstRow = result?.[0];
+		const deletedCount = (firstRow?.deleted_count as number) ?? (firstRow?.[0] as number) ?? 0;
+		return deletedCount;
 	}
 }

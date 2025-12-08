@@ -2,8 +2,10 @@ import type { SearchRetriever } from "@engram/search-core";
 import type { FalkorClient } from "@engram/storage";
 
 export class ContextAssembler {
-	// biome-ignore lint/complexity/noUselessConstructor: Parameters are required for future implementation
-	constructor(_search: SearchRetriever, _memory: FalkorClient) {}
+	constructor(
+		private search: SearchRetriever,
+		private memory: FalkorClient,
+	) {}
 
 	async assembleContext(_sessionId: string, _query: string, _tokenLimit = 8000): Promise<string> {
 		// 1. System Prompt (Fixed)

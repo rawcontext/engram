@@ -17,15 +17,21 @@ export class TextEmbedder {
 		// The e5 model expects "query: " for queries and "passage: " for docs.
 		// For simplicity, we assume this is "passage" (storage).
 		// We should probably expose a method for 'query' vs 'document'.
-		// @ts-expect-error
-		const output = await extractor(`passage: ${text}`, { pooling: "mean", normalize: true });
+		const extractFn = extractor as (
+			text: string,
+			opts: { pooling: string; normalize: boolean },
+		) => Promise<{ data: Float32Array }>;
+		const output = await extractFn(`passage: ${text}`, { pooling: "mean", normalize: true });
 		return Array.from(output.data);
 	}
 
 	async embedQuery(text: string): Promise<number[]> {
 		const extractor = await TextEmbedder.getInstance();
-		// @ts-expect-error
-		const output = await extractor(`query: ${text}`, { pooling: "mean", normalize: true });
+		const extractFn = extractor as (
+			text: string,
+			opts: { pooling: string; normalize: boolean },
+		) => Promise<{ data: Float32Array }>;
+		const output = await extractFn(`query: ${text}`, { pooling: "mean", normalize: true });
 		return Array.from(output.data);
 	}
 

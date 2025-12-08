@@ -1,9 +1,13 @@
 import { auth } from "@clerk/nextjs/server";
 
+interface ClerkMetadata {
+	role?: string;
+}
+
 export const checkRole = async (role: string) => {
 	const { sessionClaims } = await auth();
-	// @ts-expect-error - Clerk types need config
-	if (sessionClaims?.metadata?.role !== role) {
+	const metadata = sessionClaims?.metadata as ClerkMetadata | undefined;
+	if (metadata?.role !== role) {
 		throw new Error("Forbidden");
 	}
 };

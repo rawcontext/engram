@@ -1,4 +1,4 @@
-import { createFalkorClient } from "@engram/storage/falkor";
+import { createFalkorClient, type FalkorEdge, type FalkorNode } from "@engram/storage/falkor";
 import { createRedisSubscriber, type SessionUpdate } from "@engram/storage/redis";
 import { WebSocket } from "ws";
 
@@ -7,6 +7,22 @@ const redisSubscriber = createRedisSubscriber();
 
 // Global channel for session list updates
 const SESSIONS_CHANNEL = "sessions:updates";
+
+interface LineageRow {
+	s?: FalkorNode;
+	path_nodes?: FalkorNode[];
+	path_edges?: FalkorEdge[];
+}
+
+interface TimelineRow {
+	t?: FalkorNode;
+}
+
+interface SessionsRow {
+	s?: FalkorNode;
+	eventCount?: number;
+	lastEventAt?: number;
+}
 
 interface LineageNode {
 	id: string;
@@ -19,6 +35,7 @@ interface LineageLink {
 	source: string;
 	target: string;
 	type: string;
+	properties?: Record<string, unknown>;
 }
 
 export async function handleSessionConnection(ws: WebSocket, sessionId: string) {
@@ -88,18 +105,18 @@ async function getFullLineage(sessionId: string) {
       OPTIONAL MATCH p = (s)-[:TRIGGERS|NEXT*0..100]->(n)
       RETURN s, nodes(p) as path_nodes, relationships(p) as path_edges
     `;
-	// biome-ignore lint/suspicious/noExplicitAny: FalkorDB response
-	const res: any = await falkor.query(query, { sessionId });
+	const res = await falkor.query(query, { sessionId });
 
 	const internalIdToUuid = new Map<number, string>();
-	const nodes: any[] = [];
-	const links: any[] = [];
+	const nodes: LineageNode[] = [];
+	const links: LineageLink[] = [];
 
 	if (res && Array.isArray(res)) {
-		for (const row of res) {
+		for (const r of res) {
+			const row = r as LineageRow;
 			const sessionNode = row.s;
 			if (sessionNode) {
-				const uuid = sessionNode.properties?.id;
+				const uuid = sessionNode.properties?.id as string | undefined;
 				if (uuid) {
 					internalIdToUuid.set(sessionNode.id, uuid);
 					if (!nodes.find((n) => n.id === uuid)) {
@@ -112,7 +129,7 @@ async function getFullLineage(sessionId: string) {
 			if (Array.isArray(pathNodes)) {
 				for (const n of pathNodes) {
 					if (n) {
-						const uuid = n.properties?.id;
+						const uuid = n.properties?.id as string | undefined;
 						if (uuid) {
 							internalIdToUuid.set(n.id, uuid);
 							if (!nodes.find((x) => x.id === uuid)) {
@@ -126,7 +143,8 @@ async function getFullLineage(sessionId: string) {
 		}
 
 		// Now process edges
-		for (const row of res) {
+		for (const r of res) {
+			const row = r as LineageRow;
 			const pathEdges = row.path_edges;
 			if (Array.isArray(pathEdges)) {
 				for (const e of pathEdges) {
@@ -138,7 +156,7 @@ async function getFullLineage(sessionId: string) {
 							links.push({
 								source: sourceUuid,
 								target: targetUuid,
-								type: e.relationshipType || e.relation,
+								type: e.relationshipType || e.relation || "",
 								properties: e.properties,
 							});
 						}
@@ -160,14 +178,14 @@ async function getFullTimeline(sessionId: string) {
         RETURN t
         ORDER BY t.vt_start ASC
     `;
-	// biome-ignore lint/suspicious/noExplicitAny: FalkorDB response
-	const result: any = await falkor.query(cypher, { sessionId });
-	const timeline = [];
+	const result = await falkor.query(cypher, { sessionId });
+	const timeline: Record<string, unknown>[] = [];
 	if (Array.isArray(result)) {
-		for (const row of result) {
+		for (const r of result) {
+			const row = r as TimelineRow;
 			const node = row.t;
 			if (node && node.properties) {
-				timeline.push({ ...node.properties, id: node.properties.id, type: "thought" });
+				timeline.push({ ...node.properties, id: node.properties.id as string, type: "thought" });
 			}
 		}
 	}
@@ -184,32 +202,45 @@ async function getAllSessions(limit = 50) {
         ORDER BY COALESCE(s.started_at, s.startedAt, s.lastEventAt) DESC
         LIMIT $limit
     `;
-	// biome-ignore lint/suspicious/noExplicitAny: FalkorDB response
-	const result: any = await falkor.query(cypher, { limit });
+	const result = await falkor.query(cypher, { limit });
 
-	const active: any[] = [];
-	const recent: any[] = [];
+	interface SessionItem {
+		id: string;
+		title?: string | null;
+		userId: string;
+		startedAt: number;
+		lastEventAt: number;
+		eventCount: number;
+		preview?: string | null;
+		isActive: boolean;
+	}
+
+	const active: SessionItem[] = [];
+	const recent: SessionItem[] = [];
 	const now = Date.now();
 	const activeThreshold = 5 * 60 * 1000; // 5 minutes
 
 	if (Array.isArray(result)) {
-		for (const row of result) {
+		for (const r of result) {
+			const row = r as SessionsRow;
 			const node = row.s;
 			if (node && node.properties) {
 				const props = node.properties;
 				// Handle both property naming conventions
-				const sessionStartedAt = props.started_at || props.startedAt || now;
-				const sessionLastEventAt = row.lastEventAt || props.lastEventAt || sessionStartedAt;
+				const sessionStartedAt = (props.started_at || props.startedAt || now) as number;
+				const sessionLastEventAt = (row.lastEventAt ||
+					props.lastEventAt ||
+					sessionStartedAt) as number;
 				const isActive = now - sessionLastEventAt < activeThreshold;
 
 				const session = {
-					id: props.id,
-					title: props.title || null,
-					userId: props.user_id || "unknown",
+					id: props.id as string,
+					title: (props.title || null) as string | null,
+					userId: (props.user_id || "unknown") as string,
 					startedAt: sessionStartedAt,
 					lastEventAt: sessionLastEventAt,
-					eventCount: row.eventCount || 0,
-					preview: props.preview || null,
+					eventCount: (row.eventCount || 0) as number,
+					preview: (props.preview || null) as string | null,
 					isActive,
 				};
 

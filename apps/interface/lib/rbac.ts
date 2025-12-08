@@ -33,8 +33,8 @@ export async function requireRole(requiredRole: UserRole) {
 		throw new AuthorizationError("User not authenticated");
 	}
 
-	// biome-ignore lint/suspicious/noExplicitAny: Clerk metadata typing
-	const userRole = (sessionClaims?.metadata as any)?.role;
+	const metadata = sessionClaims?.metadata as { role?: string } | undefined;
+	const userRole = metadata?.role;
 
 	if (userRole !== requiredRole && userRole !== UserRole.ADMIN) {
 		// Admin supersedes all? Or strict RBAC?

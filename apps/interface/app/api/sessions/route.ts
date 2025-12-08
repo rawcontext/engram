@@ -1,7 +1,12 @@
-import { createFalkorClient } from "@engram/storage/falkor";
+import { createFalkorClient, type FalkorNode } from "@engram/storage/falkor";
 import { apiError, apiSuccess } from "@lib/api-response";
 
 const falkor = createFalkorClient();
+
+interface SessionRow {
+	s?: FalkorNode;
+	[key: number]: FalkorNode | undefined;
+}
 
 // Session is "active" if last event was within this many milliseconds
 const ACTIVE_THRESHOLD_MS = 60 * 1000; // 60 seconds
@@ -38,28 +43,27 @@ export async function GET(request: Request) {
 			SKIP ${offset} LIMIT ${limit}
 		`;
 
-		// biome-ignore lint/suspicious/noExplicitAny: FalkorDB unknown return
-		const result: any = await falkor.query(cypher);
+		const result = await falkor.query(cypher);
 
 		const sessions: SessionListItem[] = [];
 		if (Array.isArray(result)) {
-			for (const row of result) {
+			for (const r of result) {
+				const row = r as SessionRow;
 				// FalkorDB returns {s: {id, labels, properties}} structure
 				const node = row.s || row[0];
 				if (node) {
 					// Properties are nested under node.properties
-					const props = node.properties || node;
-					const sessionId = props.id;
+					const props = node.properties || {};
+					const sessionId = props.id as string;
 
 					// Get event count for this session
 					const countQuery = `
 						MATCH (s:Session {id: $sessionId})-[:TRIGGERS|NEXT*0..]->(t:Thought)
 						RETURN count(t) as cnt
 					`;
-					// biome-ignore lint/suspicious/noExplicitAny: FalkorDB unknown return
-					const countRes: any = await falkor.query(countQuery, { sessionId });
+					const countRes = await falkor.query(countQuery, { sessionId });
 					// FalkorDB returns {cnt: X} format
-					const eventCount = countRes?.[0]?.cnt ?? countRes?.[0]?.[0] ?? 0;
+					const eventCount = (countRes?.[0]?.cnt ?? countRes?.[0]?.[0] ?? 0) as number;
 
 					// Get preview from first thought
 					const previewQuery = `
@@ -67,19 +71,20 @@ export async function GET(request: Request) {
 						RETURN t.preview as preview
 						LIMIT 1
 					`;
-					// biome-ignore lint/suspicious/noExplicitAny: FalkorDB unknown return
-					const previewRes: any = await falkor.query(previewQuery, { sessionId });
-					const preview = previewRes?.[0]?.preview ?? previewRes?.[0]?.[0] ?? null;
+					const previewRes = await falkor.query(previewQuery, { sessionId });
+					const preview = (previewRes?.[0]?.preview ?? previewRes?.[0]?.[0] ?? null) as
+						| string
+						| null;
 
-					const lastEventAt = props.lastEventAt || null;
+					const lastEventAt = (props.lastEventAt || null) as number | null;
 					const now = Date.now();
 					const isActive = lastEventAt ? now - lastEventAt < ACTIVE_THRESHOLD_MS : false;
 
 					sessions.push({
 						id: sessionId,
-						title: props.title || null,
-						userId: props.userId || props.user_id || "unknown",
-						startedAt: props.startedAt || props.started_at || 0,
+						title: (props.title || null) as string | null,
+						userId: (props.userId || props.user_id || "unknown") as string,
+						startedAt: (props.startedAt || props.started_at || 0) as number,
 						lastEventAt,
 						eventCount: eventCount,
 						preview: preview ? truncatePreview(preview, 150) : null,
@@ -94,9 +99,8 @@ export async function GET(request: Request) {
 		const recentSessions = sessions.filter((s) => !s.isActive);
 
 		// Get total count for pagination
-		// biome-ignore lint/suspicious/noExplicitAny: FalkorDB unknown return
-		const countResult: any = await falkor.query("MATCH (s:Session) RETURN count(s) as total");
-		const total = countResult?.[0]?.total ?? countResult?.[0]?.[0] ?? sessions.length;
+		const countResult = await falkor.query("MATCH (s:Session) RETURN count(s) as total");
+		const total = (countResult?.[0]?.total ?? countResult?.[0]?.[0] ?? sessions.length) as number;
 
 		return apiSuccess({
 			active: activeSessions,

@@ -40,8 +40,11 @@ export class Reranker {
 		const scores: { index: number; score: number }[] = [];
 
 		for (let i = 0; i < documents.length; i++) {
-			// biome-ignore lint/suspicious/noExplicitAny: Transformers.js pipeline types are complex
-			const output = await (classifier as any)({ text: query, text_pair: documents[i] });
+			const classifyFn = classifier as (input: {
+				text: string;
+				text_pair: string;
+			}) => Promise<Array<{ label: string; score: number }>>;
+			const output = await classifyFn({ text: query, text_pair: documents[i] });
 			// Output for bge-reranker usually: [{ label: 'LABEL_0', score: 0.99 }] or similar.
 			// CrossEncoders trained for ranking often output a single logit or Sigmoid score.
 			// If it returns a list of labels, we need to know which label is "relevant".
@@ -62,8 +65,7 @@ export class Reranker {
 				// For now, we use output[0].score assuming regression or binary positive at 0.
 				score = output[0].score;
 			} else if (typeof output === "object" && "score" in output) {
-				// biome-ignore lint/suspicious/noExplicitAny: Dynamic return type from ML model
-				score = (output as any).score;
+				score = (output as { score: number }).score;
 			}
 
 			scores.push({ index: i, score });

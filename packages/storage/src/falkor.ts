@@ -1,9 +1,35 @@
-import { FalkorDB } from "falkordb";
+import { FalkorDB, type Graph } from "falkordb";
+
+// FalkorDB query parameter types (matches library's QueryParams)
+export type QueryParam = null | string | number | boolean | QueryParams | Array<QueryParam>;
+export type QueryParams = { [key: string]: QueryParam };
+
+// FalkorDB response types
+export interface FalkorNode {
+	id: number;
+	labels: string[];
+	properties: Record<string, unknown>;
+}
+
+export interface FalkorEdge {
+	id: number;
+	relationshipType?: string;
+	relation?: string;
+	type?: string;
+	sourceId?: number;
+	srcNodeId?: number;
+	destinationId?: number;
+	destNodeId?: number;
+	properties: Record<string, unknown>;
+}
+
+export type FalkorRow = Record<string, unknown>;
+export type FalkorResult = FalkorRow[];
 
 export class FalkorClient {
 	private dbPromise;
-	private db: any;
-	private graph: any;
+	private db: FalkorDB | null = null;
+	private graph: Graph | null = null;
 	private graphName = "SoulGraph";
 
 	constructor(url: string = "redis://localhost:6379") {
@@ -26,10 +52,10 @@ export class FalkorClient {
 		}
 	}
 
-	async query(cypher: string, params: Record<string, unknown> = {}): Promise<unknown> {
+	async query(cypher: string, params: QueryParams = {}): Promise<FalkorResult> {
 		if (!this.graph) await this.connect();
-		const result = await this.graph.query(cypher, { params });
-		return result.data;
+		const result = await this.graph!.query(cypher, { params });
+		return result.data as FalkorResult;
 	}
 
 	async disconnect() {

@@ -57,20 +57,20 @@ export class KafkaClient {
 
 	public async getProducer(): Promise<Producer> {
 		if (!this.producer) {
-			// @ts-expect-error - accessing kafka instance
-			this.producer = this.kafka.producer({
+			const kafka = this.kafka as { producer: (config: Record<string, unknown>) => Producer };
+			this.producer = kafka.producer({
 				"bootstrap.servers": this.brokers,
 				"client.id": "engram-producer",
 				"allow.auto.create.topics": true,
-			}) as Producer;
+			});
 			await this.producer.connect();
 		}
 		return this.producer;
 	}
 
 	public async createConsumer(groupId: string): Promise<Consumer> {
-		// @ts-expect-error - accessing kafka instance
-		const internalConsumer = this.kafka.consumer({
+		const kafka = this.kafka as { consumer: (config: Record<string, unknown>) => InternalConsumer };
+		const internalConsumer = kafka.consumer({
 			"bootstrap.servers": this.brokers,
 			"group.id": groupId,
 			"auto.offset.reset": "earliest",

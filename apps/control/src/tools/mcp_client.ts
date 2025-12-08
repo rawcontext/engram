@@ -44,8 +44,7 @@ export class McpToolAdapter {
 			id: toolName,
 			inputSchema,
 			outputSchema,
-			// biome-ignore lint/suspicious/noExplicitAny: Dynamic typing requires bypass for Mastra integration
-			execute: executeFn as any,
+			execute: executeFn as typeof executeFn & (() => Promise<Record<string, unknown>>),
 		});
 	}
 }

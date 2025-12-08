@@ -1,8 +1,15 @@
-import { createFalkorClient } from "@engram/storage/falkor";
+import { createFalkorClient, type FalkorEdge, type FalkorNode } from "@engram/storage/falkor";
 import { apiError, apiSuccess } from "@lib/api-response";
 import { z } from "zod";
 
 const falkor = createFalkorClient();
+
+// Helper type for row access
+interface LineageRow {
+	s?: FalkorNode;
+	path_nodes?: FalkorNode[];
+	path_edges?: FalkorEdge[];
+}
 
 export const _LineageParams = z.object({
 	sessionId: z.string(),
@@ -49,8 +56,7 @@ export async function GET(_request: Request, props: { params: Promise<{ sessionI
       RETURN s, nodes(p) as path_nodes, relationships(p) as path_edges
     `;
 
-		// biome-ignore lint/suspicious/noExplicitAny: FalkorDB raw response type unknown
-		const res: any = await falkor.query(query, { sessionId });
+		const res = await falkor.query(query, { sessionId });
 
 		// 2. Transform to Graph structure { nodes: [], links: [] }
 		const nodesMap = new Map<string, unknown>();
@@ -61,11 +67,12 @@ export async function GET(_request: Request, props: { params: Promise<{ sessionI
 
 		if (res && Array.isArray(res)) {
 			// FalkorDB returns named columns: { s, path_nodes, path_edges }
-			for (const row of res) {
+			for (const r of res) {
+				const row = r as LineageRow;
 				// Session Node - accessed by column name
 				const sessionNode = row.s;
 				if (sessionNode) {
-					const uuid = sessionNode.properties?.id;
+					const uuid = sessionNode.properties?.id as string | undefined;
 					if (uuid) {
 						internalIdToUuid.set(sessionNode.id, uuid);
 						if (!nodesMap.has(uuid)) {
@@ -84,7 +91,7 @@ export async function GET(_request: Request, props: { params: Promise<{ sessionI
 				if (Array.isArray(pathNodes)) {
 					for (const n of pathNodes) {
 						if (n) {
-							const uuid = n.properties?.id;
+							const uuid = n.properties?.id as string | undefined;
 							if (uuid) {
 								internalIdToUuid.set(n.id, uuid);
 								if (!nodesMap.has(uuid)) {
@@ -103,7 +110,8 @@ export async function GET(_request: Request, props: { params: Promise<{ sessionI
 			}
 
 			// Second pass: process edges using the internal ID to UUID map
-			for (const row of res) {
+			for (const r of res) {
+				const row = r as LineageRow;
 				const pathEdges = row.path_edges;
 				if (Array.isArray(pathEdges)) {
 					for (const e of pathEdges) {

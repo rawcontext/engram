@@ -53,8 +53,8 @@ describe("MCP Client", () => {
 			expect(step).toHaveProperty("_isStep", true);
 
 			// Test execution logic wrapper
-			// @ts-expect-error
-			await step.execute({ context: { arg: 1 } });
+			const executableStep = step as { execute: (opts: { context: unknown }) => Promise<unknown> };
+			await executableStep.execute({ context: { arg: 1 } });
 			expect(mockCallTool).toHaveBeenCalledWith({
 				name: "test-tool",
 				arguments: { arg: 1 },

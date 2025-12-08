@@ -1,17 +1,30 @@
 import { assign, createMachine } from "xstate";
 
+export interface ToolCall {
+	toolName: string;
+	args: Record<string, unknown>;
+}
+
+export interface ToolOutput {
+	result?: unknown;
+	error?: string;
+}
+
+export interface HistoryEntry {
+	role: "user" | "assistant" | "tool";
+	content: string;
+	timestamp?: number;
+}
+
 export interface AgentContext {
 	sessionId: string;
 	input: string;
 	contextString?: string;
 	thoughts: string[];
-	// biome-ignore lint/suspicious/noExplicitAny: Tool calls structure varies
-	currentToolCalls: any[];
-	// biome-ignore lint/suspicious/noExplicitAny: Tool outputs vary
-	toolOutputs: any[];
+	currentToolCalls: ToolCall[];
+	toolOutputs: ToolOutput[];
 	finalResponse?: string;
-	// biome-ignore lint/suspicious/noExplicitAny: History structure varies
-	history: any[];
+	history: HistoryEntry[];
 	error?: string;
 }
 
