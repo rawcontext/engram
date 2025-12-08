@@ -126,6 +126,9 @@ export default function HomePage() {
         }
     };
 
+    // Footer height for safe area calculation
+    const FOOTER_HEIGHT = 48;
+
     return (
         <div
             style={{
@@ -136,7 +139,7 @@ export default function HomePage() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 paddingTop: '3rem',
-                paddingBottom: '3rem',
+                paddingBottom: `${FOOTER_HEIGHT + 24}px`, // Safe area: footer height + extra padding
             }}
         >
             {/* Background decorations - absolute positioned */}
@@ -300,44 +303,74 @@ export default function HomePage() {
 
                     {/* Session Browser */}
                     <SessionBrowser />
-
-                    {/* Decorative status line */}
-                    <div
-                        style={{
-                            marginTop: '2rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '16px',
-                            fontSize: '11px',
-                            color: 'rgb(100, 116, 139)',
-                        }}
-                    >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span
-                                style={{
-                                    width: '6px',
-                                    height: '6px',
-                                    borderRadius: '50%',
-                                    backgroundColor: 'rgb(34, 197, 94)',
-                                    boxShadow: '0 0 8px rgba(34, 197, 94, 0.6)',
-                                }}
-                            />
-                            System Online
-                        </span>
-                        <span style={{ color: 'rgb(45, 55, 72)' }}>|</span>
-                        <span>v1.0.0</span>
-                        <span style={{ color: 'rgb(45, 55, 72)' }}>|</span>
-                        <span style={{ letterSpacing: '0.1em' }}>READY</span>
-                    </div>
                 </div>
             </div>
 
-            {/* Keyframe for spin animation */}
+            {/* Fixed Footer - Safe Area */}
+            <footer
+                style={{
+                    position: 'fixed',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: `${FOOTER_HEIGHT}px`,
+                    zIndex: 50,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '16px',
+                    fontSize: '11px',
+                    fontFamily: 'JetBrains Mono, monospace',
+                    color: 'rgb(100, 116, 139)',
+                    // Solid background to prevent content showing through
+                    backgroundColor: 'rgb(8, 10, 15)',
+                    // Top border with gradient
+                    borderTop: '1px solid rgba(100, 116, 139, 0.15)',
+                    // Subtle inner glow
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02), 0 -4px 20px rgba(0,0,0,0.5)',
+                }}
+            >
+                {/* Gradient accent line at top */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: '200px',
+                        height: '1px',
+                        background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.4), transparent)',
+                    }}
+                />
+
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
+                        style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            backgroundColor: 'rgb(34, 197, 94)',
+                            boxShadow: '0 0 8px rgba(34, 197, 94, 0.6)',
+                            animation: 'pulse 2s ease-in-out infinite',
+                        }}
+                    />
+                    <span style={{ letterSpacing: '0.05em' }}>System Online</span>
+                </span>
+                <span style={{ color: 'rgb(45, 55, 72)' }}>|</span>
+                <span style={{ opacity: 0.7 }}>v1.0.0</span>
+                <span style={{ color: 'rgb(45, 55, 72)' }}>|</span>
+                <span style={{ letterSpacing: '0.15em', color: 'rgb(251, 191, 36)', fontWeight: 500 }}>READY</span>
+            </footer>
+
+            {/* Keyframes for animations */}
             <style jsx>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
+                }
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.6; transform: scale(0.9); }
                 }
             `}</style>
         </div>
