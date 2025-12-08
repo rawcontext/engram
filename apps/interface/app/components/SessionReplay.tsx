@@ -3,6 +3,17 @@
 import type { ReplayResponse, TimelineEvent } from "@lib/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+// Message type constants
+const MESSAGE_TYPES = {
+	THOUGHT: "thought",
+	ACTION: "action",
+	OBSERVATION: "observation",
+	SYSTEM: "system",
+	RESPONSE: "response",
+} as const;
+
+type MessageType = (typeof MESSAGE_TYPES)[keyof typeof MESSAGE_TYPES];
+
 interface SessionReplayProps {
 	data: ReplayResponse | null;
 	selectedNodeId?: string | null;
@@ -11,7 +22,7 @@ interface SessionReplayProps {
 
 interface ConsolidatedMessage {
 	id: string;
-	type: "thought" | "action" | "observation" | "system" | "response";
+	type: MessageType;
 	content: string;
 	timestamp: string;
 	endTimestamp?: string;
@@ -139,15 +150,21 @@ function consolidateTimeline(timeline: TimelineEvent[]): ConsolidatedMessage[] {
 		} else {
 			flushBuffer();
 			if (typeof content === "string" && content.trim()) {
+				// Determine message type from event type
+				let msgType: MessageType = MESSAGE_TYPES.THOUGHT;
+				if (type.includes(MESSAGE_TYPES.RESPONSE)) {
+					msgType = MESSAGE_TYPES.RESPONSE;
+				} else if (type.includes(MESSAGE_TYPES.ACTION)) {
+					msgType = MESSAGE_TYPES.ACTION;
+				} else if (type.includes(MESSAGE_TYPES.OBSERVATION)) {
+					msgType = MESSAGE_TYPES.OBSERVATION;
+				} else if (type.includes(MESSAGE_TYPES.SYSTEM)) {
+					msgType = MESSAGE_TYPES.SYSTEM;
+				}
+
 				messages.push({
 					id: nodeId || `msg-${messages.length}`,
-					type: type.includes("action")
-						? "action"
-						: type.includes("observation")
-							? "observation"
-							: type.includes("system")
-								? "system"
-								: "thought",
+					type: msgType,
 					content: content.trim(),
 					timestamp,
 					tokenCount: 1,
@@ -188,7 +205,7 @@ function TypingCursor() {
 	);
 }
 
-// Collapsible reasoning trace block - Amber thermal palette
+// Collapsible reasoning trace block - Cyan palette (matches graph)
 function ReasoningTrace({
 	content,
 	isExpanded,
@@ -207,18 +224,18 @@ function ReasoningTrace({
 			style={{
 				position: "relative",
 				background: isExpanded
-					? "linear-gradient(135deg, rgba(251, 191, 36, 0.06) 0%, rgba(251, 191, 36, 0.12) 100%)"
+					? "linear-gradient(135deg, rgba(34, 211, 238, 0.06) 0%, rgba(34, 211, 238, 0.12) 100%)"
 					: isHovered
-						? "linear-gradient(135deg, rgba(251, 191, 36, 0.04) 0%, rgba(251, 191, 36, 0.08) 100%)"
-						: "linear-gradient(135deg, rgba(251, 191, 36, 0.02) 0%, rgba(251, 191, 36, 0.05) 100%)",
+						? "linear-gradient(135deg, rgba(34, 211, 238, 0.04) 0%, rgba(34, 211, 238, 0.08) 100%)"
+						: "linear-gradient(135deg, rgba(34, 211, 238, 0.02) 0%, rgba(34, 211, 238, 0.05) 100%)",
 				borderLeft: isExpanded
-					? "3px solid rgb(251, 191, 36)"
-					: "2px solid rgba(251, 191, 36, 0.3)",
+					? "3px solid rgb(34, 211, 238)"
+					: "2px solid rgba(34, 211, 238, 0.3)",
 				borderRadius: "0 8px 8px 0",
 				overflow: "hidden",
 				transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
 				boxShadow: isExpanded
-					? "0 4px 20px rgba(251, 191, 36, 0.12), inset 0 1px 0 rgba(255,255,255,0.03)"
+					? "0 4px 20px rgba(34, 211, 238, 0.12), inset 0 1px 0 rgba(255,255,255,0.03)"
 					: "inset 0 1px 0 rgba(255,255,255,0.02)",
 			}}
 			onMouseEnter={() => setIsHovered(true)}
@@ -245,7 +262,7 @@ function ReasoningTrace({
 						width: "20px",
 						height: "20px",
 						borderRadius: "4px",
-						background: isExpanded ? "rgba(251, 191, 36, 0.2)" : "rgba(251, 191, 36, 0.1)",
+						background: isExpanded ? "rgba(34, 211, 238, 0.2)" : "rgba(34, 211, 238, 0.1)",
 						display: "flex",
 						alignItems: "center",
 						justifyContent: "center",
@@ -265,7 +282,7 @@ function ReasoningTrace({
 					>
 						<path
 							d="M3 1L7 5L3 9"
-							stroke={isExpanded ? "rgb(251, 191, 36)" : "rgba(251, 191, 36, 0.7)"}
+							stroke={isExpanded ? "rgb(34, 211, 238)" : "rgba(34, 211, 238, 0.7)"}
 							strokeWidth="2"
 							strokeLinecap="round"
 							strokeLinejoin="round"
@@ -279,14 +296,14 @@ function ReasoningTrace({
 						fontFamily: "JetBrains Mono, monospace",
 						fontSize: "9px",
 						fontWeight: 700,
-						color: isExpanded ? "rgb(251, 191, 36)" : "rgba(251, 191, 36, 0.7)",
+						color: isExpanded ? "rgb(34, 211, 238)" : "rgba(34, 211, 238, 0.7)",
 						padding: "4px 8px",
-						background: isExpanded ? "rgba(251, 191, 36, 0.2)" : "rgba(251, 191, 36, 0.1)",
+						background: isExpanded ? "rgba(34, 211, 238, 0.2)" : "rgba(34, 211, 238, 0.1)",
 						borderRadius: "4px",
 						letterSpacing: "0.08em",
-						border: `1px solid ${isExpanded ? "rgba(251, 191, 36, 0.3)" : "rgba(251, 191, 36, 0.15)"}`,
+						border: `1px solid ${isExpanded ? "rgba(34, 211, 238, 0.3)" : "rgba(34, 211, 238, 0.15)"}`,
 						transition: "all 0.2s ease",
-						textShadow: isExpanded ? "0 0 10px rgba(251, 191, 36, 0.5)" : "none",
+						textShadow: isExpanded ? "0 0 10px rgba(34, 211, 238, 0.5)" : "none",
 					}}
 				>
 					TRACE_{String(index + 1).padStart(2, "0")}
@@ -314,7 +331,7 @@ function ReasoningTrace({
 				<span
 					style={{
 						fontSize: "10px",
-						color: isExpanded ? "rgb(251, 191, 36)" : "rgba(100, 116, 139, 0.6)",
+						color: isExpanded ? "rgb(34, 211, 238)" : "rgba(100, 116, 139, 0.6)",
 						fontFamily: "JetBrains Mono, monospace",
 						fontWeight: 600,
 						transition: "color 0.2s ease",
@@ -341,7 +358,7 @@ function ReasoningTrace({
 						lineHeight: "1.8",
 						color: "rgba(180, 190, 210, 0.95)",
 						fontFamily: "JetBrains Mono, monospace",
-						borderTop: "1px solid rgba(251, 191, 36, 0.1)",
+						borderTop: "1px solid rgba(34, 211, 238, 0.1)",
 						marginTop: "4px",
 						paddingTop: "12px",
 					}}
@@ -554,8 +571,8 @@ function StatsHeader({ messages }: { messages: ConsolidatedMessage[] }) {
 		{
 			label: "REASONING",
 			value: reasoningCount,
-			color: "rgb(251, 191, 36)",
-			glowColor: "rgba(251, 191, 36, 0.5)",
+			color: "rgb(34, 211, 238)",
+			glowColor: "rgba(34, 211, 238, 0.5)",
 		},
 		{
 			label: "OUTPUT",
@@ -1010,7 +1027,7 @@ export function SessionReplay({ data, selectedNodeId, onEventHover }: SessionRep
 						</div>
 					)}
 
-					{/* Reasoning Section - Amber thermal palette */}
+					{/* Reasoning Section - Cyan palette (matches graph) */}
 					{reasoning.length > 0 && (
 						<div
 							style={{
@@ -1030,8 +1047,8 @@ export function SessionReplay({ data, selectedNodeId, onEventHover }: SessionRep
 									height: "16px",
 									borderRadius: "50%",
 									background: "rgb(15, 20, 30)",
-									border: "3px solid rgb(251, 191, 36)",
-									boxShadow: "0 0 12px rgba(251, 191, 36, 0.5)",
+									border: "3px solid rgb(34, 211, 238)",
+									boxShadow: "0 0 12px rgba(34, 211, 238, 0.5)",
 									zIndex: 1,
 								}}
 							/>
@@ -1049,9 +1066,9 @@ export function SessionReplay({ data, selectedNodeId, onEventHover }: SessionRep
 										fontSize: "11px",
 										fontWeight: 600,
 										letterSpacing: "0.2em",
-										color: "rgb(251, 191, 36)",
+										color: "rgb(34, 211, 238)",
 										textTransform: "uppercase",
-										textShadow: "0 0 15px rgba(251, 191, 36, 0.4)",
+										textShadow: "0 0 15px rgba(34, 211, 238, 0.4)",
 									}}
 								>
 									Reasoning Trace
@@ -1061,11 +1078,11 @@ export function SessionReplay({ data, selectedNodeId, onEventHover }: SessionRep
 										fontFamily: "JetBrains Mono, monospace",
 										fontSize: "9px",
 										fontWeight: 600,
-										color: "rgba(251, 191, 36, 0.8)",
+										color: "rgba(34, 211, 238, 0.8)",
 										padding: "3px 8px",
-										background: "rgba(251, 191, 36, 0.15)",
+										background: "rgba(34, 211, 238, 0.15)",
 										borderRadius: "4px",
-										border: "1px solid rgba(251, 191, 36, 0.2)",
+										border: "1px solid rgba(34, 211, 238, 0.2)",
 									}}
 								>
 									{reasoning.length} steps
