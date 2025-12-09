@@ -169,6 +169,29 @@ async function startPersistenceConsumer() {
 	const consumer = await kafka.createConsumer("memory-group");
 	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
 
+	// Publish consumer ready status to Redis
+	await redis.publishConsumerStatus("consumer_ready", "memory-group", "memory-service");
+	logger.info("Published consumer_ready status for memory-group");
+
+	// Periodic heartbeat every 10 seconds
+	const heartbeatInterval = setInterval(async () => {
+		try {
+			await redis.publishConsumerStatus("consumer_heartbeat", "memory-group", "memory-service");
+		} catch (e) {
+			logger.error({ err: e }, "Failed to publish heartbeat");
+		}
+	}, 10000);
+
+	// Cleanup heartbeat on process exit
+	process.on("SIGTERM", () => {
+		clearInterval(heartbeatInterval);
+		redis.publishConsumerStatus("consumer_disconnected", "memory-group", "memory-service");
+	});
+	process.on("SIGINT", () => {
+		clearInterval(heartbeatInterval);
+		redis.publishConsumerStatus("consumer_disconnected", "memory-group", "memory-service");
+	});
+
 	await consumer.run({
 		eachMessage: async ({ message }) => {
 			// Define event type for type safety

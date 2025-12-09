@@ -22,8 +22,18 @@ export interface SessionUpdate {
 	timestamp: number;
 }
 
+export interface ConsumerStatusUpdate {
+	type: "consumer_ready" | "consumer_disconnected" | "consumer_heartbeat";
+	groupId: string;
+	serviceId: string;
+	timestamp: number;
+}
+
 // Global channel for homepage session list updates
 const SESSIONS_CHANNEL = "sessions:updates";
+
+// Global channel for consumer status updates
+const CONSUMERS_CHANNEL = "consumers:status";
 
 export function createRedisPublisher() {
 	let client: RedisClientType | null = null;
@@ -80,6 +90,22 @@ export function createRedisPublisher() {
 		await conn.publish(SESSIONS_CHANNEL, JSON.stringify(message));
 	};
 
+	// Publish consumer status event (ready/disconnected/heartbeat)
+	const publishConsumerStatus = async (
+		eventType: "consumer_ready" | "consumer_disconnected" | "consumer_heartbeat",
+		groupId: string,
+		serviceId: string,
+	) => {
+		const conn = await connect();
+		const message: ConsumerStatusUpdate = {
+			type: eventType,
+			groupId,
+			serviceId,
+			timestamp: Date.now(),
+		};
+		await conn.publish(CONSUMERS_CHANNEL, JSON.stringify(message));
+	};
+
 	const disconnect = async () => {
 		if (client?.isOpen) {
 			await client.quit();
@@ -91,13 +117,18 @@ export function createRedisPublisher() {
 		connect,
 		publishSessionUpdate,
 		publishGlobalSessionEvent,
+		publishConsumerStatus,
 		disconnect,
 	};
 }
 
+// Type for RedisPublisher return
+export type RedisPublisher = ReturnType<typeof createRedisPublisher>;
+
 export function createRedisSubscriber() {
 	let client: RedisClientType | null = null;
-	const subscriptions = new Map<string, Set<(message: SessionUpdate) => void>>();
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const subscriptions = new Map<string, Set<(message: any) => void>>();
 
 	const connect = async () => {
 		if (client?.isOpen) return client;
@@ -109,9 +140,9 @@ export function createRedisSubscriber() {
 		return client;
 	};
 
-	const subscribe = async (
+	const subscribe = async <T = SessionUpdate>(
 		channelOrSessionId: string,
-		callback: (message: SessionUpdate) => void,
+		callback: (message: T) => void,
 	) => {
 		const conn = await connect();
 		// Support both session-specific channels and global channels
@@ -126,7 +157,7 @@ export function createRedisSubscriber() {
 			// Subscribe to the channel (only once per channel)
 			await conn.subscribe(channel, (message) => {
 				try {
-					const parsed = JSON.parse(message) as SessionUpdate;
+					const parsed = JSON.parse(message) as T;
 					const callbacks = subscriptions.get(channel);
 					if (callbacks) {
 						for (const cb of callbacks) {
@@ -154,6 +185,13 @@ export function createRedisSubscriber() {
 		};
 	};
 
+	// Subscribe specifically to consumer status updates
+	const subscribeToConsumerStatus = async (
+		callback: (message: ConsumerStatusUpdate) => void,
+	) => {
+		return subscribe<ConsumerStatusUpdate>(CONSUMERS_CHANNEL, callback);
+	};
+
 	const disconnect = async () => {
 		if (client?.isOpen) {
 			// Unsubscribe from all channels
@@ -169,6 +207,7 @@ export function createRedisSubscriber() {
 	return {
 		connect,
 		subscribe,
+		subscribeToConsumerStatus,
 		disconnect,
 	};
 }

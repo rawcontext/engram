@@ -1,5 +1,6 @@
 import { createNodeLogger } from "@engram/logger";
 import { createFalkorClient, createKafkaClient } from "@engram/storage";
+import { createRedisPublisher } from "@engram/storage/redis";
 import { ContextAssembler } from "./context/assembler";
 import { SessionManager } from "./session/manager";
 import { McpToolAdapter, MultiMcpAdapter } from "./tools/mcp_client";
@@ -52,6 +53,30 @@ const startConsumer = async () => {
 
 	const consumer = await kafka.createConsumer("control-group");
 	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
+
+	// Publish consumer ready status to Redis
+	const redis = createRedisPublisher();
+	await redis.publishConsumerStatus("consumer_ready", "control-group", "control-service");
+	logger.info("Published consumer_ready status for control-group");
+
+	// Periodic heartbeat every 10 seconds
+	const heartbeatInterval = setInterval(async () => {
+		try {
+			await redis.publishConsumerStatus("consumer_heartbeat", "control-group", "control-service");
+		} catch (e) {
+			logger.error({ err: e }, "Failed to publish heartbeat");
+		}
+	}, 10000);
+
+	// Cleanup heartbeat on process exit
+	process.on("SIGTERM", () => {
+		clearInterval(heartbeatInterval);
+		redis.publishConsumerStatus("consumer_disconnected", "control-group", "control-service");
+	});
+	process.on("SIGINT", () => {
+		clearInterval(heartbeatInterval);
+		redis.publishConsumerStatus("consumer_disconnected", "control-group", "control-service");
+	});
 
 	await consumer.run({
 		eachMessage: async ({ message }) => {

@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { type Logger, createNodeLogger } from "@engram/logger";
 import { SchemaManager, SearchIndexer, SearchRetriever } from "@engram/search-core";
 import { createKafkaClient } from "@engram/storage";
+import { createRedisPublisher } from "@engram/storage/redis";
 
 /**
  * Dependencies for SearchService construction.
@@ -90,6 +91,30 @@ export class SearchService {
 	async startConsumer() {
 		const consumer = await this.kafkaClient.createConsumer("search-group");
 		await consumer.subscribe({ topic: "memory.node_created", fromBeginning: false });
+
+		// Publish consumer ready status to Redis
+		const redis = createRedisPublisher();
+		await redis.publishConsumerStatus("consumer_ready", "search-group", "search-service");
+		this.logger.info("Published consumer_ready status for search-group");
+
+		// Periodic heartbeat every 10 seconds
+		const heartbeatInterval = setInterval(async () => {
+			try {
+				await redis.publishConsumerStatus("consumer_heartbeat", "search-group", "search-service");
+			} catch (e) {
+				this.logger.error({ err: e }, "Failed to publish heartbeat");
+			}
+		}, 10000);
+
+		// Cleanup heartbeat on process exit
+		process.on("SIGTERM", () => {
+			clearInterval(heartbeatInterval);
+			redis.publishConsumerStatus("consumer_disconnected", "search-group", "search-service");
+		});
+		process.on("SIGINT", () => {
+			clearInterval(heartbeatInterval);
+			redis.publishConsumerStatus("consumer_disconnected", "search-group", "search-service");
+		});
 
 		await consumer.run({
 			eachMessage: async ({

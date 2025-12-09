@@ -9,6 +9,7 @@ import {
 } from "@engram/ingestion-core";
 import { type Logger, createNodeLogger } from "@engram/logger";
 import { createKafkaClient } from "@engram/storage";
+import { createRedisPublisher } from "@engram/storage/redis";
 
 /**
  * Dependencies for IngestionProcessor construction.
@@ -211,6 +212,30 @@ export const processEvent = processor.processEvent.bind(processor);
 async function startConsumer() {
 	const consumer = await kafka.createConsumer("ingestion-group");
 	await consumer.subscribe({ topic: "raw_events", fromBeginning: false });
+
+	// Publish consumer ready status to Redis
+	const redis = createRedisPublisher();
+	await redis.publishConsumerStatus("consumer_ready", "ingestion-group", "ingestion-service");
+	logger.info("Published consumer_ready status for ingestion-group");
+
+	// Periodic heartbeat every 10 seconds
+	const heartbeatInterval = setInterval(async () => {
+		try {
+			await redis.publishConsumerStatus("consumer_heartbeat", "ingestion-group", "ingestion-service");
+		} catch (e) {
+			logger.error({ err: e }, "Failed to publish heartbeat");
+		}
+	}, 10000);
+
+	// Cleanup heartbeat on process exit
+	process.on("SIGTERM", () => {
+		clearInterval(heartbeatInterval);
+		redis.publishConsumerStatus("consumer_disconnected", "ingestion-group", "ingestion-service");
+	});
+	process.on("SIGINT", () => {
+		clearInterval(heartbeatInterval);
+		redis.publishConsumerStatus("consumer_disconnected", "ingestion-group", "ingestion-service");
+	});
 
 	await consumer.run({
 		eachMessage: async ({ message }) => {

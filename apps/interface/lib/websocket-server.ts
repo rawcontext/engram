@@ -1,5 +1,9 @@
 import { createRequire } from "node:module";
-import { createRedisSubscriber, type SessionUpdate } from "@engram/storage/redis";
+import {
+	createRedisSubscriber,
+	type ConsumerStatusUpdate,
+	type SessionUpdate,
+} from "@engram/storage/redis";
 import { WebSocket } from "ws";
 import { getSessionLineage, getSessionsForWebSocket, getSessionTimeline } from "./graph-queries";
 
@@ -8,6 +12,9 @@ const require = createRequire(import.meta.url);
 const Kafka = require("@confluentinc/kafka-javascript");
 
 const redisSubscriber = createRedisSubscriber();
+
+// Separate subscriber for consumer status (Redis subscribers can only subscribe, not do other ops)
+const consumerStatusSubscriber = createRedisSubscriber();
 
 // Global channel for session list updates
 const SESSIONS_CHANNEL = "sessions:updates";
@@ -245,54 +252,154 @@ function getUnknownStatus(): ConsumerStatusResponse {
 	};
 }
 
+// =============================================================================
+// Consumer Status State Management (Event-Driven via Redis Pub/Sub)
+// =============================================================================
+
+/**
+ * In-memory state for consumer groups, updated via Redis pub/sub events.
+ * Services publish heartbeats every 10 seconds; if no heartbeat received
+ * within 30 seconds, the consumer is considered offline.
+ */
+interface ConsumerState {
+	groupId: string;
+	serviceId: string;
+	lastHeartbeat: number;
+	isReady: boolean;
+}
+
+const consumerStates = new Map<string, ConsumerState>();
+const HEARTBEAT_TIMEOUT_MS = 30_000; // 30 seconds without heartbeat = offline
+const connectedConsumerClients = new Set<WebSocket>();
+
+/**
+ * Build current status response from in-memory state.
+ */
+function buildConsumerStatusResponse(): ConsumerStatusResponse {
+	const now = Date.now();
+	const groups: ConsumerGroupStatus[] = CONSUMER_GROUPS.map((groupId) => {
+		const state = consumerStates.get(groupId);
+		const isOnline = state && now - state.lastHeartbeat < HEARTBEAT_TIMEOUT_MS;
+
+		return {
+			groupId,
+			state: isOnline ? ConsumerGroupStates.STABLE : ConsumerGroupStates.UNKNOWN,
+			stateName: isOnline ? "STABLE" : "OFFLINE",
+			memberCount: isOnline ? 1 : 0,
+			isReady: !!isOnline,
+		};
+	});
+
+	const readyCount = groups.filter((g) => g.isReady).length;
+
+	return {
+		groups,
+		allReady: readyCount === groups.length,
+		readyCount,
+		totalCount: groups.length,
+		timestamp: now,
+	};
+}
+
+/**
+ * Broadcast current status to all connected WebSocket clients.
+ */
+function broadcastConsumerStatus() {
+	const status = buildConsumerStatusResponse();
+	const message = JSON.stringify({ type: "status", data: status });
+
+	for (const client of connectedConsumerClients) {
+		if (client.readyState === WebSocket.OPEN) {
+			client.send(message);
+		}
+	}
+}
+
+/**
+ * Handle incoming consumer status events from Redis pub/sub.
+ */
+function handleConsumerStatusEvent(event: ConsumerStatusUpdate) {
+	const { type, groupId, serviceId, timestamp } = event;
+
+	console.log(`[WS Consumer] Redis event: ${type} from ${groupId}/${serviceId}`);
+
+	if (type === "consumer_ready" || type === "consumer_heartbeat") {
+		consumerStates.set(groupId, {
+			groupId,
+			serviceId,
+			lastHeartbeat: timestamp,
+			isReady: true,
+		});
+		broadcastConsumerStatus();
+	} else if (type === "consumer_disconnected") {
+		consumerStates.delete(groupId);
+		broadcastConsumerStatus();
+	}
+}
+
+// Initialize Redis subscription for consumer status (runs once at module load)
+let consumerStatusSubscriptionInitialized = false;
+
+async function initConsumerStatusSubscription() {
+	if (consumerStatusSubscriptionInitialized) return;
+	consumerStatusSubscriptionInitialized = true;
+
+	try {
+		await consumerStatusSubscriber.subscribeToConsumerStatus(handleConsumerStatusEvent);
+		console.log("[WS Consumer] Subscribed to Redis consumer status channel");
+	} catch (error) {
+		console.error("[WS Consumer] Failed to subscribe to Redis:", error);
+		consumerStatusSubscriptionInitialized = false;
+	}
+}
+
+// Start timeout checker - marks consumers offline if no heartbeat
+setInterval(() => {
+	const now = Date.now();
+	let changed = false;
+
+	for (const [groupId, state] of consumerStates) {
+		if (now - state.lastHeartbeat >= HEARTBEAT_TIMEOUT_MS && state.isReady) {
+			state.isReady = false;
+			changed = true;
+			console.log(`[WS Consumer] ${groupId} timed out (no heartbeat)`);
+		}
+	}
+
+	if (changed) {
+		broadcastConsumerStatus();
+	}
+}, 5000); // Check every 5 seconds
+
 /**
  * Handle WebSocket connection for consumer status streaming.
- * Polls Kafka Admin API every 3 seconds and pushes updates to clients.
+ * Uses Redis pub/sub for true event-driven updates (no polling).
  */
 export async function handleConsumerStatusConnection(ws: WebSocket) {
 	console.log("[WS] Client connected to consumer status");
 
-	let intervalId: ReturnType<typeof setInterval> | null = null;
-	let lastStatus: string | null = null;
+	// Ensure Redis subscription is active
+	await initConsumerStatusSubscription();
 
-	const sendStatus = async () => {
-		if (ws.readyState !== WebSocket.OPEN) return;
+	// Track this client
+	connectedConsumerClients.add(ws);
 
-		try {
-			const status = await checkConsumerGroups();
-			const statusJson = JSON.stringify({ type: "status", data: status });
-
-			// Only send if status changed (to reduce noise)
-			if (statusJson !== lastStatus) {
-				ws.send(statusJson);
-				lastStatus = statusJson;
-			}
-		} catch (error) {
-			console.error("[WS Consumer] Error fetching status:", error);
-			// Send unknown status on error
-			const unknownStatus = getUnknownStatus();
-			ws.send(JSON.stringify({ type: "status", data: unknownStatus }));
-		}
-	};
-
-	// Send initial status immediately
-	await sendStatus();
-
-	// Poll every 3 seconds
-	intervalId = setInterval(sendStatus, 3000);
+	// Send current status immediately
+	const status = buildConsumerStatusResponse();
+	ws.send(JSON.stringify({ type: "status", data: status }));
 
 	ws.on("close", () => {
 		console.log("[WS] Client disconnected from consumer status");
-		if (intervalId) {
-			clearInterval(intervalId);
-		}
+		connectedConsumerClients.delete(ws);
 	});
 
 	ws.on("message", async (message) => {
 		try {
 			const data = JSON.parse(message.toString());
 			if (data.type === "refresh") {
-				await sendStatus();
+				// On refresh request, send current state
+				const currentStatus = buildConsumerStatusResponse();
+				ws.send(JSON.stringify({ type: "status", data: currentStatus }));
 			}
 		} catch (e) {
 			console.error("[WS Consumer] Invalid message", e);
