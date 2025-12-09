@@ -47,7 +47,7 @@ function ConsumerGroupTooltip({ groups, visible }: ConsumerGroupTooltipProps) {
 					textTransform: "uppercase",
 				}}
 			>
-				Kafka Consumer Groups
+				Consumer Groups
 			</div>
 
 			<div style={{ display: "flex", flexDirection: "column", gap: spacing[2] }}>
