@@ -2,6 +2,7 @@ export * from "./diff";
 export * from "./parser/anthropic";
 export * from "./parser/claude-code";
 export * from "./parser/codex";
+export * from "./parser/gemini";
 export * from "./parser/interface";
 export * from "./parser/openai";
 export * from "./parser/xai";
