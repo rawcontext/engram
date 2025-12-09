@@ -1,3 +1,4 @@
+import type { RerankerTier } from "@engram/search-core";
 import { SearchRetriever } from "@engram/search-core";
 import { apiError, apiSuccess } from "@lib/api-response";
 import { validate } from "@lib/validate";
@@ -15,17 +16,38 @@ const SearchRequestSchema = z.object({
 			type: z.enum(["thought", "code", "doc"]).optional(),
 		})
 		.optional(),
+	// Reranking options
+	rerank: z.boolean().optional().default(true),
+	rerankTier: z.enum(["fast", "accurate", "code", "llm"]).optional(),
+	rerankDepth: z.number().optional(),
 });
 
 export const _SearchResponseSchema = z.object({
 	results: z.array(
 		z.object({
-			document: z.string(),
+			id: z.union([z.string(), z.number()]),
 			score: z.number(),
-			originalIndex: z.number(),
+			rrfScore: z.number().optional(),
+			rerankerScore: z.number().optional(),
+			payload: z.record(z.string(), z.unknown()).optional(),
 		}),
 	),
+	meta: z.object({
+		query: z.string(),
+		strategy: z.string(),
+		reranker: z
+			.object({
+				tier: z.enum(["fast", "accurate", "code", "llm"]),
+				model: z.string(),
+				latencyMs: z.number(),
+			})
+			.optional(),
+		totalLatencyMs: z.number(),
+	}),
 });
+
+/** Current reranker model - will be made dynamic with RerankerRouter */
+const RERANKER_MODEL = "Xenova/bge-reranker-base";
 
 /**
  * Search the knowledge graph
@@ -34,17 +56,46 @@ export const _SearchResponseSchema = z.object({
  */
 export const POST = async (req: Request) => {
 	return validate(SearchRequestSchema as unknown as z.ZodSchema<unknown>)(req, async (data) => {
-		const { query, limit, filters } = data as z.infer<typeof SearchRequestSchema>;
+		const { query, limit, filters, rerank, rerankTier, rerankDepth } = data as z.infer<
+			typeof SearchRequestSchema
+		>;
+
+		const startTime = performance.now();
 
 		try {
+			const rerankStartTime = performance.now();
 			const results = await retriever.search({
 				text: query,
 				limit,
 				filters,
-				strategy: "hybrid", // Default to hybrid
+				strategy: "hybrid",
+				rerank,
+				rerankTier: rerankTier as RerankerTier | undefined,
+				rerankDepth,
 			});
+			const rerankLatency = performance.now() - rerankStartTime;
 
-			return apiSuccess({ results });
+			const totalLatency = performance.now() - startTime;
+
+			// Check if reranking was applied (results have rerankerScore)
+			const wasReranked =
+				rerank !== false && results.length > 0 && "rerankerScore" in results[0];
+
+			return apiSuccess({
+				results,
+				meta: {
+					query,
+					strategy: "hybrid",
+					reranker: wasReranked
+						? {
+								tier: (rerankTier as RerankerTier) ?? ("accurate" as const),
+								model: RERANKER_MODEL,
+								latencyMs: Math.round(rerankLatency),
+							}
+						: undefined,
+					totalLatencyMs: Math.round(totalLatency),
+				},
+			});
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : String(e);
 			return apiError(message, "SEARCH_FAILED");
