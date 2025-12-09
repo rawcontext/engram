@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const ProviderEnum = z.enum(["openai", "anthropic", "local_mock", "xai", "claude_code", "codex", "gemini", "opencode"]);
+export const ProviderEnum = z.enum(["openai", "anthropic", "local_mock", "xai", "claude_code", "codex", "gemini", "opencode", "cline"]);
 
 export const RawStreamEventSchema = z.object({
 	event_id: z.string().uuid(),

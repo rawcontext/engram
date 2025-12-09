@@ -3,6 +3,7 @@ import { type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
 import {
 	AnthropicParser,
 	ClaudeCodeParser,
+	ClineParser,
 	CodexParser,
 	DiffExtractor,
 	GeminiParser,
@@ -21,6 +22,7 @@ const anthropicParser = new AnthropicParser();
 const openaiParser = new OpenAIParser();
 const xaiParser = new XAIParser();
 const claudeCodeParser = new ClaudeCodeParser();
+const clineParser = new ClineParser();
 const codexParser = new CodexParser();
 const geminiParser = new GeminiParser();
 const opencodeParser = new OpenCodeParser();
@@ -58,6 +60,8 @@ export class IngestionProcessor {
 			delta = geminiParser.parse(rawEvent.payload);
 		} else if (provider === "opencode") {
 			delta = opencodeParser.parse(rawEvent.payload);
+		} else if (provider === "cline") {
+			delta = clineParser.parse(rawEvent.payload);
 		}
 
 		if (!delta) {
