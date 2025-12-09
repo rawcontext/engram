@@ -120,6 +120,16 @@ export const TurnNodeSchema = BaseNodeSchema.extend({
 	// Token usage (aggregated for the turn)
 	input_tokens: z.number().int().optional(),
 	output_tokens: z.number().int().optional(),
+	cache_read_tokens: z.number().int().optional(),
+	cache_write_tokens: z.number().int().optional(),
+	reasoning_tokens: z.number().int().optional(),
+
+	// Cost and timing
+	cost_usd: z.number().optional(), // Total cost for this turn in USD
+	duration_ms: z.number().int().optional(), // Total duration in milliseconds
+
+	// Git context (for OpenCode and others that track git state)
+	git_commit: z.string().optional(), // Git commit hash at end of turn
 });
 export type TurnNode = z.infer<typeof TurnNodeSchema>;
 

@@ -86,8 +86,17 @@ export interface TurnProperties extends Partial<BitemporalProperties> {
 	sequence_index: number;
 	files_touched?: string[];
 	tool_calls_count?: number;
+	// Token usage
 	input_tokens?: number;
 	output_tokens?: number;
+	cache_read_tokens?: number;
+	cache_write_tokens?: number;
+	reasoning_tokens?: number;
+	// Cost and timing
+	cost_usd?: number;
+	duration_ms?: number;
+	// Git context
+	git_commit?: string;
 	[key: string]: unknown;
 }
 
