@@ -71,8 +71,8 @@ export default function HomePage() {
 		setMounted(true);
 	}, []);
 
-	// Show search results when in search mode, otherwise show session browser
-	const showSearchResults = mode === "search" && searchQuery.trim().length >= 2;
+	// Show search results above session browser when actively searching (3+ chars)
+	const showSearchResults = mode === "search" && searchQuery.trim().length >= 3;
 
 	// Header/Footer heights for safe area calculation
 	const HEADER_HEIGHT = 140;
@@ -219,17 +219,20 @@ export default function HomePage() {
 						/>
 					</div>
 
-					{/* Conditional content: Search Results or Session Browser */}
-					{showSearchResults ? (
-						<SearchResults
-							results={results}
-							isLoading={isLoading}
-							error={error}
-							query={searchQuery}
-						/>
-					) : (
-						<SessionBrowser />
+					{/* Search Results (shown above sessions when searching) */}
+					{showSearchResults && (
+						<div style={{ marginBottom: "2rem" }}>
+							<SearchResults
+								results={results}
+								isLoading={isLoading}
+								error={error}
+								query={searchQuery}
+							/>
+						</div>
 					)}
+
+					{/* Session Browser (always visible) */}
+					<SessionBrowser />
 				</div>
 			</div>
 

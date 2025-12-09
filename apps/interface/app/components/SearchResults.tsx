@@ -463,67 +463,14 @@ export function SearchResults({ results, isLoading, error, query }: SearchResult
 		);
 	}
 
-	// Error state
+	// Error state - silently fail, just don't show results
+	// (search index may not exist yet, no need to alarm user)
 	if (error) {
-		return (
-			<div
-				style={{
-					padding: "2rem",
-					background: "rgba(239, 68, 68, 0.05)",
-					borderRadius: "12px",
-					border: "1px solid rgba(239, 68, 68, 0.2)",
-					textAlign: "center",
-				}}
-			>
-				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-						gap: "8px",
-						marginBottom: "8px",
-					}}
-				>
-					<svg
-						width="16"
-						height="16"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="rgb(239, 68, 68)"
-						strokeWidth="2"
-					>
-						<circle cx="12" cy="12" r="10" />
-						<line x1="12" y1="8" x2="12" y2="12" />
-						<line x1="12" y1="16" x2="12.01" y2="16" />
-					</svg>
-					<span
-						style={{
-							fontSize: "11px",
-							fontFamily: "Orbitron, sans-serif",
-							fontWeight: 600,
-							letterSpacing: "0.1em",
-							color: "rgb(239, 68, 68)",
-						}}
-					>
-						SEARCH ERROR
-					</span>
-				</div>
-				<p
-					style={{
-						margin: 0,
-						fontSize: "12px",
-						fontFamily: "JetBrains Mono, monospace",
-						color: "rgb(148, 163, 184)",
-					}}
-				>
-					{error}
-				</p>
-			</div>
-		);
+		return null;
 	}
 
 	// No results state
-	if (results.length === 0 && query.trim().length >= 2) {
+	if (results.length === 0 && query.trim().length >= 3) {
 		return (
 			<div
 				style={{

@@ -74,8 +74,8 @@ export function useSearch(query: string, options: UseSearchOptions = {}) {
 		return "search";
 	}, [debouncedQuery]);
 
-	// Only fetch when in search mode and query is long enough
-	const shouldSearch = mode === "search" && debouncedQuery.trim().length >= 2;
+	// Only fetch when in search mode and query is long enough (3+ chars)
+	const shouldSearch = mode === "search" && debouncedQuery.trim().length >= 3;
 
 	const { data, error, isLoading, isValidating } = useSWR(
 		shouldSearch ? ["/api/search", debouncedQuery, limit, filters] : null,
