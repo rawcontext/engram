@@ -15,12 +15,70 @@ interface SearchSettingsProps {
 	onChange: (settings: SearchSettingsState) => void;
 }
 
+/**
+ * Reranker tier configuration with detailed model information.
+ *
+ * Architecture types:
+ * - Cross-encoder: Concatenates query+doc, full attention between them
+ * - Listwise LLM: Sees all candidates, makes relative comparisons
+ *
+ * Models:
+ * - MiniLM: Distilled BERT, 6 layers, 22M params - fast inference
+ * - BGE: BERT-based, trained on diverse retrieval tasks
+ * - Jina: Multilingual (89 langs), code-optimized
+ * - Grok: xAI's reasoning model, premium tier
+ */
 const TIER_OPTIONS = [
-	{ value: "auto", label: "Auto", shortDesc: "Smart routing" },
-	{ value: "fast", label: "Fast", shortDesc: "~20ms" },
-	{ value: "accurate", label: "Accurate", shortDesc: "BGE" },
-	{ value: "code", label: "Code", shortDesc: "Jina" },
-	{ value: "llm", label: "LLM", shortDesc: "Grok" },
+	{
+		value: "auto",
+		label: "Auto",
+		shortDesc: "Query-adaptive routing",
+		model: null,
+		arch: "Classifier → Router",
+		params: null,
+		latency: "Variable",
+		description: "Analyzes query complexity and routes to optimal tier",
+	},
+	{
+		value: "fast",
+		label: "Fast",
+		shortDesc: "MiniLM-L6 Cross-Encoder",
+		model: "ms-marco-MiniLM-L-6-v2",
+		arch: "Cross-Encoder",
+		params: "22M",
+		latency: "~20ms",
+		description: "Distilled BERT optimized for speed",
+	},
+	{
+		value: "accurate",
+		label: "Accurate",
+		shortDesc: "BGE Reranker Base",
+		model: "bge-reranker-base",
+		arch: "Cross-Encoder",
+		params: "278M",
+		latency: "~150ms",
+		description: "BAAI general embedding reranker",
+	},
+	{
+		value: "code",
+		label: "Code",
+		shortDesc: "Jina v2 Multilingual",
+		model: "jina-reranker-v2-base",
+		arch: "Cross-Encoder",
+		params: "278M",
+		latency: "~150ms",
+		description: "89 languages, code-optimized attention",
+	},
+	{
+		value: "llm",
+		label: "LLM",
+		shortDesc: "Grok-4.1 Reasoning",
+		model: "grok-4-1-fast-reasoning",
+		arch: "Listwise LLM",
+		params: "~300B",
+		latency: "~2s",
+		description: "xAI reasoning model, sees all candidates",
+	},
 ] as const;
 
 const DEPTH_PRESETS = [
@@ -349,9 +407,8 @@ export function SearchSettings({ settings, onChange }: SearchSettingsProps) {
 									style={{
 										display: "flex",
 										alignItems: "center",
-										justifyContent: "center",
-										gap: "8px",
-										padding: "6px 8px",
+										justifyContent: "space-between",
+										padding: "8px 10px",
 										background:
 											selectedTier === "auto"
 												? "linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.1))"
@@ -377,25 +434,45 @@ export function SearchSettings({ settings, onChange }: SearchSettingsProps) {
 										}
 									}}
 								>
+									<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+										<span
+											style={{
+												fontSize: "10px",
+												fontFamily: "Orbitron, sans-serif",
+												fontWeight: 600,
+												color: selectedTier === "auto" ? "rgb(251, 191, 36)" : "rgb(148, 163, 184)",
+											}}
+										>
+											Auto
+										</span>
+										<span
+											style={{
+												fontSize: "7px",
+												fontFamily: "JetBrains Mono, monospace",
+												color:
+													selectedTier === "auto"
+														? "rgba(251, 191, 36, 0.7)"
+														: "rgb(100, 116, 139)",
+												padding: "1px 4px",
+												background:
+													selectedTier === "auto"
+														? "rgba(251, 191, 36, 0.1)"
+														: "rgba(71, 85, 105, 0.2)",
+												borderRadius: "3px",
+											}}
+										>
+											Query-Adaptive
+										</span>
+									</div>
 									<span
 										style={{
-											fontSize: "10px",
-											fontFamily: "Orbitron, sans-serif",
-											fontWeight: 600,
-											color: selectedTier === "auto" ? "rgb(251, 191, 36)" : "rgb(148, 163, 184)",
-										}}
-									>
-										Auto
-									</span>
-									<span
-										style={{
-											fontSize: "7px",
+											fontSize: "6px",
 											fontFamily: "JetBrains Mono, monospace",
-											color:
-												selectedTier === "auto" ? "rgba(251, 191, 36, 0.7)" : "rgb(100, 116, 139)",
+											color: "rgb(100, 116, 139)",
+											letterSpacing: "0.05em",
 										}}
 									>
-										Smart routing
+										Classifier → Router
 									</span>
 								</button>
 
@@ -416,9 +493,9 @@ export function SearchSettings({ settings, onChange }: SearchSettingsProps) {
 											style={{
 												display: "flex",
 												flexDirection: "column",
-												alignItems: "center",
-												justifyContent: "center",
-												padding: "6px 4px",
+												alignItems: "flex-start",
+												justifyContent: "flex-start",
+												padding: "6px 8px",
 												background:
 													selectedTier === option.value
 														? "linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.1))"
@@ -430,6 +507,7 @@ export function SearchSettings({ settings, onChange }: SearchSettingsProps) {
 												borderRadius: "5px",
 												cursor: settings.rerank ? "pointer" : "not-allowed",
 												transition: "all 0.2s ease",
+												minHeight: "52px",
 											}}
 											onMouseEnter={(e) => {
 												if (settings.rerank && selectedTier !== option.value) {
@@ -444,33 +522,96 @@ export function SearchSettings({ settings, onChange }: SearchSettingsProps) {
 												}
 											}}
 										>
-											<span
+											{/* Header row: Label + Latency */}
+											<div
 												style={{
-													fontSize: "9px",
-													fontFamily: "Orbitron, sans-serif",
-													fontWeight: 600,
-													color:
-														selectedTier === option.value
-															? "rgb(251, 191, 36)"
-															: "rgb(148, 163, 184)",
-													transition: "color 0.2s ease",
+													display: "flex",
+													alignItems: "center",
+													justifyContent: "space-between",
+													width: "100%",
+													marginBottom: "2px",
 												}}
 											>
-												{option.label}
-											</span>
+												<span
+													style={{
+														fontSize: "9px",
+														fontFamily: "Orbitron, sans-serif",
+														fontWeight: 600,
+														color:
+															selectedTier === option.value
+																? "rgb(251, 191, 36)"
+																: "rgb(148, 163, 184)",
+														transition: "color 0.2s ease",
+													}}
+												>
+													{option.label}
+												</span>
+												<span
+													style={{
+														fontSize: "6px",
+														fontFamily: "JetBrains Mono, monospace",
+														color:
+															selectedTier === option.value
+																? "rgba(0, 245, 212, 0.9)"
+																: "rgb(71, 85, 105)",
+														padding: "1px 3px",
+														background:
+															selectedTier === option.value
+																? "rgba(0, 245, 212, 0.1)"
+																: "transparent",
+														borderRadius: "2px",
+													}}
+												>
+													{option.latency}
+												</span>
+											</div>
+											{/* Model name */}
 											<span
 												style={{
-													fontSize: "7px",
+													fontSize: "6px",
 													fontFamily: "JetBrains Mono, monospace",
 													color:
 														selectedTier === option.value
-															? "rgba(251, 191, 36, 0.7)"
+															? "rgba(251, 191, 36, 0.8)"
 															: "rgb(100, 116, 139)",
-													marginTop: "1px",
+													letterSpacing: "0.02em",
+													marginBottom: "2px",
 												}}
 											>
-												{option.shortDesc}
+												{option.model}
 											</span>
+											{/* Architecture + Params */}
+											<div
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: "4px",
+												}}
+											>
+												<span
+													style={{
+														fontSize: "6px",
+														fontFamily: "JetBrains Mono, monospace",
+														color: "rgb(71, 85, 105)",
+														padding: "1px 3px",
+														background: "rgba(71, 85, 105, 0.15)",
+														borderRadius: "2px",
+													}}
+												>
+													{option.arch}
+												</span>
+												{option.params && (
+													<span
+														style={{
+															fontSize: "6px",
+															fontFamily: "JetBrains Mono, monospace",
+															color: "rgb(71, 85, 105)",
+														}}
+													>
+														{option.params}
+													</span>
+												)}
+											</div>
 										</button>
 									))}
 								</div>
@@ -619,7 +760,7 @@ export function SearchSettings({ settings, onChange }: SearchSettingsProps) {
 							letterSpacing: "0.02em",
 						}}
 					>
-						LLM tier requires explicit selection • Settings apply on next search
+						Cross-encoders score query+doc pairs • LLM sees all candidates (listwise)
 					</div>
 				</div>
 			)}
