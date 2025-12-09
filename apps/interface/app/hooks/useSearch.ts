@@ -14,7 +14,12 @@ export interface SearchResultPayload {
 
 export interface SearchResult {
 	id: string;
+	/** Final score used for ranking */
 	score: number;
+	/** Original RRF/dense/sparse score before reranking */
+	rrfScore?: number;
+	/** Cross-encoder relevance score, present if reranking was applied */
+	rerankerScore?: number;
 	payload: SearchResultPayload;
 }
 

@@ -76,11 +76,19 @@ function truncateId(id: string): string {
 	return id.slice(0, 8);
 }
 
-// Score bar visualization
-function ScoreBar({ score }: { score: number }) {
-	// RRF fusion scores typically range 0-1, display as-is
-	const normalizedScore = Math.min(Math.max(score, 0), 1);
+// Score bar visualization - shows REL for reranked results, RRF otherwise
+function ScoreBar({ result }: { result: SearchResult }) {
+	const hasRerank = result.rerankerScore !== undefined;
+	const displayScore = hasRerank ? result.rerankerScore : result.score;
+	const normalizedScore = Math.min(Math.max(displayScore, 0), 1);
 	const percentage = Math.round(normalizedScore * 100);
+
+	// REL uses a warmer magenta-to-gold gradient, RRF uses cool cyan-to-amber
+	const gradientColors = hasRerank
+		? "linear-gradient(90deg, rgb(236, 72, 153), rgb(251, 191, 36))" // pink → gold
+		: "linear-gradient(90deg, rgb(0, 245, 212), rgb(251, 191, 36))"; // cyan → amber
+
+	const labelColor = hasRerank ? "rgb(236, 72, 153)" : "rgb(71, 85, 105)";
 
 	return (
 		<div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -88,14 +96,20 @@ function ScoreBar({ score }: { score: number }) {
 				style={{
 					fontSize: "8px",
 					fontFamily: "Orbitron, sans-serif",
-					fontWeight: 500,
+					fontWeight: 600,
 					letterSpacing: "0.05em",
-					color: "rgb(71, 85, 105)",
+					color: labelColor,
 					cursor: "help",
+					textShadow: hasRerank ? "0 0 8px rgba(236, 72, 153, 0.4)" : "none",
+					transition: "all 0.3s ease",
 				}}
-				title="Reciprocal Rank Fusion: combines semantic similarity and keyword matching scores"
+				title={
+					hasRerank
+						? "Relevance: neural cross-encoder reranking score"
+						: "Reciprocal Rank Fusion: combines semantic similarity and keyword matching"
+				}
 			>
-				RRF
+				{hasRerank ? "REL" : "RRF"}
 			</span>
 			<div
 				style={{
@@ -104,15 +118,29 @@ function ScoreBar({ score }: { score: number }) {
 					backgroundColor: "rgba(100, 116, 139, 0.2)",
 					borderRadius: "2px",
 					overflow: "hidden",
+					position: "relative",
 				}}
 			>
+				{/* Glow effect for reranked results */}
+				{hasRerank && (
+					<div
+						style={{
+							position: "absolute",
+							inset: "-2px",
+							background: "rgba(236, 72, 153, 0.15)",
+							borderRadius: "4px",
+							filter: "blur(2px)",
+						}}
+					/>
+				)}
 				<div
 					style={{
 						width: `${Math.max(normalizedScore * 100, 10)}%`,
 						height: "100%",
-						background: `linear-gradient(90deg, rgb(0, 245, 212), rgb(251, 191, 36))`,
+						background: gradientColors,
 						borderRadius: "2px",
 						transition: "width 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+						position: "relative",
 					}}
 				/>
 			</div>
@@ -120,8 +148,9 @@ function ScoreBar({ score }: { score: number }) {
 				style={{
 					fontSize: "9px",
 					fontFamily: "JetBrains Mono, monospace",
-					color: "rgb(100, 116, 139)",
+					color: hasRerank ? "rgb(236, 72, 153)" : "rgb(100, 116, 139)",
 					minWidth: "28px",
+					transition: "color 0.3s ease",
 				}}
 			>
 				{percentage}%
@@ -307,7 +336,7 @@ function SearchResultCard({
 					justifyContent: "space-between",
 				}}
 			>
-				<ScoreBar score={result.score} />
+				<ScoreBar result={result} />
 				<span
 					style={{
 						fontSize: "9px",
