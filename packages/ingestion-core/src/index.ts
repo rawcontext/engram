@@ -4,6 +4,7 @@ export * from "./parser/claude-code";
 export * from "./parser/codex";
 export * from "./parser/gemini";
 export * from "./parser/interface";
+export * from "./parser/opencode";
 export * from "./parser/openai";
 export * from "./parser/xai";
 export * from "./protocol";

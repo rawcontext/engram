@@ -7,6 +7,7 @@ import {
 	DiffExtractor,
 	GeminiParser,
 	OpenAIParser,
+	OpenCodeParser,
 	Redactor,
 	type StreamDelta,
 	ThinkingExtractor,
@@ -22,6 +23,7 @@ const xaiParser = new XAIParser();
 const claudeCodeParser = new ClaudeCodeParser();
 const codexParser = new CodexParser();
 const geminiParser = new GeminiParser();
+const opencodeParser = new OpenCodeParser();
 
 // In-memory state for extractors (per session)
 const thinkingExtractors = new Map<string, ThinkingExtractor>();
@@ -54,6 +56,8 @@ export class IngestionProcessor {
 			delta = codexParser.parse(rawEvent.payload);
 		} else if (provider === "gemini") {
 			delta = geminiParser.parse(rawEvent.payload);
+		} else if (provider === "opencode") {
+			delta = opencodeParser.parse(rawEvent.payload);
 		}
 
 		if (!delta) {
