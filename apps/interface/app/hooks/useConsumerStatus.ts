@@ -1,32 +1,28 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ConsumerStatusResponse } from "../api/consumers/route";
 
 export interface UseConsumerStatusOptions {
-	/** Polling interval in ms (default: 5000) */
-	pollInterval?: number;
-	/** Whether to enable polling (default: true) */
+	/** Whether to enable the WebSocket connection (default: true) */
 	enabled?: boolean;
 }
 
 export interface UseConsumerStatusResult {
-	/** Response from the consumer status API */
+	/** Response from the consumer status stream */
 	data: ConsumerStatusResponse | null;
-	/** Whether we're currently loading */
-	isLoading: boolean;
-	/** Error message if the request failed */
+	/** Whether we're connected to the WebSocket */
+	isConnected: boolean;
+	/** Error message if connection failed */
 	error: string | null;
 	/** Force a refresh of the status */
-	refresh: () => Promise<void>;
+	refresh: () => void;
 }
 
 /**
- * Hook to poll Kafka consumer group status.
+ * Hook to stream Kafka consumer group status via WebSocket.
  *
  * @example
  * ```tsx
- * const { data, isLoading, error } = useConsumerStatus({
- *   pollInterval: 5000,
- * });
+ * const { data, isConnected, error } = useConsumerStatus();
  *
  * if (data?.allReady) {
  *   return <StatusIndicator status="online" label="All Consumers Ready" />;
@@ -36,57 +32,98 @@ export interface UseConsumerStatusResult {
 export function useConsumerStatus(
 	options: UseConsumerStatusOptions = {},
 ): UseConsumerStatusResult {
-	const { pollInterval = 5000, enabled = true } = options;
+	const { enabled = true } = options;
 
 	const [data, setData] = useState<ConsumerStatusResponse | null>(null);
-	const [isLoading, setIsLoading] = useState(false);
+	const [isConnected, setIsConnected] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const wsRef = useRef<WebSocket | null>(null);
+	const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const fetchStatus = useCallback(async () => {
-		if (!enabled) return;
+	const connect = useCallback(() => {
+		if (!enabled || typeof window === "undefined") return;
+
+		// Build WebSocket URL
+		const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+		const wsUrl = `${protocol}//${window.location.host}/api/ws/consumers`;
 
 		try {
-			setIsLoading(true);
-			setError(null);
+			const ws = new WebSocket(wsUrl);
+			wsRef.current = ws;
 
-			const response = await fetch("/api/consumers");
+			ws.onopen = () => {
+				console.log("[useConsumerStatus] WebSocket connected");
+				setIsConnected(true);
+				setError(null);
+			};
 
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
+			ws.onmessage = (event) => {
+				try {
+					const message = JSON.parse(event.data);
+					if (message.type === "status" && message.data) {
+						setData(message.data);
+					}
+				} catch (e) {
+					console.error("[useConsumerStatus] Failed to parse message:", e);
+				}
+			};
 
-			const result: ConsumerStatusResponse = await response.json();
-			setData(result);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			setError(message);
-		} finally {
-			setIsLoading(false);
+			ws.onerror = (event) => {
+				console.error("[useConsumerStatus] WebSocket error:", event);
+				setError("WebSocket connection error");
+			};
+
+			ws.onclose = (event) => {
+				console.log("[useConsumerStatus] WebSocket closed:", event.code, event.reason);
+				setIsConnected(false);
+				wsRef.current = null;
+
+				// Reconnect after 5 seconds if not a clean close
+				if (enabled && event.code !== 1000) {
+					reconnectTimeoutRef.current = setTimeout(() => {
+						console.log("[useConsumerStatus] Attempting to reconnect...");
+						connect();
+					}, 5000);
+				}
+			};
+		} catch (e) {
+			console.error("[useConsumerStatus] Failed to create WebSocket:", e);
+			setError("Failed to connect to consumer status stream");
 		}
 	}, [enabled]);
 
-	// Initial fetch
+	const disconnect = useCallback(() => {
+		if (reconnectTimeoutRef.current) {
+			clearTimeout(reconnectTimeoutRef.current);
+			reconnectTimeoutRef.current = null;
+		}
+		if (wsRef.current) {
+			wsRef.current.close(1000, "Component unmounting");
+			wsRef.current = null;
+		}
+	}, []);
+
+	const refresh = useCallback(() => {
+		if (wsRef.current?.readyState === WebSocket.OPEN) {
+			wsRef.current.send(JSON.stringify({ type: "refresh" }));
+		}
+	}, []);
+
+	// Connect on mount, disconnect on unmount
 	useEffect(() => {
 		if (enabled) {
-			fetchStatus();
+			connect();
 		}
-	}, [enabled, fetchStatus]);
-
-	// Polling
-	useEffect(() => {
-		if (!enabled || pollInterval <= 0) return;
-
-		const intervalId = setInterval(fetchStatus, pollInterval);
 
 		return () => {
-			clearInterval(intervalId);
+			disconnect();
 		};
-	}, [enabled, pollInterval, fetchStatus]);
+	}, [enabled, connect, disconnect]);
 
 	return {
 		data,
-		isLoading,
+		isConnected,
 		error,
-		refresh: fetchStatus,
+		refresh,
 	};
 }

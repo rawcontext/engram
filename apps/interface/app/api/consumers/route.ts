@@ -93,12 +93,24 @@ async function checkConsumerGroups(groupIds: string[]): Promise<ConsumerGroupSta
 	admin.connect();
 
 	try {
-		const descriptions = await new Promise<GroupDescription[]>((resolve, reject) => {
-			admin.describeGroups(groupIds, { timeout: 5000 }, (err, result) => {
+		const result = await new Promise<unknown>((resolve, reject) => {
+			admin.describeGroups(groupIds, { timeout: 5000 }, (err, res) => {
 				if (err) reject(err);
-				else resolve(result);
+				else resolve(res);
 			});
 		});
+
+		// The API may return an object with groups property or an array directly
+		// Handle both cases
+		let descriptions: GroupDescription[];
+		if (Array.isArray(result)) {
+			descriptions = result as GroupDescription[];
+		} else if (result && typeof result === "object" && "groups" in result) {
+			descriptions = (result as { groups: GroupDescription[] }).groups;
+		} else {
+			console.error("[Consumer Status API] Unexpected response format:", typeof result, result);
+			throw new Error(`Unexpected response format: ${typeof result}`);
+		}
 
 		return descriptions.map((desc) => ({
 			groupId: desc.groupId,

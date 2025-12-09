@@ -150,9 +150,7 @@ function ConsumerGroupTooltip({ groups, visible }: ConsumerGroupTooltipProps) {
 }
 
 export function SystemFooter() {
-	const { data: consumerStatus } = useConsumerStatus({
-		pollInterval: 5000,
-	});
+	const { data: consumerStatus, isConnected } = useConsumerStatus();
 	const [showTooltip, setShowTooltip] = useState(false);
 
 	// Determine overall system status based on consumer groups
@@ -162,6 +160,16 @@ export function SystemFooter() {
 
 	// Status determination
 	const getStatusInfo = () => {
+		if (!isConnected) {
+			return {
+				color: colors.slate[500],
+				glow: "none",
+				label: "Connecting...",
+				ready: "INIT",
+				readyColor: colors.slate[500],
+			};
+		}
+
 		if (!consumerStatus) {
 			return {
 				color: colors.slate[500],
@@ -178,7 +186,7 @@ export function SystemFooter() {
 				glow: `0 0 8px ${colors.green.glow}`,
 				label: "System Online",
 				ready: "READY",
-				readyColor: colors.amber.DEFAULT,
+				readyColor: colors.green.DEFAULT,
 			};
 		}
 

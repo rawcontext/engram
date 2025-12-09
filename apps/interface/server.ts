@@ -2,7 +2,11 @@ import { createServer } from "node:http";
 import { parse } from "node:url";
 import next from "next";
 import { WebSocketServer } from "ws";
-import { handleSessionConnection, handleSessionsConnection } from "./lib/websocket-server";
+import {
+	handleConsumerStatusConnection,
+	handleSessionConnection,
+	handleSessionsConnection,
+} from "./lib/websocket-server";
 
 const port = parseInt(process.env.PORT || "5000", 10);
 const dev = process.env.NODE_ENV !== "production";
@@ -24,6 +28,14 @@ app.prepare().then(() => {
 		if (pathname === "/api/ws/sessions") {
 			wss.handleUpgrade(request, socket, head, (ws) => {
 				handleSessionsConnection(ws);
+			});
+			return;
+		}
+
+		// Match /api/ws/consumers (consumer group status stream)
+		if (pathname === "/api/ws/consumers") {
+			wss.handleUpgrade(request, socket, head, (ws) => {
+				handleConsumerStatusConnection(ws);
 			});
 			return;
 		}
