@@ -16,14 +16,16 @@ export interface ColBERTEmbedderConfig extends EmbedderConfig {
 }
 
 const DEFAULT_CONFIG: ColBERTEmbedderConfig = {
-	model: "jinaai/jina-colbert-v2",
+	// Use Xenova/colbertv2.0 which has proper ONNX support with quantized models
+	// See: https://huggingface.co/Xenova/colbertv2.0/tree/main/onnx
+	// Available: model.onnx (436MB), model_fp16.onnx (218MB), model_q8/int8 (110MB), model_q4 (149MB)
+	model: "Xenova/colbertv2.0",
 	dimensions: 128, // Token-level dimension
 	tokenDimension: 128,
-	// Note: jina-colbert-v2 only provides fp32 ONNX weights (no quantized version available)
-	// See: https://huggingface.co/jinaai/jina-colbert-v2/tree/main/onnx
-	dtype: "fp32",
-	passagePrefix: "passage:",
-	queryPrefix: "query:",
+	dtype: "q8", // Use int8 quantized model (110MB) for good balance of speed/accuracy
+	// ColBERT v2 uses [Q]/[D] prefixes for query/document
+	passagePrefix: "[D]",
+	queryPrefix: "[Q]",
 };
 
 type ExtractorFn = (
@@ -35,10 +37,11 @@ type ExtractorFn = (
  * ColBERTEmbedder generates token-level embeddings for late interaction reranking.
  * Extends BaseMultiVectorEmbedder for multi-vector output.
  *
- * Model: jinaai/jina-colbert-v2 (559M parameters, 89 languages)
+ * Model: Xenova/colbertv2.0 (ONNX-optimized version of ColBERT v2)
  * - Token dimension: 128
  * - Late interaction via MaxSim scoring
  * - 180x fewer FLOPs than cross-encoders at k=10
+ * - Properly optimized ONNX weights with quantization support
  *
  * Architecture:
  * 1. Documents: Pre-computed token embeddings stored in Qdrant multivector field
