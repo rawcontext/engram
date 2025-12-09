@@ -83,10 +83,23 @@ function ScoreBar({ score }: { score: number }) {
 	const percentage = Math.round(normalizedScore * 100);
 
 	return (
-		<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+		<div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+			<span
+				style={{
+					fontSize: "8px",
+					fontFamily: "Orbitron, sans-serif",
+					fontWeight: 500,
+					letterSpacing: "0.05em",
+					color: "rgb(71, 85, 105)",
+					cursor: "help",
+				}}
+				title="Reciprocal Rank Fusion: combines semantic similarity and keyword matching scores"
+			>
+				RRF
+			</span>
 			<div
 				style={{
-					width: "60px",
+					width: "50px",
 					height: "4px",
 					backgroundColor: "rgba(100, 116, 139, 0.2)",
 					borderRadius: "2px",
