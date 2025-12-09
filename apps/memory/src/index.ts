@@ -182,15 +182,22 @@ async function startPersistenceConsumer() {
 		}
 	}, 10000);
 
-	// Cleanup heartbeat on process exit
-	process.on("SIGTERM", () => {
+	// Graceful shutdown handler
+	const shutdown = async (signal: string) => {
+		logger.info({ signal }, "Shutting down gracefully...");
 		clearInterval(heartbeatInterval);
-		redis.publishConsumerStatus("consumer_disconnected", "memory-group", "memory-service");
-	});
-	process.on("SIGINT", () => {
-		clearInterval(heartbeatInterval);
-		redis.publishConsumerStatus("consumer_disconnected", "memory-group", "memory-service");
-	});
+		try {
+			await consumer.disconnect();
+			logger.info("Kafka consumer disconnected");
+		} catch (e) {
+			logger.error({ err: e }, "Error disconnecting consumer");
+		}
+		await redis.publishConsumerStatus("consumer_disconnected", "memory-group", "memory-service");
+		process.exit(0);
+	};
+
+	process.on("SIGTERM", () => shutdown("SIGTERM"));
+	process.on("SIGINT", () => shutdown("SIGINT"));
 
 	await consumer.run({
 		eachMessage: async ({ message }) => {
@@ -278,16 +285,17 @@ async function startPersistenceConsumer() {
 				);
 
 				// 3. If new session, publish to global sessions channel for homepage
+				// Note: use camelCase to match frontend SessionListItem interface
 				if (isNewSession) {
 					await redis.publishGlobalSessionEvent("session_created", {
 						id: sessionId,
 						title: null,
-						user_id: event.metadata?.user_id || "unknown",
-						started_at: now,
-						last_event_at: now,
-						event_count: 1,
+						userId: event.metadata?.user_id || "unknown",
+						startedAt: now,
+						lastEventAt: now,
+						eventCount: 1,
 						preview: null,
-						is_active: true,
+						isActive: true,
 					});
 					logger.info({ sessionId }, "Published session_created event");
 				}

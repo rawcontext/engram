@@ -227,15 +227,22 @@ async function startConsumer() {
 		}
 	}, 10000);
 
-	// Cleanup heartbeat on process exit
-	process.on("SIGTERM", () => {
+	// Graceful shutdown handler
+	const shutdown = async (signal: string) => {
+		logger.info({ signal }, "Shutting down gracefully...");
 		clearInterval(heartbeatInterval);
-		redis.publishConsumerStatus("consumer_disconnected", "ingestion-group", "ingestion-service");
-	});
-	process.on("SIGINT", () => {
-		clearInterval(heartbeatInterval);
-		redis.publishConsumerStatus("consumer_disconnected", "ingestion-group", "ingestion-service");
-	});
+		try {
+			await consumer.disconnect();
+			logger.info("Kafka consumer disconnected");
+		} catch (e) {
+			logger.error({ err: e }, "Error disconnecting consumer");
+		}
+		await redis.publishConsumerStatus("consumer_disconnected", "ingestion-group", "ingestion-service");
+		process.exit(0);
+	};
+
+	process.on("SIGTERM", () => shutdown("SIGTERM"));
+	process.on("SIGINT", () => shutdown("SIGINT"));
 
 	await consumer.run({
 		eachMessage: async ({ message }) => {
