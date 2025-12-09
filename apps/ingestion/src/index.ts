@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
 import {
 	AnthropicParser,
+	ClaudeCodeParser,
 	DiffExtractor,
 	OpenAIParser,
 	Redactor,
@@ -16,6 +17,7 @@ const redactor = new Redactor();
 const anthropicParser = new AnthropicParser();
 const openaiParser = new OpenAIParser();
 const xaiParser = new XAIParser();
+const claudeCodeParser = new ClaudeCodeParser();
 
 // In-memory state for extractors (per session)
 const thinkingExtractors = new Map<string, ThinkingExtractor>();
@@ -42,6 +44,8 @@ export class IngestionProcessor {
 			delta = openaiParser.parse(rawEvent.payload);
 		} else if (provider === "xai") {
 			delta = xaiParser.parse(rawEvent.payload);
+		} else if (provider === "claude_code") {
+			delta = claudeCodeParser.parse(rawEvent.payload);
 		}
 
 		if (!delta) {
@@ -193,8 +197,8 @@ const server = createServer(async (req, res) => {
 				res.writeHead(200, { "Content-Type": "application/json" });
 				res.end(JSON.stringify({ status: "processed" }));
 			} catch (e: unknown) {
-				console.error("Ingestion Error:", e);
 				const message = e instanceof Error ? e.message : String(e);
+				console.error("Ingestion Error:", message);
 
 				// DLQ Logic
 				try {
