@@ -19,7 +19,9 @@ const DEFAULT_CONFIG: ColBERTEmbedderConfig = {
 	model: "jinaai/jina-colbert-v2",
 	dimensions: 128, // Token-level dimension
 	tokenDimension: 128,
-	dtype: "q8",
+	// Note: jina-colbert-v2 only provides fp32 ONNX weights (no quantized version available)
+	// See: https://huggingface.co/jinaai/jina-colbert-v2/tree/main/onnx
+	dtype: "fp32",
 	passagePrefix: "passage:",
 	queryPrefix: "query:",
 };

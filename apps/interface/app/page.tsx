@@ -8,6 +8,7 @@ import { SearchResults } from "./components/SearchResults";
 import { SearchSettings, type SearchSettingsState } from "./components/SearchSettings";
 import { SessionBrowser } from "./components/SessionBrowser";
 import { Particles } from "./components/shared";
+import { SystemFooter } from "./components/shared/SystemFooter";
 import { useSearch } from "./hooks/useSearch";
 
 // Dynamically import Three.js background to avoid SSR issues
@@ -265,60 +266,8 @@ export default function HomePage() {
 				</div>
 			</div>
 
-			{/* Fixed Footer - Safe Area */}
-			<footer
-				style={{
-					position: "fixed",
-					bottom: 0,
-					left: 0,
-					right: 0,
-					height: `${FOOTER_HEIGHT}px`,
-					zIndex: 50,
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					gap: "16px",
-					fontSize: "11px",
-					fontFamily: "JetBrains Mono, monospace",
-					color: "rgb(100, 116, 139)",
-					backgroundColor: "rgb(8, 10, 15)",
-					borderTop: "1px solid rgba(100, 116, 139, 0.15)",
-					boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02), 0 -4px 20px rgba(0,0,0,0.5)",
-				}}
-			>
-				{/* Gradient accent line at top */}
-				<div
-					style={{
-						position: "absolute",
-						top: 0,
-						left: "50%",
-						transform: "translateX(-50%)",
-						width: "200px",
-						height: "1px",
-						background: "linear-gradient(90deg, transparent, rgba(251,191,36,0.4), transparent)",
-					}}
-				/>
-
-				<span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-					<span
-						style={{
-							width: "6px",
-							height: "6px",
-							borderRadius: "50%",
-							backgroundColor: "rgb(34, 197, 94)",
-							boxShadow: "0 0 8px rgba(34, 197, 94, 0.6)",
-							animation: "pulse 2s ease-in-out infinite",
-						}}
-					/>
-					<span style={{ letterSpacing: "0.05em" }}>System Online</span>
-				</span>
-				<span style={{ color: "rgb(45, 55, 72)" }}>|</span>
-				<span style={{ opacity: 0.7 }}>v1.0.0</span>
-				<span style={{ color: "rgb(45, 55, 72)" }}>|</span>
-				<span style={{ letterSpacing: "0.15em", color: "rgb(251, 191, 36)", fontWeight: 500 }}>
-					READY
-				</span>
-			</footer>
+			{/* Fixed Footer - System Status with Consumer Readiness */}
+			<SystemFooter />
 
 			{/* Keyframes for animations */}
 			<style jsx>{`

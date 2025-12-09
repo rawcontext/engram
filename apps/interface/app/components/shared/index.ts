@@ -19,4 +19,5 @@ export { LoadingState, SkeletonCard } from "./LoadingState";
 export { Particles } from "./Particles";
 export type { StatusType } from "./StatusIndicator";
 export { LiveBadge, StatusIndicator } from "./StatusIndicator";
+export { SystemFooter } from "./SystemFooter";
 export * from "./utils";
