@@ -5,11 +5,17 @@ import { TextEmbedder } from "./text-embedder";
 export interface IndexableNode {
 	id: string;
 	labels: string[];
-	content?: string; // Thought content
+	content?: string; // Thought content (legacy)
 	patch_content?: string; // DiffHunk content
 	session_id?: string;
 	file_path?: string;
 	timestamp?: number; // created_at / vt_start
+	// Properties bag from memory service
+	properties?: {
+		content?: string;
+		role?: string;
+		type?: string;
+	};
 }
 
 export class SearchIndexer {
@@ -26,9 +32,12 @@ export class SearchIndexer {
 
 	async indexNode(node: IndexableNode) {
 		const isCode = node.labels.includes("DiffHunk") || node.labels.includes("CodeArtifact");
-		const content = isCode ? node.patch_content : node.content;
+		// Support both direct content and properties.content (from memory service)
+		const content = isCode
+			? node.patch_content
+			: node.content || node.properties?.content;
 
-		if (!content) return; // Nothing to index
+		if (!content || content.trim() === "") return; // Nothing to index
 
 		// Generate sparse vector for hybrid search (BM25-based keyword matching)
 		const sparseVector = await this.textEmbedder.embedSparse(content);

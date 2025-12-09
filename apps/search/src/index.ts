@@ -35,7 +35,7 @@ export class SearchService {
 					const node = JSON.parse(value);
 					if (
 						node.labels &&
-						(node.labels.includes("Thought") || node.labels.includes("CodeArtifact"))
+						(node.labels.includes("Thought") || node.labels.includes("CodeArtifact") || node.labels.includes("Turn"))
 					) {
 						await this.indexer.indexNode(node);
 						console.log(`Indexed node ${node.id}`);
