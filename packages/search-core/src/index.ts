@@ -9,4 +9,5 @@ export * from "./services/reranker";
 export * from "./services/retriever";
 export * from "./services/schema-manager";
 export * from "./services/snapshot-manager";
+export * from "./services/splade-embedder";
 export * from "./services/text-embedder";
