@@ -261,27 +261,35 @@ export default function HomePage() {
 						transform: mounted ? "translateY(0)" : "translateY(2rem)",
 					}}
 				>
-					{/* Search Input */}
-					<SearchInput
-						value={searchQuery}
-						onChange={setSearchQuery}
-						mode={mode}
-						detectedUUID={detectedUUID}
-						isLoading={isLoading}
-						isDebouncing={isDebouncing}
-						resultCount={results.length}
-					/>
-
-					{/* Settings Row - Below search, aligned right */}
+					{/* Search Input + Settings - constrained to same width */}
 					<div
 						style={{
-							display: "flex",
-							justifyContent: "flex-end",
-							marginTop: "12px",
+							width: "100%",
+							maxWidth: "600px",
+							margin: "0 auto",
 							marginBottom: "2rem",
 						}}
 					>
-						<SearchSettings settings={searchSettings} onChange={handleSettingsChange} />
+						<SearchInput
+							value={searchQuery}
+							onChange={setSearchQuery}
+							mode={mode}
+							detectedUUID={detectedUUID}
+							isLoading={isLoading}
+							isDebouncing={isDebouncing}
+							resultCount={results.length}
+						/>
+
+						{/* Settings Row - Below search, aligned right */}
+						<div
+							style={{
+								display: "flex",
+								justifyContent: "flex-end",
+								marginTop: "12px",
+							}}
+						>
+							<SearchSettings settings={searchSettings} onChange={handleSettingsChange} />
+						</div>
 					</div>
 
 					{/* Search Results (shown above sessions when searching) */}
