@@ -9,6 +9,16 @@ import { TextEmbedder } from "./text-embedder";
 /** Default depth for reranking - how many candidates to fetch before reranking */
 const DEFAULT_RERANK_DEPTH = 30;
 
+/** Maximum time to wait for reranking before falling back to RRF results */
+const RERANK_TIMEOUT_MS = 500;
+
+/** Creates a timeout promise that rejects after specified milliseconds */
+function createTimeout(ms: number): Promise<never> {
+	return new Promise((_, reject) => {
+		setTimeout(() => reject(new Error(`Reranking timeout after ${ms}ms`)), ms);
+	});
+}
+
 export class SearchRetriever {
 	private client: QdrantClient;
 	private textEmbedder: TextEmbedder;
@@ -147,25 +157,34 @@ export class SearchRetriever {
 
 		// Apply reranking if enabled
 		if (rerank && rawResults.length > 0) {
-			// Extract content for reranking
-			const documents = rawResults.map((r) => {
-				const payload = r.payload as { content?: string } | undefined;
-				return payload?.content ?? "";
-			});
+			try {
+				// Extract content for reranking
+				const documents = rawResults.map((r) => {
+					const payload = r.payload as { content?: string } | undefined;
+					return payload?.content ?? "";
+				});
 
-			// Rerank and get top results
-			const reranked = await this.reranker.rerank(text, documents, limit);
+				// Rerank with timeout circuit breaker
+				const reranked = await Promise.race([
+					this.reranker.rerank(text, documents, limit),
+					createTimeout(RERANK_TIMEOUT_MS),
+				]);
 
-			// Map reranked results back to original results with scores
-			return reranked.map((r) => {
-				const original = rawResults[r.originalIndex];
-				return {
-					...original,
-					score: r.score, // Use reranker score as final score
-					rrfScore: original.score, // Preserve original RRF/dense score
-					rerankerScore: r.score,
-				};
-			});
+				// Map reranked results back to original results with scores
+				return reranked.map((r) => {
+					const original = rawResults[r.originalIndex];
+					return {
+						...original,
+						score: r.score, // Use reranker score as final score
+						rrfScore: original.score, // Preserve original RRF/dense score
+						rerankerScore: r.score,
+					};
+				});
+			} catch (error) {
+				// Circuit breaker: fall back to RRF results on timeout or error
+				console.warn("[SearchRetriever] Reranking fallback:", error instanceof Error ? error.message : error);
+				return rawResults.slice(0, limit);
+			}
 		}
 
 		// No reranking - return raw results trimmed to limit
