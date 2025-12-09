@@ -3,6 +3,7 @@ import { type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
 import {
 	AnthropicParser,
 	ClaudeCodeParser,
+	CodexParser,
 	DiffExtractor,
 	OpenAIParser,
 	Redactor,
@@ -18,6 +19,7 @@ const anthropicParser = new AnthropicParser();
 const openaiParser = new OpenAIParser();
 const xaiParser = new XAIParser();
 const claudeCodeParser = new ClaudeCodeParser();
+const codexParser = new CodexParser();
 
 // In-memory state for extractors (per session)
 const thinkingExtractors = new Map<string, ThinkingExtractor>();
@@ -46,6 +48,8 @@ export class IngestionProcessor {
 			delta = xaiParser.parse(rawEvent.payload);
 		} else if (provider === "claude_code") {
 			delta = claudeCodeParser.parse(rawEvent.payload);
+		} else if (provider === "codex") {
+			delta = codexParser.parse(rawEvent.payload);
 		}
 
 		if (!delta) {
