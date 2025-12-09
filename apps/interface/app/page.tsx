@@ -65,7 +65,7 @@ export default function HomePage() {
 	const [mounted, setMounted] = useState(false);
 
 	// Use the search hook
-	const { results, isLoading, error, mode, detectedUUID, isDebouncing } = useSearch(searchQuery);
+	const { results, meta, isLoading, error, mode, detectedUUID, isDebouncing } = useSearch(searchQuery);
 
 	useEffect(() => {
 		setMounted(true);
@@ -224,6 +224,7 @@ export default function HomePage() {
 						<div style={{ marginBottom: "2rem" }}>
 							<SearchResults
 								results={results}
+								meta={meta}
 								isLoading={isLoading}
 								error={error}
 								query={searchQuery}

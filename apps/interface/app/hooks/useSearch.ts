@@ -34,8 +34,22 @@ interface UseSearchOptions {
 	filters?: SearchFilters;
 }
 
+export interface RerankerMeta {
+	tier: "fast" | "accurate" | "code" | "llm";
+	model: string;
+	latencyMs: number;
+}
+
+export interface SearchMeta {
+	query: string;
+	strategy: string;
+	reranker?: RerankerMeta;
+	totalLatencyMs: number;
+}
+
 interface SearchResponse {
 	results: SearchResult[];
+	meta?: SearchMeta;
 }
 
 interface ApiResponse {
@@ -118,6 +132,7 @@ export function useSearch(query: string, options: UseSearchOptions = {}) {
 
 	return {
 		results: data?.results ?? [],
+		meta: data?.meta,
 		isLoading: isLoading || isValidating,
 		error: error?.message ?? null,
 		mode,

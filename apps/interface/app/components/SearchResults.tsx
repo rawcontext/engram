@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
-import type { SearchResult } from "@app/hooks/useSearch";
+import type { SearchResult, SearchMeta } from "@app/hooks/useSearch";
 
 interface SearchResultsProps {
 	results: SearchResult[];
+	meta?: SearchMeta;
 	isLoading: boolean;
 	error: string | null;
 	query: string;
@@ -418,7 +419,7 @@ function SkeletonCard({ index }: { index: number }) {
 	);
 }
 
-export function SearchResults({ results, isLoading, error, query }: SearchResultsProps) {
+export function SearchResults({ results, meta, isLoading, error, query }: SearchResultsProps) {
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	const router = useRouter();
 
@@ -603,6 +604,27 @@ export function SearchResults({ results, isLoading, error, query }: SearchResult
 					>
 						SEARCH RESULTS
 					</span>
+					{/* RERANKED badge */}
+					{meta?.reranker && (
+						<span
+							style={{
+								fontSize: "8px",
+								fontFamily: "Orbitron, sans-serif",
+								fontWeight: 600,
+								letterSpacing: "0.1em",
+								color: "rgb(236, 72, 153)",
+								padding: "2px 6px",
+								background: "rgba(236, 72, 153, 0.15)",
+								borderRadius: "3px",
+								border: "1px solid rgba(236, 72, 153, 0.3)",
+								textShadow: "0 0 6px rgba(236, 72, 153, 0.4)",
+								cursor: "help",
+							}}
+							title={`Reranked by ${meta.reranker.model} (${meta.reranker.tier} tier)`}
+						>
+							RERANKED · {meta.reranker.latencyMs}ms
+						</span>
+					)}
 				</div>
 				<span
 					style={{
