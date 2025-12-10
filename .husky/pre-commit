@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+
+# Get staged files (only ts, tsx, js, jsx, json files)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx|js|jsx|json)$')
+
+if [ -n "$STAGED_FILES" ]; then
+  # Format only the staged files
+  echo "$STAGED_FILES" | xargs npx biome format --write
+
+  # Re-stage the formatted files
+  echo "$STAGED_FILES" | xargs git add
+fi
