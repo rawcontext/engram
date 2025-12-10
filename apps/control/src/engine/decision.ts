@@ -1,5 +1,5 @@
 import { xai } from "@ai-sdk/xai";
-import { type Logger, createNodeLogger } from "@engram/logger";
+import { createNodeLogger, type Logger } from "@engram/logger";
 import { generateText, tool } from "ai";
 import { createActor, fromPromise } from "xstate";
 import { z } from "zod";
@@ -102,10 +102,12 @@ export class DecisionEngine {
 			const deps = depsOrAssembler as DecisionEngineDeps;
 			this.contextAssembler = deps.contextAssembler;
 			this.mcpAdapter = deps.mcpAdapter;
-			this.logger = deps.logger ?? createNodeLogger({
-				service: "control-service",
-				base: { component: "decision-engine" },
-			});
+			this.logger =
+				deps.logger ??
+				createNodeLogger({
+					service: "control-service",
+					base: { component: "decision-engine" },
+				});
 		} else {
 			// Legacy constructor
 			this.contextAssembler = depsOrAssembler as ContextAssembler;

@@ -1,6 +1,11 @@
 import { GraphOperationError, SearchError } from "@engram/common";
 import type { SearchRetriever } from "@engram/search-core";
-import { type FalkorClient, type GraphClient, type ThoughtNode, createFalkorClient } from "@engram/storage";
+import {
+	createFalkorClient,
+	type FalkorClient,
+	type GraphClient,
+	type ThoughtNode,
+} from "@engram/storage";
 
 const SYSTEM_PROMPT = `You are Engram, an intelligent assistant with access to a knowledge graph and semantic memory.
 You can recall past conversations, search for relevant information, and use tools to help accomplish tasks.
@@ -42,11 +47,21 @@ export class ContextAssembler {
 		memoryArg?: FalkorClient,
 	) {
 		// Support both new deps object and legacy positional arguments
-		if (depsOrSearch === undefined || depsOrSearch === null || "search" in depsOrSearch === false && "searchRetriever" in (depsOrSearch as object) === false && memoryArg !== undefined) {
+		if (
+			depsOrSearch === undefined ||
+			depsOrSearch === null ||
+			("search" in depsOrSearch === false &&
+				"searchRetriever" in (depsOrSearch as object) === false &&
+				memoryArg !== undefined)
+		) {
 			// Legacy constructor: (search, memory)
 			this.search = depsOrSearch as SearchRetriever | null;
 			this.memory = memoryArg ?? createFalkorClient();
-		} else if (typeof depsOrSearch === "object" && depsOrSearch !== null && ("searchRetriever" in depsOrSearch || "graphClient" in depsOrSearch)) {
+		} else if (
+			typeof depsOrSearch === "object" &&
+			depsOrSearch !== null &&
+			("searchRetriever" in depsOrSearch || "graphClient" in depsOrSearch)
+		) {
 			// New deps object constructor
 			const deps = depsOrSearch as ContextAssemblerDeps;
 			this.search = deps.searchRetriever ?? null;

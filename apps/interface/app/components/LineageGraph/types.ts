@@ -1,6 +1,6 @@
+import type { GraphNode, LineageResponse } from "@lib/types";
 import type { Edge, Node } from "@xyflow/react";
 import type { ReactNode } from "react";
-import type { GraphNode, LineageResponse } from "@lib/types";
 
 /**
  * Props for the main LineageGraph component

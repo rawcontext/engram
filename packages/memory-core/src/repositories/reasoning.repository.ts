@@ -1,4 +1,4 @@
-import type { Reasoning, CreateReasoningInput } from "./types";
+import type { CreateReasoningInput, Reasoning } from "./types";
 
 /**
  * ReasoningRepository abstracts data access for Reasoning entities.

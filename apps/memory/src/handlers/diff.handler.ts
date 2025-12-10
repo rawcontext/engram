@@ -1,10 +1,5 @@
 import type { ParsedStreamEvent } from "@engram/events";
-import type {
-	EventHandler,
-	HandlerContext,
-	HandlerResult,
-	TurnState,
-} from "./handler.interface";
+import type { EventHandler, HandlerContext, HandlerResult, TurnState } from "./handler.interface";
 
 /**
  * DiffEventHandler processes file diff events.

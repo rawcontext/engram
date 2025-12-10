@@ -1,9 +1,8 @@
-import type { GraphClient } from "@engram/storage";
-import type { FalkorNode } from "@engram/storage";
+import type { FalkorNode, GraphClient } from "@engram/storage";
+import { EdgeTypes } from "../models/edges";
 import { FalkorBaseRepository } from "./falkor-base";
 import type { TurnRepository } from "./turn.repository";
-import type { Turn, CreateTurnInput, UpdateTurnInput } from "./types";
-import { EdgeTypes } from "../models/edges";
+import type { CreateTurnInput, Turn, UpdateTurnInput } from "./types";
 
 /**
  * Raw FalkorDB Turn node properties.
@@ -46,7 +45,7 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 			`MATCH (s:Session)-[:${EdgeTypes.HAS_TURN}]->(t:Turn {id: $id})
 			 WHERE t.tt_end = ${this.maxDate}
 			 RETURN t, s.id as sessionId`,
-			{ id }
+			{ id },
 		);
 		if (!results[0]?.t) return null;
 		return this.mapToTurn(results[0].t, results[0].sessionId);
@@ -58,7 +57,7 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 			 WHERE t.tt_end = ${this.maxDate}
 			 RETURN t
 			 ORDER BY t.sequence_index ASC`,
-			{ sessionId }
+			{ sessionId },
 		);
 		return results.map((r) => this.mapToTurn(r.t, sessionId));
 	}
@@ -71,7 +70,7 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 			   AND t.vt_start < $endTime
 			 RETURN t
 			 ORDER BY t.sequence_index ASC`,
-			{ sessionId, startTime: start.getTime(), endTime: end.getTime() }
+			{ sessionId, startTime: start.getTime(), endTime: end.getTime() },
 		);
 		return results.map((r) => this.mapToTurn(r.t, sessionId));
 	}
@@ -83,7 +82,7 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 			 RETURN t
 			 ORDER BY t.sequence_index DESC
 			 LIMIT $limit`,
-			{ sessionId, limit }
+			{ sessionId, limit },
 		);
 		// Reverse to get chronological order
 		return results.reverse().map((r) => this.mapToTurn(r.t, sessionId));
@@ -97,7 +96,7 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 			   AND $filePath IN t.files_touched
 			 RETURN t
 			 ORDER BY t.sequence_index ASC`,
-			{ sessionId, filePath }
+			{ sessionId, filePath },
 		);
 		return results.map((r) => this.mapToTurn(r.t, sessionId));
 	}
@@ -140,7 +139,7 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 			 WHERE s.tt_end = ${this.maxDate}
 			 CREATE (t:Turn {${propsString}})
 			 CREATE (s)-[:${EdgeTypes.HAS_TURN} {vt_start: $vt_start, vt_end: $vt_end, tt_start: $tt_start, tt_end: $tt_end}]->(t)`,
-			{ sessionId: input.sessionId, ...nodeProps }
+			{ sessionId: input.sessionId, ...nodeProps },
 		);
 
 		// Link to previous turn if exists
@@ -156,7 +155,7 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 					currId: id,
 					vtStart: temporal.vt_start,
 					ttStart: temporal.tt_start,
-				}
+				},
 			);
 		}
 
@@ -194,16 +193,21 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 
 		// Build update SET clause
 		const updateProps: Record<string, unknown> = {};
-		if (updates.assistantPreview !== undefined) updateProps.assistant_preview = updates.assistantPreview;
-		if (updates.assistantBlobRef !== undefined) updateProps.assistant_blob_ref = updates.assistantBlobRef;
+		if (updates.assistantPreview !== undefined)
+			updateProps.assistant_preview = updates.assistantPreview;
+		if (updates.assistantBlobRef !== undefined)
+			updateProps.assistant_blob_ref = updates.assistantBlobRef;
 		if (updates.embedding !== undefined) updateProps.embedding = updates.embedding;
 		if (updates.filesTouched !== undefined) updateProps.files_touched = updates.filesTouched;
 		if (updates.toolCallsCount !== undefined) updateProps.tool_calls_count = updates.toolCallsCount;
 		if (updates.inputTokens !== undefined) updateProps.input_tokens = updates.inputTokens;
 		if (updates.outputTokens !== undefined) updateProps.output_tokens = updates.outputTokens;
-		if (updates.cacheReadTokens !== undefined) updateProps.cache_read_tokens = updates.cacheReadTokens;
-		if (updates.cacheWriteTokens !== undefined) updateProps.cache_write_tokens = updates.cacheWriteTokens;
-		if (updates.reasoningTokens !== undefined) updateProps.reasoning_tokens = updates.reasoningTokens;
+		if (updates.cacheReadTokens !== undefined)
+			updateProps.cache_read_tokens = updates.cacheReadTokens;
+		if (updates.cacheWriteTokens !== undefined)
+			updateProps.cache_write_tokens = updates.cacheWriteTokens;
+		if (updates.reasoningTokens !== undefined)
+			updateProps.reasoning_tokens = updates.reasoningTokens;
 		if (updates.costUsd !== undefined) updateProps.cost_usd = updates.costUsd;
 		if (updates.durationMs !== undefined) updateProps.duration_ms = updates.durationMs;
 		if (updates.gitCommit !== undefined) updateProps.git_commit = updates.gitCommit;
@@ -213,10 +217,10 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 		}
 
 		const setClause = this.buildSetClause(updateProps, "t");
-		await this.query(
-			`MATCH (t:Turn {id: $id}) WHERE t.tt_end = ${this.maxDate} SET ${setClause}`,
-			{ id, ...updateProps }
-		);
+		await this.query(`MATCH (t:Turn {id: $id}) WHERE t.tt_end = ${this.maxDate} SET ${setClause}`, {
+			id,
+			...updateProps,
+		});
 
 		// Return updated turn
 		return {
@@ -242,7 +246,7 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 			`MATCH (s:Session {id: $sessionId})-[:${EdgeTypes.HAS_TURN}]->(t:Turn)
 			 WHERE t.tt_end = ${this.maxDate}
 			 RETURN count(t) as cnt`,
-			{ sessionId }
+			{ sessionId },
 		);
 		return results[0]?.cnt ?? 0;
 	}

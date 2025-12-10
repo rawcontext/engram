@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import {
-	createRedisSubscriber,
 	type ConsumerStatusUpdate,
+	createRedisSubscriber,
 	type SessionUpdate,
 } from "@engram/storage/redis";
 import { WebSocket } from "ws";

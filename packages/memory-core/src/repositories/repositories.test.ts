@@ -1,9 +1,9 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { FalkorSessionRepository } from "./falkor-session.repository";
-import { FalkorTurnRepository } from "./falkor-turn.repository";
-import { FalkorReasoningRepository } from "./falkor-reasoning.repository";
-import { FalkorToolCallRepository } from "./falkor-tool-call.repository";
 import type { GraphClient } from "@engram/storage";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FalkorReasoningRepository } from "./falkor-reasoning.repository";
+import { FalkorSessionRepository } from "./falkor-session.repository";
+import { FalkorToolCallRepository } from "./falkor-tool-call.repository";
+import { FalkorTurnRepository } from "./falkor-turn.repository";
 
 // Mock GraphClient
 const createMockGraphClient = () => ({
@@ -31,7 +31,7 @@ describe("FalkorSessionRepository", () => {
 			expect(result).toBeNull();
 			expect(mockClient.query).toHaveBeenCalledWith(
 				expect.stringContaining("MATCH (s:Session {id: $id})"),
-				{ id: "non-existent" }
+				{ id: "non-existent" },
 			);
 		});
 
@@ -175,7 +175,7 @@ describe("FalkorSessionRepository", () => {
 			mockClient.query.mockResolvedValueOnce([]);
 
 			await expect(repository.delete("non-existent")).rejects.toThrow(
-				"Session not found: non-existent"
+				"Session not found: non-existent",
 			);
 		});
 	});
@@ -483,9 +483,9 @@ describe("FalkorToolCallRepository", () => {
 		it("should throw when tool call not found", async () => {
 			mockClient.query.mockResolvedValueOnce([]);
 
-			await expect(
-				repository.updateResult("non-existent", { status: "success" })
-			).rejects.toThrow("ToolCall not found: non-existent");
+			await expect(repository.updateResult("non-existent", { status: "success" })).rejects.toThrow(
+				"ToolCall not found: non-existent",
+			);
 		});
 	});
 

@@ -185,15 +185,16 @@ export function useSessionStream({
 		console.error("[SessionStream] WebSocket connection error");
 	}, []);
 
-	const { status, isConnected, send, close, reconnect, reconnectAttempt } = useWebSocket<SessionMessage>({
-		url: `/api/ws/session/${sessionId}`,
-		onMessage: handleMessage,
-		onOpen: handleOpen,
-		onClose: handleClose,
-		onError: handleError,
-		reconnect: true,
-		maxReconnectAttempts: 5,
-	});
+	const { status, isConnected, send, close, reconnect, reconnectAttempt } =
+		useWebSocket<SessionMessage>({
+			url: `/api/ws/session/${sessionId}`,
+			onMessage: handleMessage,
+			onOpen: handleOpen,
+			onClose: handleClose,
+			onError: handleError,
+			reconnect: true,
+			maxReconnectAttempts: 5,
+		});
 
 	// Store send in ref for use in handleMessage
 	useEffect(() => {

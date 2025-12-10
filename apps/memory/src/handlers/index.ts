@@ -23,6 +23,10 @@
  * ```
  */
 
+// Individual handlers (for custom registration or testing)
+export { ContentEventHandler } from "./content.handler";
+export { ControlEventHandler } from "./control.handler";
+export { DiffEventHandler } from "./diff.handler";
 // Core interfaces
 export type {
 	EventHandler,
@@ -32,14 +36,8 @@ export type {
 	ToolCallState,
 	TurnState,
 } from "./handler.interface";
-
 // Registry
 export { createDefaultHandlerRegistry, EventHandlerRegistry } from "./registry";
-
-// Individual handlers (for custom registration or testing)
-export { ContentEventHandler } from "./content.handler";
-export { ControlEventHandler } from "./control.handler";
-export { DiffEventHandler } from "./diff.handler";
 export { ThoughtEventHandler } from "./thought.handler";
 export { ToolCallEventHandler } from "./tool-call.handler";
 export { UsageEventHandler } from "./usage.handler";

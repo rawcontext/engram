@@ -34,8 +34,7 @@ const DEFAULT_CONFIG: SpladeEmbedderConfig = {
 export class SpladeEmbedder extends BaseSparseEmbedder<SpladeEmbedderConfig> {
 	// Singleton instances (lazy loaded)
 	private static model: Awaited<ReturnType<typeof AutoModel.from_pretrained>> | null = null;
-	private static tokenizer: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>> | null =
-		null;
+	private static tokenizer: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>> | null = null;
 	private static modelPromise: Promise<
 		Awaited<ReturnType<typeof AutoModel.from_pretrained>>
 	> | null = null;

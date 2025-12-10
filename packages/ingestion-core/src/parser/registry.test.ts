@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AnthropicParser } from "./anthropic";
 import { OpenAIParser } from "./openai";
-import { ParserRegistry, createDefaultRegistry, defaultRegistry } from "./registry";
+import { createDefaultRegistry, defaultRegistry, ParserRegistry } from "./registry";
 
 describe("ParserRegistry", () => {
 	describe("register and get", () => {

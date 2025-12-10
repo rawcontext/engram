@@ -150,15 +150,16 @@ export function useSessionsStream({ onSessionsUpdate }: UseSessionsStreamOptions
 		console.error("[SessionsStream] WebSocket connection error");
 	}, []);
 
-	const { status, isConnected, send, close, reconnect, reconnectAttempt } = useWebSocket<SessionsMessage>({
-		url: "/api/ws/sessions",
-		onMessage: handleMessage,
-		onOpen: handleOpen,
-		onClose: handleClose,
-		onError: handleError,
-		reconnect: true,
-		maxReconnectAttempts: 10,
-	});
+	const { status, isConnected, send, close, reconnect, reconnectAttempt } =
+		useWebSocket<SessionsMessage>({
+			url: "/api/ws/sessions",
+			onMessage: handleMessage,
+			onOpen: handleOpen,
+			onClose: handleClose,
+			onError: handleError,
+			reconnect: true,
+			maxReconnectAttempts: 10,
+		});
 
 	// Update error state when max reconnect attempts reached
 	const error =

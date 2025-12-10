@@ -98,13 +98,9 @@ function getStateName(state: ConsumerGroupState): string {
  * Check if a consumer group is ready for message processing.
  * A group is considered ready when it's in STABLE state with at least minMembers.
  */
-function isGroupReady(
-	description: GroupDescription,
-	minMembers: number,
-): boolean {
+function isGroupReady(description: GroupDescription, minMembers: number): boolean {
 	return (
-		description.state === ConsumerGroupStates.STABLE &&
-		description.members.length >= minMembers
+		description.state === ConsumerGroupStates.STABLE && description.members.length >= minMembers
 	);
 }
 
@@ -122,10 +118,7 @@ function createAdminClient(brokers: string): AdminClient {
 /**
  * Describe consumer groups using the Admin API.
  */
-async function describeGroups(
-	admin: AdminClient,
-	groupIds: string[],
-): Promise<GroupDescription[]> {
+async function describeGroups(admin: AdminClient, groupIds: string[]): Promise<GroupDescription[]> {
 	return new Promise((resolve, reject) => {
 		admin.describeGroups(groupIds, { timeout: 10000 }, (err, descriptions) => {
 			if (err) {
@@ -162,9 +155,7 @@ async function describeGroups(
  * }
  * ```
  */
-export async function waitForConsumers(
-	config: WaitForConsumersConfig,
-): Promise<WaitResult> {
+export async function waitForConsumers(config: WaitForConsumersConfig): Promise<WaitResult> {
 	const {
 		groupIds,
 		brokers = process.env.REDPANDA_BROKERS || "localhost:19092",
@@ -208,7 +199,7 @@ export async function waitForConsumers(
 				for (const status of statuses) {
 					logger(
 						`[ConsumerReadiness] Group "${status.groupId}": ${status.stateName} ` +
-						`(${status.memberCount} members) - ${status.isReady ? "READY" : "NOT READY"}`,
+							`(${status.memberCount} members) - ${status.isReady ? "READY" : "NOT READY"}`,
 					);
 				}
 

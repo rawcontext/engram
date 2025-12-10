@@ -18,10 +18,10 @@ import { EmptyState } from "./EmptyState";
 import { GraphStats } from "./GraphStats";
 import { GraphCssStyles, GraphOverlays, GraphSvgDefs } from "./GraphStyles";
 import { HighlightContext } from "./HighlightContext";
-import { LoadingSkeleton } from "./LoadingSkeleton";
-import { NeuralNode } from "./NeuralNode";
 import { useHighlightChain } from "./hooks";
+import { LoadingSkeleton } from "./LoadingSkeleton";
 import { getRadialLayout } from "./layouts";
+import { NeuralNode } from "./NeuralNode";
 import type { LineageGraphProps } from "./types";
 
 // Register custom node types
@@ -247,4 +247,4 @@ export function LineageGraph({
 }
 
 // Re-export types for consumers
-export type { LineageGraphProps, GraphStatsProps } from "./types";
+export type { GraphStatsProps, LineageGraphProps } from "./types";

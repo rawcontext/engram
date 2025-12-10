@@ -186,9 +186,7 @@ export function createRedisSubscriber() {
 	};
 
 	// Subscribe specifically to consumer status updates
-	const subscribeToConsumerStatus = async (
-		callback: (message: ConsumerStatusUpdate) => void,
-	) => {
+	const subscribeToConsumerStatus = async (callback: (message: ConsumerStatusUpdate) => void) => {
 		return subscribe<ConsumerStatusUpdate>(CONSUMERS_CHANNEL, callback);
 	};
 

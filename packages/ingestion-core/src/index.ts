@@ -1,6 +1,9 @@
 // Extractors (refactored with BaseTagExtractor)
-export * from "./extractors";
 
+// Legacy re-exports for backward compatibility (deprecated)
+// These files now re-export from ./extractors
+export { DiffExtractor } from "./diff";
+export * from "./extractors";
 // Parsers
 export * from "./parser/anthropic";
 export * from "./parser/claude-code";
@@ -13,12 +16,7 @@ export * from "./parser/opencode";
 export * from "./parser/registry";
 export * from "./parser/schemas";
 export * from "./parser/xai";
-
 // Utilities
 export * from "./protocol";
 export * from "./redactor";
-
-// Legacy re-exports for backward compatibility (deprecated)
-// These files now re-export from ./extractors
-export { DiffExtractor } from "./diff";
 export { ThinkingExtractor } from "./thinking";

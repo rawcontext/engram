@@ -29,36 +29,37 @@
 // Utils
 // =============================================================================
 
+export type { RetryOptions } from "./utils";
 export {
+	envArray,
 	// Environment helpers
 	envBool,
-	envNum,
 	envFloat,
-	envStr,
+	envNum,
 	envRequired,
-	envArray,
+	envStr,
+	formatBytes,
+	formatDuration,
+	// Formatting utilities
+	formatRelativeTime,
+	hashObject,
+	RetryableErrors,
 	// Hash utilities
 	sha256Hash,
 	sha256Short,
-	hashObject,
-	// Formatting utilities
-	formatRelativeTime,
 	truncateId,
 	truncateText,
-	formatBytes,
-	formatDuration,
 	// Retry utilities
 	withRetry,
-	RetryableErrors,
 } from "./utils";
-
-export type { RetryOptions } from "./utils";
 
 // =============================================================================
 // Errors
 // =============================================================================
 
+export type { ErrorCode } from "./errors";
 export {
+	ContextAssemblyError,
 	// Base error
 	EngramError,
 	// Error codes
@@ -66,37 +67,34 @@ export {
 	// Domain errors
 	GraphOperationError,
 	ParseError,
-	ValidationError,
-	ContextAssemblyError,
 	RehydrationError,
-	StorageError,
 	SearchError,
+	StorageError,
+	ValidationError,
 } from "./errors";
-
-export type { ErrorCode } from "./errors";
 
 // =============================================================================
 // Constants
 // =============================================================================
 
 export {
-	// Timeouts
-	GraphTimeouts,
-	ToolTimeouts,
-	SearchTimeouts,
-	HttpTimeouts,
+	BatchLimits,
 	CacheTimeouts,
 	// Limits
 	ContentLimits,
-	QueryLimits,
-	SessionLimits,
-	RateLimits,
-	BatchLimits,
+	DebounceIntervals,
+	// Timeouts
+	GraphTimeouts,
+	HttpTimeouts,
+	PollIntervals,
 	// Intervals
 	PruneIntervals,
-	PollIntervals,
-	DebounceIntervals,
+	QueryLimits,
+	RateLimits,
 	RetentionPeriods,
+	SearchTimeouts,
+	SessionLimits,
+	ToolTimeouts,
 	WebSocketIntervals,
 } from "./constants";
 

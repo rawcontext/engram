@@ -101,10 +101,7 @@ describe("Redis Storage", () => {
 
 				errorHandler(new Error("Test error"));
 
-				expect(consoleSpy).toHaveBeenCalledWith(
-					"[Redis Publisher] Error:",
-					expect.any(Error),
-				);
+				expect(consoleSpy).toHaveBeenCalledWith("[Redis Publisher] Error:", expect.any(Error));
 				consoleSpy.mockRestore();
 			});
 		});
@@ -283,10 +280,7 @@ describe("Redis Storage", () => {
 
 				errorHandler(new Error("Subscriber error"));
 
-				expect(consoleSpy).toHaveBeenCalledWith(
-					"[Redis Subscriber] Error:",
-					expect.any(Error),
-				);
+				expect(consoleSpy).toHaveBeenCalledWith("[Redis Subscriber] Error:", expect.any(Error));
 				consoleSpy.mockRestore();
 			});
 		});
@@ -532,9 +526,7 @@ describe("Redis Storage", () => {
 			const subscriber = createRedisSubscriber();
 			mockSubscribe.mockRejectedValueOnce(new Error("Subscribe failed"));
 
-			await expect(subscriber.subscribe("session", vi.fn())).rejects.toThrow(
-				"Subscribe failed",
-			);
+			await expect(subscriber.subscribe("session", vi.fn())).rejects.toThrow("Subscribe failed");
 		});
 
 		it("should handle connect failure in publisher", async () => {

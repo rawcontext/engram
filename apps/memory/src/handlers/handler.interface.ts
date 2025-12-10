@@ -102,5 +102,9 @@ export interface EventHandler {
 	 * @param context - Handler context with dependencies
 	 * @returns Result indicating what actions were taken
 	 */
-	handle(event: ParsedStreamEvent, turn: TurnState, context: HandlerContext): Promise<HandlerResult>;
+	handle(
+		event: ParsedStreamEvent,
+		turn: TurnState,
+		context: HandlerContext,
+	): Promise<HandlerResult>;
 }

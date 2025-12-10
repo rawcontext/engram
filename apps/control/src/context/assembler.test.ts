@@ -380,9 +380,9 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const mockSearchResults = [
 				{ id: "1", score: 0.95, payload: { session_id: "other", content: "Memory 1" } },
-				{ id: "2", score: 0.90, payload: { session_id: "other", content: "Memory 2" } },
+				{ id: "2", score: 0.9, payload: { session_id: "other", content: "Memory 2" } },
 				{ id: "3", score: 0.85, payload: { session_id: "other", content: "Memory 3" } },
-				{ id: "4", score: 0.80, payload: { session_id: "other", content: "Memory 4" } },
+				{ id: "4", score: 0.8, payload: { session_id: "other", content: "Memory 4" } },
 				{ id: "5", score: 0.75, payload: { session_id: "other", content: "Memory 5" } },
 			];
 
@@ -608,9 +608,7 @@ describe("ContextAssembler", () => {
 			});
 
 			// Act & Assert
-			await expect(assembler.assembleContext("session-1", "Query")).rejects.toThrow(
-				SearchError,
-			);
+			await expect(assembler.assembleContext("session-1", "Query")).rejects.toThrow(SearchError);
 		});
 
 		it("should preserve original error as cause in GraphOperationError", async () => {

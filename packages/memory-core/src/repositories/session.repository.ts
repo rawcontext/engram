@@ -1,4 +1,4 @@
-import type { Session, CreateSessionInput, UpdateSessionInput } from "./types";
+import type { CreateSessionInput, Session, UpdateSessionInput } from "./types";
 
 /**
  * SessionRepository abstracts data access for Session entities.

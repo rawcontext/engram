@@ -105,7 +105,8 @@ function buildWebSocketUrl(urlOrPath: string): string {
 	}
 
 	// Build from current location
-	const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss:" : "ws:";
+	const protocol =
+		typeof window !== "undefined" && window.location.protocol === "https:" ? "wss:" : "ws:";
 	const host = typeof window !== "undefined" ? window.location.host : "localhost";
 
 	// Ensure path starts with /
@@ -235,8 +236,15 @@ export function useWebSocket<T = unknown>(options: UseWebSocketOptions<T>): UseW
 				onCloseRef.current?.(event);
 
 				// Auto-reconnect logic (unless manually closed)
-				if (!manualCloseRef.current && shouldReconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
-					const delay = Math.min(baseReconnectDelay * 2 ** reconnectAttemptsRef.current, maxReconnectDelay);
+				if (
+					!manualCloseRef.current &&
+					shouldReconnect &&
+					reconnectAttemptsRef.current < maxReconnectAttempts
+				) {
+					const delay = Math.min(
+						baseReconnectDelay * 2 ** reconnectAttemptsRef.current,
+						maxReconnectDelay,
+					);
 					reconnectAttemptsRef.current++;
 					setReconnectAttempt(reconnectAttemptsRef.current);
 

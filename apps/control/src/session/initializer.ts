@@ -1,5 +1,5 @@
-import { type Logger, createNodeLogger } from "@engram/logger";
-import { type FalkorClient, type GraphClient, createFalkorClient } from "@engram/storage";
+import { createNodeLogger, type Logger } from "@engram/logger";
+import { createFalkorClient, type FalkorClient, type GraphClient } from "@engram/storage";
 
 /**
  * Dependencies for SessionInitializer construction.
@@ -42,10 +42,12 @@ export class SessionInitializer {
 			// New deps object constructor
 			const deps = depsOrFalkor as SessionInitializerDeps;
 			this.graphClient = deps.graphClient ?? createFalkorClient();
-			this.logger = deps.logger ?? createNodeLogger({
-				service: "control-service",
-				base: { component: "session-initializer" },
-			});
+			this.logger =
+				deps.logger ??
+				createNodeLogger({
+					service: "control-service",
+					base: { component: "session-initializer" },
+				});
 		}
 	}
 

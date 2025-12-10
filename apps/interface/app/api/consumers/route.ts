@@ -9,12 +9,7 @@ const Kafka = require("@confluentinc/kafka-javascript");
  * Consumer groups to monitor.
  * These are the groups that downstream services use to consume from Kafka.
  */
-const CONSUMER_GROUPS = [
-	"ingestion-group",
-	"memory-group",
-	"search-group",
-	"control-group",
-];
+const CONSUMER_GROUPS = ["ingestion-group", "memory-group", "search-group", "control-group"];
 
 /**
  * Consumer group state from Kafka Admin API.
@@ -77,10 +72,7 @@ function getStateName(state: ConsumerGroupState): string {
 }
 
 function isGroupReady(description: GroupDescription): boolean {
-	return (
-		description.state === ConsumerGroupStates.STABLE &&
-		description.members.length >= 1
-	);
+	return description.state === ConsumerGroupStates.STABLE && description.members.length >= 1;
 }
 
 async function checkConsumerGroups(groupIds: string[]): Promise<ConsumerGroupStatus[]> {

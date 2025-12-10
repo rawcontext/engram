@@ -1,13 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ParsedStreamEvent } from "@engram/events";
 import type { Logger } from "@engram/logger";
 import type { GraphClient } from "@engram/storage";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventHandler, HandlerContext, HandlerResult } from "./handlers";
 import {
-	TurnAggregator,
-	type StreamEventInput,
-	type TurnAggregatorDeps,
 	type NodeCreatedCallback,
+	type StreamEventInput,
+	TurnAggregator,
+	type TurnAggregatorDeps,
 } from "./turn-aggregator";
 
 // Generate unique session ID for test isolation (module-level state is shared)
@@ -218,9 +218,7 @@ describe("TurnAggregator", () => {
 
 				// Verify second turn has incremented sequence index
 				const calls = (mockGraphClient.query as any).mock.calls;
-				const createCalls = calls.filter(
-					(call: any[]) => call[0]?.includes("CREATE (t:Turn"),
-				);
+				const createCalls = calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 				expect(createCalls.length).toBe(2);
 				expect(createCalls[0][1].sequenceIndex).toBe(0);
 				expect(createCalls[1][1].sequenceIndex).toBe(1);
@@ -438,8 +436,8 @@ describe("TurnAggregator", () => {
 
 				// Should log that no active turn exists (because invalid role won't start turn)
 				// But content is present, so it creates a turn with placeholder
-				const createCalls = (mockGraphClient.query as any).mock.calls.filter(
-					(call: any[]) => call[0]?.includes("CREATE (t:Turn"),
+				const createCalls = (mockGraphClient.query as any).mock.calls.filter((call: any[]) =>
+					call[0]?.includes("CREATE (t:Turn"),
 				);
 				// The content triggers auto-creation with placeholder
 				expect(createCalls.length).toBe(1);
@@ -770,8 +768,8 @@ describe("TurnAggregator", () => {
 				);
 
 				// Verify both sessions have their own turns
-				const createCalls = (mockGraphClient.query as any).mock.calls.filter(
-					(call: any[]) => call[0]?.includes("CREATE (t:Turn"),
+				const createCalls = (mockGraphClient.query as any).mock.calls.filter((call: any[]) =>
+					call[0]?.includes("CREATE (t:Turn"),
 				);
 
 				expect(createCalls.length).toBe(2);
@@ -837,8 +835,8 @@ describe("TurnAggregator", () => {
 
 				// Check that query includes NEXT edge logic
 				const queryCalls = (mockGraphClient.query as any).mock.calls;
-				const createTurnCall = queryCalls.find(
-					(call: any[]) => call[0]?.includes("MERGE (p)-[:NEXT]->(t)"),
+				const createTurnCall = queryCalls.find((call: any[]) =>
+					call[0]?.includes("MERGE (p)-[:NEXT]->(t)"),
 				);
 				expect(createTurnCall).toBeDefined();
 			});
@@ -854,8 +852,8 @@ describe("TurnAggregator", () => {
 
 				await aggregator.processEvent(event, sessionId);
 
-				const createCall = (mockGraphClient.query as any).mock.calls.find(
-					(call: any[]) => call[0]?.includes("CREATE (t:Turn"),
+				const createCall = (mockGraphClient.query as any).mock.calls.find((call: any[]) =>
+					call[0]?.includes("CREATE (t:Turn"),
 				);
 				expect(createCall[1].userContent.length).toBeLessThanOrEqual(10000);
 			});
@@ -902,8 +900,7 @@ describe("TurnAggregator", () => {
 
 				// Session-2 should start at index 0
 				const session2Call = (mockGraphClient.query as any).mock.calls.find(
-					(call: any[]) =>
-						call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === sessionId2,
+					(call: any[]) => call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === sessionId2,
 				);
 				expect(session2Call[1].sequenceIndex).toBe(0);
 			});
@@ -1199,8 +1196,8 @@ describe("TurnAggregator", () => {
 			await aggregator.processEvent(event, sessionId);
 
 			// No turn created because role=user but content is empty string (falsy)
-			const createCalls = (mockGraphClient.query as any).mock.calls.filter(
-				(call: any[]) => call[0]?.includes("CREATE (t:Turn"),
+			const createCalls = (mockGraphClient.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("CREATE (t:Turn"),
 			);
 			expect(createCalls.length).toBe(0);
 		});
@@ -1226,8 +1223,8 @@ describe("TurnAggregator", () => {
 			);
 
 			// The finalization query should truncate preview to 2000 chars
-			const finalizeCall = (mockGraphClient.query as any).mock.calls.find(
-				(call: any[]) => call[0]?.includes("SET t.assistant_preview"),
+			const finalizeCall = (mockGraphClient.query as any).mock.calls.find((call: any[]) =>
+				call[0]?.includes("SET t.assistant_preview"),
 			);
 			expect(finalizeCall).toBeDefined();
 		});

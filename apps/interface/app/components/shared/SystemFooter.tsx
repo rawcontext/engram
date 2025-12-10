@@ -72,9 +72,7 @@ function ConsumerGroupTooltip({ groups, visible }: ConsumerGroupTooltipProps) {
 										: group.stateName === "UNKNOWN"
 											? colors.slate[500]
 											: colors.amber.DEFAULT,
-									boxShadow: group.isReady
-										? `0 0 6px ${colors.green.glow}`
-										: "none",
+									boxShadow: group.isReady ? `0 0 6px ${colors.green.glow}` : "none",
 									flexShrink: 0,
 								}}
 							/>
@@ -257,10 +255,7 @@ export function SystemFooter() {
 				onMouseEnter={() => setShowTooltip(true)}
 				onMouseLeave={() => setShowTooltip(false)}
 			>
-				<ConsumerGroupTooltip
-					groups={consumerStatus?.groups ?? []}
-					visible={showTooltip}
-				/>
+				<ConsumerGroupTooltip groups={consumerStatus?.groups ?? []} visible={showTooltip} />
 				<span
 					style={{
 						width: "6px",

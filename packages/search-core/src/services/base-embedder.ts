@@ -14,8 +14,8 @@
  * @module @engram/search-core/services/base-embedder
  */
 
-import type { Logger } from "@engram/logger";
 import { type RetryOptions, withRetry } from "@engram/common";
+import type { Logger } from "@engram/logger";
 
 /**
  * Base configuration for all embedders.
@@ -230,10 +230,7 @@ export abstract class BasePipelineEmbedder<
 	/**
 	 * Call the embedding API with the configured options.
 	 */
-	protected async callEmbeddingAPI(
-		text: string,
-		options: EmbedOptions = {},
-	): Promise<number[]> {
+	protected async callEmbeddingAPI(text: string, options: EmbedOptions = {}): Promise<number[]> {
 		const extractor = await this.getInstance();
 		const pooling = options.pooling ?? "mean";
 		const normalize = options.normalize ?? true;

@@ -81,36 +81,30 @@ export interface FalkorEdgeWrapper<T extends Record<string, unknown> = Record<st
 
 // These are re-exported from storage for backward compatibility.
 // New code should import FalkorNode/FalkorEdge directly from @engram/storage.
+// Re-export domain property types from storage for backward compatibility.
+// These are deprecated - use Zod-inferred types from ./nodes.ts instead.
+// Re-export composed FalkorNode types with aliases to avoid naming conflicts.
+// Prefer using Zod-inferred types from ./nodes.ts for domain logic.
 export type {
 	FalkorEdge,
 	FalkorNode,
 	FalkorResult,
 	FalkorRow,
-	QueryParam,
-	QueryParams,
-} from "@engram/storage/falkor";
-
-// Re-export domain property types from storage for backward compatibility.
-// These are deprecated - use Zod-inferred types from ./nodes.ts instead.
-export type {
+	FileTouchNode as FalkorFileTouchNode,
 	// Deprecated property types - use Zod schemas in nodes.ts
 	FileTouchProperties,
-	ObservationProperties,
-	ReasoningProperties,
-	SessionProperties,
-	ThoughtProperties,
-	ToolCallProperties,
-	TurnProperties,
-} from "@engram/storage/falkor";
-
-// Re-export composed FalkorNode types with aliases to avoid naming conflicts.
-// Prefer using Zod-inferred types from ./nodes.ts for domain logic.
-export type {
-	FileTouchNode as FalkorFileTouchNode,
 	ObservationNode as FalkorObservationNode,
+	ObservationProperties,
+	QueryParam,
+	QueryParams,
 	ReasoningNode as FalkorReasoningNode,
+	ReasoningProperties,
 	SessionNode as FalkorSessionNode,
+	SessionProperties,
 	ThoughtNode as FalkorThoughtNode,
+	ThoughtProperties,
 	ToolCallNode as FalkorToolCallNode,
+	ToolCallProperties,
 	TurnNode as FalkorTurnNode,
+	TurnProperties,
 } from "@engram/storage/falkor";

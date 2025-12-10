@@ -1,4 +1,4 @@
-import type { Turn, CreateTurnInput, UpdateTurnInput } from "./types";
+import type { CreateTurnInput, Turn, UpdateTurnInput } from "./types";
 
 /**
  * TurnRepository abstracts data access for Turn entities.

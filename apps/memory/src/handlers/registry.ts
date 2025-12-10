@@ -1,8 +1,8 @@
 import type { ParsedStreamEvent } from "@engram/events";
-import type { EventHandler } from "./handler.interface";
 import { ContentEventHandler } from "./content.handler";
 import { ControlEventHandler } from "./control.handler";
 import { DiffEventHandler } from "./diff.handler";
+import type { EventHandler } from "./handler.interface";
 import { ThoughtEventHandler } from "./thought.handler";
 import { ToolCallEventHandler } from "./tool-call.handler";
 import { UsageEventHandler } from "./usage.handler";

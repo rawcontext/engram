@@ -1,4 +1,4 @@
-import type { ToolCall, CreateToolCallInput, ToolResult } from "./types";
+import type { CreateToolCallInput, ToolCall, ToolResult } from "./types";
 
 /**
  * ToolCallRepository abstracts data access for ToolCall entities.

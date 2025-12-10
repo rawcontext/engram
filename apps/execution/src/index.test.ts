@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import type { GraphClient } from "@engram/storage";
-import type { Logger } from "@engram/logger";
-import { VirtualFileSystem, PatchManager } from "@engram/vfs";
 import { Rehydrator, TimeTravelService } from "@engram/execution-core";
+import type { Logger } from "@engram/logger";
+import type { GraphClient } from "@engram/storage";
+import { PatchManager, VirtualFileSystem } from "@engram/vfs";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 // Mock the external dependencies before importing the module under test
 vi.mock("@engram/logger", () => ({
@@ -38,21 +38,21 @@ vi.mock("@modelcontextprotocol/sdk/server/stdio.js", () => ({
 	StdioServerTransport: vi.fn().mockImplementation(() => ({})),
 }));
 
+import { createNodeLogger } from "@engram/logger";
+import { createFalkorClient } from "@engram/storage";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 // Import after mocking
 import {
 	createExecutionServiceDeps,
-	server,
-	vfs,
-	patchManager,
-	textResult,
-	handleReadFile,
 	handleApplyPatch,
 	handleListFilesAtTime,
+	handleReadFile,
 	main,
+	patchManager,
+	server,
+	textResult,
+	vfs,
 } from "./index";
-import { createFalkorClient } from "@engram/storage";
-import { createNodeLogger } from "@engram/logger";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 describe("Execution Service", () => {
 	beforeEach(() => {
@@ -316,9 +316,9 @@ describe("Execution Service", () => {
 			testVfs.writeFile("/file.txt", "Hello, World!");
 
 			// Act & Assert
-			expect(() =>
-				testPatchManager.applySearchReplace("/file.txt", "NotFound", "Replace")
-			).toThrow("Search block not found");
+			expect(() => testPatchManager.applySearchReplace("/file.txt", "NotFound", "Replace")).toThrow(
+				"Search block not found",
+			);
 		});
 
 		it("should apply unified diff to existing file", () => {
@@ -370,7 +370,7 @@ describe("Execution Service", () => {
 
 			// Act & Assert
 			expect(() => testPatchManager.applyUnifiedDiff("/file.txt", diff)).toThrow(
-				"Failed to apply patch"
+				"Failed to apply patch",
 			);
 		});
 	});
@@ -629,7 +629,7 @@ describe("Execution Service", () => {
 			const result = await handleListFilesAtTime(
 				{ session_id: "test-session", timestamp: Date.now(), path: "/" },
 				mockGraphClient,
-				mockTimeTravel
+				mockTimeTravel,
 			);
 
 			// Assert
@@ -652,7 +652,7 @@ describe("Execution Service", () => {
 			const result = await handleListFilesAtTime(
 				{ session_id: "test-session", timestamp: Date.now(), path: "/" },
 				mockGraphClient,
-				mockTimeTravel
+				mockTimeTravel,
 			);
 
 			// Assert
@@ -678,7 +678,7 @@ describe("Execution Service", () => {
 			const result = await handleListFilesAtTime(
 				{ session_id: "test-session", timestamp: Date.now(), path: "/" },
 				mockGraphClient,
-				mockTimeTravel
+				mockTimeTravel,
 			);
 
 			// Assert
@@ -737,9 +737,7 @@ describe("Execution Service", () => {
 			const mockServer = (McpServer as Mock).mock.results[0]?.value;
 			if (mockServer?.tool.mock) {
 				const calls = mockServer.tool.mock.calls;
-				const readFileCall = calls.find(
-					(call: unknown[]) => call[0] === "read_file"
-				);
+				const readFileCall = calls.find((call: unknown[]) => call[0] === "read_file");
 				expect(readFileCall).toBeDefined();
 				expect(readFileCall?.[1]).toBe("Read a file from the Virtual File System");
 			}
@@ -749,13 +747,9 @@ describe("Execution Service", () => {
 			const mockServer = (McpServer as Mock).mock.results[0]?.value;
 			if (mockServer?.tool.mock) {
 				const calls = mockServer.tool.mock.calls;
-				const applyPatchCall = calls.find(
-					(call: unknown[]) => call[0] === "apply_patch"
-				);
+				const applyPatchCall = calls.find((call: unknown[]) => call[0] === "apply_patch");
 				expect(applyPatchCall).toBeDefined();
-				expect(applyPatchCall?.[1]).toBe(
-					"Apply a unified diff or search/replace block to the VFS"
-				);
+				expect(applyPatchCall?.[1]).toBe("Apply a unified diff or search/replace block to the VFS");
 			}
 		});
 
@@ -763,13 +757,9 @@ describe("Execution Service", () => {
 			const mockServer = (McpServer as Mock).mock.results[0]?.value;
 			if (mockServer?.tool.mock) {
 				const calls = mockServer.tool.mock.calls;
-				const listFilesCall = calls.find(
-					(call: unknown[]) => call[0] === "list_files_at_time"
-				);
+				const listFilesCall = calls.find((call: unknown[]) => call[0] === "list_files_at_time");
 				expect(listFilesCall).toBeDefined();
-				expect(listFilesCall?.[1]).toBe(
-					"List files in the VFS at a specific point in time"
-				);
+				expect(listFilesCall?.[1]).toBe("List files in the VFS at a specific point in time");
 			}
 		});
 	});
@@ -934,7 +924,7 @@ describe("Execution Service - Concurrent Operations", () => {
 			writePromises.push(
 				Promise.resolve().then(() => {
 					testVfs.writeFile(`/file${i}.txt`, `content${i}`);
-				})
+				}),
 			);
 		}
 		await Promise.all(writePromises);
@@ -953,9 +943,7 @@ describe("Execution Service - Concurrent Operations", () => {
 
 		// Act
 		for (let i = 0; i < 100; i++) {
-			readPromises.push(
-				Promise.resolve().then(() => testVfs.readFile("/shared.txt"))
-			);
+			readPromises.push(Promise.resolve().then(() => testVfs.readFile("/shared.txt")));
 		}
 		const results = await Promise.all(readPromises);
 

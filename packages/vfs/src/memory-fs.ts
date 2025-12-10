@@ -243,9 +243,7 @@ export class InMemoryFileSystem implements IFileSystem {
 
 		if (entry.type === "file") {
 			const size =
-				typeof entry.content === "string"
-					? Buffer.byteLength(entry.content)
-					: entry.content.length;
+				typeof entry.content === "string" ? Buffer.byteLength(entry.content) : entry.content.length;
 			return {
 				isFile: () => true,
 				isDirectory: () => false,

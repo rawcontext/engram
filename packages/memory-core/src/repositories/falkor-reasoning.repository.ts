@@ -1,9 +1,8 @@
-import type { GraphClient } from "@engram/storage";
-import type { FalkorNode } from "@engram/storage";
+import type { FalkorNode, GraphClient } from "@engram/storage";
+import { EdgeTypes } from "../models/edges";
 import { FalkorBaseRepository } from "./falkor-base";
 import type { ReasoningRepository } from "./reasoning.repository";
-import type { Reasoning, CreateReasoningInput } from "./types";
-import { EdgeTypes } from "../models/edges";
+import type { CreateReasoningInput, Reasoning } from "./types";
 
 /**
  * Raw FalkorDB Reasoning node properties.
@@ -36,7 +35,7 @@ export class FalkorReasoningRepository extends FalkorBaseRepository implements R
 			`MATCH (t:Turn)-[:${EdgeTypes.CONTAINS}]->(r:Reasoning {id: $id})
 			 WHERE r.tt_end = ${this.maxDate}
 			 RETURN r, t.id as turnId`,
-			{ id }
+			{ id },
 		);
 		if (!results[0]?.r) return null;
 		return this.mapToReasoning(results[0].r, results[0].turnId);
@@ -48,29 +47,37 @@ export class FalkorReasoningRepository extends FalkorBaseRepository implements R
 			 WHERE r.tt_end = ${this.maxDate}
 			 RETURN r
 			 ORDER BY r.sequence_index ASC`,
-			{ turnId }
+			{ turnId },
 		);
 		return results.map((row) => this.mapToReasoning(row.r, turnId));
 	}
 
 	async findBySession(sessionId: string): Promise<Reasoning[]> {
-		const results = await this.query<{ r: FalkorNode<ReasoningNodeProps>; turnId: string; turnSeq: number }>(
+		const results = await this.query<{
+			r: FalkorNode<ReasoningNodeProps>;
+			turnId: string;
+			turnSeq: number;
+		}>(
 			`MATCH (s:Session {id: $sessionId})-[:${EdgeTypes.HAS_TURN}]->(t:Turn)-[:${EdgeTypes.CONTAINS}]->(r:Reasoning)
 			 WHERE t.tt_end = ${this.maxDate} AND r.tt_end = ${this.maxDate}
 			 RETURN r, t.id as turnId, t.sequence_index as turnSeq
 			 ORDER BY turnSeq ASC, r.sequence_index ASC`,
-			{ sessionId }
+			{ sessionId },
 		);
 		return results.map((row) => this.mapToReasoning(row.r, row.turnId));
 	}
 
 	async findByType(sessionId: string, reasoningType: string): Promise<Reasoning[]> {
-		const results = await this.query<{ r: FalkorNode<ReasoningNodeProps>; turnId: string; turnSeq: number }>(
+		const results = await this.query<{
+			r: FalkorNode<ReasoningNodeProps>;
+			turnId: string;
+			turnSeq: number;
+		}>(
 			`MATCH (s:Session {id: $sessionId})-[:${EdgeTypes.HAS_TURN}]->(t:Turn)-[:${EdgeTypes.CONTAINS}]->(r:Reasoning {reasoning_type: $reasoningType})
 			 WHERE t.tt_end = ${this.maxDate} AND r.tt_end = ${this.maxDate}
 			 RETURN r, t.id as turnId, t.sequence_index as turnSeq
 			 ORDER BY turnSeq ASC, r.sequence_index ASC`,
-			{ sessionId, reasoningType }
+			{ sessionId, reasoningType },
 		);
 		return results.map((row) => this.mapToReasoning(row.r, row.turnId));
 	}
@@ -102,7 +109,7 @@ export class FalkorReasoningRepository extends FalkorBaseRepository implements R
 			 WHERE t.tt_end = ${this.maxDate}
 			 CREATE (r:Reasoning {${propsString}})
 			 CREATE (t)-[:${EdgeTypes.CONTAINS} {vt_start: $vt_start, vt_end: $vt_end, tt_start: $tt_start, tt_end: $tt_end}]->(r)`,
-			{ turnId: input.turnId, ...nodeProps }
+			{ turnId: input.turnId, ...nodeProps },
 		);
 
 		return {
@@ -147,7 +154,7 @@ export class FalkorReasoningRepository extends FalkorBaseRepository implements R
 			`MATCH (t:Turn {id: $turnId})-[:${EdgeTypes.CONTAINS}]->(r:Reasoning)
 			 WHERE r.tt_end = ${this.maxDate}
 			 RETURN count(r) as cnt`,
-			{ turnId }
+			{ turnId },
 		);
 		return results[0]?.cnt ?? 0;
 	}

@@ -1,5 +1,11 @@
 import { RehydrationError } from "@engram/common";
-import { type BlobStore, createBlobStore, createFalkorClient, type FalkorClient, type GraphClient } from "@engram/storage";
+import {
+	type BlobStore,
+	createBlobStore,
+	createFalkorClient,
+	type FalkorClient,
+	type GraphClient,
+} from "@engram/storage";
 import { PatchManager, VirtualFileSystem } from "@engram/vfs";
 
 /**
@@ -101,11 +107,14 @@ export class Rehydrator {
 			ORDER BY d.vt_start ASC
 		`;
 
-		const diffs = await this.graphClient.query<{ file_path: string; patch_content: string }>(diffQuery, {
-			sessionId,
-			lastSnapshotTime,
-			targetTime,
-		});
+		const diffs = await this.graphClient.query<{ file_path: string; patch_content: string }>(
+			diffQuery,
+			{
+				sessionId,
+				lastSnapshotTime,
+				targetTime,
+			},
+		);
 
 		// Apply patches in order, tracking failures
 		const patchFailures: Array<{ filePath: string; error: Error }> = [];

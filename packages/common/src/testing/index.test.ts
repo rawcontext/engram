@@ -3,32 +3,32 @@
  * These tests validate the mock factories and fixture helpers work correctly.
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-	// ID and hash utilities
-	createTestId,
-	createTestHash,
+	createDeferred,
 	createTestBitemporalProps,
+	createTestBlobStore,
+	createTestConsumer,
+	createTestFileTouch,
 	// Mock factories
 	createTestGraphClient,
+	createTestHash,
+	// ID and hash utilities
+	createTestId,
 	createTestKafkaClient,
-	createTestRedisPublisher,
-	createTestBlobStore,
-	createTestProducer,
-	createTestConsumer,
 	createTestKafkaMessage,
+	createTestObservation,
+	createTestProducer,
+	createTestReasoning,
+	createTestRedisPublisher,
 	// Fixture factories
 	createTestSession,
-	createTestTurn,
 	createTestToolCall,
-	createTestReasoning,
-	createTestFileTouch,
-	createTestObservation,
-	// Test utilities
-	wait,
-	createDeferred,
+	createTestTurn,
 	expectToReject,
 	spyOnConsole,
+	// Test utilities
+	wait,
 } from "./index";
 
 // =============================================================================

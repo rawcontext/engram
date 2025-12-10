@@ -1,10 +1,5 @@
 import type { ParsedStreamEvent } from "@engram/events";
-import type {
-	EventHandler,
-	HandlerContext,
-	HandlerResult,
-	TurnState,
-} from "./handler.interface";
+import type { EventHandler, HandlerContext, HandlerResult, TurnState } from "./handler.interface";
 
 /**
  * ControlEventHandler processes control events like turn_start and turn_end.

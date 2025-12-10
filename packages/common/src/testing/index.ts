@@ -32,7 +32,14 @@
  * @module @engram/common/testing
  */
 
-import { vi } from "vitest";
+import type {
+	FileTouchNode,
+	ObservationNode,
+	ReasoningNode,
+	SessionNode,
+	ToolCallNode,
+	TurnNode,
+} from "@engram/memory-core";
 import type {
 	BlobStore,
 	Consumer,
@@ -43,14 +50,7 @@ import type {
 	Producer,
 	RedisPublisher,
 } from "@engram/storage";
-import type {
-	SessionNode,
-	TurnNode,
-	ToolCallNode,
-	ReasoningNode,
-	FileTouchNode,
-	ObservationNode,
-} from "@engram/memory-core";
+import { vi } from "vitest";
 
 // =============================================================================
 // ID Generation Utilities

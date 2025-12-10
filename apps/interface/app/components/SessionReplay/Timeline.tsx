@@ -1,13 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import {
-	QueryCard,
-	ReasoningTrace,
-	ResponseCard,
-	ToolCallCard,
-	TurnHeader,
-} from "./MessageCards";
+import { QueryCard, ReasoningTrace, ResponseCard, ToolCallCard, TurnHeader } from "./MessageCards";
 import { type ConsolidatedMessage, MESSAGE_TYPES } from "./types";
 
 interface TimelineProps {

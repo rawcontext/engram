@@ -2,12 +2,12 @@ import { createServer } from "node:http";
 import { type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
 import {
 	DiffExtractor,
+	defaultRegistry,
 	Redactor,
 	type StreamDelta,
 	ThinkingExtractor,
-	defaultRegistry,
 } from "@engram/ingestion-core";
-import { type Logger, createNodeLogger } from "@engram/logger";
+import { createNodeLogger, type Logger } from "@engram/logger";
 import { createKafkaClient } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";
 
@@ -51,15 +51,20 @@ export class IngestionProcessor {
 				service: "ingestion-service",
 				base: { component: "processor" },
 			});
-		} else if (typeof depsOrKafka === "object" && ("kafkaClient" in depsOrKafka || "redactor" in depsOrKafka || "logger" in depsOrKafka)) {
+		} else if (
+			typeof depsOrKafka === "object" &&
+			("kafkaClient" in depsOrKafka || "redactor" in depsOrKafka || "logger" in depsOrKafka)
+		) {
 			// New deps object constructor
 			const deps = depsOrKafka as IngestionProcessorDeps;
 			this.kafkaClient = deps.kafkaClient ?? createKafkaClient("ingestion-service");
 			this.redactor = deps.redactor ?? new Redactor();
-			this.logger = deps.logger ?? createNodeLogger({
-				service: "ingestion-service",
-				base: { component: "processor" },
-			});
+			this.logger =
+				deps.logger ??
+				createNodeLogger({
+					service: "ingestion-service",
+					base: { component: "processor" },
+				});
 		} else {
 			// Legacy: kafkaClient directly
 			this.kafkaClient = depsOrKafka;
@@ -83,10 +88,7 @@ export class IngestionProcessor {
 
 		// 1. Parse using registry
 		if (!defaultRegistry.has(provider)) {
-			this.logger.warn(
-				{ provider, available: defaultRegistry.providers() },
-				"Unknown provider"
-			);
+			this.logger.warn({ provider, available: defaultRegistry.providers() }, "Unknown provider");
 			return { status: "ignored" };
 		}
 
@@ -221,7 +223,11 @@ async function startConsumer() {
 	// Periodic heartbeat every 10 seconds
 	const heartbeatInterval = setInterval(async () => {
 		try {
-			await redis.publishConsumerStatus("consumer_heartbeat", "ingestion-group", "ingestion-service");
+			await redis.publishConsumerStatus(
+				"consumer_heartbeat",
+				"ingestion-group",
+				"ingestion-service",
+			);
 		} catch (e) {
 			logger.error({ err: e }, "Failed to publish heartbeat");
 		}
@@ -237,7 +243,11 @@ async function startConsumer() {
 		} catch (e) {
 			logger.error({ err: e }, "Error disconnecting consumer");
 		}
-		await redis.publishConsumerStatus("consumer_disconnected", "ingestion-group", "ingestion-service");
+		await redis.publishConsumerStatus(
+			"consumer_disconnected",
+			"ingestion-group",
+			"ingestion-service",
+		);
 		process.exit(0);
 	};
 

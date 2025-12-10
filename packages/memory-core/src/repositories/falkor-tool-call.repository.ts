@@ -1,9 +1,8 @@
-import type { GraphClient } from "@engram/storage";
-import type { FalkorNode } from "@engram/storage";
+import type { FalkorNode, GraphClient } from "@engram/storage";
+import { EdgeTypes } from "../models/edges";
 import { FalkorBaseRepository } from "./falkor-base";
 import type { ToolCallRepository } from "./tool-call.repository";
-import type { ToolCall, CreateToolCallInput, ToolResult } from "./types";
-import { EdgeTypes } from "../models/edges";
+import type { CreateToolCallInput, ToolCall, ToolResult } from "./types";
 
 /**
  * Raw FalkorDB ToolCall node properties.
@@ -39,7 +38,7 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 			`MATCH (t:Turn)-[:${EdgeTypes.INVOKES}]->(tc:ToolCall {id: $id})
 			 WHERE tc.tt_end = ${this.maxDate}
 			 RETURN tc, t.id as turnId`,
-			{ id }
+			{ id },
 		);
 		if (!results[0]?.tc) return null;
 		return this.mapToToolCall(results[0].tc, results[0].turnId);
@@ -50,7 +49,7 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 			`MATCH (t:Turn)-[:${EdgeTypes.INVOKES}]->(tc:ToolCall {call_id: $callId})
 			 WHERE tc.tt_end = ${this.maxDate}
 			 RETURN tc, t.id as turnId`,
-			{ callId }
+			{ callId },
 		);
 		if (!results[0]?.tc) return null;
 		return this.mapToToolCall(results[0].tc, results[0].turnId);
@@ -62,40 +61,52 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 			 WHERE tc.tt_end = ${this.maxDate}
 			 RETURN tc
 			 ORDER BY tc.sequence_index ASC`,
-			{ turnId }
+			{ turnId },
 		);
 		return results.map((row) => this.mapToToolCall(row.tc, turnId));
 	}
 
 	async findBySession(sessionId: string): Promise<ToolCall[]> {
-		const results = await this.query<{ tc: FalkorNode<ToolCallNodeProps>; turnId: string; turnSeq: number }>(
+		const results = await this.query<{
+			tc: FalkorNode<ToolCallNodeProps>;
+			turnId: string;
+			turnSeq: number;
+		}>(
 			`MATCH (s:Session {id: $sessionId})-[:${EdgeTypes.HAS_TURN}]->(t:Turn)-[:${EdgeTypes.INVOKES}]->(tc:ToolCall)
 			 WHERE t.tt_end = ${this.maxDate} AND tc.tt_end = ${this.maxDate}
 			 RETURN tc, t.id as turnId, t.sequence_index as turnSeq
 			 ORDER BY turnSeq ASC, tc.sequence_index ASC`,
-			{ sessionId }
+			{ sessionId },
 		);
 		return results.map((row) => this.mapToToolCall(row.tc, row.turnId));
 	}
 
 	async findByToolType(sessionId: string, toolType: string): Promise<ToolCall[]> {
-		const results = await this.query<{ tc: FalkorNode<ToolCallNodeProps>; turnId: string; turnSeq: number }>(
+		const results = await this.query<{
+			tc: FalkorNode<ToolCallNodeProps>;
+			turnId: string;
+			turnSeq: number;
+		}>(
 			`MATCH (s:Session {id: $sessionId})-[:${EdgeTypes.HAS_TURN}]->(t:Turn)-[:${EdgeTypes.INVOKES}]->(tc:ToolCall {tool_type: $toolType})
 			 WHERE t.tt_end = ${this.maxDate} AND tc.tt_end = ${this.maxDate}
 			 RETURN tc, t.id as turnId, t.sequence_index as turnSeq
 			 ORDER BY turnSeq ASC, tc.sequence_index ASC`,
-			{ sessionId, toolType }
+			{ sessionId, toolType },
 		);
 		return results.map((row) => this.mapToToolCall(row.tc, row.turnId));
 	}
 
 	async findByStatus(sessionId: string, status: string): Promise<ToolCall[]> {
-		const results = await this.query<{ tc: FalkorNode<ToolCallNodeProps>; turnId: string; turnSeq: number }>(
+		const results = await this.query<{
+			tc: FalkorNode<ToolCallNodeProps>;
+			turnId: string;
+			turnSeq: number;
+		}>(
 			`MATCH (s:Session {id: $sessionId})-[:${EdgeTypes.HAS_TURN}]->(t:Turn)-[:${EdgeTypes.INVOKES}]->(tc:ToolCall {status: $status})
 			 WHERE t.tt_end = ${this.maxDate} AND tc.tt_end = ${this.maxDate}
 			 RETURN tc, t.id as turnId, t.sequence_index as turnSeq
 			 ORDER BY turnSeq ASC, tc.sequence_index ASC`,
-			{ sessionId, status }
+			{ sessionId, status },
 		);
 		return results.map((row) => this.mapToToolCall(row.tc, row.turnId));
 	}
@@ -109,7 +120,7 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 			`MATCH (t:Turn)-[:${EdgeTypes.INVOKES}]->(tc:ToolCall {status: 'pending'})
 			 WHERE tc.tt_end = ${this.maxDate}
 			 RETURN tc, t.id as turnId
-			 ORDER BY tc.vt_start ASC`
+			 ORDER BY tc.vt_start ASC`,
 		);
 		return results.map((row) => this.mapToToolCall(row.tc, row.turnId));
 	}
@@ -134,7 +145,8 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 
 		if (input.argumentsPreview) nodeProps.arguments_preview = input.argumentsPreview;
 		if (input.errorMessage) nodeProps.error_message = input.errorMessage;
-		if (input.reasoningSequence !== undefined) nodeProps.reasoning_sequence = input.reasoningSequence;
+		if (input.reasoningSequence !== undefined)
+			nodeProps.reasoning_sequence = input.reasoningSequence;
 
 		const propsString = this.buildPropertyString(nodeProps);
 
@@ -144,7 +156,7 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 			 WHERE t.tt_end = ${this.maxDate}
 			 CREATE (tc:ToolCall {${propsString}})
 			 CREATE (t)-[:${EdgeTypes.INVOKES} {vt_start: $vt_start, vt_end: $vt_end, tt_start: $tt_start, tt_end: $tt_end}]->(tc)`,
-			{ turnId: input.turnId, ...nodeProps }
+			{ turnId: input.turnId, ...nodeProps },
 		);
 
 		// If there's a reasoning sequence, link to the triggering Reasoning node
@@ -160,7 +172,7 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 					tcId: id,
 					vtStart: temporal.vt_start,
 					ttStart: temporal.tt_start,
-				}
+				},
 			);
 		}
 
@@ -218,7 +230,7 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 		const setClause = this.buildSetClause(updateProps, "tc");
 		await this.query(
 			`MATCH (tc:ToolCall {id: $id}) WHERE tc.tt_end = ${this.maxDate} SET ${setClause}`,
-			{ id, ...updateProps }
+			{ id, ...updateProps },
 		);
 
 		return {
@@ -233,7 +245,7 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 			`MATCH (t:Turn {id: $turnId})-[:${EdgeTypes.INVOKES}]->(tc:ToolCall)
 			 WHERE tc.tt_end = ${this.maxDate}
 			 RETURN count(tc) as cnt`,
-			{ turnId }
+			{ turnId },
 		);
 		return results[0]?.cnt ?? 0;
 	}
@@ -243,7 +255,7 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 			`MATCH (s:Session {id: $sessionId})-[:${EdgeTypes.HAS_TURN}]->(t:Turn)-[:${EdgeTypes.INVOKES}]->(tc:ToolCall)
 			 WHERE t.tt_end = ${this.maxDate} AND tc.tt_end = ${this.maxDate}
 			 RETURN tc.status as status, count(tc) as cnt`,
-			{ sessionId }
+			{ sessionId },
 		);
 
 		const counts: Record<string, number> = {};

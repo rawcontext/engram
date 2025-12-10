@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import type { Consumer, ConsumerConfig, KafkaMessage, MessageClient, Producer } from "./interfaces";
 
 // Re-export types for backward compatibility
-export type { Consumer, Producer, KafkaMessage } from "./interfaces";
+export type { Consumer, KafkaMessage, Producer } from "./interfaces";
 
 const require = createRequire(import.meta.url);
 const { Kafka } = require("@confluentinc/kafka-javascript").KafkaJS;

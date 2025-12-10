@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
-	DEFAULT_RERANKER_CONFIG,
 	assertValidConfig,
+	DEFAULT_RERANKER_CONFIG,
 	validateBusinessLogic,
 	validateComprehensive,
 	validateConfig,

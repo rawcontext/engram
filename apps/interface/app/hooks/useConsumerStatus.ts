@@ -29,9 +29,7 @@ export interface UseConsumerStatusResult {
  * }
  * ```
  */
-export function useConsumerStatus(
-	options: UseConsumerStatusOptions = {},
-): UseConsumerStatusResult {
+export function useConsumerStatus(options: UseConsumerStatusOptions = {}): UseConsumerStatusResult {
 	const { enabled = true } = options;
 
 	const [data, setData] = useState<ConsumerStatusResponse | null>(null);

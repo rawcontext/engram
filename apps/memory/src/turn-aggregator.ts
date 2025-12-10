@@ -3,10 +3,10 @@ import type { ParsedStreamEvent } from "@engram/events";
 import type { Logger } from "@engram/logger";
 import type { GraphClient } from "@engram/storage";
 import {
+	createDefaultHandlerRegistry,
 	type EventHandlerRegistry,
 	type HandlerContext,
 	type TurnState,
-	createDefaultHandlerRegistry,
 } from "./handlers";
 
 /**
@@ -200,7 +200,10 @@ export class TurnAggregator {
 	 * Process a stream event and aggregate into Turn/Reasoning/FileTouch nodes.
 	 * Accepts both loose StreamEventInput (from Kafka) and strict ParsedStreamEvent.
 	 */
-	async processEvent(event: StreamEventInput | ParsedStreamEvent, sessionId: string): Promise<void> {
+	async processEvent(
+		event: StreamEventInput | ParsedStreamEvent,
+		sessionId: string,
+	): Promise<void> {
 		// Normalize input to ParsedStreamEvent
 		const normalizedEvent = this.normalizeEvent(event);
 		const { role, content } = normalizedEvent;
@@ -216,12 +219,18 @@ export class TurnAggregator {
 
 		// If no active turn and we get assistant content, create a turn without user content
 		// (This handles cases where we miss the user message)
-		if (!turn && (normalizedEvent.content || normalizedEvent.thought || normalizedEvent.tool_call)) {
+		if (
+			!turn &&
+			(normalizedEvent.content || normalizedEvent.thought || normalizedEvent.tool_call)
+		) {
 			turn = await this.startNewTurn(sessionId, "[No user message captured]");
 		}
 
 		if (!turn) {
-			this.logger.debug({ sessionId, type: normalizedEvent.type }, "No active turn, skipping event");
+			this.logger.debug(
+				{ sessionId, type: normalizedEvent.type },
+				"No active turn, skipping event",
+			);
 			return;
 		}
 

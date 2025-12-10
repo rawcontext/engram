@@ -5,14 +5,14 @@
  */
 
 export { EngramError } from "./base";
+export type { ErrorCode } from "./domain";
 export {
+	ContextAssemblyError,
 	ErrorCodes,
 	GraphOperationError,
 	ParseError,
-	ValidationError,
-	ContextAssemblyError,
 	RehydrationError,
-	StorageError,
 	SearchError,
+	StorageError,
+	ValidationError,
 } from "./domain";
-export type { ErrorCode } from "./domain";

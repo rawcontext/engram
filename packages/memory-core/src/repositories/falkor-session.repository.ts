@@ -1,8 +1,7 @@
-import type { GraphClient } from "@engram/storage";
-import type { FalkorNode } from "@engram/storage";
+import type { FalkorNode, GraphClient } from "@engram/storage";
 import { FalkorBaseRepository } from "./falkor-base";
 import type { SessionRepository } from "./session.repository";
-import type { Session, CreateSessionInput, UpdateSessionInput } from "./types";
+import type { CreateSessionInput, Session, UpdateSessionInput } from "./types";
 
 /**
  * Raw FalkorDB Session node properties.
@@ -38,7 +37,7 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 	async findById(id: string): Promise<Session | null> {
 		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(
 			`MATCH (s:Session {id: $id}) WHERE s.tt_end = ${this.maxDate} RETURN s`,
-			{ id }
+			{ id },
 		);
 		if (!results[0]?.s) return null;
 		return this.mapToSession(results[0].s);
@@ -47,7 +46,7 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 	async findByExternalId(externalId: string): Promise<Session | null> {
 		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(
 			`MATCH (s:Session {external_id: $externalId}) WHERE s.tt_end = ${this.maxDate} RETURN s`,
-			{ externalId }
+			{ externalId },
 		);
 		if (!results[0]?.s) return null;
 		return this.mapToSession(results[0].s);
@@ -55,7 +54,7 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 
 	async findActive(): Promise<Session[]> {
 		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(
-			`MATCH (s:Session) WHERE s.tt_end = ${this.maxDate} RETURN s ORDER BY s.started_at DESC`
+			`MATCH (s:Session) WHERE s.tt_end = ${this.maxDate} RETURN s ORDER BY s.started_at DESC`,
 		);
 		return results.map((r) => this.mapToSession(r.s));
 	}
@@ -63,7 +62,7 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 	async findByProvider(provider: string): Promise<Session[]> {
 		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(
 			`MATCH (s:Session {agent_type: $provider}) WHERE s.tt_end = ${this.maxDate} RETURN s ORDER BY s.started_at DESC`,
-			{ provider }
+			{ provider },
 		);
 		return results.map((r) => this.mapToSession(r.s));
 	}
@@ -71,7 +70,7 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 	async findByUser(userId: string): Promise<Session[]> {
 		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(
 			`MATCH (s:Session {user_id: $userId}) WHERE s.tt_end = ${this.maxDate} RETURN s ORDER BY s.started_at DESC`,
-			{ userId }
+			{ userId },
 		);
 		return results.map((r) => this.mapToSession(r.s));
 	}
@@ -79,7 +78,7 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 	async findByWorkingDir(workingDir: string): Promise<Session[]> {
 		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(
 			`MATCH (s:Session {working_dir: $workingDir}) WHERE s.tt_end = ${this.maxDate} RETURN s ORDER BY s.started_at DESC`,
-			{ workingDir }
+			{ workingDir },
 		);
 		return results.map((r) => this.mapToSession(r.s));
 	}
@@ -110,7 +109,7 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 		const propsString = this.buildPropertyString(nodeProps);
 		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(
 			`CREATE (s:Session {${propsString}}) RETURN s`,
-			nodeProps
+			nodeProps,
 		);
 
 		return this.mapToSession(results[0].s);
@@ -126,7 +125,7 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 		const t = this.now;
 		await this.query(
 			`MATCH (s:Session {id: $id}) WHERE s.tt_end = ${this.maxDate} SET s.tt_end = $t`,
-			{ id, t }
+			{ id, t },
 		);
 
 		// Prepare update properties
@@ -152,7 +151,11 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 			title: updates.title ?? existing.title,
 			summary: updates.summary ?? existing.summary,
 			embedding: updates.embedding ?? existing.embedding,
-			metadata: updates.metadata ? JSON.stringify(updates.metadata) : existing.metadata ? JSON.stringify(existing.metadata) : undefined,
+			metadata: updates.metadata
+				? JSON.stringify(updates.metadata)
+				: existing.metadata
+					? JSON.stringify(existing.metadata)
+					: undefined,
 			vt_start: newTemporal.vt_start,
 			vt_end: newTemporal.vt_end,
 			tt_start: newTemporal.tt_start,
@@ -169,14 +172,14 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 		const propsString = this.buildPropertyString(nodeProps);
 		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(
 			`CREATE (s:Session {${propsString}}) RETURN s`,
-			nodeProps
+			nodeProps,
 		);
 
 		// Link new version to old
 		await this.query(
 			`MATCH (new:Session {id: $newId}), (old:Session {id: $oldId})
 			 CREATE (new)-[:REPLACES {tt_start: $ttStart, tt_end: ${this.maxDate}, vt_start: $vtStart, vt_end: ${this.maxDate}}]->(old)`,
-			{ newId, oldId: id, ttStart: newTemporal.tt_start, vtStart: newTemporal.vt_start }
+			{ newId, oldId: id, ttStart: newTemporal.tt_start, vtStart: newTemporal.vt_start },
 		);
 
 		return this.mapToSession(results[0].s);

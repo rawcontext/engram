@@ -1,9 +1,9 @@
-import type { ParserStrategy, StreamDelta } from "./interface";
 import { AnthropicParser } from "./anthropic";
 import { ClaudeCodeParser } from "./claude-code";
 import { ClineParser } from "./cline";
 import { CodexParser } from "./codex";
 import { GeminiParser } from "./gemini";
+import type { ParserStrategy, StreamDelta } from "./interface";
 import { OpenAIParser } from "./openai";
 import { OpenCodeParser } from "./opencode";
 import { XAIParser } from "./xai";

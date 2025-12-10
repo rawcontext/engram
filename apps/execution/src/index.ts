@@ -1,10 +1,10 @@
 import { Rehydrator, TimeTravelService } from "@engram/execution-core";
-import { type Logger, createNodeLogger } from "@engram/logger";
-import { type GraphClient, createFalkorClient } from "@engram/storage";
+import { createNodeLogger, type Logger } from "@engram/logger";
+import { createFalkorClient, type GraphClient } from "@engram/storage";
 import { PatchManager, VirtualFileSystem } from "@engram/vfs";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 /**
@@ -41,12 +41,16 @@ export interface ExecutionServiceDeps {
  *   vfs: mockVfs,
  * });
  */
-export function createExecutionServiceDeps(deps?: ExecutionServiceDeps): Required<ExecutionServiceDeps> {
-	const logger = deps?.logger ?? createNodeLogger({
-		service: "execution-service",
-		base: { component: "main" },
-		pretty: false,
-	});
+export function createExecutionServiceDeps(
+	deps?: ExecutionServiceDeps,
+): Required<ExecutionServiceDeps> {
+	const logger =
+		deps?.logger ??
+		createNodeLogger({
+			service: "execution-service",
+			base: { component: "main" },
+			pretty: false,
+		});
 
 	const vfs = deps?.vfs ?? new VirtualFileSystem();
 	const patchManager = deps?.patchManager ?? new PatchManager(vfs);
@@ -110,7 +114,7 @@ export const textResult = (text: string, isError = false): CallToolResult => ({
  */
 export async function handleReadFile(
 	args: ReadFileArgs,
-	vfsInstance: VirtualFileSystem = vfs
+	vfsInstance: VirtualFileSystem = vfs,
 ): Promise<CallToolResult> {
 	try {
 		const content = vfsInstance.readFile(args.path);
@@ -127,7 +131,7 @@ export async function handleReadFile(
  */
 export async function handleApplyPatch(
 	args: ApplyPatchArgs,
-	patchManagerInstance: PatchManager = patchManager
+	patchManagerInstance: PatchManager = patchManager,
 ): Promise<CallToolResult> {
 	try {
 		patchManagerInstance.applyUnifiedDiff(args.path, args.diff);
@@ -145,7 +149,7 @@ export async function handleApplyPatch(
 export async function handleListFilesAtTime(
 	args: ListFilesAtTimeArgs,
 	graphClient: GraphClient = falkor,
-	timeTravelService: TimeTravelService = timeTravel
+	timeTravelService: TimeTravelService = timeTravel,
 ): Promise<CallToolResult> {
 	try {
 		await graphClient.connect();
@@ -162,9 +166,14 @@ export async function handleListFilesAtTime(
 // maintaining runtime type safety through Zod validation at the SDK boundary.
 
 // @ts-expect-error MCP SDK TS2589 - deep type instantiation with Zod schemas
-server.tool("read_file", "Read a file from the Virtual File System", { path: z.string() }, async (args: ReadFileArgs) => {
-	return handleReadFile(args);
-});
+server.tool(
+	"read_file",
+	"Read a file from the Virtual File System",
+	{ path: z.string() },
+	async (args: ReadFileArgs) => {
+		return handleReadFile(args);
+	},
+);
 
 server.tool(
 	"apply_patch",

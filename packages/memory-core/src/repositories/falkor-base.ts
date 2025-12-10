@@ -1,5 +1,5 @@
-import { ulid } from "ulid";
 import type { GraphClient } from "@engram/storage";
+import { ulid } from "ulid";
 import { createBitemporal, MAX_DATE, now } from "../utils/time";
 
 /**
@@ -84,10 +84,14 @@ export abstract class FalkorBaseRepository {
 	/**
 	 * Check if a node exists with the given condition.
 	 */
-	protected async exists(label: string, condition: string, params: Record<string, unknown>): Promise<boolean> {
+	protected async exists(
+		label: string,
+		condition: string,
+		params: Record<string, unknown>,
+	): Promise<boolean> {
 		const result = await this.query<{ cnt: number }>(
 			`MATCH (n:${label} {${condition}}) WHERE n.tt_end = ${MAX_DATE} RETURN count(n) as cnt`,
-			params
+			params,
 		);
 		return (result[0]?.cnt ?? 0) > 0;
 	}
@@ -99,7 +103,7 @@ export abstract class FalkorBaseRepository {
 		const t = now();
 		await this.query(
 			`MATCH (n:${label} {id: $id}) WHERE n.tt_end = ${MAX_DATE} SET n.tt_end = $t`,
-			{ id, t }
+			{ id, t },
 		);
 	}
 

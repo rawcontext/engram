@@ -1,6 +1,6 @@
+import type { LineageResponse } from "@lib/types";
 import type { Edge, Node } from "@xyflow/react";
 import { useMemo, useRef } from "react";
-import type { LineageResponse } from "@lib/types";
 import { getRadialLayout } from "../layouts";
 
 interface UseGraphLayoutOptions {

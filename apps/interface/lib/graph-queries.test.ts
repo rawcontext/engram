@@ -5,14 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // =============================================================================
 
 // Use vi.hoisted to create mocks that will be available during module hoisting
-const { mockQuery, mockConnect, mockIsConnected, mockDisconnect } = vi.hoisted(
-	() => ({
-		mockQuery: vi.fn(),
-		mockConnect: vi.fn(),
-		mockIsConnected: vi.fn(),
-		mockDisconnect: vi.fn(),
-	}),
-);
+const { mockQuery, mockConnect, mockIsConnected, mockDisconnect } = vi.hoisted(() => ({
+	mockQuery: vi.fn(),
+	mockConnect: vi.fn(),
+	mockIsConnected: vi.fn(),
+	mockDisconnect: vi.fn(),
+}));
 
 // Mock the FalkorClient before importing the module under test
 vi.mock("@engram/storage/falkor", () => {
@@ -70,10 +68,7 @@ function createMockSessionNode(overrides: Record<string, unknown> = {}) {
 /**
  * Creates a mock FalkorDB Turn node
  */
-function createMockTurnNode(
-	sequence: number,
-	overrides: Record<string, unknown> = {},
-) {
+function createMockTurnNode(sequence: number, overrides: Record<string, unknown> = {}) {
 	return {
 		id: 10 + sequence,
 		labels: ["Turn"],
@@ -483,11 +478,7 @@ describe("graph-queries", () => {
 
 			// Assert - should have 3 edges from explicit queries
 			expect(result.links).toHaveLength(3);
-			expect(result.links.map((l) => l.type).sort()).toEqual([
-				"HAS_TURN",
-				"INVOKES",
-				"TRIGGERS",
-			]);
+			expect(result.links.map((l) => l.type).sort()).toEqual(["HAS_TURN", "INVOKES", "TRIGGERS"]);
 		});
 
 		it("should handle edges with different property names", async () => {
@@ -675,9 +666,7 @@ describe("graph-queries", () => {
 			const result = await getSessionTimeline("session-123");
 
 			// Assert
-			const toolCallEvents = result.timeline.filter(
-				(e) => e.type === "toolcall",
-			);
+			const toolCallEvents = result.timeline.filter((e) => e.type === "toolcall");
 			expect(toolCallEvents).toHaveLength(1);
 			expect(toolCallEvents[0]).toMatchObject<Partial<TimelineEvent>>({
 				type: "toolcall",
@@ -740,9 +729,7 @@ describe("graph-queries", () => {
 			const result = await getSessionTimeline("session-123");
 
 			// Assert
-			const responseEvents = result.timeline.filter(
-				(e) => e.type === "response",
-			);
+			const responseEvents = result.timeline.filter((e) => e.type === "response");
 			expect(responseEvents).toHaveLength(0);
 		});
 
@@ -855,9 +842,7 @@ describe("graph-queries", () => {
 			const result = await getSessionTimeline("session-123");
 
 			// Assert
-			const toolCallEvents = result.timeline.filter(
-				(e) => e.type === "toolcall",
-			);
+			const toolCallEvents = result.timeline.filter((e) => e.type === "toolcall");
 			expect(toolCallEvents).toHaveLength(0);
 		});
 	});
@@ -1115,10 +1100,7 @@ describe("graph-queries", () => {
 			await getSessionsForWebSocket();
 
 			// Assert
-			expect(mockQuery).toHaveBeenCalledWith(
-				expect.stringContaining("LIMIT"),
-				{ limit: 50 },
-			);
+			expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("LIMIT"), { limit: 50 });
 		});
 
 		it("should respect custom limit", async () => {
@@ -1129,10 +1111,7 @@ describe("graph-queries", () => {
 			await getSessionsForWebSocket(25);
 
 			// Assert
-			expect(mockQuery).toHaveBeenCalledWith(
-				expect.stringContaining("LIMIT"),
-				{ limit: 25 },
-			);
+			expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("LIMIT"), { limit: 25 });
 		});
 
 		it("should use lastEventAt from row when session has no last_event_at", async () => {
@@ -1177,9 +1156,7 @@ describe("graph-queries", () => {
 				},
 			};
 
-			mockQuery.mockResolvedValueOnce([
-				{ s: sessionNode, eventCount: 0, lastEventAt: null },
-			]);
+			mockQuery.mockResolvedValueOnce([{ s: sessionNode, eventCount: 0, lastEventAt: null }]);
 
 			// Act
 			const result = await getSessionsForWebSocket();
@@ -1228,9 +1205,7 @@ describe("graph-queries", () => {
 			mockQuery.mockRejectedValueOnce(new Error("Database connection failed"));
 
 			// Act & Assert
-			await expect(getSessionLineage("session-123")).rejects.toThrow(
-				"Database connection failed",
-			);
+			await expect(getSessionLineage("session-123")).rejects.toThrow("Database connection failed");
 		});
 
 		it("getSessionTimeline should propagate query errors", async () => {
@@ -1238,9 +1213,7 @@ describe("graph-queries", () => {
 			mockQuery.mockRejectedValueOnce(new Error("Query timeout"));
 
 			// Act & Assert
-			await expect(getSessionTimeline("session-123")).rejects.toThrow(
-				"Query timeout",
-			);
+			await expect(getSessionTimeline("session-123")).rejects.toThrow("Query timeout");
 		});
 
 		it("getAllSessions should propagate query errors", async () => {

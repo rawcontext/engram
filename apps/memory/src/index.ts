@@ -1,10 +1,10 @@
-import { type Logger, createNodeLogger, pino } from "@engram/logger";
+import { createNodeLogger, type Logger, pino } from "@engram/logger";
 import { GraphPruner } from "@engram/memory-core";
 import {
-	type GraphClient,
-	type RedisPublisher,
 	createFalkorClient,
 	createKafkaClient,
+	type GraphClient,
+	type RedisPublisher,
 } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -46,16 +46,23 @@ export interface MemoryServiceDeps {
  *   redisPublisher: mockRedis,
  * });
  */
-export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<Omit<MemoryServiceDeps, "turnAggregator" | "graphPruner">> & { turnAggregator: TurnAggregator; graphPruner: GraphPruner } {
-	const logger = deps?.logger ?? createNodeLogger(
-		{
-			service: "memory-service",
-			level: "info",
-			base: { component: "server" },
-			pretty: false,
-		},
-		pino.destination(2),
-	);
+export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
+	Omit<MemoryServiceDeps, "turnAggregator" | "graphPruner">
+> & {
+	turnAggregator: TurnAggregator;
+	graphPruner: GraphPruner;
+} {
+	const logger =
+		deps?.logger ??
+		createNodeLogger(
+			{
+				service: "memory-service",
+				level: "info",
+				base: { component: "server" },
+				pretty: false,
+			},
+			pino.destination(2),
+		);
 
 	const graphClient = deps?.graphClient ?? createFalkorClient();
 	const kafkaClient = deps?.kafkaClient ?? createKafkaClient("memory-service");
@@ -75,17 +82,22 @@ export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<Omit
 					timestamp: new Date().toISOString(),
 				},
 			});
-			logger.debug({ sessionId, nodeId: node.id, nodeType: node.type }, "Published graph node event");
+			logger.debug(
+				{ sessionId, nodeId: node.id, nodeType: node.type },
+				"Published graph node event",
+			);
 		} catch (e) {
 			logger.error({ err: e, sessionId, nodeId: node.id }, "Failed to publish graph node event");
 		}
 	};
 
-	const turnAggregator = deps?.turnAggregator ?? new TurnAggregator({
-		graphClient,
-		logger,
-		onNodeCreated,
-	});
+	const turnAggregator =
+		deps?.turnAggregator ??
+		new TurnAggregator({
+			graphClient,
+			logger,
+			onNodeCreated,
+		});
 
 	return {
 		graphClient,

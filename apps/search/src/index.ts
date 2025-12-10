@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { type Logger, createNodeLogger } from "@engram/logger";
+import { createNodeLogger, type Logger } from "@engram/logger";
 import { SchemaManager, SearchIndexer, SearchRetriever } from "@engram/search-core";
 import { createKafkaClient } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";
@@ -48,18 +48,29 @@ export class SearchService {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		kafkaClientArg?: any,
 	) {
-		if (depsOrRetriever === undefined || (typeof depsOrRetriever === "object" && "retriever" in depsOrRetriever === false && "search" in depsOrRetriever === false && indexerArg === undefined)) {
+		if (
+			depsOrRetriever === undefined ||
+			(typeof depsOrRetriever === "object" &&
+				"retriever" in depsOrRetriever === false &&
+				"search" in depsOrRetriever === false &&
+				indexerArg === undefined)
+		) {
 			// New deps object constructor or empty
 			const deps = (depsOrRetriever ?? {}) as SearchServiceDeps;
 			this.retriever = deps.retriever ?? new SearchRetriever();
 			this.indexer = deps.indexer ?? new SearchIndexer();
 			this.schemaManager = deps.schemaManager ?? new SchemaManager();
 			this.kafkaClient = deps.kafkaClient ?? createKafkaClient("search-service");
-			this.logger = deps.logger ?? createNodeLogger({
-				service: "search-service",
-				base: { component: "main" },
-			});
-		} else if ("search" in depsOrRetriever && typeof (depsOrRetriever as SearchRetriever).search === "function") {
+			this.logger =
+				deps.logger ??
+				createNodeLogger({
+					service: "search-service",
+					base: { component: "main" },
+				});
+		} else if (
+			"search" in depsOrRetriever &&
+			typeof (depsOrRetriever as SearchRetriever).search === "function"
+		) {
 			// Legacy constructor: positional args
 			this.retriever = depsOrRetriever as SearchRetriever;
 			this.indexer = indexerArg!;
@@ -76,10 +87,12 @@ export class SearchService {
 			this.indexer = deps.indexer ?? new SearchIndexer();
 			this.schemaManager = deps.schemaManager ?? new SchemaManager();
 			this.kafkaClient = deps.kafkaClient ?? createKafkaClient("search-service");
-			this.logger = deps.logger ?? createNodeLogger({
-				service: "search-service",
-				base: { component: "main" },
-			});
+			this.logger =
+				deps.logger ??
+				createNodeLogger({
+					service: "search-service",
+					base: { component: "main" },
+				});
 		}
 	}
 

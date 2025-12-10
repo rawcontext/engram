@@ -1,10 +1,14 @@
-import { type Logger, createNodeLogger } from "@engram/logger";
-import { type FalkorClient, type GraphClient, createFalkorClient } from "@engram/storage";
+import { createNodeLogger, type Logger } from "@engram/logger";
+import { createFalkorClient, type FalkorClient, type GraphClient } from "@engram/storage";
 import type { ContextAssembler } from "../context/assembler";
 import { createContextAssembler } from "../context/assembler";
 import { DecisionEngine } from "../engine/decision";
 import type { MultiMcpAdapter } from "../tools/mcp_client";
-import { type SessionInitializerDeps, SessionInitializer, createSessionInitializer } from "./initializer";
+import {
+	createSessionInitializer,
+	SessionInitializer,
+	type SessionInitializerDeps,
+} from "./initializer";
 
 /**
  * Dependencies for SessionManager construction.
@@ -53,10 +57,12 @@ export class SessionManager {
 			this.contextAssembler = deps.contextAssembler ?? createContextAssembler({ graphClient });
 			this.mcpAdapter = deps.mcpAdapter;
 			this.initializer = deps.sessionInitializer ?? createSessionInitializer({ graphClient });
-			this.logger = deps.logger ?? createNodeLogger({
-				service: "control-service",
-				base: { component: "session-manager" },
-			});
+			this.logger =
+				deps.logger ??
+				createNodeLogger({
+					service: "control-service",
+					base: { component: "session-manager" },
+				});
 		} else {
 			// Legacy constructor: (contextAssembler, mcpAdapter, falkor)
 			this.contextAssembler = depsOrAssembler as ContextAssembler;
