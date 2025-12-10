@@ -1,24 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
 import { ContextAssembler } from "../../apps/control/src/context/assembler";
 import { DecisionEngine } from "../../apps/control/src/engine/decision";
-import { McpToolAdapter } from "../../apps/control/src/tools/mcp_client";
+import { McpToolAdapter, MultiMcpAdapter } from "../../apps/control/src/tools/mcp_client";
 // Import directly from source to avoid resolution issues in test environment without build
 import { ThinkingExtractor } from "../../packages/ingestion-core/src/index";
 
 // Mocks
-const mockMcp = new McpToolAdapter("echo", []);
-mockMcp.connect = vi.fn(async () => {});
-mockMcp.listTools = vi.fn(async () => [{ name: "read_file", description: "read", parameters: {} }]);
-mockMcp.createMastraStep = vi.fn(
-	(name) =>
-		({
-			id: name,
-			execute: async ({ inputData }: { inputData: unknown }) => {
-				console.log(`[MockExecution] Tool ${name} called with`, inputData);
-				return { result: "success" };
-			},
-		}) as ReturnType<typeof mockMcp.createMastraStep>,
-);
+const mockMcp = new MultiMcpAdapter();
+const mockAdapter = new McpToolAdapter("echo", []);
+mockAdapter.connect = vi.fn(async () => {});
+mockAdapter.listTools = vi.fn(async () => [{ name: "read_file", description: "read" }]);
+mockAdapter.callTool = vi.fn(async (name, args) => {
+	console.log(`[MockExecution] Tool ${name} called with`, args);
+	return { content: [{ type: "text", text: "success" }] };
+});
+mockMcp.addAdapter(mockAdapter);
+mockMcp.callTool = vi.fn(async (name, args) => mockAdapter.callTool(name, args));
+mockMcp.listTools = vi.fn(async () => [{ name: "read_file", description: "read" }]);
 
 const mockFalkor = {
 	connect: vi.fn(async () => {}),

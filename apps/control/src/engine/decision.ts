@@ -37,6 +37,7 @@ function convertMcpToolsToAiSdk(
 
 	for (const mcpTool of mcpTools) {
 		// Use tool() with passthrough schema for dynamic MCP tools
+		// @ts-expect-error - AI SDK tool() has deep type inference issues with passthrough schemas
 		aiTools[mcpTool.name] = tool({
 			description: mcpTool.description || `Execute ${mcpTool.name}`,
 			inputSchema: z.object({}).passthrough(),
@@ -174,17 +175,7 @@ export class DecisionEngine {
 						const ctx = input as AgentContext;
 						const results = [];
 						for (const call of ctx.currentToolCalls) {
-							// Mastra Step execute expects { inputData: ... }
-							// We use execute() directly on the step object?
-							// createMastraStep returns a Step object.
-							// .execute() on a Step object might not be public or simple?
-							// It is `step.execute({ inputData })`.
-							// We need to cast args to inputData.
-							const step = this.mcpAdapter.createMastraStep(call.toolName);
-							const executeStep = step as unknown as {
-								execute: (opts: { inputData: unknown }) => Promise<unknown>;
-							};
-							const result = await executeStep.execute({ inputData: call.args });
+							const result = await this.mcpAdapter.callTool(call.toolName, call.args);
 							results.push(result);
 						}
 						return { toolOutputs: results };

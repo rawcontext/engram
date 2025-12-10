@@ -1,7 +1,5 @@
-import { createStep } from "@mastra/core/workflows";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { z } from "zod";
 
 export class McpToolAdapter {
 	public client: Client;
@@ -26,26 +24,8 @@ export class McpToolAdapter {
 		return result.tools;
 	}
 
-	// Convert MCP Tool to Mastra Step
-	createMastraStep(toolName: string) {
-		// Input schema is required. For V1 dynamic tools, we use z.any() or generic object.
-		const inputSchema = z.object({}).passthrough();
-		const outputSchema = z.object({}).passthrough();
-
-		const executeFn = async ({ context }: { context: unknown }) => {
-			const result = await this.client.callTool({
-				name: toolName,
-				arguments: context as Record<string, unknown>,
-			});
-			return result;
-		};
-
-		return createStep({
-			id: toolName,
-			inputSchema,
-			outputSchema,
-			execute: executeFn as typeof executeFn & (() => Promise<Record<string, unknown>>),
-		});
+	async callTool(toolName: string, args: Record<string, unknown>) {
+		return this.client.callTool({ name: toolName, arguments: args });
 	}
 }
 
@@ -76,12 +56,12 @@ export class MultiMcpAdapter {
 		}
 	}
 
-	createMastraStep(toolName: string) {
+	async callTool(toolName: string, args: Record<string, unknown>) {
 		const adapter = this.toolMap.get(toolName);
 		if (!adapter) {
 			throw new Error(`Tool ${toolName} not found in any connected MCP server`);
 		}
-		return adapter.createMastraStep(toolName);
+		return adapter.callTool(toolName, args);
 	}
 
 	async listTools() {

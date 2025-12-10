@@ -19,11 +19,6 @@ vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => ({
 	StdioClientTransport: class {},
 }));
 
-// Mock Mastra
-vi.mock("@mastra/core/workflows", () => ({
-	createStep: (obj: Record<string, unknown>) => ({ ...obj, _isStep: true }),
-}));
-
 describe("MCP Client", () => {
 	beforeEach(() => {
 		mockConnect.mockClear();
@@ -43,15 +38,9 @@ describe("MCP Client", () => {
 			expect(tools[0].name).toBe("test-tool");
 		});
 
-		it("should create mastra step", async () => {
+		it("should call tool directly", async () => {
 			const adapter = new McpToolAdapter("echo");
-			const step = adapter.createMastraStep("test-tool");
-			expect(step).toHaveProperty("id", "test-tool");
-			expect(step).toHaveProperty("_isStep", true);
-
-			// Test execution logic wrapper
-			const executableStep = step as { execute: (opts: { context: unknown }) => Promise<unknown> };
-			await executableStep.execute({ context: { arg: 1 } });
+			await adapter.callTool("test-tool", { arg: 1 });
 			expect(mockCallTool).toHaveBeenCalledWith({
 				name: "test-tool",
 				arguments: { arg: 1 },
@@ -78,19 +67,22 @@ describe("MCP Client", () => {
 			expect(tools).toHaveLength(2); // 1 from each
 		});
 
-		it("should dispatch step creation to correct adapter", async () => {
+		it("should dispatch tool call to correct adapter", async () => {
 			const multi = new MultiMcpAdapter();
 			const adapter = new McpToolAdapter("echo");
 			multi.addAdapter(adapter);
 			await multi.connectAll(); // populate map
 
-			const step = multi.createMastraStep("test-tool");
-			expect(step.id).toBe("test-tool");
+			await multi.callTool("test-tool", { arg: 1 });
+			expect(mockCallTool).toHaveBeenCalledWith({
+				name: "test-tool",
+				arguments: { arg: 1 },
+			});
 		});
 
-		it("should throw if tool not found", () => {
+		it("should throw if tool not found", async () => {
 			const multi = new MultiMcpAdapter();
-			expect(() => multi.createMastraStep("missing")).toThrow("not found");
+			await expect(multi.callTool("missing", {})).rejects.toThrow("not found");
 		});
 	});
 });

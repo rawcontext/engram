@@ -4,7 +4,6 @@
 	"type": "module",
 	"dependencies": {
 		"@ai-sdk/xai": "^2.0.39",
-		"@mastra/core": "^0.24.6",
 		"@modelcontextprotocol/sdk": "^1.24.3",
 		"@engram/logger": "*",
 		"@engram/memory-core": "*",
