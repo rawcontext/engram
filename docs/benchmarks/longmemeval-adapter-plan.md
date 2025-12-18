@@ -1,7 +1,8 @@
 # LongMemEval Benchmark Adapter for Engram
 
-> **Status**: Planning
+> **Status**: In Progress (Milestones 1-3 Complete)
 > **Created**: 2025-12-18
+> **Updated**: 2025-12-18
 > **Benchmark**: [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (ICLR 2025)
 
 ## Executive Summary

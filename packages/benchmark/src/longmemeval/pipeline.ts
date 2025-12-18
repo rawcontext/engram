@@ -219,6 +219,7 @@ export class BenchmarkPipeline {
 				instance.question,
 				retrieved.documents,
 				instance.questionDate,
+				retrieved.scores,
 			);
 
 			// Store result
