@@ -10,3 +10,10 @@ coverage
 bun.lockb
 docs/_/
 *.tsbuildinfo
+
+# Beads local files
+.beads/.local_version
+
+# Benchmark artifacts
+packages/benchmark/results/
+packages/benchmark/*-report.md
