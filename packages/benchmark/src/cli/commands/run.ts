@@ -27,6 +27,9 @@ interface RunOptions {
 	qdrantUrl?: string;
 	ollamaUrl?: string;
 	ollamaModel?: string;
+	// Milestone 2 optimizations
+	keyExpansion: boolean;
+	temporalAnalysis: boolean;
 }
 
 export async function runCommand(benchmark: string, options: RunOptions): Promise<void> {
@@ -47,6 +50,8 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 	console.log(`  Time-Aware: ${options.timeAware}`);
 	console.log(`  Embeddings: ${options.embeddings}`);
 	console.log(`  LLM: ${options.llm}`);
+	console.log(`  Key Expansion: ${options.keyExpansion}`);
+	console.log(`  Temporal Analysis: ${options.temporalAnalysis}`);
 	if (options.limit) {
 		console.log(`  Limit: ${options.limit} instances`);
 	}
@@ -69,6 +74,14 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 		},
 		reader: {
 			chainOfNote: options.chainOfNote,
+		},
+		// Milestone 2 optimizations
+		keyExpansion: {
+			enabled: options.keyExpansion,
+			types: ["keyphrase", "userfact"],
+		},
+		temporal: {
+			enabled: options.temporalAnalysis,
 		},
 		onProgress: (progress: PipelineProgress) => {
 			if (options.verbose) {

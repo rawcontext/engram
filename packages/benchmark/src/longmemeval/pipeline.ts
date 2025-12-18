@@ -1,5 +1,10 @@
 import { loadDataset, type LoaderConfig } from "./loader.js";
-import { mapInstance, type MapperConfig, DEFAULT_MAPPER_CONFIG } from "./mapper.js";
+import {
+	mapInstance,
+	type MapperConfig,
+	DEFAULT_MAPPER_CONFIG,
+	type EngramDocument,
+} from "./mapper.js";
 import {
 	Retriever,
 	type RetrieverConfig,
@@ -15,6 +20,8 @@ import {
 	formatMetricsReport,
 	resultsToJsonl,
 } from "./evaluator.js";
+import { KeyExpander, type KeyExpansionConfig, type ExpansionType } from "./key-expansion.js";
+import { TemporalAnalyzer, type TemporalConfig, filterByTimeRange } from "./temporal.js";
 import type { BenchmarkResult, EvaluationMetrics, ParsedInstance } from "./types.js";
 
 /**
@@ -31,6 +38,10 @@ export interface PipelineConfig {
 	reader?: Partial<ReaderConfig>;
 	/** Evaluator configuration */
 	evaluator?: Partial<EvaluatorConfig>;
+	/** Key expansion configuration (Milestone 2) */
+	keyExpansion?: Partial<KeyExpansionConfig> & { enabled?: boolean };
+	/** Temporal analysis configuration (Milestone 2) */
+	temporal?: Partial<TemporalConfig> & { enabled?: boolean };
 	/** Progress callback */
 	onProgress?: (progress: PipelineProgress) => void;
 }
@@ -122,6 +133,14 @@ export class BenchmarkPipeline {
 		const reader = new Reader(this.llm, readerConfig);
 		const evaluator = new Evaluator(evaluatorConfig, this.llm);
 
+		// Initialize optional Milestone 2 components
+		const keyExpander = this.config.keyExpansion?.enabled
+			? new KeyExpander({ ...this.config.keyExpansion, llm: this.llm })
+			: null;
+		const temporalAnalyzer = this.config.temporal?.enabled
+			? new TemporalAnalyzer({ ...this.config.temporal, llm: this.llm })
+			: null;
+
 		// Process each instance
 		const results: BenchmarkResult[] = [];
 		const details: InstanceDetail[] = [];
@@ -139,7 +158,15 @@ export class BenchmarkPipeline {
 			});
 
 			const mapped = mapInstance(instance, mapperConfig);
-			await retriever.indexInstance(mapped);
+
+			// Apply key expansion if enabled (Milestone 2)
+			let documentsToIndex: EngramDocument[] = mapped.documents;
+			if (keyExpander) {
+				const expanded = await keyExpander.expandBatch(mapped.documents);
+				documentsToIndex = expanded;
+			}
+
+			await retriever.indexInstance({ ...mapped, documents: documentsToIndex });
 
 			// Stage 3: Retrieve
 			onProgress?.({
@@ -149,7 +176,34 @@ export class BenchmarkPipeline {
 				message: `Retrieving for ${instance.questionId}`,
 			});
 
-			const retrieved = await retriever.retrieve(instance.question, instance.questionDate);
+			// Apply temporal analysis if enabled (Milestone 2)
+			let queryForRetrieval = instance.question;
+			let temporalTimeRange: { start: Date; end: Date } | undefined;
+
+			if (temporalAnalyzer) {
+				const temporalAnalysis = await temporalAnalyzer.analyze(
+					instance.question,
+					instance.questionDate,
+				);
+				queryForRetrieval = temporalAnalysis.expandedQuery;
+				temporalTimeRange = temporalAnalysis.timeRange;
+			}
+
+			let retrieved = await retriever.retrieve(queryForRetrieval, instance.questionDate);
+
+			// Apply temporal filtering if we have a time range
+			if (temporalTimeRange && retrieved.documents.length > 0) {
+				const filtered = filterByTimeRange(retrieved.documents, temporalTimeRange);
+				// Only use filtered if we have enough results
+				if (filtered.length >= Math.min(3, retrieved.documents.length / 2)) {
+					retrieved = {
+						...retrieved,
+						documents: filtered,
+						retrievedIds: filtered.map((d) => d.id),
+						scores: retrieved.scores.slice(0, filtered.length),
+					};
+				}
+			}
 
 			const retrievalMetrics = computeRetrievalMetrics(retrieved, mapped.evidenceDocIds);
 

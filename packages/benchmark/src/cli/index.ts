@@ -31,6 +31,9 @@ program
 	.option("--qdrant-url <url>", "Qdrant server URL", "http://localhost:6333")
 	.option("--ollama-url <url>", "Ollama server URL", "http://localhost:11434")
 	.option("--ollama-model <model>", "Ollama model name", "llama3.2")
+	// Milestone 2 optimizations
+	.option("--key-expansion", "Enable key expansion with fact extraction (+9% recall)", false)
+	.option("--temporal-analysis", "Enable improved temporal query analysis (+7-11% on TR)", false)
 	.action(runCommand);
 
 // Evaluate results command

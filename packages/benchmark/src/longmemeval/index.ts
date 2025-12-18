@@ -17,6 +17,10 @@ export * from "./retriever.js";
 export * from "./reader.js";
 export * from "./evaluator.js";
 
+// Optimizations (Milestone 2)
+export * from "./key-expansion.js";
+export * from "./temporal.js";
+
 // Pipeline
 export * from "./pipeline.js";
 
