@@ -1,0 +1,27 @@
+{
+	"name": "@engram/benchmark",
+	"version": "0.0.0",
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"bin": {
+		"engram-benchmark": "./src/cli/index.ts"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3",
+		"@types/node": "^24.10.1",
+		"@engram/tsconfig": "*"
+	},
+	"dependencies": {
+		"zod": "^4.1.13",
+		"@engram/memory-core": "*",
+		"@engram/search-core": "*",
+		"@engram/storage": "*",
+		"commander": "^14.0.0"
+	},
+	"scripts": {
+		"build": "echo 'Build success'",
+		"typecheck": "tsc --noEmit",
+		"benchmark": "tsx src/cli/index.ts"
+	}
+}
