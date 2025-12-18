@@ -6,3 +6,4 @@
 
 export * from "./qdrant-provider.js";
 export * from "./anthropic-provider.js";
+export * from "./engram-provider.js";

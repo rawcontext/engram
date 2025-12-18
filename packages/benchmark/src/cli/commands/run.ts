@@ -1,7 +1,12 @@
 import { writeFile } from "node:fs/promises";
-import { BenchmarkPipeline, type PipelineProgress } from "../../longmemeval/pipeline.js";
+import {
+	BenchmarkPipeline,
+	type PipelineProgress,
+	type CustomRetriever,
+} from "../../longmemeval/pipeline.js";
 import { StubEmbeddingProvider, StubLLMProvider } from "../../longmemeval/reader.js";
 import { QdrantEmbeddingProvider } from "../../longmemeval/providers/qdrant-provider.js";
+import { EngramRetriever } from "../../longmemeval/providers/engram-provider.js";
 import {
 	AnthropicProvider,
 	OllamaProvider,
@@ -30,6 +35,11 @@ interface RunOptions {
 	// Milestone 2 optimizations
 	keyExpansion: boolean;
 	temporalAnalysis: boolean;
+	// Engram full pipeline options
+	rerank: boolean;
+	rerankTier: string;
+	rerankDepth: number;
+	hybridSearch: boolean;
 }
 
 export async function runCommand(benchmark: string, options: RunOptions): Promise<void> {
@@ -52,6 +62,14 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 	console.log(`  LLM: ${options.llm}`);
 	console.log(`  Key Expansion: ${options.keyExpansion}`);
 	console.log(`  Temporal Analysis: ${options.temporalAnalysis}`);
+	if (options.embeddings === "engram") {
+		console.log(`  Hybrid Search: ${options.hybridSearch}`);
+		console.log(`  Rerank: ${options.rerank}`);
+		if (options.rerank) {
+			console.log(`  Rerank Tier: ${options.rerankTier}`);
+			console.log(`  Rerank Depth: ${options.rerankDepth}`);
+		}
+	}
 	if (options.limit) {
 		console.log(`  Limit: ${options.limit} instances`);
 	}
@@ -60,6 +78,7 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 	// Initialize providers
 	const embeddings = createEmbeddingProvider(options);
 	const llm = createLLMProvider(options);
+	const customRetriever = createCustomRetriever(options);
 
 	const pipeline = new BenchmarkPipeline(embeddings, llm, {
 		loader: {
@@ -83,6 +102,8 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 		temporal: {
 			enabled: options.temporalAnalysis,
 		},
+		// Custom retriever for Engram full pipeline
+		customRetriever,
 		onProgress: (progress: PipelineProgress) => {
 			if (options.verbose) {
 				console.log(
@@ -127,6 +148,19 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
  */
 function createEmbeddingProvider(options: RunOptions): EmbeddingProvider {
 	switch (options.embeddings) {
+		case "engram":
+			// Engram uses custom retriever, but we still need a stub for pipeline init
+			console.log("🚀 Using Engram full pipeline (search-core)");
+			console.log("   - Dense: E5-small (384d)");
+			if (options.hybridSearch) {
+				console.log("   - Sparse: SPLADE");
+				console.log("   - Fusion: RRF");
+			}
+			if (options.rerank) {
+				console.log(`   - Reranker: ${options.rerankTier} tier`);
+			}
+			return new StubEmbeddingProvider(); // Pipeline uses customRetriever instead
+
 		case "qdrant":
 		case "e5":
 			console.log("📦 Using Qdrant/E5 embeddings (HuggingFace transformers)");
@@ -139,6 +173,24 @@ function createEmbeddingProvider(options: RunOptions): EmbeddingProvider {
 			console.log("⚠️  Using stub embeddings (random vectors)");
 			return new StubEmbeddingProvider();
 	}
+}
+
+/**
+ * Create custom retriever for Engram full pipeline
+ */
+function createCustomRetriever(options: RunOptions): CustomRetriever | undefined {
+	if (options.embeddings !== "engram") {
+		return undefined;
+	}
+
+	return new EngramRetriever({
+		qdrantUrl: options.qdrantUrl ?? "http://localhost:6333",
+		hybridSearch: options.hybridSearch,
+		rerank: options.rerank,
+		rerankTier: options.rerankTier as "fast" | "accurate" | "code" | "colbert",
+		rerankDepth: options.rerankDepth,
+		topK: options.topK,
+	});
 }
 
 /**

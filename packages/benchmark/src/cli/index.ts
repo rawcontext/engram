@@ -26,7 +26,7 @@ program
 	.option("--time-aware", "Enable time-aware query expansion", false)
 	.option("--verbose", "Show detailed progress", false)
 	// Provider options
-	.option("--embeddings <provider>", "Embedding provider (stub, qdrant, e5)", "stub")
+	.option("--embeddings <provider>", "Embedding provider (stub, qdrant, e5, engram)", "stub")
 	.option("--llm <provider>", "LLM provider (stub, anthropic, openai, ollama)", "stub")
 	.option("--qdrant-url <url>", "Qdrant server URL", "http://localhost:6333")
 	.option("--ollama-url <url>", "Ollama server URL", "http://localhost:11434")
@@ -34,6 +34,11 @@ program
 	// Milestone 2 optimizations
 	.option("--key-expansion", "Enable key expansion with fact extraction (+9% recall)", false)
 	.option("--temporal-analysis", "Enable improved temporal query analysis (+7-11% on TR)", false)
+	// Engram full pipeline options (when --embeddings engram)
+	.option("--rerank", "Enable reranking (requires --embeddings engram)", false)
+	.option("--rerank-tier <tier>", "Reranker tier: fast, accurate, code, colbert", "fast")
+	.option("--rerank-depth <n>", "Candidates to fetch before reranking", Number.parseInt, 30)
+	.option("--hybrid-search", "Enable hybrid search with RRF (requires --embeddings engram)", true)
 	.action(runCommand);
 
 // Evaluate results command

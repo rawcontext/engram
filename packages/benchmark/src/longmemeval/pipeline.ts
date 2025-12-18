@@ -4,6 +4,7 @@ import {
 	type MapperConfig,
 	DEFAULT_MAPPER_CONFIG,
 	type EngramDocument,
+	type MappedInstance,
 } from "./mapper.js";
 import {
 	Retriever,
@@ -11,6 +12,7 @@ import {
 	DEFAULT_RETRIEVER_CONFIG,
 	computeRetrievalMetrics,
 	type EmbeddingProvider,
+	type RetrievalResult,
 } from "./retriever.js";
 import { Reader, type ReaderConfig, DEFAULT_READER_CONFIG, type LLMProvider } from "./reader.js";
 import {
@@ -23,6 +25,15 @@ import {
 import { KeyExpander, type KeyExpansionConfig, type ExpansionType } from "./key-expansion.js";
 import { TemporalAnalyzer, type TemporalConfig, filterByTimeRange } from "./temporal.js";
 import type { BenchmarkResult, EvaluationMetrics, ParsedInstance } from "./types.js";
+
+/**
+ * Interface for custom retrievers (e.g., EngramRetriever)
+ */
+export interface CustomRetriever {
+	indexInstance(mapped: MappedInstance): Promise<void>;
+	retrieve(question: string, questionDate?: Date): Promise<RetrievalResult>;
+	clear(): void;
+}
 
 /**
  * Full pipeline configuration
@@ -44,6 +55,8 @@ export interface PipelineConfig {
 	temporal?: Partial<TemporalConfig> & { enabled?: boolean };
 	/** Progress callback */
 	onProgress?: (progress: PipelineProgress) => void;
+	/** Optional custom retriever (overrides default) */
+	customRetriever?: CustomRetriever;
 }
 
 /**
@@ -129,7 +142,9 @@ export class BenchmarkPipeline {
 		const readerConfig = { ...DEFAULT_READER_CONFIG, ...this.config.reader };
 		const evaluatorConfig = { ...DEFAULT_EVALUATOR_CONFIG, ...this.config.evaluator };
 
-		const retriever = new Retriever(this.embeddings, retrieverConfig);
+		// Use custom retriever if provided, otherwise create default
+		const retriever =
+			this.config.customRetriever ?? new Retriever(this.embeddings, retrieverConfig);
 		const reader = new Reader(this.llm, readerConfig);
 		const evaluator = new Evaluator(evaluatorConfig, this.llm);
 

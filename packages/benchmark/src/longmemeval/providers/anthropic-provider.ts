@@ -122,7 +122,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
 	) {
 		this.baseUrl = config.baseUrl ?? "https://api.openai.com/v1";
 		this.apiKey = config.apiKey ?? process.env.OPENAI_API_KEY ?? "";
-		this.model = config.model ?? "gpt-4o-mini";
+		this.model = config.model ?? "gpt-5-mini";
 	}
 
 	async complete(prompt: string, options?: LLMOptions): Promise<LLMResponse> {
