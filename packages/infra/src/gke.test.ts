@@ -5,10 +5,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { getOutputValue, getResource, getResourcesByType } from "./testing";
-
 // Import the infrastructure modules - mocks are already set up in vitest.setup.ts
 import * as infra from "./gke";
+import { getOutputValue, getResource, getResourcesByType } from "./testing";
 
 describe("GKE Infrastructure", () => {
 	describe("GKE Autopilot Cluster", () => {

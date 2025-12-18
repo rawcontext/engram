@@ -5,10 +5,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { getResource, getResourcesByType } from "./testing";
-
 // Import the infrastructure modules - mocks are already set up in vitest.setup.ts
 import * as infra from "./secrets";
+import { getResource, getResourcesByType } from "./testing";
 
 describe("Secret Management", () => {
 	describe("OpenAI API Key Secret", () => {

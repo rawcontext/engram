@@ -14,14 +14,12 @@
  * for Helm values files.
  */
 
-// Re-export network resources
-export { network, subnet, router, nat } from "./network";
+// Re-export configuration for reference
+export { commonLabels, environment, gcpProject, gcpRegion } from "./config";
 
 // Re-export GKE resources
 export { cluster, kubeconfig } from "./gke";
-
+// Re-export network resources
+export { nat, network, router, subnet } from "./network";
 // Re-export secrets
-export { openaiApiKeySecret, anthropicApiKeySecret, xaiApiKeySecret } from "./secrets";
-
-// Re-export configuration for reference
-export { gcpProject, gcpRegion, environment, commonLabels } from "./config";
+export { anthropicApiKeySecret, openaiApiKeySecret, xaiApiKeySecret } from "./secrets";
