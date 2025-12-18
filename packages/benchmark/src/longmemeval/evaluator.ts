@@ -505,24 +505,30 @@ export function formatMetricsReport(metrics: EvaluationMetrics): string {
 		lines.push("");
 		lines.push("## Retrieval Metrics");
 		lines.push("");
-		lines.push(`- Turn Recall: ${(metrics.retrieval.turnRecall * 100).toFixed(1)}%`);
-		lines.push(`- Session Recall: ${(metrics.retrieval.sessionRecall * 100).toFixed(1)}%`);
-		lines.push(`- MRR: ${metrics.retrieval.mrr.toFixed(3)}`);
+		lines.push(`- Turn Recall: ${((metrics.retrieval.turnRecall ?? 0) * 100).toFixed(1)}%`);
+		lines.push(`- Session Recall: ${((metrics.retrieval.sessionRecall ?? 0) * 100).toFixed(1)}%`);
+		if (metrics.retrieval.mrr !== undefined) {
+			lines.push(`- MRR: ${metrics.retrieval.mrr.toFixed(3)}`);
+		}
 		lines.push("");
 		lines.push("### Recall@K");
 		lines.push("");
 		lines.push("| K | Recall |");
 		lines.push("|--:|-------:|");
-		for (const [k, recall] of Object.entries(metrics.retrieval.recallAtK)) {
-			lines.push(`| ${k} | ${(recall * 100).toFixed(1)}% |`);
+		if (metrics.retrieval.recallAtK) {
+			for (const [k, recall] of Object.entries(metrics.retrieval.recallAtK)) {
+				lines.push(`| ${k} | ${((recall ?? 0) * 100).toFixed(1)}% |`);
+			}
 		}
-		lines.push("");
-		lines.push("### NDCG@K");
-		lines.push("");
-		lines.push("| K | NDCG |");
-		lines.push("|--:|-----:|");
-		for (const [k, ndcg] of Object.entries(metrics.retrieval.ndcgAtK)) {
-			lines.push(`| ${k} | ${ndcg.toFixed(3)} |`);
+		if (metrics.retrieval.ndcgAtK) {
+			lines.push("");
+			lines.push("### NDCG@K");
+			lines.push("");
+			lines.push("| K | NDCG |");
+			lines.push("|--:|-----:|");
+			for (const [k, ndcg] of Object.entries(metrics.retrieval.ndcgAtK)) {
+				lines.push(`| ${k} | ${(ndcg ?? 0).toFixed(3)} |`);
+			}
 		}
 	}
 

@@ -382,6 +382,11 @@ JSON response:`;
  * Format a date range for display
  */
 function formatDateRange(start: Date, end: Date): string {
+	// Validate dates before formatting
+	if (!isValidDate(start) || !isValidDate(end)) {
+		return "unknown date range";
+	}
+
 	const startStr = start.toISOString().split("T")[0];
 	const endStr = end.toISOString().split("T")[0];
 
@@ -390,6 +395,13 @@ function formatDateRange(start: Date, end: Date): string {
 	}
 
 	return `${startStr} to ${endStr}`;
+}
+
+/**
+ * Check if a date is valid
+ */
+function isValidDate(date: Date): boolean {
+	return date instanceof Date && !Number.isNaN(date.getTime());
 }
 
 /**

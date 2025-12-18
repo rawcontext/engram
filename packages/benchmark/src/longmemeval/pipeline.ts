@@ -270,6 +270,8 @@ export class BenchmarkPipeline {
 			turnRecall: avgRetrievalRecall,
 			sessionRecall: avgRetrievalRecall, // Simplified for MVP
 			recallAtK: { 1: 0, 5: 0, 10: avgRetrievalRecall }, // Simplified for MVP
+			ndcgAtK: { 1: 0, 5: 0, 10: avgRetrievalRecall }, // Simplified for MVP
+			mrr: avgRetrievalRecall, // Simplified for MVP
 		};
 
 		onProgress?.({
