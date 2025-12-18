@@ -1,0 +1,310 @@
+name: Benchmark
+
+on:
+  # Run on schedule (weekly on Sunday at midnight)
+  schedule:
+    - cron: "0 0 * * 0"
+
+  # Run on manual trigger
+  workflow_dispatch:
+    inputs:
+      dataset_variant:
+        description: "Dataset variant (s=small, m=medium, oracle)"
+        required: false
+        default: "oracle"
+        type: choice
+        options:
+          - oracle
+          - s
+          - m
+      limit:
+        description: "Limit number of instances (0 = no limit)"
+        required: false
+        default: "10"
+        type: string
+      compare_baseline:
+        description: "Compare against baseline"
+        required: false
+        default: true
+        type: boolean
+
+  # Run on PRs that modify benchmark code
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/benchmark/**"
+      - ".github/workflows/benchmark.yml"
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Download LongMemEval dataset
+        run: |
+          mkdir -p packages/benchmark/data
+          cd packages/benchmark/data
+
+          # Download oracle dataset (smallest, for quick validation)
+          if [ ! -f "longmemeval_oracle.json" ]; then
+            echo "Downloading LongMemEval oracle dataset..."
+            curl -L -o longmemeval_oracle.json \
+              "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_oracle.json"
+          fi
+
+          # Download small dataset if requested
+          VARIANT="${{ inputs.dataset_variant || 'oracle' }}"
+          if [ "$VARIANT" = "s" ] && [ ! -f "longmemeval_s_cleaned.json" ]; then
+            echo "Downloading LongMemEval small dataset..."
+            curl -L -o longmemeval_s_cleaned.json \
+              "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json"
+          fi
+
+      - name: Validate dataset
+        run: |
+          cd packages/benchmark
+          VARIANT="${{ inputs.dataset_variant || 'oracle' }}"
+          if [ "$VARIANT" = "oracle" ]; then
+            npx tsx src/cli/index.ts validate data/longmemeval_oracle.json
+          elif [ "$VARIANT" = "s" ]; then
+            npx tsx src/cli/index.ts validate data/longmemeval_s_cleaned.json
+          fi
+
+      - name: Run benchmark (stub providers)
+        id: benchmark
+        run: |
+          cd packages/benchmark
+          mkdir -p results
+
+          VARIANT="${{ inputs.dataset_variant || 'oracle' }}"
+          LIMIT="${{ inputs.limit || '10' }}"
+          DATASET_FILE="data/longmemeval_oracle.json"
+
+          if [ "$VARIANT" = "s" ]; then
+            DATASET_FILE="data/longmemeval_s_cleaned.json"
+          fi
+
+          # Run benchmark with stub providers (for CI testing)
+          LIMIT_ARG=""
+          if [ "$LIMIT" != "0" ]; then
+            LIMIT_ARG="--limit $LIMIT"
+          fi
+
+          npx tsx src/cli/index.ts run longmemeval \
+            --dataset "$DATASET_FILE" \
+            --variant "$VARIANT" \
+            --output results/benchmark-results.jsonl \
+            --embeddings stub \
+            --llm stub \
+            --chain-of-note \
+            --key-expansion \
+            --temporal-analysis \
+            --verbose \
+            $LIMIT_ARG 2>&1 | tee results/benchmark-output.txt
+
+          # Extract metrics from output for summary
+          echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Dataset:** $VARIANT" >> $GITHUB_STEP_SUMMARY
+          echo "**Instances:** $LIMIT" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -50 results/benchmark-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Save metrics JSON
+        run: |
+          cd packages/benchmark
+          # Create a structured metrics file
+          node -e "
+            const fs = require('fs');
+            const output = fs.readFileSync('results/benchmark-output.txt', 'utf8');
+
+            // Parse accuracy from output
+            const accMatch = output.match(/Accuracy:\s*([\d.]+)%/);
+            const accuracy = accMatch ? parseFloat(accMatch[1]) : 0;
+
+            const metrics = {
+              timestamp: new Date().toISOString(),
+              variant: '${{ inputs.dataset_variant || 'oracle' }}',
+              limit: parseInt('${{ inputs.limit || '10' }}') || null,
+              accuracy: accuracy,
+              commit: '${{ github.sha }}',
+              branch: '${{ github.ref_name }}',
+              workflow_run: '${{ github.run_id }}'
+            };
+
+            fs.writeFileSync('results/metrics.json', JSON.stringify(metrics, null, 2));
+            console.log('Metrics:', JSON.stringify(metrics, null, 2));
+          "
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.run_id }}
+          path: |
+            packages/benchmark/results/benchmark-results.jsonl
+            packages/benchmark/results/benchmark-output.txt
+            packages/benchmark/results/metrics.json
+          retention-days: 90
+
+      - name: Compare with baseline (PR only)
+        if: github.event_name == 'pull_request' && inputs.compare_baseline != false
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read current metrics
+            const metricsPath = 'packages/benchmark/results/metrics.json';
+            const metrics = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
+
+            // Baseline (stub providers typically get 60-70% with string matching)
+            const baseline = {
+              accuracy: 60.0,
+              threshold: 5.0 // Alert if drop > 5%
+            };
+
+            const diff = metrics.accuracy - baseline.accuracy;
+            const status = diff >= -baseline.threshold ? '✅' : '⚠️';
+
+            const body = `## Benchmark Results ${status}
+
+            | Metric | Value | Baseline | Diff |
+            |:-------|------:|---------:|-----:|
+            | Accuracy | ${metrics.accuracy.toFixed(1)}% | ${baseline.accuracy.toFixed(1)}% | ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}% |
+
+            **Dataset:** ${metrics.variant}
+            **Commit:** \`${metrics.commit.substring(0, 7)}\`
+
+            ${diff < -baseline.threshold ? '⚠️ **Warning:** Accuracy dropped below threshold!' : ''}
+
+            <details>
+            <summary>Details</summary>
+
+            - Workflow run: ${metrics.workflow_run}
+            - Timestamp: ${metrics.timestamp}
+
+            </details>
+            `;
+
+            // Post or update comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('## Benchmark Results')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
+
+  # Historical tracking job (only on main branch)
+  track-history:
+    needs: benchmark
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download current results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results-${{ github.run_id }}
+          path: current-results
+
+      - name: Update historical data
+        run: |
+          mkdir -p .github/benchmark-history
+
+          # Append to history file
+          HISTORY_FILE=".github/benchmark-history/history.jsonl"
+          if [ -f "current-results/metrics.json" ]; then
+            cat current-results/metrics.json >> "$HISTORY_FILE"
+            echo "" >> "$HISTORY_FILE"
+          fi
+
+          # Keep only last 100 entries
+          if [ -f "$HISTORY_FILE" ]; then
+            tail -100 "$HISTORY_FILE" > "$HISTORY_FILE.tmp"
+            mv "$HISTORY_FILE.tmp" "$HISTORY_FILE"
+          fi
+
+      - name: Generate badge data
+        run: |
+          mkdir -p .github/benchmark-history
+
+          # Read latest accuracy
+          ACCURACY=$(node -e "
+            const fs = require('fs');
+            const metrics = JSON.parse(fs.readFileSync('current-results/metrics.json', 'utf8'));
+            console.log(metrics.accuracy.toFixed(1));
+          ")
+
+          # Generate badge JSON for shields.io
+          COLOR="red"
+          if (( $(echo "$ACCURACY >= 80" | bc -l) )); then
+            COLOR="brightgreen"
+          elif (( $(echo "$ACCURACY >= 70" | bc -l) )); then
+            COLOR="green"
+          elif (( $(echo "$ACCURACY >= 60" | bc -l) )); then
+            COLOR="yellow"
+          elif (( $(echo "$ACCURACY >= 50" | bc -l) )); then
+            COLOR="orange"
+          fi
+
+          cat > .github/benchmark-history/badge.json << EOF
+          {
+            "schemaVersion": 1,
+            "label": "LongMemEval",
+            "message": "${ACCURACY}%",
+            "color": "$COLOR"
+          }
+          EOF
+
+      - name: Commit history update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add .github/benchmark-history/
+          git diff --staged --quiet || git commit -m "chore: update benchmark history [skip ci]"
+          git push || echo "Nothing to push"
