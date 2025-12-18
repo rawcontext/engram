@@ -175,9 +175,42 @@ export interface EvaluationMetrics {
 		accuracy: number;
 	};
 	byAbility: Record<MemoryAbility, AbilityMetrics>;
-	retrieval?: {
-		turnRecall: number;
-		sessionRecall: number;
-		recallAtK: Record<number, number>;
-	};
+	retrieval?: RetrievalMetrics;
+	abstention?: AbstentionMetrics;
+}
+
+/**
+ * Retrieval quality metrics
+ */
+export interface RetrievalMetrics {
+	/** Percentage of evidence turns retrieved */
+	turnRecall: number;
+	/** Percentage of evidence sessions retrieved */
+	sessionRecall: number;
+	/** Recall at different K values (1, 5, 10) */
+	recallAtK: Record<number, number>;
+	/** NDCG at different K values (1, 5, 10) - measures ranking quality */
+	ndcgAtK: Record<number, number>;
+	/** Mean Reciprocal Rank */
+	mrr: number;
+}
+
+/**
+ * Abstention-specific metrics
+ */
+export interface AbstentionMetrics {
+	/** True positives: correctly abstained */
+	truePositives: number;
+	/** False positives: incorrectly abstained */
+	falsePositives: number;
+	/** False negatives: should have abstained but didn't */
+	falseNegatives: number;
+	/** True negatives: correctly answered */
+	trueNegatives: number;
+	/** Precision: correct abstentions / total abstentions */
+	precision: number;
+	/** Recall: correct abstentions / questions requiring abstention */
+	recall: number;
+	/** F1 score: harmonic mean of precision and recall */
+	f1: number;
 }
