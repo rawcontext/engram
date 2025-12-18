@@ -126,22 +126,33 @@ export class OpenAICompatibleProvider implements LLMProvider {
 	}
 
 	async complete(prompt: string, options?: LLMOptions): Promise<LLMResponse> {
+		// GPT-5+ models use max_completion_tokens instead of max_tokens, and don't support temperature
+		const isGpt5Plus = this.model.startsWith("gpt-5") || this.model.startsWith("gpt-5.");
+		const maxTokensParam = isGpt5Plus ? "max_completion_tokens" : "max_tokens";
+
+		const requestBody: Record<string, unknown> = {
+			model: this.model,
+			messages: [{ role: "user", content: prompt }],
+			[maxTokensParam]: options?.maxTokens ?? 1024,
+		};
+
+		// GPT-5 mini doesn't support temperature parameter
+		if (!isGpt5Plus) {
+			requestBody.temperature = options?.temperature ?? 0.1;
+		}
+
 		const response = await fetch(`${this.baseUrl}/chat/completions`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${this.apiKey}`,
 			},
-			body: JSON.stringify({
-				model: this.model,
-				messages: [{ role: "user", content: prompt }],
-				max_tokens: options?.maxTokens ?? 1024,
-				temperature: options?.temperature ?? 0.1,
-			}),
+			body: JSON.stringify(requestBody),
 		});
 
 		if (!response.ok) {
-			throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+			const errorBody = await response.text();
+			throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorBody}`);
 		}
 
 		const data = (await response.json()) as OpenAIResponse;
