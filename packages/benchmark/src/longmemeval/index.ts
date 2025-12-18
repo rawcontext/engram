@@ -19,3 +19,6 @@ export * from "./evaluator.js";
 
 // Pipeline
 export * from "./pipeline.js";
+
+// Providers (real implementations)
+export * from "./providers/index.js";

@@ -47,12 +47,13 @@ export type Session = z.infer<typeof SessionSchema>;
 
 /**
  * A single evaluation instance from LongMemEval
+ * Note: answer field uses coerce because some answers are numeric in the dataset
  */
 export const LongMemEvalInstanceSchema = z.object({
 	question_id: z.string(),
 	question_type: QuestionTypeSchema,
 	question: z.string(),
-	answer: z.string(),
+	answer: z.coerce.string(), // Coerce numbers to strings
 	question_date: z.string(),
 	haystack_session_ids: z.array(z.string()),
 	haystack_dates: z.array(z.string()),

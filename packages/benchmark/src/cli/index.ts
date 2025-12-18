@@ -25,6 +25,12 @@ program
 	.option("--chain-of-note", "Enable Chain-of-Note reading", false)
 	.option("--time-aware", "Enable time-aware query expansion", false)
 	.option("--verbose", "Show detailed progress", false)
+	// Provider options
+	.option("--embeddings <provider>", "Embedding provider (stub, qdrant, e5)", "stub")
+	.option("--llm <provider>", "LLM provider (stub, anthropic, openai, ollama)", "stub")
+	.option("--qdrant-url <url>", "Qdrant server URL", "http://localhost:6333")
+	.option("--ollama-url <url>", "Ollama server URL", "http://localhost:11434")
+	.option("--ollama-model <model>", "Ollama model name", "llama3.2")
 	.action(runCommand);
 
 // Evaluate results command

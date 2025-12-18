@@ -1,6 +1,14 @@
 import { writeFile } from "node:fs/promises";
 import { BenchmarkPipeline, type PipelineProgress } from "../../longmemeval/pipeline.js";
 import { StubEmbeddingProvider, StubLLMProvider } from "../../longmemeval/reader.js";
+import { QdrantEmbeddingProvider } from "../../longmemeval/providers/qdrant-provider.js";
+import {
+	AnthropicProvider,
+	OllamaProvider,
+	OpenAICompatibleProvider,
+} from "../../longmemeval/providers/anthropic-provider.js";
+import type { EmbeddingProvider } from "../../longmemeval/retriever.js";
+import type { LLMProvider } from "../../longmemeval/reader.js";
 import type { DatasetVariant } from "../../longmemeval/types.js";
 
 interface RunOptions {
@@ -13,6 +21,12 @@ interface RunOptions {
 	chainOfNote: boolean;
 	timeAware: boolean;
 	verbose: boolean;
+	// Provider options
+	embeddings: string;
+	llm: string;
+	qdrantUrl?: string;
+	ollamaUrl?: string;
+	ollamaModel?: string;
 }
 
 export async function runCommand(benchmark: string, options: RunOptions): Promise<void> {
@@ -31,18 +45,16 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 	console.log(`  Retriever: ${options.retriever}`);
 	console.log(`  Chain-of-Note: ${options.chainOfNote}`);
 	console.log(`  Time-Aware: ${options.timeAware}`);
+	console.log(`  Embeddings: ${options.embeddings}`);
+	console.log(`  LLM: ${options.llm}`);
 	if (options.limit) {
 		console.log(`  Limit: ${options.limit} instances`);
 	}
 	console.log("");
 
-	// TODO: Replace with real embedding and LLM providers
-	console.log("⚠️  Using stub providers (no real embeddings/LLM configured)");
-	console.log("   For accurate results, configure real providers.");
-	console.log("");
-
-	const embeddings = new StubEmbeddingProvider();
-	const llm = new StubLLMProvider();
+	// Initialize providers
+	const embeddings = createEmbeddingProvider(options);
+	const llm = createLLMProvider(options);
 
 	const pipeline = new BenchmarkPipeline(embeddings, llm, {
 		loader: {
@@ -94,5 +106,61 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 	} catch (error) {
 		console.error("\n❌ Benchmark failed:", error);
 		process.exit(1);
+	}
+}
+
+/**
+ * Create embedding provider based on options
+ */
+function createEmbeddingProvider(options: RunOptions): EmbeddingProvider {
+	switch (options.embeddings) {
+		case "qdrant":
+		case "e5":
+			console.log("📦 Using Qdrant/E5 embeddings (HuggingFace transformers)");
+			return new QdrantEmbeddingProvider({
+				url: options.qdrantUrl ?? "http://localhost:6333",
+			});
+
+		case "stub":
+		default:
+			console.log("⚠️  Using stub embeddings (random vectors)");
+			return new StubEmbeddingProvider();
+	}
+}
+
+/**
+ * Create LLM provider based on options
+ */
+function createLLMProvider(options: RunOptions): LLMProvider {
+	switch (options.llm) {
+		case "anthropic":
+		case "claude":
+			if (!process.env.ANTHROPIC_API_KEY) {
+				console.error("❌ ANTHROPIC_API_KEY environment variable required for Claude");
+				process.exit(1);
+			}
+			console.log("🤖 Using Anthropic Claude for answer generation");
+			return new AnthropicProvider();
+
+		case "openai":
+		case "gpt":
+			if (!process.env.OPENAI_API_KEY) {
+				console.error("❌ OPENAI_API_KEY environment variable required for OpenAI");
+				process.exit(1);
+			}
+			console.log("🤖 Using OpenAI GPT for answer generation");
+			return new OpenAICompatibleProvider();
+
+		case "ollama":
+			console.log(`🤖 Using Ollama (${options.ollamaModel ?? "llama3.2"}) for answer generation`);
+			return new OllamaProvider({
+				baseUrl: options.ollamaUrl ?? "http://localhost:11434",
+				model: options.ollamaModel ?? "llama3.2",
+			});
+
+		case "stub":
+		default:
+			console.log("⚠️  Using stub LLM (no real generation)");
+			return new StubLLMProvider();
 	}
 }

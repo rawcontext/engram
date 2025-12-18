@@ -17,7 +17,11 @@
 		"@engram/memory-core": "*",
 		"@engram/search-core": "*",
 		"@engram/storage": "*",
+		"@qdrant/js-client-rest": "^1.16.2",
 		"commander": "^14.0.0"
+	},
+	"optionalDependencies": {
+		"@anthropic-ai/sdk": "^0.52.0"
 	},
 	"scripts": {
 		"build": "echo 'Build success'",
