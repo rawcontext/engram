@@ -84,16 +84,21 @@ RUN wget -q https://github.com/qdrant/qdrant/releases/download/v1.16.2/qdrant-x8
     && rm qdrant-x86_64-unknown-linux-gnu.tar.gz \
     && mkdir -p /app/qdrant-storage
 
-# Install Redis 7.4+ for FalkorDB
+# Install Redis 7.4+ for FalkorDB (Ubuntu 22.04 has old Redis, install from source)
 RUN apt-get update && apt-get install -y \
-    redis-server \
     libgomp1 \
+    build-essential \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /app/falkordb-data
+    && mkdir -p /app/falkordb-data \
+    && wget -q https://github.com/redis/redis/archive/refs/tags/7.4.2.tar.gz \
+    && tar xzf 7.4.2.tar.gz \
+    && cd redis-7.4.2 && make -j$(nproc) && make install \
+    && cd .. && rm -rf redis-7.4.2 7.4.2.tar.gz
 
 # Download FalkorDB module (v4.14.10 - latest)
 RUN mkdir -p /opt/falkordb \
-    && wget -q https://github.com/FalkorDB/FalkorDB/releases/download/v4.14.10/falkordb-x64.so -O /opt/falkordb/falkordb.so
+    && wget -q https://github.com/FalkorDB/FalkorDB/releases/download/v4.14.10/falkordb-x64.so -O /opt/falkordb/falkordb.so \
+    && chmod +x /opt/falkordb/falkordb.so
 
 # Copy HF Space runner script
 COPY packages/benchmark/hf-space/run.sh /app/run.sh
