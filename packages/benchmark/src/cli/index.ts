@@ -35,7 +35,7 @@ program
 	.option("--key-expansion", "Enable key expansion with fact extraction (+9% recall)", false)
 	.option("--temporal-analysis", "Enable improved temporal query analysis (+7-11% on TR)", false)
 	// Engram full pipeline options (when --embeddings engram)
-	.option("--rerank", "Enable reranking (requires --embeddings engram)", false)
+	.option("--rerank", "Enable reranking (requires --embeddings engram)", true)
 	.option("--rerank-tier <tier>", "Reranker tier: fast, accurate, code, colbert", "fast")
 	.option("--rerank-depth <n>", "Candidates to fetch before reranking", Number.parseInt, 30)
 	.option("--hybrid-search", "Enable hybrid search with RRF (requires --embeddings engram)", true)

@@ -49,7 +49,7 @@ npx tsx src/cli/index.ts run longmemeval \
   --limit 10 \
   --verbose
 
-# Full run with real providers
+# Full run with E5 embeddings
 npx tsx src/cli/index.ts run longmemeval \
   --dataset data/longmemeval_oracle.json \
   --embeddings e5 \
@@ -59,6 +59,44 @@ npx tsx src/cli/index.ts run longmemeval \
   --temporal-analysis \
   --output results/benchmark.jsonl
 ```
+
+### Let Engram Cook (Full Pipeline)
+
+Run the complete Engram retrieval pipeline with all optimizations enabled:
+
+```bash
+# Ensure infrastructure is running
+docker ps | grep qdrant || npm run infra:up
+
+# Full Engram pipeline with all features
+OPENAI_API_KEY="sk-..." NODE_OPTIONS="--max-old-space-size=8192" \
+npx tsx src/cli/index.ts run longmemeval \
+  --dataset data/longmemeval_oracle.json \
+  --variant single_hop \
+  --embeddings engram \
+  --llm openai \
+  --top-k 10 \
+  --rerank \
+  --rerank-tier accurate \
+  --rerank-depth 50 \
+  --hybrid-search \
+  --key-expansion \
+  --temporal-analysis \
+  --chain-of-note \
+  --time-aware \
+  --verbose \
+  --output results/engram-full-$(date +%Y%m%d).jsonl
+```
+
+**What this enables:**
+- Dense embeddings (E5-small, 384d)
+- Sparse embeddings (SPLADE)
+- Hybrid search with RRF fusion
+- Cross-encoder reranking (accurate tier)
+- Key expansion with fact extraction (+9% recall)
+- Temporal query analysis (+7-11% on TR)
+- Chain-of-Note reading
+- Time-aware query expansion
 
 ### 4. Evaluate Results
 
@@ -82,10 +120,21 @@ npx tsx src/cli/index.ts evaluate \
 | `-k, --top-k <n>` | Documents to retrieve | `10` |
 | `--retriever <method>` | dense, bm25, hybrid | `dense` |
 | `--chain-of-note` | Enable Chain-of-Note | `false` |
-| `--key-expansion` | Enable key expansion | `false` |
-| `--temporal-analysis` | Enable temporal analysis | `false` |
-| `--embeddings <provider>` | stub, qdrant, e5 | `stub` |
+| `--time-aware` | Enable time-aware query expansion | `false` |
+| `--key-expansion` | Enable key expansion (+9% recall) | `false` |
+| `--temporal-analysis` | Enable temporal analysis (+7-11% TR) | `false` |
+| `--embeddings <provider>` | stub, qdrant, e5, engram | `stub` |
 | `--llm <provider>` | stub, anthropic, openai, ollama | `stub` |
+
+#### Engram Pipeline Options (when `--embeddings engram`)
+
+| Option | Description | Default |
+|:-------|:------------|:--------|
+| `--hybrid-search` | Enable hybrid search (dense + SPLADE + RRF) | `true` |
+| `--rerank` | Enable cross-encoder reranking | `true` |
+| `--rerank-tier <tier>` | Reranker: fast, accurate, code, colbert | `fast` |
+| `--rerank-depth <n>` | Candidates to fetch before reranking | `30` |
+| `--qdrant-url <url>` | Qdrant server URL | `http://localhost:6333` |
 
 ### `evaluate` Command
 

@@ -133,7 +133,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
 		const requestBody: Record<string, unknown> = {
 			model: this.model,
 			messages: [{ role: "user", content: prompt }],
-			[maxTokensParam]: options?.maxTokens ?? 1024,
+			[maxTokensParam]: options?.maxTokens ?? 4096,
 		};
 
 		// GPT-5 mini doesn't support temperature parameter
