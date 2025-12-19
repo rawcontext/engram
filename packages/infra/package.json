@@ -4,12 +4,13 @@
 	"private": true,
 	"main": "src/index.ts",
 	"devDependencies": {
-		"@types/node": "^24.10.1",
-		"@engram/tsconfig": "*"
+		"@engram/tsconfig": "*",
+		"@types/node": "^24.10.1"
 	},
 	"dependencies": {
-		"@pulumi/pulumi": "^3.210.0",
-		"@pulumi/gcp": "^9.6.0"
+		"@pulumi/gcp": "^9.6.0",
+		"@pulumi/kubernetes": "^4.24.1",
+		"@pulumi/pulumi": "^3.210.0"
 	},
 	"scripts": {
 		"build": "echo 'Pulumi compiles TypeScript directly'",

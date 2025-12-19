@@ -120,6 +120,52 @@ export function setupPulumiMocks(project = "engram", stack = "test"): void {
 						defaultState.id = `projects/test-project/secrets/${args.inputs.secretId}`;
 						defaultState.name = `projects/test-project/secrets/${args.inputs.secretId}`;
 						break;
+
+					// Kubernetes resources
+					case "kubernetes:core/v1:Namespace":
+						defaultState.metadata = {
+							...((args.inputs.metadata as Record<string, unknown>) ?? {}),
+							uid: `${args.name}-uid`,
+						};
+						break;
+
+					case "kubernetes:core/v1:Secret":
+					case "kubernetes:core/v1:ConfigMap":
+					case "kubernetes:core/v1:Service":
+						defaultState.metadata = {
+							...((args.inputs.metadata as Record<string, unknown>) ?? {}),
+							uid: `${args.name}-uid`,
+						};
+						break;
+
+					case "kubernetes:apps/v1:StatefulSet":
+					case "kubernetes:apps/v1:Deployment":
+						defaultState.metadata = {
+							...((args.inputs.metadata as Record<string, unknown>) ?? {}),
+							uid: `${args.name}-uid`,
+						};
+						defaultState.status = {
+							readyReplicas: (args.inputs.spec as Record<string, unknown>)?.replicas ?? 1,
+							availableReplicas: (args.inputs.spec as Record<string, unknown>)?.replicas ?? 1,
+						};
+						break;
+
+					case "kubernetes:policy/v1:PodDisruptionBudget":
+						defaultState.metadata = {
+							...((args.inputs.metadata as Record<string, unknown>) ?? {}),
+							uid: `${args.name}-uid`,
+						};
+						break;
+
+					case "kubernetes:helm.sh/v3:Release":
+						defaultState.status = {
+							status: "deployed",
+						};
+						break;
+
+					case "pulumi:providers:kubernetes":
+						// Provider resources
+						break;
 				}
 
 				return {
