@@ -1,2 +1,2 @@
-export { ExecutionService, createExecutionService } from "./service";
-export type { ExecutionServiceDeps, ExecutionResult } from "./service";
+export type { ExecutionResult, ExecutionServiceDeps } from "./service";
+export { createExecutionService, ExecutionService } from "./service";

@@ -1,0 +1,10 @@
+{
+	"extends": "@engram/tsconfig/base.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "dist",
+		"baseUrl": "."
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "**/*.test.ts"]
+}

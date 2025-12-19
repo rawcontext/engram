@@ -174,4 +174,7 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 	console.log(`Sessions: ${sessionsCreated}`);
 	console.log(`Turns: ${turnsCreated}`);
 	console.log(`Memories: ${memoriesCreated}`);
+
+	// Close connection so process exits
+	await db.close();
 }

@@ -1,9 +1,42 @@
 {
-	"name": "engram-mcp",
-	"version": "0.0.0",
+	"name": "@engram/mcp",
+	"version": "0.1.0",
+	"description": "Engram MCP server - intelligent memory for AI agents",
 	"type": "module",
 	"bin": {
 		"engram-mcp": "./dist/index.js"
+	},
+	"main": "./dist/index.js",
+	"exports": {
+		".": {
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/engram-labs/engram.git",
+		"directory": "apps/mcp"
+	},
+	"keywords": [
+		"mcp",
+		"memory",
+		"ai",
+		"agent",
+		"claude",
+		"llm",
+		"context",
+		"engram"
+	],
+	"license": "MIT",
+	"engines": {
+		"node": ">=20"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"dependencies": {
 		"@engram/graph": "*",
@@ -19,13 +52,16 @@
 	"devDependencies": {
 		"@engram/tsconfig": "*",
 		"@types/node": "^24.10.1",
+		"tsup": "^8.5.1",
 		"typescript": "^5.9.3"
 	},
 	"scripts": {
 		"dev": "tsx --env-file=.env src/index.ts",
 		"dev:http": "tsx --env-file=.env src/http-server.ts",
-		"build": "tsc",
+		"build": "tsup",
+		"build:tsc": "tsc",
 		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "npm run build",
 		"start": "node dist/index.js",
 		"start:http": "node dist/http-server.js"
 	}

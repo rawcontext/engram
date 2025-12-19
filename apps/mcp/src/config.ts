@@ -1,13 +1,20 @@
 import { z } from "zod";
 
 export const ConfigSchema = z.object({
+	// Operation mode: cloud (API client) or local (direct connections)
+	mode: z.enum(["cloud", "local"]).optional(),
+
+	// Cloud mode settings
+	engramApiKey: z.string().optional(),
+	engramApiUrl: z.string().url().optional(),
+
 	// Transport mode
 	transport: z.enum(["stdio", "http"]).default("stdio"),
 
 	// HTTP server settings
 	httpPort: z.number().int().min(1).max(65535).default(3010),
 
-	// Database connections
+	// Local mode: Database connections
 	falkordbUrl: z.string().url().default("redis://localhost:6379"),
 	qdrantUrl: z.string().url().default("http://localhost:6333"),
 
@@ -17,12 +24,40 @@ export const ConfigSchema = z.object({
 
 export type Config = z.infer<typeof ConfigSchema>;
 
+/**
+ * Detect whether to run in cloud or local mode
+ *
+ * Priority:
+ * 1. Explicit ENGRAM_MODE env var
+ * 2. If ENGRAM_API_KEY is set, use cloud mode
+ * 3. Default to local mode
+ */
+export function detectMode(config: Partial<Config>): "cloud" | "local" {
+	// Explicit mode takes precedence
+	if (config.mode) {
+		return config.mode;
+	}
+
+	// If API key is set, use cloud mode
+	if (config.engramApiKey || process.env.ENGRAM_API_KEY) {
+		return "cloud";
+	}
+
+	// Default to local
+	return "local";
+}
+
 export function loadConfig(): Config {
-	return ConfigSchema.parse({
+	const rawConfig = {
+		mode: process.env.ENGRAM_MODE as "cloud" | "local" | undefined,
+		engramApiKey: process.env.ENGRAM_API_KEY,
+		engramApiUrl: process.env.ENGRAM_API_URL,
 		transport: process.env.MCP_TRANSPORT ?? "stdio",
 		httpPort: process.env.MCP_HTTP_PORT ? Number.parseInt(process.env.MCP_HTTP_PORT, 10) : 3010,
 		falkordbUrl: process.env.FALKORDB_URL ?? "redis://localhost:6379",
 		qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6333",
 		logLevel: process.env.LOG_LEVEL ?? "info",
-	});
+	};
+
+	return ConfigSchema.parse(rawConfig);
 }

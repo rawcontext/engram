@@ -1,7 +1,7 @@
 import { VirtualFileSystem } from "@engram/vfs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ExecutionService } from "../execution";
-import { MultiMcpAdapter } from "./mcp_client";
+import type { MultiMcpAdapter } from "./mcp_client";
 import { createToolRouter, ToolRouter } from "./router";
 
 // Mock dependencies

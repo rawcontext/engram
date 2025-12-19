@@ -10,7 +10,7 @@ import {
 	SamplingService,
 	type SessionContext,
 } from "./capabilities";
-import type { Config } from "./config";
+import { type Config, detectMode } from "./config";
 import { registerPrimePrompt, registerRecapPrompt, registerWhyPrompt } from "./prompts";
 import {
 	registerFileHistoryResource,
@@ -18,6 +18,8 @@ import {
 	registerSessionResource,
 } from "./resources";
 import { MemoryRetriever, MemoryStore } from "./services";
+import { EngramCloudClient } from "./services/cloud";
+import type { IEngramClient, IMemoryRetriever, IMemoryStore } from "./services/interfaces";
 import {
 	registerContextTool,
 	registerQueryTool,
@@ -30,14 +32,17 @@ export interface EngramMcpServerOptions {
 	graphClient?: GraphClient;
 	memoryStore?: MemoryStore;
 	memoryRetriever?: MemoryRetriever;
+	cloudClient?: IEngramClient;
 	logger?: Logger;
 }
 
 export interface EngramMcpServer {
 	server: McpServer;
-	graphClient: GraphClient;
-	memoryStore: MemoryStore;
-	memoryRetriever: MemoryRetriever;
+	mode: "cloud" | "local";
+	graphClient: GraphClient | null;
+	memoryStore: IMemoryStore;
+	memoryRetriever: IMemoryRetriever;
+	cloudClient: IEngramClient | null;
 	logger: Logger;
 	sessionContext: SessionContext;
 	// Capability services
@@ -57,24 +62,61 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 			component: "mcp-server",
 		});
 
-	// Initialize graph client (uses FALKORDB_URL env var by default)
-	const graphClient = options.graphClient ?? new FalkorClient(config.falkordbUrl);
+	// Detect mode
+	const mode = detectMode(config);
+	logger.info({ mode }, "Initializing Engram MCP server");
 
-	// Initialize services
-	const memoryStore =
-		options.memoryStore ??
-		new MemoryStore({
-			graphClient,
-			logger,
-		});
+	let graphClient: GraphClient | null = null;
+	let memoryStore: IMemoryStore;
+	let memoryRetriever: IMemoryRetriever;
+	let cloudClient: IEngramClient | null = null;
 
-	const memoryRetriever =
-		options.memoryRetriever ??
-		new MemoryRetriever({
-			graphClient,
-			logger,
-			qdrantUrl: config.qdrantUrl,
-		});
+	if (mode === "cloud") {
+		// Cloud mode: use API client
+		if (!config.engramApiKey) {
+			throw new Error("ENGRAM_API_KEY is required for cloud mode");
+		}
+		if (!config.engramApiUrl) {
+			throw new Error("ENGRAM_API_URL is required for cloud mode");
+		}
+
+		cloudClient =
+			options.cloudClient ??
+			new EngramCloudClient({
+				apiKey: config.engramApiKey,
+				baseUrl: config.engramApiUrl,
+				logger,
+			});
+
+		// Cloud client implements both interfaces
+		memoryStore = cloudClient;
+		memoryRetriever = cloudClient;
+
+		logger.info({ apiUrl: config.engramApiUrl }, "Using cloud mode");
+	} else {
+		// Local mode: direct connections
+		graphClient = options.graphClient ?? new FalkorClient(config.falkordbUrl);
+
+		memoryStore =
+			options.memoryStore ??
+			new MemoryStore({
+				graphClient,
+				logger,
+			});
+
+		memoryRetriever =
+			options.memoryRetriever ??
+			new MemoryRetriever({
+				graphClient,
+				logger,
+				qdrantUrl: config.qdrantUrl,
+			});
+
+		logger.info(
+			{ falkordbUrl: config.falkordbUrl, qdrantUrl: config.qdrantUrl },
+			"Using local mode",
+		);
+	}
 
 	// Create MCP server
 	const server = new McpServer({
@@ -114,28 +156,49 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	});
 
 	// Register tools
-	registerRememberTool(server, memoryStore, getSessionContext);
-	registerRecallTool(server, memoryRetriever, getSessionContext);
-	registerQueryTool(server, graphClient);
-	registerContextTool(server, memoryRetriever, graphClient, getSessionContext, sampling);
+	// Use type assertion for memoryStore since local MemoryStore implements IMemoryStore
+	registerRememberTool(server, memoryStore as MemoryStore, getSessionContext);
+	registerRecallTool(server, memoryRetriever as MemoryRetriever, getSessionContext);
 
-	// Register resources
-	registerMemoryResource(server, graphClient);
-	registerSessionResource(server, graphClient, getSessionContext);
-	registerFileHistoryResource(server, graphClient);
+	// Query tool and resources need graph client - only available in local mode
+	if (mode === "local" && graphClient) {
+		registerQueryTool(server, graphClient);
+		registerContextTool(
+			server,
+			memoryRetriever as MemoryRetriever,
+			graphClient,
+			getSessionContext,
+			sampling,
+		);
 
-	// Register prompts
-	registerPrimePrompt(server, memoryRetriever, graphClient, getSessionContext);
-	registerRecapPrompt(server, graphClient, getSessionContext);
-	registerWhyPrompt(server, memoryRetriever, getSessionContext);
+		// Register resources (local mode only - require direct graph access)
+		registerMemoryResource(server, graphClient);
+		registerSessionResource(server, graphClient, getSessionContext);
+		registerFileHistoryResource(server, graphClient);
 
-	logger.info("Engram MCP server initialized with tools, resources, and prompts");
+		// Register prompts (local mode only - require direct graph access)
+		registerPrimePrompt(server, memoryRetriever as MemoryRetriever, graphClient, getSessionContext);
+		registerRecapPrompt(server, graphClient, getSessionContext);
+		registerWhyPrompt(server, memoryRetriever as MemoryRetriever, getSessionContext);
+	} else if (mode === "cloud" && cloudClient) {
+		// Cloud mode: register query tool using cloud client
+		// Note: Resources and prompts are not available in cloud mode currently
+		// They could be added by proxying through the API
+
+		logger.info(
+			"Cloud mode: query, resources, and prompts are limited. Use remember/recall tools.",
+		);
+	}
+
+	logger.info({ mode }, "Engram MCP server initialized");
 
 	return {
 		server,
+		mode,
 		graphClient,
 		memoryStore,
 		memoryRetriever,
+		cloudClient,
 		logger,
 		sessionContext,
 		sampling,

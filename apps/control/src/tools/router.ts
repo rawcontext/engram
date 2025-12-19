@@ -1,4 +1,4 @@
-import type { ExecutionService, ExecutionResult } from "../execution";
+import type { ExecutionResult, ExecutionService } from "../execution";
 import type { MultiMcpAdapter } from "./mcp_client";
 
 /**

@@ -3,7 +3,7 @@ import { createFalkorClient, type GraphClient } from "@engram/storage";
 import type { ContextAssembler } from "../context/assembler";
 import { createContextAssembler } from "../context/assembler";
 import { DecisionEngine, type ToolAdapter } from "../engine/decision";
-import { createSessionInitializer, SessionInitializer } from "./initializer";
+import { createSessionInitializer, type SessionInitializer } from "./initializer";
 
 /**
  * Dependencies for SessionManager construction.

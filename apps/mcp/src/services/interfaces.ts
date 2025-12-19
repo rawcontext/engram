@@ -1,0 +1,146 @@
+import type { MemoryNode, MemoryType } from "@engram/graph";
+
+/**
+ * Input for creating a memory
+ */
+export interface CreateMemoryInput {
+	content: string;
+	type?: MemoryType;
+	tags?: string[];
+	project?: string;
+	workingDir?: string;
+	sourceSessionId?: string;
+	sourceTurnId?: string;
+	source?: "user" | "auto" | "import";
+}
+
+/**
+ * Filters for recalling memories
+ */
+export interface RecallFilters {
+	type?: MemoryType | "turn";
+	project?: string;
+	since?: string; // ISO date string
+	sessionId?: string;
+}
+
+/**
+ * Result from memory recall
+ */
+export interface RecallResult {
+	id: string;
+	content: string;
+	score: number;
+	type: string;
+	created_at: string;
+	source?: string;
+	project?: string;
+}
+
+/**
+ * Context item returned from comprehensive context retrieval
+ */
+export interface ContextItem {
+	type: "memory" | "decision" | "file";
+	content: string;
+	relevance: number;
+	source: string;
+}
+
+/**
+ * Interface for memory storage operations
+ */
+export interface IMemoryStore {
+	/**
+	 * Create a new memory with deduplication
+	 */
+	createMemory(input: CreateMemoryInput): Promise<MemoryNode>;
+
+	/**
+	 * Get a memory by ID
+	 */
+	getMemory(id: string): Promise<MemoryNode | null>;
+
+	/**
+	 * List memories with optional filters
+	 */
+	listMemories(options?: {
+		type?: MemoryType;
+		project?: string;
+		limit?: number;
+	}): Promise<MemoryNode[]>;
+
+	/**
+	 * Soft-delete a memory
+	 */
+	deleteMemory(id: string): Promise<boolean>;
+
+	/**
+	 * Connect to the underlying data store
+	 */
+	connect(): Promise<void>;
+
+	/**
+	 * Disconnect from the underlying data store
+	 */
+	disconnect(): Promise<void>;
+}
+
+/**
+ * Interface for memory retrieval operations
+ */
+export interface IMemoryRetriever {
+	/**
+	 * Search for memories using hybrid retrieval (vector + keyword)
+	 */
+	recall(query: string, limit?: number, filters?: RecallFilters): Promise<RecallResult[]>;
+
+	/**
+	 * Connect to the underlying search services
+	 */
+	connect(): Promise<void>;
+}
+
+/**
+ * Interface for graph query operations
+ */
+export interface IGraphClient {
+	/**
+	 * Execute a Cypher query
+	 */
+	query<T = unknown>(cypher: string, params?: Record<string, unknown>): Promise<T[]>;
+
+	/**
+	 * Connect to the graph database
+	 */
+	connect(): Promise<void>;
+
+	/**
+	 * Disconnect from the graph database
+	 */
+	disconnect(): Promise<void>;
+
+	/**
+	 * Check if connected
+	 */
+	isConnected(): boolean;
+}
+
+/**
+ * Combined interface for all memory operations in cloud mode
+ */
+export interface IEngramClient extends IMemoryStore, IMemoryRetriever {
+	/**
+	 * Execute a read-only Cypher query (cloud mode only)
+	 */
+	query<T = unknown>(cypher: string, params?: Record<string, unknown>): Promise<T[]>;
+
+	/**
+	 * Get comprehensive context for a task
+	 */
+	getContext(
+		task: string,
+		files?: string[],
+		depth?: "shallow" | "medium" | "deep",
+	): Promise<ContextItem[]>;
+}
