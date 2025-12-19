@@ -151,9 +151,13 @@ const turnAggregator = new TurnAggregator(falkor, logger, onNodeCreated);
 const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const TURN_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-function startPruningJob() {
+// Store interval IDs for cleanup on shutdown
+let pruningIntervalId: NodeJS.Timeout | null = null;
+let turnCleanupIntervalId: NodeJS.Timeout | null = null;
+
+function startPruningJob(): NodeJS.Timeout {
 	// Start the periodic job
-	setInterval(async () => {
+	pruningIntervalId = setInterval(async () => {
 		try {
 			logger.info("Starting scheduled graph pruning...");
 			// Default retention: 30 days
@@ -163,17 +167,33 @@ function startPruningJob() {
 			logger.error({ err: error }, "Graph pruning failed");
 		}
 	}, PRUNE_INTERVAL_MS);
+	return pruningIntervalId;
 }
 
-function startTurnCleanupJob() {
+function startTurnCleanupJob(): NodeJS.Timeout {
 	// Clean up stale turns every 5 minutes (turns inactive for 30 mins)
-	setInterval(async () => {
+	turnCleanupIntervalId = setInterval(async () => {
 		try {
 			await turnAggregator.cleanupStaleTurns(30 * 60 * 1000);
 		} catch (error) {
 			logger.error({ err: error }, "Turn cleanup failed");
 		}
 	}, TURN_CLEANUP_INTERVAL_MS);
+	return turnCleanupIntervalId;
+}
+
+/**
+ * Clear all interval timers - call on shutdown
+ */
+function clearAllIntervals(): void {
+	if (pruningIntervalId) {
+		clearInterval(pruningIntervalId);
+		pruningIntervalId = null;
+	}
+	if (turnCleanupIntervalId) {
+		clearInterval(turnCleanupIntervalId);
+		turnCleanupIntervalId = null;
+	}
 }
 
 // Kafka Consumer for Persistence
@@ -198,6 +218,7 @@ async function startPersistenceConsumer() {
 	const shutdown = async (signal: string) => {
 		logger.info({ signal }, "Shutting down gracefully...");
 		clearInterval(heartbeatInterval);
+		clearAllIntervals(); // Clear pruning and turn cleanup intervals
 		try {
 			await consumer.disconnect();
 			logger.info("Kafka consumer disconnected");
@@ -205,11 +226,15 @@ async function startPersistenceConsumer() {
 			logger.error({ err: e }, "Error disconnecting consumer");
 		}
 		await redis.publishConsumerStatus("consumer_disconnected", "memory-group", "memory-service");
+		await redis.disconnect();
+		logger.info("Redis publisher disconnected");
+		await falkor.disconnect();
+		logger.info("FalkorDB disconnected");
 		process.exit(0);
 	};
 
-	process.on("SIGTERM", () => shutdown("SIGTERM"));
-	process.on("SIGINT", () => shutdown("SIGINT"));
+	process.once("SIGTERM", () => shutdown("SIGTERM"));
+	process.once("SIGINT", () => shutdown("SIGINT"));
 
 	await consumer.run({
 		eachMessage: async ({ message }) => {

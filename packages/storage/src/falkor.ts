@@ -68,30 +68,52 @@ export type FalkorResult<T = Record<string, unknown>> = FalkorRow<T>[];
 // =============================================================================
 
 export class FalkorClient implements GraphClient {
-	private dbPromise;
+	private dbPromise: Promise<FalkorDB> | null = null;
 	private db: FalkorDB | null = null;
 	private graph: Graph | null = null;
 	private graphName = "EngramGraph";
 	private connected = false;
+	private connectionConfig: { username: string; password: string; host: string; port: number };
 
 	constructor(url: string = "redis://localhost:6379") {
 		const urlObj = new URL(url);
-		// Store the promise or connection logic
-		this.dbPromise = FalkorDB.connect({
+		// Store config but don't connect yet (lazy initialization)
+		this.connectionConfig = {
 			username: urlObj.username,
 			password: urlObj.password,
-			socket: {
-				host: urlObj.hostname,
-				port: Number(urlObj.port) || 6379,
-			},
-		});
+			host: urlObj.hostname,
+			port: Number(urlObj.port) || 6379,
+		};
 	}
 
 	async connect(): Promise<void> {
-		if (!this.db) {
+		if (this.connected && this.db) {
+			return; // Already connected
+		}
+
+		// If already connecting, wait for that attempt
+		if (this.dbPromise) {
+			await this.dbPromise;
+			return;
+		}
+
+		// Start connection (deferred until first call to connect())
+		this.dbPromise = FalkorDB.connect({
+			username: this.connectionConfig.username,
+			password: this.connectionConfig.password,
+			socket: {
+				host: this.connectionConfig.host,
+				port: this.connectionConfig.port,
+			},
+		});
+
+		try {
 			this.db = await this.dbPromise;
 			this.graph = this.db.selectGraph(this.graphName);
 			this.connected = true;
+		} catch (err) {
+			this.dbPromise = null; // Reset on failure for retry
+			throw err;
 		}
 	}
 

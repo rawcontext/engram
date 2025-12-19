@@ -36,29 +36,40 @@ const SESSIONS_CHANNEL = "sessions:updates";
 const CONSUMERS_CHANNEL = "consumers:status";
 
 export function createRedisPublisher() {
-	let client: RedisClientType | null = null;
-	let connecting = false;
+	let client: ReturnType<typeof createClient> | null = null;
+	let connectPromise: Promise<ReturnType<typeof createClient>> | null = null;
 
 	const connect = async () => {
+		// Return existing open client
 		if (client?.isOpen) return client;
-		if (connecting) {
-			// Wait for existing connection attempt
-			while (connecting) {
-				await new Promise((r) => setTimeout(r, 50));
-			}
-			if (!client) throw new Error("Redis client failed to initialize");
-			return client;
+
+		// If already connecting, wait for that attempt
+		if (connectPromise) {
+			return connectPromise;
 		}
 
-		connecting = true;
+		// Start new connection attempt
+		connectPromise = (async () => {
+			try {
+				const newClient = createClient({ url: getRedisUrl() });
+				newClient.on("error", (err) => console.error("[Redis Publisher] Error:", err));
+				await newClient.connect();
+				client = newClient;
+				console.log("[Redis Publisher] Connected");
+				return newClient;
+			} catch (err) {
+				// Reset state on failure so next call can retry
+				connectPromise = null;
+				throw err;
+			}
+		})();
+
 		try {
-			client = createClient({ url: getRedisUrl() });
-			client.on("error", (err) => console.error("[Redis Publisher] Error:", err));
-			await client.connect();
-			console.log("[Redis Publisher] Connected");
-			return client;
+			const result = await connectPromise;
+			return result;
 		} finally {
-			connecting = false;
+			// Clear promise after completion (success or failure)
+			connectPromise = null;
 		}
 	};
 

@@ -354,22 +354,45 @@ async function initConsumerStatusSubscription() {
 }
 
 // Start timeout checker - marks consumers offline if no heartbeat
-setInterval(() => {
-	const now = Date.now();
-	let changed = false;
+// Store interval ID for cleanup during HMR
+let timeoutCheckerInterval: NodeJS.Timeout | null = null;
 
-	for (const [groupId, state] of consumerStates) {
-		if (now - state.lastHeartbeat >= HEARTBEAT_TIMEOUT_MS && state.isReady) {
-			state.isReady = false;
-			changed = true;
-			console.log(`[WS Consumer] ${groupId} timed out (no heartbeat)`);
+function startTimeoutChecker() {
+	// Clear existing interval if present (HMR support)
+	if (timeoutCheckerInterval) {
+		clearInterval(timeoutCheckerInterval);
+	}
+
+	timeoutCheckerInterval = setInterval(() => {
+		const now = Date.now();
+		let changed = false;
+
+		for (const [groupId, state] of consumerStates) {
+			if (now - state.lastHeartbeat >= HEARTBEAT_TIMEOUT_MS && state.isReady) {
+				state.isReady = false;
+				changed = true;
+				console.log(`[WS Consumer] ${groupId} timed out (no heartbeat)`);
+			}
 		}
-	}
 
-	if (changed) {
-		broadcastConsumerStatus();
+		if (changed) {
+			broadcastConsumerStatus();
+		}
+	}, 5000); // Check every 5 seconds
+}
+
+// Start the timeout checker
+startTimeoutChecker();
+
+// Export cleanup function for HMR/testing
+export function cleanupWebSocketServer(): void {
+	if (timeoutCheckerInterval) {
+		clearInterval(timeoutCheckerInterval);
+		timeoutCheckerInterval = null;
 	}
-}, 5000); // Check every 5 seconds
+	connectedConsumerClients.clear();
+	consumerStates.clear();
+}
 
 /**
  * Handle WebSocket connection for consumer status streaming.

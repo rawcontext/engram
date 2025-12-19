@@ -3,6 +3,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 export class McpToolAdapter {
 	public client: Client;
+	private isConnected = false;
 
 	constructor(
 		private serverCommand: string,
@@ -17,6 +18,18 @@ export class McpToolAdapter {
 			args: this.serverArgs,
 		});
 		await this.client.connect(transport);
+		this.isConnected = true;
+	}
+
+	async disconnect() {
+		if (this.isConnected) {
+			try {
+				await this.client.close();
+			} catch {
+				// Ignore close errors
+			}
+			this.isConnected = false;
+		}
 	}
 
 	async listTools() {
@@ -40,6 +53,15 @@ export class MultiMcpAdapter {
 	async connectAll() {
 		await Promise.all(this.adapters.map((a) => a.connect()));
 		await this.refreshTools();
+	}
+
+	/**
+	 * Disconnect all MCP client connections.
+	 * Call this on shutdown to prevent resource leaks.
+	 */
+	async disconnectAll() {
+		this.toolMap.clear();
+		await Promise.all(this.adapters.map((a) => a.disconnect()));
 	}
 
 	async refreshTools() {

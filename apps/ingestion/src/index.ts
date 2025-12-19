@@ -24,9 +24,37 @@ export interface IngestionProcessorDeps {
 	logger?: Logger;
 }
 
-// In-memory state for extractors (per session)
-const thinkingExtractors = new Map<string, ThinkingExtractor>();
-const diffExtractors = new Map<string, DiffExtractor>();
+// In-memory state for extractors (per session) with TTL tracking
+interface ExtractorEntry<T> {
+	extractor: T;
+	lastAccess: number;
+}
+const thinkingExtractors = new Map<string, ExtractorEntry<ThinkingExtractor>>();
+const diffExtractors = new Map<string, ExtractorEntry<DiffExtractor>>();
+
+// Session extractor TTL: 30 minutes of inactivity
+const EXTRACTOR_TTL_MS = 30 * 60 * 1000;
+
+/**
+ * Clean up stale extractors to prevent memory leaks.
+ * Runs periodically to remove extractors for inactive sessions.
+ */
+function cleanupStaleExtractors(): void {
+	const now = Date.now();
+	for (const [sessionId, entry] of thinkingExtractors) {
+		if (now - entry.lastAccess > EXTRACTOR_TTL_MS) {
+			thinkingExtractors.delete(sessionId);
+		}
+	}
+	for (const [sessionId, entry] of diffExtractors) {
+		if (now - entry.lastAccess > EXTRACTOR_TTL_MS) {
+			diffExtractors.delete(sessionId);
+		}
+	}
+}
+
+// Clean up stale extractors every 5 minutes
+const extractorCleanupInterval = setInterval(cleanupStaleExtractors, 5 * 60 * 1000);
 
 export class IngestionProcessor {
 	private kafkaClient: ReturnType<typeof createKafkaClient>;
@@ -99,24 +127,30 @@ export class IngestionProcessor {
 
 		// 2. Extract Thinking
 		if (delta.content) {
-			let extractor = thinkingExtractors.get(sessionId);
-			if (!extractor) {
-				extractor = new ThinkingExtractor();
-				thinkingExtractors.set(sessionId, extractor);
+			const now = Date.now();
+			let entry = thinkingExtractors.get(sessionId);
+			if (!entry) {
+				entry = { extractor: new ThinkingExtractor(), lastAccess: now };
+				thinkingExtractors.set(sessionId, entry);
+			} else {
+				entry.lastAccess = now;
 			}
-			const extracted = extractor.process(delta.content);
+			const extracted = entry.extractor.process(delta.content);
 			delta.content = extracted.content;
 			delta.thought = extracted.thought;
 		}
 
 		// 3. Extract Diffs
 		if (delta.content) {
-			let diffExtractor = diffExtractors.get(sessionId);
-			if (!diffExtractor) {
-				diffExtractor = new DiffExtractor();
-				diffExtractors.set(sessionId, diffExtractor);
+			const now = Date.now();
+			let entry = diffExtractors.get(sessionId);
+			if (!entry) {
+				entry = { extractor: new DiffExtractor(), lastAccess: now };
+				diffExtractors.set(sessionId, entry);
+			} else {
+				entry.lastAccess = now;
 			}
-			const extracted = diffExtractor.process(delta.content);
+			const extracted = entry.extractor.process(delta.content);
 			delta.content = extracted.content;
 			delta.diff = extracted.diff;
 		}
@@ -237,6 +271,7 @@ async function startConsumer() {
 	const shutdown = async (signal: string) => {
 		logger.info({ signal }, "Shutting down gracefully...");
 		clearInterval(heartbeatInterval);
+		clearInterval(extractorCleanupInterval); // Clear extractor cleanup timer
 		try {
 			await consumer.disconnect();
 			logger.info("Kafka consumer disconnected");
@@ -248,11 +283,13 @@ async function startConsumer() {
 			"ingestion-group",
 			"ingestion-service",
 		);
+		await redis.disconnect();
+		logger.info("Redis publisher disconnected");
 		process.exit(0);
 	};
 
-	process.on("SIGTERM", () => shutdown("SIGTERM"));
-	process.on("SIGINT", () => shutdown("SIGINT"));
+	process.once("SIGTERM", () => shutdown("SIGTERM"));
+	process.once("SIGINT", () => shutdown("SIGINT"));
 
 	await consumer.run({
 		eachMessage: async ({ message }) => {
@@ -296,6 +333,9 @@ startConsumer().catch((err) => logger.error({ err }, "Consumer startup failed"))
 
 // Simple HTTP Server (Node.js compatible)
 const PORT = 5001;
+// 50MB limit: LLM context windows are 200k+ tokens (~800KB text), plus JSON overhead
+// and full conversation histories can be several megabytes
+const MAX_BODY_SIZE = 50 * 1024 * 1024;
 
 const server = createServer(async (req, res) => {
 	const url = new URL(req.url || "", `http://localhost:${PORT}`);
@@ -309,8 +349,24 @@ const server = createServer(async (req, res) => {
 	if (url.pathname === "/ingest" && req.method === "POST") {
 		let rawBody: unknown;
 		let body = "";
+		let bodySize = 0;
+
+		req.on("error", (err) => {
+			logger.error({ err }, "Request stream error");
+			if (!res.headersSent) {
+				res.writeHead(500, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Request stream error" }));
+			}
+		});
 
 		req.on("data", (chunk) => {
+			bodySize += chunk.length;
+			if (bodySize > MAX_BODY_SIZE) {
+				req.destroy();
+				res.writeHead(413, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Request body too large" }));
+				return;
+			}
 			body += chunk.toString();
 		});
 

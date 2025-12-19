@@ -222,6 +222,14 @@ export class DecisionEngine {
 		this.actor.start();
 	}
 
+	/**
+	 * Stop the decision engine actor.
+	 * Call this during cleanup to free resources.
+	 */
+	stop() {
+		this.actor.stop();
+	}
+
 	async handleInput(sessionId: string, input: string) {
 		this.actor.send({ type: "START", sessionId, input });
 	}

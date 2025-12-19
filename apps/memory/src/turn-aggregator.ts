@@ -52,12 +52,6 @@ export interface StreamEventInput {
  * 6. Finalize the turn when usage event arrives (signals end of response)
  */
 
-// In-memory state for active turns per session
-const activeTurns = new Map<string, TurnState>();
-
-// Track sequence index per session
-const sessionSequence = new Map<string, number>();
-
 function sha256(content: string): string {
 	return createHash("sha256").update(content).digest("hex");
 }
@@ -90,6 +84,10 @@ export class TurnAggregator {
 	private onNodeCreated?: NodeCreatedCallback;
 	private handlerRegistry: EventHandlerRegistry;
 
+	// Instance-level state (moved from module level to prevent cross-instance contamination)
+	private activeTurns = new Map<string, TurnState>();
+	private sessionSequence = new Map<string, number>();
+
 	constructor(deps: TurnAggregatorDeps);
 	/** @deprecated Use TurnAggregatorDeps object instead */
 	constructor(falkor: GraphClient, logger: Logger, onNodeCreated?: NodeCreatedCallback);
@@ -115,7 +113,8 @@ export class TurnAggregator {
 	}
 
 	/**
-	 * Emit node created event for real-time updates
+	 * Emit node created event for real-time updates.
+	 * Handles async callbacks with proper error catching.
 	 */
 	private emitNodeCreated(
 		sessionId: string,
@@ -127,11 +126,12 @@ export class TurnAggregator {
 		},
 	) {
 		if (this.onNodeCreated) {
-			try {
-				this.onNodeCreated(sessionId, node);
-			} catch (e) {
-				this.logger.error({ err: e }, "Failed to emit node created event");
-			}
+			// Handle both sync and async callbacks with proper error catching
+			Promise.resolve()
+				.then(() => this.onNodeCreated!(sessionId, node))
+				.catch((e) => {
+					this.logger.error({ err: e }, "Failed to emit node created event");
+				});
 		}
 	}
 
@@ -216,7 +216,7 @@ export class TurnAggregator {
 		}
 
 		// Get or create current turn for this session
-		let turn = activeTurns.get(sessionId);
+		let turn = this.activeTurns.get(sessionId);
 
 		// If no active turn and we get assistant content, create a turn without user content
 		// (This handles cases where we miss the user message)
@@ -282,15 +282,15 @@ export class TurnAggregator {
 	 */
 	private async startNewTurn(sessionId: string, userContent: string): Promise<TurnState> {
 		// Finalize any existing turn for this session
-		const existingTurn = activeTurns.get(sessionId);
+		const existingTurn = this.activeTurns.get(sessionId);
 		if (existingTurn && !existingTurn.isFinalized) {
 			await this.finalizeTurn(existingTurn);
 		}
 
 		// Get next sequence index for this session
-		const currentSeq = sessionSequence.get(sessionId) ?? -1;
+		const currentSeq = this.sessionSequence.get(sessionId) ?? -1;
 		const nextSeq = currentSeq + 1;
-		sessionSequence.set(sessionId, nextSeq);
+		this.sessionSequence.set(sessionId, nextSeq);
 
 		const turn: TurnState = {
 			turnId: randomUUID(),
@@ -310,7 +310,7 @@ export class TurnAggregator {
 			isFinalized: false,
 		};
 
-		activeTurns.set(sessionId, turn);
+		this.activeTurns.set(sessionId, turn);
 
 		// Create the Turn node in the graph
 		await this.createTurnNode(turn);
@@ -420,13 +420,21 @@ export class TurnAggregator {
 	 */
 	async cleanupStaleTurns(maxAgeMs: number = 30 * 60 * 1000): Promise<void> {
 		const now = Date.now();
-		for (const [sessionId, turn] of activeTurns) {
+		for (const [sessionId, turn] of this.activeTurns) {
 			if (now - turn.createdAt > maxAgeMs && !turn.isFinalized) {
 				await this.finalizeTurn(turn);
-				activeTurns.delete(sessionId);
+				this.activeTurns.delete(sessionId);
 				this.logger.info({ turnId: turn.turnId, sessionId }, "Cleaned up stale turn");
 			}
 		}
+	}
+
+	/**
+	 * Clear session state - useful for cleanup when sessions end
+	 */
+	clearSession(sessionId: string): void {
+		this.activeTurns.delete(sessionId);
+		this.sessionSequence.delete(sessionId);
 	}
 
 	/**

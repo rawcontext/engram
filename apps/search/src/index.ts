@@ -122,14 +122,16 @@ export class SearchService {
 			}
 		}, 10000);
 
-		// Cleanup heartbeat on process exit
-		process.on("SIGTERM", () => {
+		// Cleanup heartbeat on process exit (use once to prevent listener accumulation)
+		process.once("SIGTERM", () => {
 			clearInterval(heartbeatInterval);
 			redis.publishConsumerStatus("consumer_disconnected", "search-group", "search-service");
+			redis.disconnect();
 		});
-		process.on("SIGINT", () => {
+		process.once("SIGINT", () => {
 			clearInterval(heartbeatInterval);
 			redis.publishConsumerStatus("consumer_disconnected", "search-group", "search-service");
+			redis.disconnect();
 		});
 
 		await consumer.run({
@@ -214,6 +216,7 @@ export function createSearchService(deps?: SearchServiceDeps): SearchService {
 
 // Main execution
 const PORT = 5002;
+const MAX_BODY_SIZE = 1024 * 1024; // 1MB limit to prevent DoS
 
 const logger = createNodeLogger({
 	service: "search-service",
@@ -234,8 +237,24 @@ const server = createServer(async (req, res) => {
 
 	if (url.pathname === "/search" && req.method === "POST") {
 		let body = "";
+		let bodySize = 0;
+
+		req.on("error", (err) => {
+			logger.error({ err }, "Request stream error");
+			if (!res.headersSent) {
+				res.writeHead(500, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Request stream error" }));
+			}
+		});
 
 		req.on("data", (chunk) => {
+			bodySize += chunk.length;
+			if (bodySize > MAX_BODY_SIZE) {
+				req.destroy();
+				res.writeHead(413, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Request body too large" }));
+				return;
+			}
 			body += chunk.toString();
 		});
 

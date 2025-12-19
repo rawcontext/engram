@@ -23,12 +23,21 @@ export interface SessionManagerDeps {
 	logger?: Logger;
 }
 
+// Session engine TTL: 1 hour of inactivity
+const SESSION_ENGINE_TTL_MS = 60 * 60 * 1000;
+
+interface SessionEntry {
+	engine: DecisionEngine;
+	lastAccess: number;
+}
+
 export class SessionManager {
-	private sessions = new Map<string, DecisionEngine>();
+	private sessions = new Map<string, SessionEntry>();
 	private initializer: SessionInitializer;
 	private contextAssembler: ContextAssembler;
 	private mcpAdapter: MultiMcpAdapter;
 	private logger: Logger;
+	private cleanupInterval: NodeJS.Timeout | null = null;
 
 	/**
 	 * Create a SessionManager with injectable dependencies.
@@ -59,6 +68,9 @@ export class SessionManager {
 					service: "control-service",
 					base: { component: "session-manager" },
 				});
+
+			// Start periodic cleanup for stale sessions
+			this.startCleanupJob();
 		} else {
 			// Legacy constructor: (contextAssembler, mcpAdapter, falkor)
 			this.contextAssembler = depsOrAssembler as ContextAssembler;
@@ -71,6 +83,44 @@ export class SessionManager {
 				base: { component: "session-manager" },
 			});
 		}
+
+		// Start periodic cleanup for stale sessions
+		this.startCleanupJob();
+	}
+
+	/**
+	 * Start periodic cleanup job to remove stale session engines.
+	 */
+	private startCleanupJob(): void {
+		if (this.cleanupInterval) return;
+
+		this.cleanupInterval = setInterval(
+			() => {
+				const now = Date.now();
+				for (const [sessionId, entry] of this.sessions) {
+					if (now - entry.lastAccess > SESSION_ENGINE_TTL_MS) {
+						this.logger.info({ sessionId }, "Cleaning up stale session engine");
+						entry.engine.stop();
+						this.sessions.delete(sessionId);
+					}
+				}
+			},
+			5 * 60 * 1000,
+		); // Check every 5 minutes
+	}
+
+	/**
+	 * Stop cleanup job and clear all sessions - call on shutdown.
+	 */
+	shutdown(): void {
+		if (this.cleanupInterval) {
+			clearInterval(this.cleanupInterval);
+			this.cleanupInterval = null;
+		}
+		for (const [_sessionId, entry] of this.sessions) {
+			entry.engine.stop();
+		}
+		this.sessions.clear();
 	}
 
 	async handleInput(sessionId: string, input: string) {
@@ -78,17 +128,21 @@ export class SessionManager {
 		await this.initializer.ensureSession(sessionId);
 
 		// 2. Get or Create Engine (Actor)
-		let engine = this.sessions.get(sessionId);
-		if (!engine) {
+		const now = Date.now();
+		let entry = this.sessions.get(sessionId);
+		if (!entry) {
 			this.logger.info({ sessionId }, "Spawning new DecisionEngine");
-			engine = new DecisionEngine(this.contextAssembler, this.mcpAdapter);
+			const engine = new DecisionEngine(this.contextAssembler, this.mcpAdapter);
 			engine.start();
-			this.sessions.set(sessionId, engine);
+			entry = { engine, lastAccess: now };
+			this.sessions.set(sessionId, entry);
+		} else {
+			entry.lastAccess = now; // Update last access time
 		}
 
 		// 3. Dispatch Input
 		// Note: DecisionEngine.handleInput takes sessionId again, which is fine
-		await engine.handleInput(sessionId, input);
+		await entry.engine.handleInput(sessionId, input);
 	}
 }
 

@@ -158,6 +158,8 @@ export async function handleListFilesAtTime(
 	} catch (e: unknown) {
 		const message = e instanceof Error ? e.message : String(e);
 		return textResult(`Error: ${message}`, true);
+	} finally {
+		await graphClient.disconnect();
 	}
 }
 
@@ -209,6 +211,21 @@ export async function main() {
 	const transport = new StdioServerTransport();
 	await server.connect(transport);
 	logger.info("Engram Execution MCP Server running on stdio");
+
+	// Graceful shutdown handler
+	const shutdown = async (signal: string) => {
+		logger.info({ signal }, "Shutting down gracefully...");
+		try {
+			await falkor.disconnect();
+			logger.info("FalkorDB connection closed");
+		} catch (e) {
+			logger.error({ err: e }, "Error disconnecting FalkorDB");
+		}
+		process.exit(0);
+	};
+
+	process.once("SIGTERM", () => shutdown("SIGTERM"));
+	process.once("SIGINT", () => shutdown("SIGINT"));
 }
 
 if (import.meta.main) {

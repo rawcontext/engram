@@ -1,16 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DocumentCandidate } from "./batched-reranker";
-import { LLMListwiseReranker } from "./llm-reranker";
 
-// Mock XAIClient
-vi.mock("../clients/xai-client", () => ({
-	XAIClient: vi.fn().mockImplementation(() => ({
-		chatJSON: vi.fn(),
-		getTotalCost: vi.fn().mockReturnValue(5.0),
-		getTotalTokens: vi.fn().mockReturnValue(1000),
-		resetCounters: vi.fn(),
-	})),
-}));
+// Mock XAIClient - must be defined before vi.mock for hoisting
+const mockXAIClient = {
+	chatJSON: vi.fn(),
+	getTotalCost: vi.fn().mockReturnValue(5.0),
+	getTotalTokens: vi.fn().mockReturnValue(1000),
+	resetCounters: vi.fn(),
+};
 
 // Mock rate limiter
 vi.mock("./rate-limiter", () => ({
@@ -38,6 +35,16 @@ vi.mock("@engram/logger", () => ({
 vi.mock("./reranker-metrics", () => ({
 	recordRerankMetrics: vi.fn(),
 }));
+
+// Mock XAI Client - create an actual fake module file
+vi.mock("../clients/xai-client", () => {
+	return {
+		XAIClient: vi.fn().mockImplementation(() => mockXAIClient),
+	};
+});
+
+// Import after mocking
+const { LLMListwiseReranker } = await import("./llm-reranker");
 
 describe("LLMListwiseReranker", () => {
 	let reranker: LLMListwiseReranker;

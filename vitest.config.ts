@@ -9,4 +9,8 @@ export default defineConfig({
 		testTimeout: 30000,
 		hookTimeout: 30000,
 	},
+	resolve: {
+		// Enable TypeScript path resolution
+		extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
+	},
 });

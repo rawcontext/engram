@@ -2,6 +2,14 @@ import pino from "pino";
 import type { BrowserLoggerOptions, Logger } from "./types";
 
 /**
+ * Extended Logger interface with cleanup method for browser environments.
+ */
+export interface BrowserLogger extends Logger {
+	/** Clean up resources (event listeners, timers). Call before unmounting. */
+	destroy: () => void;
+}
+
+/**
  * Create a Pino logger for browser environments.
  *
  * Features:
@@ -9,8 +17,9 @@ import type { BrowserLoggerOptions, Logger } from "./types";
  * - Optional batched forwarding to backend
  * - Respects log level
  * - Debug only in development
+ * - destroy() method to clean up event listeners and timers
  */
-export function createBrowserLogger(options: BrowserLoggerOptions): Logger {
+export function createBrowserLogger(options: BrowserLoggerOptions): BrowserLogger {
 	const {
 		service,
 		level = typeof window !== "undefined" && process.env.NODE_ENV === "development"
@@ -26,6 +35,7 @@ export function createBrowserLogger(options: BrowserLoggerOptions): Logger {
 
 	let logBuffer: Array<Record<string, unknown>> = [];
 	let flushTimer: ReturnType<typeof setTimeout> | null = null;
+	let destroyed = false;
 
 	const flush = async () => {
 		if (logBuffer.length === 0) return;
@@ -113,17 +123,49 @@ export function createBrowserLogger(options: BrowserLoggerOptions): Logger {
 		},
 	});
 
+	// Event handlers for cleanup tracking
+	const handleBeforeUnload = () => {
+		if (!destroyed) flush();
+	};
+	const handleVisibilityChange = () => {
+		if (!destroyed && document.visibilityState === "hidden") {
+			flush();
+		}
+	};
+
 	// Flush on page unload
 	if (typeof window !== "undefined") {
-		window.addEventListener("beforeunload", () => {
-			flush();
-		});
-		window.addEventListener("visibilitychange", () => {
-			if (document.visibilityState === "hidden") {
-				flush();
-			}
-		});
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		window.addEventListener("visibilitychange", handleVisibilityChange);
 	}
 
-	return logger;
+	// Destroy method to clean up resources
+	const destroy = () => {
+		if (destroyed) return;
+		destroyed = true;
+
+		// Clear flush timer
+		if (flushTimer) {
+			clearTimeout(flushTimer);
+			flushTimer = null;
+		}
+
+		// Flush remaining logs
+		flush();
+
+		// Remove event listeners
+		if (typeof window !== "undefined") {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+			window.removeEventListener("visibilitychange", handleVisibilityChange);
+		}
+
+		// Clear buffer
+		logBuffer = [];
+	};
+
+	// Attach destroy method to logger
+	const browserLogger = logger as BrowserLogger;
+	browserLogger.destroy = destroy;
+
+	return browserLogger;
 }

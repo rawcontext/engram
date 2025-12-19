@@ -151,4 +151,33 @@ export abstract class BaseTagExtractor<TField extends keyof StreamDelta> {
 		this.buffer = "";
 		this.inBlock = false;
 	}
+
+	/**
+	 * Flush remaining buffered content when stream ends.
+	 * Call this when the stream closes to retrieve any content that was
+	 * being buffered (e.g., unclosed tags or partial matches).
+	 *
+	 * @returns A StreamDelta with any remaining content
+	 */
+	flush(): StreamDelta {
+		if (this.buffer.length === 0) {
+			return {};
+		}
+
+		const delta: StreamDelta = {};
+
+		if (this.inBlock) {
+			// Inside an unclosed block - treat remaining buffer as extracted content
+			(delta as Record<string, unknown>)[this.config.fieldName] = this.buffer;
+		} else {
+			// Outside a block - treat remaining buffer as regular content
+			delta.content = this.buffer;
+		}
+
+		// Clear state
+		this.buffer = "";
+		this.inBlock = false;
+
+		return delta;
+	}
 }

@@ -290,6 +290,7 @@ export class BatchedReranker {
 
 	/**
 	 * Process batches with concurrency limit using Promise pooling.
+	 * Uses proper promise tracking with self-removal pattern.
 	 */
 	private async processBatchesConcurrently(
 		classifier: ClassifierFn,
@@ -297,34 +298,30 @@ export class BatchedReranker {
 		batches: DocumentCandidate[][],
 	): Promise<BatchedRerankResult[][]> {
 		const results: BatchedRerankResult[][] = [];
-		const executing: Promise<void>[] = [];
+		const executing = new Set<Promise<void>>();
 
 		for (const batch of batches) {
-			const promise = this.processBatch(classifier, query, batch).then((result) => {
-				results.push(result);
-			});
+			// Create promise that removes itself from executing set when done
+			const promise = this.processBatch(classifier, query, batch)
+				.then((result) => {
+					results.push(result);
+				})
+				.finally(() => {
+					executing.delete(promise);
+				});
 
-			executing.push(promise);
+			executing.add(promise);
 
 			// If we've hit max concurrency, wait for one to complete
-			if (executing.length >= this.maxConcurrency) {
+			if (executing.size >= this.maxConcurrency) {
 				await Promise.race(executing);
-				// Remove completed promises
-				for (let i = executing.length - 1; i >= 0; i--) {
-					// Check if promise is settled by racing with resolved promise
-					const settled = await Promise.race([
-						executing[i].then(() => true).catch(() => true),
-						Promise.resolve(false),
-					]);
-					if (settled) {
-						executing.splice(i, 1);
-					}
-				}
 			}
 		}
 
 		// Wait for remaining batches
-		await Promise.all(executing);
+		if (executing.size > 0) {
+			await Promise.all(executing);
+		}
 
 		return results;
 	}

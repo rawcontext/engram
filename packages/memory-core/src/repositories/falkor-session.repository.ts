@@ -117,12 +117,21 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 			throw new Error(`Session not found: ${id}`);
 		}
 
-		// Close old version
+		// Close old version with optimistic locking
+		// Only close if tt_end is still maxDate (concurrent update detection)
 		const t = this.now;
-		await this.query(
-			`MATCH (s:Session {id: $id}) WHERE s.tt_end = ${this.maxDate} SET s.tt_end = $t`,
+		const closeResult = await this.query<{ count: number }>(
+			`MATCH (s:Session {id: $id}) WHERE s.tt_end = ${this.maxDate}
+			 SET s.tt_end = $t
+			 RETURN count(s) as count`,
 			{ id, t },
 		);
+
+		// Check if the close operation affected exactly one node
+		// If zero rows affected, another transaction closed it first
+		if (!closeResult[0] || closeResult[0].count === 0) {
+			throw new Error(`Concurrent modification detected for session ${id}. Please retry.`);
+		}
 
 		// Prepare update properties
 		const updateProps: Record<string, unknown> = {};
@@ -190,6 +199,21 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 	}
 
 	/**
+	 * Safely parse JSON with fallback.
+	 * Logs a warning if parsing fails.
+	 */
+	private safeParseJson<T>(jsonString: string | undefined, fallback: T, context: string): T {
+		if (!jsonString) return fallback;
+		try {
+			return JSON.parse(jsonString) as T;
+		} catch {
+			// Log warning but don't fail - return fallback value
+			console.warn(`[FalkorSessionRepository] Failed to parse ${context} JSON, using fallback`);
+			return fallback;
+		}
+	}
+
+	/**
 	 * Map FalkorDB node to domain Session object.
 	 */
 	private mapToSession(node: FalkorNode<SessionNodeProps>): Session {
@@ -206,7 +230,7 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 			agentType: props.agent_type,
 			summary: props.summary,
 			embedding: props.embedding,
-			metadata: props.metadata ? JSON.parse(props.metadata) : undefined,
+			metadata: this.safeParseJson(props.metadata, undefined, "metadata"),
 			vtStart: props.vt_start,
 			vtEnd: props.vt_end,
 			ttStart: props.tt_start,

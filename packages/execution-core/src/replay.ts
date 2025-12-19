@@ -20,20 +20,39 @@ interface ReplayResult {
 }
 
 /**
+ * Time and random providers for dependency injection.
+ * Used to make replay deterministic without polluting globals.
+ */
+export interface DeterministicProviders {
+	now: () => number;
+	random: () => number;
+}
+
+/**
+ * Create a seeded pseudo-random number generator.
+ * Uses LCG (Linear Congruential Generator) for reproducibility.
+ */
+function createSeededRandom(seed: number): () => number {
+	let state = seed;
+	return () => {
+		state = (state * 1103515245 + 12345) & 0x7fffffff;
+		return state / 0x7fffffff;
+	};
+}
+
+/**
  * Deterministic Replay Engine
  *
  * Replays tool executions with the exact same state as the original execution.
  * Used for debugging, verification, and understanding past agent decisions.
+ *
+ * Note: Uses dependency injection for time/random to avoid global pollution.
  */
 export class ReplayEngine {
 	private rehydrator: Rehydrator;
-	private originalDateNow: typeof Date.now;
-	private originalMathRandom: typeof Math.random;
 
 	constructor(private falkor: FalkorClient) {
 		this.rehydrator = new Rehydrator(falkor);
-		this.originalDateNow = Date.now;
-		this.originalMathRandom = Math.random;
 	}
 
 	/**
@@ -60,30 +79,25 @@ export class ReplayEngine {
 			// 2. Rehydrate VFS to the state just before this event
 			const vfs = await this.rehydrator.rehydrate(sessionId, event.vt_start - 1);
 
-			// 3. Set up deterministic environment
-			this.setupDeterministicEnv(event.vt_start);
+			// 3. Create deterministic providers (no global mutation!)
+			const providers = this.createDeterministicProviders(event.vt_start);
 
-			try {
-				// 4. Parse tool arguments
-				const args = JSON.parse(event.arguments || "{}");
+			// 4. Parse tool arguments
+			const args = JSON.parse(event.arguments || "{}");
 
-				// 5. Execute tool with rehydrated state
-				const replayOutput = await this.executeTool(event.name, args, vfs);
+			// 5. Execute tool with rehydrated state and deterministic providers
+			const replayOutput = await this.executeTool(event.name, args, vfs, providers);
 
-				// 6. Compare with original output
-				const originalOutput = event.result ? JSON.parse(event.result) : null;
-				const matches = this.compareOutputs(originalOutput, replayOutput);
+			// 6. Compare with original output
+			const originalOutput = event.result ? JSON.parse(event.result) : null;
+			const matches = this.compareOutputs(originalOutput, replayOutput);
 
-				return {
-					success: true,
-					matches,
-					originalOutput,
-					replayOutput,
-				};
-			} finally {
-				// Restore environment
-				this.restoreEnv();
-			}
+			return {
+				success: true,
+				matches,
+				originalOutput,
+				replayOutput,
+			};
 		} catch (error) {
 			return {
 				success: false,
@@ -133,39 +147,28 @@ export class ReplayEngine {
 	}
 
 	/**
-	 * Set up deterministic environment for replay.
-	 * Mocks Date.now() and Math.random() for reproducibility.
+	 * Create deterministic providers for replay.
+	 * Uses dependency injection instead of global mutation to avoid
+	 * cross-contamination with concurrent replays or other operations.
 	 */
-	private setupDeterministicEnv(timestamp: number): void {
-		// Mock Date.now() to return the original execution time
-		Date.now = () => timestamp;
-
-		// Create a seeded pseudo-random number generator
-		// Using the timestamp as seed for reproducibility
-		let seed = timestamp;
-		Math.random = () => {
-			// Simple LCG (Linear Congruential Generator)
-			seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-			return seed / 0x7fffffff;
+	private createDeterministicProviders(timestamp: number): DeterministicProviders {
+		return {
+			now: () => timestamp,
+			random: createSeededRandom(timestamp),
 		};
-	}
-
-	/**
-	 * Restore the original environment after replay.
-	 */
-	private restoreEnv(): void {
-		Date.now = this.originalDateNow;
-		Math.random = this.originalMathRandom;
 	}
 
 	/**
 	 * Execute a tool with the given arguments and VFS state.
 	 * This is a simplified implementation - in production, would use MCP or tool registry.
+	 *
+	 * @param providers - Deterministic time/random providers for reproducibility
 	 */
 	private async executeTool(
 		toolName: string,
 		args: Record<string, unknown>,
 		vfs: VirtualFileSystem,
+		_providers?: DeterministicProviders, // Reserved for tools that need time/random
 	): Promise<unknown> {
 		// Built-in tool implementations for replay
 		switch (toolName) {

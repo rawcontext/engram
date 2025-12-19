@@ -138,15 +138,17 @@ describe("SearchRetriever", () => {
 			text: "test query",
 			strategy: "hybrid",
 			limit: 5,
+			rerankDepth: 10, // Explicit rerankDepth for predictable test
 		};
 
 		await retriever.search(query as any);
 
 		const call = mockQdrantClient.query.mock.calls[0];
-		// Prefetch should have 2x the limit for better fusion
-		expect(call[1].prefetch[0].limit).toBe(10);
-		expect(call[1].prefetch[1].limit).toBe(10);
-		// Final limit should be as requested
-		expect(call[1].limit).toBe(5);
+		// Prefetch uses Math.max(rerankDepth, limit) * 2 for oversampling
+		// With rerankDepth=10, limit=5: fetchLimit=10, prefetch=20
+		expect(call[1].prefetch[0].limit).toBe(20);
+		expect(call[1].prefetch[1].limit).toBe(20);
+		// Final limit is fetchLimit (rerankDepth when reranking)
+		expect(call[1].limit).toBe(10);
 	});
 });
