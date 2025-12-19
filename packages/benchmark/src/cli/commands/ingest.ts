@@ -40,11 +40,23 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 	});
 	const graph = db.selectGraph("engram_benchmark");
 
-	// Create indexes
+	// Create indexes (FalkorDB syntax - no IF NOT EXISTS, use try/catch)
 	console.log("Creating indexes...");
-	await graph.query("CREATE INDEX IF NOT EXISTS FOR (s:Session) ON (s.id)");
-	await graph.query("CREATE INDEX IF NOT EXISTS FOR (t:Turn) ON (t.id)");
-	await graph.query("CREATE INDEX IF NOT EXISTS FOR (m:Memory) ON (m.id)");
+	try {
+		await graph.query("CREATE INDEX FOR (s:Session) ON (s.id)");
+	} catch {
+		/* exists */
+	}
+	try {
+		await graph.query("CREATE INDEX FOR (t:Turn) ON (t.id)");
+	} catch {
+		/* exists */
+	}
+	try {
+		await graph.query("CREATE INDEX FOR (m:Memory) ON (m.id)");
+	} catch {
+		/* exists */
+	}
 
 	// Track unique sessions
 	const processedSessions = new Set<string>();
