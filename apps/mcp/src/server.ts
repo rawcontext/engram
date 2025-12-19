@@ -5,6 +5,9 @@ import {
 	type ClientCapabilities,
 	createSessionContext,
 	detectClientCapabilities,
+	ElicitationService,
+	RootsService,
+	SamplingService,
 	type SessionContext,
 } from "./capabilities";
 import type { Config } from "./config";
@@ -37,6 +40,10 @@ export interface EngramMcpServer {
 	memoryRetriever: MemoryRetriever;
 	logger: Logger;
 	sessionContext: SessionContext;
+	// Capability services
+	sampling: SamplingService;
+	elicitation: ElicitationService;
+	roots: RootsService;
 }
 
 export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMcpServer {
@@ -75,6 +82,11 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		version: "1.0.0",
 	});
 
+	// Initialize capability services
+	const sampling = new SamplingService(server, logger);
+	const elicitation = new ElicitationService(server, logger);
+	const roots = new RootsService(server, logger);
+
 	// Initialize session context with default capabilities
 	// This will be updated when we receive client info
 	const sessionContext = createSessionContext({
@@ -85,24 +97,27 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		prompts: true,
 	});
 
+	// Set up roots change handler to update session context
+	roots.onRootsChanged((newRoots) => {
+		sessionContext.roots = newRoots.map((r) => r.uri);
+		if (newRoots.length > 0) {
+			sessionContext.workingDir = newRoots[0].path;
+			sessionContext.project = roots.primaryProject;
+		}
+	});
+
 	// Helper to get current session context
 	const getSessionContext = () => ({
 		sessionId: sessionContext.sessionId,
-		workingDir: sessionContext.workingDir,
-		project: sessionContext.project,
+		workingDir: sessionContext.workingDir ?? roots.primaryWorkingDir,
+		project: sessionContext.project ?? roots.primaryProject,
 	});
 
 	// Register tools
 	registerRememberTool(server, memoryStore, getSessionContext);
 	registerRecallTool(server, memoryRetriever, getSessionContext);
 	registerQueryTool(server, graphClient);
-	registerContextTool(
-		server,
-		memoryRetriever,
-		graphClient,
-		getSessionContext,
-		sessionContext.capabilities,
-	);
+	registerContextTool(server, memoryRetriever, graphClient, getSessionContext, sampling);
 
 	// Register resources
 	registerMemoryResource(server, graphClient);
@@ -123,18 +138,35 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		memoryRetriever,
 		logger,
 		sessionContext,
+		sampling,
+		elicitation,
+		roots,
 	};
 }
 
 /**
- * Update client capabilities after connection
+ * Update client capabilities after connection and enable services
  */
-export function updateClientCapabilities(
+export async function updateClientCapabilities(
 	engramServer: EngramMcpServer,
 	clientInfo?: { name?: string; version?: string },
-): ClientCapabilities {
+): Promise<ClientCapabilities> {
 	const capabilities = detectClientCapabilities(clientInfo, undefined, engramServer.logger);
 	engramServer.sessionContext.capabilities = capabilities;
+
+	// Enable capability services based on detected capabilities
+	if (capabilities.sampling) {
+		engramServer.sampling.enable();
+	}
+	if (capabilities.elicitation) {
+		engramServer.elicitation.enable();
+	}
+	if (capabilities.roots) {
+		engramServer.roots.enable();
+		// Immediately refresh roots
+		await engramServer.roots.refreshRoots();
+	}
+
 	return capabilities;
 }
 

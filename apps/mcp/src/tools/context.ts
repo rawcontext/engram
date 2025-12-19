@@ -1,7 +1,8 @@
+import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { SamplingService } from "../capabilities";
 import type { MemoryRetriever } from "../services/memory-retriever";
-import type { GraphClient } from "@engram/storage";
 
 interface ContextItem {
 	type: string;
@@ -15,7 +16,7 @@ export function registerContextTool(
 	memoryRetriever: MemoryRetriever,
 	graphClient: GraphClient,
 	getSessionContext: () => { project?: string; workingDir?: string },
-	clientCapabilities?: { sampling?: boolean },
+	samplingService?: SamplingService,
 ) {
 	server.registerTool(
 		"engram_context",
@@ -125,10 +126,24 @@ export function registerContextTool(
 				summary: undefined as string | undefined,
 			};
 
-			// If client supports sampling, we could use it here
-			// For now, just return the raw context
-			if (clientCapabilities?.sampling && contextItems.length > 5) {
-				output.summary = `Found ${contextItems.length} relevant context items including ${memories.length} memories and ${decisions.length} decisions.`;
+			// If sampling is available and we have significant context, summarize it
+			if (samplingService?.enabled && contextItems.length > 3) {
+				const contextText = contextItems
+					.slice(0, 10)
+					.map((c) => `[${c.type}] ${c.content}`)
+					.join("\n\n");
+
+				const summaryResult = await samplingService.summarize(
+					`Task: ${task}\n\nContext:\n${contextText}`,
+					150,
+				);
+
+				if (summaryResult) {
+					output.summary = summaryResult;
+				} else {
+					// Fallback to simple summary
+					output.summary = `Found ${contextItems.length} relevant context items including ${memories.length} memories and ${decisions.length} decisions.`;
+				}
 			}
 
 			return {
