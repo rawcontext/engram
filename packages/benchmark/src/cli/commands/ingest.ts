@@ -89,9 +89,9 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 
 				if (!userTurn || userTurn.role !== "user") continue;
 
-				// Escape content for Cypher - replace backslash first, then quotes
+				// Escape content for Cypher - double single quotes for escaping
 				const escapeForCypher = (s: string) =>
-					s.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, " ").replace(/\r/g, "");
+					s.replace(/'/g, "''").replace(/\\/g, "\\\\").replace(/\n/g, " ").replace(/\r/g, "");
 
 				const userContent = escapeForCypher(userTurn.content).slice(0, 500);
 				const assistantContent = escapeForCypher(assistantTurn?.content ?? "").slice(0, 500);
