@@ -139,7 +139,7 @@ mkdir -p /opt/engram
 cd /opt/engram
 
 # Clone with GitHub CLI or git
-if ! git clone https://github.com/ccheney/engram.git .; then
+if ! git clone https://github.com/engram-labs/engram.git .; then
   echo "Failed to clone repo - may need authentication" | tee -a /var/log/benchmark-startup.log
 fi
 
@@ -299,10 +299,11 @@ export const benchmarkVm = benchmarkVmConfig.enabled
 				machineType: benchmarkVmConfig.machineType,
 				zone: benchmarkVmConfig.zone,
 
-				// Boot disk with Deep Learning VM image (CUDA pre-installed)
+				// Boot disk with Deep Learning VM image (CUDA 12.8 + NVIDIA driver 570)
 				bootDisk: {
 					initializeParams: {
-						image: "projects/deeplearning-platform-release/global/images/family/common-cu121",
+						image:
+							"projects/deeplearning-platform-release/global/images/family/common-cu128-ubuntu-2204-nvidia-570",
 						size: benchmarkVmConfig.diskSizeGb,
 						type: "pd-ssd",
 					},

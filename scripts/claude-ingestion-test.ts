@@ -63,7 +63,7 @@ async function sendToIngestion(event: ClaudeStreamEvent): Promise<void> {
 		headers: {
 			"x-session-id": SESSION_ID,
 			"x-working-dir": process.cwd(),
-			"x-git-remote": "github.com/ccheney/engram",
+			"x-git-remote": "github.com/engram-labs/engram",
 			"x-agent-type": "claude-code",
 		},
 	};

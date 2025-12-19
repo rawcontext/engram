@@ -54,7 +54,7 @@ async function sendToIngestion(event: OpenCodeStreamEvent): Promise<void> {
 		headers: {
 			"x-session-id": SESSION_ID,
 			"x-working-dir": process.cwd(),
-			"x-git-remote": "github.com/ccheney/engram",
+			"x-git-remote": "github.com/engram-labs/engram",
 			"x-agent-type": "opencode",
 		},
 	};
@@ -94,14 +94,10 @@ async function runOpenCodeHeadless(prompt: string): Promise<void> {
 	console.log(`Prompt: "${prompt}"\n`);
 
 	return new Promise((resolve, reject) => {
-		const opencode = spawn(
-			"/Users/ccheney/.opencode/bin/opencode",
-			["run", "--format", "json", prompt],
-			{
-				cwd: process.cwd(),
-				env: process.env,
-			},
-		);
+		const opencode = spawn("opencode", ["run", "--format", "json", prompt], {
+			cwd: process.cwd(),
+			env: process.env,
+		});
 
 		let eventCount = 0;
 		let buffer = "";

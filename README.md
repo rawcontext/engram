@@ -147,7 +147,7 @@ Engram ingests events from multiple AI agent formats:
 
 ```bash
 # Clone and install
-git clone https://github.com/ccheney/engram.git
+git clone https://github.com/<your-org>/engram.git
 cd engram
 npm install
 
