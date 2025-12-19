@@ -168,4 +168,97 @@ describe("BatchedReranker", () => {
 			// Should complete without error
 		});
 	});
+
+	describe("concurrency control", () => {
+		it("should respect maxConcurrency limit", async () => {
+			let concurrentCount = 0;
+			let maxConcurrent = 0;
+
+			// Create a mock that tracks concurrent executions
+			const { pipeline } = await import("@huggingface/transformers");
+			(pipeline as any).mockResolvedValue(
+				vi.fn().mockImplementation(async (input: { text: string; text_pair: string }) => {
+					concurrentCount++;
+					maxConcurrent = Math.max(maxConcurrent, concurrentCount);
+					// Simulate some async work
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					concurrentCount--;
+					return [{ label: "LABEL_0", score: 0.5 }];
+				}),
+			);
+
+			const limitedReranker = new BatchedReranker({
+				model: "test-model",
+				maxBatchSize: 2,
+				maxConcurrency: 2,
+			});
+
+			// Create enough documents to require multiple batches
+			const documents: DocumentCandidate[] = Array.from({ length: 10 }, (_, i) => ({
+				id: `doc-${i}`,
+				content: `Document ${i}`,
+			}));
+
+			await limitedReranker.rerank("test query", documents);
+
+			// Should never exceed maxConcurrency (2 concurrent batches)
+			expect(maxConcurrent).toBeLessThanOrEqual(2);
+		});
+
+		it("should process all batches even with concurrency limit", async () => {
+			const processedBatches: number[] = [];
+
+			const { pipeline } = await import("@huggingface/transformers");
+			(pipeline as any).mockResolvedValue(
+				vi.fn().mockImplementation(async (input: { text: string; text_pair: string }) => {
+					processedBatches.push(Date.now());
+					await new Promise((resolve) => setTimeout(resolve, 5));
+					return [{ label: "LABEL_0", score: 0.5 }];
+				}),
+			);
+
+			const limitedReranker = new BatchedReranker({
+				model: "test-model",
+				maxBatchSize: 2,
+				maxConcurrency: 1, // Only 1 concurrent batch
+			});
+
+			const documents: DocumentCandidate[] = Array.from({ length: 8 }, (_, i) => ({
+				id: `doc-${i}`,
+				content: `Document ${i}`,
+			}));
+
+			const results = await limitedReranker.rerank("test query", documents);
+
+			// All documents should be processed
+			expect(results).toHaveLength(8);
+		});
+
+		it("should handle rapid promise completion without resource leaks", async () => {
+			const { pipeline } = await import("@huggingface/transformers");
+			(pipeline as any).mockResolvedValue(
+				vi.fn().mockImplementation(async () => {
+					// Instant completion to stress test promise cleanup
+					return [{ label: "LABEL_0", score: 0.5 }];
+				}),
+			);
+
+			const rapidReranker = new BatchedReranker({
+				model: "test-model",
+				maxBatchSize: 1,
+				maxConcurrency: 3,
+			});
+
+			const documents: DocumentCandidate[] = Array.from({ length: 20 }, (_, i) => ({
+				id: `doc-${i}`,
+				content: `Document ${i}`,
+			}));
+
+			// Should complete without hanging (previous bug would cause infinite loop)
+			// Request all 20 results
+			const results = await rapidReranker.rerank("test query", documents, 20);
+
+			expect(results).toHaveLength(20);
+		});
+	});
 });

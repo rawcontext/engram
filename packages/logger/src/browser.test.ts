@@ -53,7 +53,8 @@ describe("Browser Logger", () => {
 	beforeEach(() => {
 		mockFetch = vi.spyOn(global, "fetch").mockImplementation(async () => new Response("ok"));
 		global.window = {
-			addEventListener: () => {},
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
 		} as any;
 		global.document = {
 			visibilityState: "visible",
@@ -106,5 +107,105 @@ describe("Browser Logger", () => {
 		expect(body.logs).toHaveLength(2);
 		expect(body.logs[0].msg).toBe("Log 1");
 		expect(body.logs[1].msg).toBe("Log 2");
+	});
+
+	describe("destroy()", () => {
+		it("should have destroy method", () => {
+			const logger = createBrowserLogger({
+				service: "test",
+				forwardToBackend: false,
+			});
+
+			expect(typeof logger.destroy).toBe("function");
+		});
+
+		it("should flush remaining logs on destroy", async () => {
+			const logger = createBrowserLogger({
+				service: "test",
+				forwardToBackend: true,
+				batchSize: 10, // High batch size so auto-flush doesn't trigger
+				flushInterval: 10000,
+			});
+
+			// Log without triggering batch
+			logger.info("Final log");
+
+			// Destroy should flush
+			logger.destroy();
+
+			// Wait for async flush
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
+			expect(mockFetch).toHaveBeenCalled();
+		});
+
+		it("should be idempotent (safe to call multiple times)", () => {
+			const logger = createBrowserLogger({
+				service: "test",
+				forwardToBackend: false,
+			});
+
+			// Should not throw when called multiple times
+			expect(() => {
+				logger.destroy();
+				logger.destroy();
+				logger.destroy();
+			}).not.toThrow();
+		});
+
+		it("should remove event listeners on destroy", () => {
+			const removeEventListenerSpy = vi.fn();
+			const addEventListenerSpy = vi.fn();
+
+			global.window = {
+				addEventListener: addEventListenerSpy,
+				removeEventListener: removeEventListenerSpy,
+			} as any;
+
+			const logger = createBrowserLogger({
+				service: "test",
+				forwardToBackend: false,
+			});
+
+			// Should have added listeners
+			expect(addEventListenerSpy).toHaveBeenCalledWith("beforeunload", expect.any(Function));
+			expect(addEventListenerSpy).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+
+			// Destroy
+			logger.destroy();
+
+			// Should have removed listeners
+			expect(removeEventListenerSpy).toHaveBeenCalledWith("beforeunload", expect.any(Function));
+			expect(removeEventListenerSpy).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+		});
+
+		it("should not process new logs after destroy", async () => {
+			const logger = createBrowserLogger({
+				service: "test",
+				forwardToBackend: true,
+				batchSize: 10, // High batch size so we can count logs
+				flushInterval: 10000,
+			});
+
+			// Log one message, then destroy
+			logger.info("Before destroy");
+			logger.destroy();
+
+			// Wait for destroy's flush
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
+			// Get the call count from destroy flush
+			const callCountAfterDestroy = mockFetch.mock.calls.length;
+
+			// Try to log after destroy
+			logger.info("After destroy 1");
+			logger.info("After destroy 2");
+
+			// Wait for any potential async operations
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
+			// The call count should not have increased (destroy flag prevents further processing)
+			expect(mockFetch.mock.calls.length).toBe(callCountAfterDestroy);
+		});
 	});
 });

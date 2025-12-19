@@ -172,4 +172,90 @@ describe("BaseTagExtractor", () => {
 			expect(result.thought).toBe("thought\nwith\nnewlines");
 		});
 	});
+
+	describe("flush functionality", () => {
+		it("should return empty delta when buffer is empty", () => {
+			const extractor = new TestExtractor();
+			const result = extractor.flush();
+
+			expect(result).toEqual({});
+		});
+
+		it("should flush buffered content outside a block", () => {
+			const extractor = new TestExtractor();
+			// Process partial tag that leaves content in buffer
+			extractor.process("Some content [STA");
+
+			const result = extractor.flush();
+
+			// Should return buffered content as regular content
+			expect(result.content).toBe("[STA");
+			expect(result.thought).toBeUndefined();
+		});
+
+		it("should flush buffered content inside an unclosed block with partial close tag", () => {
+			const extractor = new TestExtractor();
+			// Start a block but leave partial close tag in buffer
+			// Note: process() returns extracted content as it goes, but buffers partial tags
+			extractor.process("Hello [START]content [EN");
+
+			// At this point, "content " has been extracted, but "[EN" is buffered
+			// because it might be the start of "[END]"
+			const result = extractor.flush();
+
+			// Should return the partial close tag as extracted content
+			expect(result.thought).toBe("[EN");
+		});
+
+		it("should clear state after flush", () => {
+			const extractor = new TestExtractor();
+			extractor.process("Hello [STA");
+
+			// First flush - buffer has partial open tag
+			const r1 = extractor.flush();
+			expect(r1.content).toBe("[STA");
+
+			// Second flush should be empty
+			const r2 = extractor.flush();
+			expect(r2).toEqual({});
+		});
+
+		it("should handle flush after complete processing", () => {
+			const extractor = new TestExtractor();
+			extractor.process("Hello [START]complete[END] world");
+
+			// All content processed, buffer should be empty
+			const result = extractor.flush();
+			expect(result).toEqual({});
+		});
+
+		it("should handle flush when only partial close tag remains", () => {
+			const extractor = new TestExtractor();
+			// Enter block, have some content, close tag is partial
+			extractor.process("Before [START]content [EN");
+
+			const result = extractor.flush();
+
+			// Buffer contains only "[EN" (partial close tag)
+			// Content "content " was already extracted during process()
+			expect(result.thought).toBe("[EN");
+		});
+
+		it("should work with streaming chunks ending mid-block", () => {
+			const extractor = new TestExtractor();
+
+			// First chunk opens block
+			const r1 = extractor.process("Prefix [START]first");
+			expect(r1.content).toBe("Prefix ");
+			expect(r1.thought).toBe("first");
+
+			// Second chunk continues block
+			const r2 = extractor.process(" second");
+			expect(r2.thought).toBe(" second");
+
+			// Flush remaining buffer (empty because no partial tag)
+			const r3 = extractor.flush();
+			expect(r3).toEqual({});
+		});
+	});
 });

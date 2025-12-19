@@ -980,6 +980,9 @@ describe("TurnAggregator", () => {
 			};
 			context.emitNodeCreated?.(testNode);
 
+			// Wait for async callback to complete (emitNodeCreated wraps in Promise)
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
 			expect(mockNodeCreated).toHaveBeenCalledWith(sessionId, testNode);
 		});
 	});
@@ -1180,6 +1183,163 @@ describe("TurnAggregator", () => {
 			const agg = new TurnAggregator(deps);
 
 			expect(agg.getHandlerRegistry()).toBe(mockRegistry);
+		});
+	});
+
+	describe("Instance isolation", () => {
+		it("should have independent state between instances", async () => {
+			const sessionId = uniqueSessionId("isolation");
+
+			// Create two independent aggregator instances
+			const agg1 = new TurnAggregator({
+				graphClient: createMockGraphClient(),
+				logger: createMockLogger(),
+			});
+			const agg2 = new TurnAggregator({
+				graphClient: createMockGraphClient(),
+				logger: createMockLogger(),
+			});
+
+			// Create turn in instance 1
+			await agg1.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "Turn in agg1" }),
+				sessionId,
+			);
+
+			// Instance 2 should NOT have this turn
+			// If we create same session in agg2, it should start fresh at sequence 0
+			const mockGraphClient2 = agg2["graphClient"];
+			await agg2.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "Turn in agg2" }),
+				sessionId,
+			);
+
+			// Get the create call for agg2 - should have sequenceIndex 0
+			const createCalls = (mockGraphClient2.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("CREATE (t:Turn"),
+			);
+			expect(createCalls.length).toBe(1);
+			expect(createCalls[0][1].sequenceIndex).toBe(0);
+		});
+
+		it("should not share sequence counters between instances", async () => {
+			const sessionId = uniqueSessionId("seq-isolation");
+
+			const mockGraphClient1 = createMockGraphClient();
+			const agg1 = new TurnAggregator({
+				graphClient: mockGraphClient1,
+				logger: createMockLogger(),
+			});
+
+			// Create two turns in instance 1
+			await agg1.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "T1" }),
+				sessionId,
+			);
+			await agg1.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "T2" }),
+				sessionId,
+			);
+
+			// Instance 1 should have sequence 0 and 1
+			const createCalls1 = (mockGraphClient1.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("CREATE (t:Turn"),
+			);
+			expect(createCalls1[0][1].sequenceIndex).toBe(0);
+			expect(createCalls1[1][1].sequenceIndex).toBe(1);
+
+			// Create new instance for same session - should start at 0
+			const mockGraphClient2 = createMockGraphClient();
+			const agg2 = new TurnAggregator({
+				graphClient: mockGraphClient2,
+				logger: createMockLogger(),
+			});
+
+			await agg2.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "Fresh" }),
+				sessionId,
+			);
+
+			const createCalls2 = (mockGraphClient2.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("CREATE (t:Turn"),
+			);
+			expect(createCalls2[0][1].sequenceIndex).toBe(0); // Fresh start
+		});
+	});
+
+	describe("clearSession", () => {
+		it("should clear session state", async () => {
+			const sessionId = uniqueSessionId("clear");
+			const mockGraph = createMockGraphClient();
+
+			const agg = new TurnAggregator({
+				graphClient: mockGraph,
+				logger: createMockLogger(),
+			});
+
+			// Create turns to build up state
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "T1" }),
+				sessionId,
+			);
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "T2" }),
+				sessionId,
+			);
+
+			// Clear the session
+			agg.clearSession(sessionId);
+
+			// Next turn should start at sequence 0 again
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "After clear" }),
+				sessionId,
+			);
+
+			const createCalls = (mockGraph.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("CREATE (t:Turn"),
+			);
+
+			// Should have 3 turns: index 0, 1, then 0 again after clear
+			expect(createCalls.length).toBe(3);
+			expect(createCalls[2][1].sequenceIndex).toBe(0);
+		});
+
+		it("should only clear specified session", async () => {
+			const session1 = uniqueSessionId("keep");
+			const session2 = uniqueSessionId("clear");
+			const mockGraph = createMockGraphClient();
+
+			const agg = new TurnAggregator({
+				graphClient: mockGraph,
+				logger: createMockLogger(),
+			});
+
+			// Create turns in both sessions
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "S1" }),
+				session1,
+			);
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "S2" }),
+				session2,
+			);
+
+			// Clear only session2
+			agg.clearSession(session2);
+
+			// Session1 should continue with next sequence
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "S1 T2" }),
+				session1,
+			);
+
+			const createCalls = (mockGraph.query as any).mock.calls.filter(
+				(call: any[]) => call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === session1,
+			);
+
+			expect(createCalls.length).toBe(2);
+			expect(createCalls[1][1].sequenceIndex).toBe(1); // Continues from 1
 		});
 	});
 
