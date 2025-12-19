@@ -12,6 +12,7 @@
 		"@engram/storage": "*",
 		"@modelcontextprotocol/sdk": "^1.24.3",
 		"hono": "^4.7.10",
+		"ulid": "^3.0.2",
 		"zod": "^4.1.13"
 	},
 	"devDependencies": {
