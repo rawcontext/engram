@@ -53,6 +53,11 @@ interface RunOptions {
 	sessionAware: boolean;
 	topSessions: number;
 	turnsPerSession: number;
+	// Temporal query parsing options
+	temporalAware: boolean;
+	temporalConfidenceThreshold: number;
+	// Embedding model options
+	embeddingModel: string;
 }
 
 export async function runCommand(benchmark: string, options: RunOptions): Promise<void> {
@@ -100,6 +105,11 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 			console.log(`  Top Sessions (Stage 1): ${options.topSessions}`);
 			console.log(`  Turns Per Session (Stage 2): ${options.turnsPerSession}`);
 		}
+		console.log(`  Temporal Query Parsing: ${options.temporalAware}`);
+		if (options.temporalAware) {
+			console.log(`  Temporal Confidence Threshold: ${options.temporalConfidenceThreshold}`);
+		}
+		console.log(`  Embedding Model: ${options.embeddingModel}`);
 	}
 	if (options.limit) {
 		console.log(`  Limit: ${options.limit} instances`);
@@ -231,6 +241,17 @@ function createCustomRetriever(options: RunOptions): CustomRetriever | undefined
 		sessionAware: options.sessionAware,
 		topSessions: options.topSessions,
 		turnsPerSession: options.turnsPerSession,
+		temporalAware: options.temporalAware,
+		temporalConfidenceThreshold: options.temporalConfidenceThreshold,
+		embeddingModel: options.embeddingModel as
+			| "e5-small"
+			| "e5-base"
+			| "e5-large"
+			| "gte-base"
+			| "gte-large"
+			| "bge-small"
+			| "bge-base"
+			| "bge-large",
 	});
 }
 

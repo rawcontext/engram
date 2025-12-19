@@ -5,15 +5,16 @@
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",
 	"devDependencies": {
-		"typescript": "^5.9.3",
+		"@engram/tsconfig": "*",
 		"@types/node": "^24.10.1",
-		"@engram/tsconfig": "*"
+		"typescript": "^5.9.3"
 	},
 	"dependencies": {
 		"@engram/common": "*",
 		"@engram/logger": "*",
 		"@huggingface/transformers": "^3.8.1",
 		"@qdrant/js-client-rest": "^1.16.2",
+		"chrono-node": "^2.9.0",
 		"ioredis": "^5.8.2",
 		"p-queue": "^8.0.1",
 		"prom-client": "^15.1.3",

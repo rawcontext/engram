@@ -75,6 +75,20 @@ program
 	.option("--session-aware", "Enable session-aware hierarchical retrieval", false)
 	.option("--top-sessions <n>", "Number of sessions to retrieve in stage 1", Number.parseInt, 5)
 	.option("--turns-per-session <n>", "Number of turns per session in stage 2", Number.parseInt, 3)
+	// Temporal query parsing options
+	.option("--temporal-aware", "Enable temporal query parsing with chrono-node", false)
+	.option(
+		"--temporal-confidence-threshold <n>",
+		"Minimum confidence to apply temporal filter (0-1)",
+		Number.parseFloat,
+		0.5,
+	)
+	// Embedding model options
+	.option(
+		"--embedding-model <model>",
+		"Embedding model: e5-small, e5-base, e5-large, gte-base, gte-large, bge-small, bge-base, bge-large",
+		"e5-small",
+	)
 	.action(runCommand);
 
 // Evaluate results command

@@ -2,6 +2,19 @@ import type { EngramDocument, MappedInstance } from "../mapper.js";
 import type { EmbeddingProvider, RetrievalResult } from "../retriever.js";
 
 /**
+ * Embedding model options for configurable embeddings.
+ */
+export type EmbeddingModelOption =
+	| "e5-small"
+	| "e5-base"
+	| "e5-large"
+	| "gte-base"
+	| "gte-large"
+	| "bge-small"
+	| "bge-base"
+	| "bge-large";
+
+/**
  * Configuration for the Engram provider
  */
 export interface EngramProviderConfig {
@@ -33,6 +46,14 @@ export interface EngramProviderConfig {
 	topSessions: number;
 	/** Number of turns per session in stage 2 */
 	turnsPerSession: number;
+	/** Enable temporal query parsing */
+	temporalAware: boolean;
+	/** Minimum confidence to apply temporal filter (0-1) */
+	temporalConfidenceThreshold: number;
+	/** Embedding model to use */
+	embeddingModel: EmbeddingModelOption;
+	/** Reference date for temporal queries (defaults to question date) */
+	referenceDate?: Date;
 }
 
 const DEFAULT_CONFIG: EngramProviderConfig = {
@@ -50,6 +71,9 @@ const DEFAULT_CONFIG: EngramProviderConfig = {
 	sessionAware: false,
 	topSessions: 5,
 	turnsPerSession: 3,
+	temporalAware: false,
+	temporalConfidenceThreshold: 0.5,
+	embeddingModel: "e5-small",
 };
 
 /**
@@ -77,6 +101,9 @@ export class EngramRetriever {
 	private sessionSummarizer: SessionSummarizerInterface | null = null;
 	private sessionRetriever: SessionRetrieverInterface | null = null;
 	private llmProvider: LLMProviderInterface | null = null;
+	private temporalParser: TemporalParserInterface | null = null;
+	private queryFeatureExtractor: QueryFeatureExtractorInterface | null = null;
+	private embeddingDimensions: number = 384; // Default for e5-small
 
 	constructor(config: Partial<EngramProviderConfig> = {}) {
 		this.config = { ...DEFAULT_CONFIG, ...config };
@@ -92,8 +119,32 @@ export class EngramRetriever {
 			// Import search-core components
 			const searchCore = await import("@engram/search-core");
 
-			// Initialize embedders
-			this.textEmbedder = new searchCore.TextEmbedder() as unknown as TextEmbedderInterface;
+			// Initialize embedders with configurable model
+			if (this.config.embeddingModel === "e5-small") {
+				// Use legacy TextEmbedder for backwards compatibility
+				this.textEmbedder = new searchCore.TextEmbedder() as unknown as TextEmbedderInterface;
+				this.embeddingDimensions = 384;
+			} else {
+				// Use configurable embedder for other models
+				const embedder = searchCore.createEmbedder({
+					model: this.config.embeddingModel,
+					sparse: this.config.hybridSearch,
+				});
+				this.textEmbedder = embedder as unknown as TextEmbedderInterface;
+				this.embeddingDimensions = embedder.dimensions;
+				console.log(`Using ${this.config.embeddingModel} embedder (${this.embeddingDimensions}d)`);
+			}
+
+			// Initialize temporal parser
+			if (this.config.temporalAware) {
+				this.temporalParser = new searchCore.TemporalQueryParser(
+					this.config.referenceDate,
+				) as unknown as TemporalParserInterface;
+			}
+
+			// Initialize query feature extractor for diagnostics
+			this.queryFeatureExtractor =
+				new searchCore.QueryFeatureExtractor() as unknown as QueryFeatureExtractorInterface;
 
 			if (this.config.hybridSearch) {
 				this.spladeEmbedder = new searchCore.SpladeEmbedder() as unknown as SpladeEmbedderInterface;
@@ -630,12 +681,30 @@ Return ONLY a JSON array of query strings. No explanations.`;
 		}
 
 		try {
-			// Step 1: Generate query embeddings
-			const denseQuery = await this.textEmbedder.embedQuery(query);
+			// Step 0: Parse temporal expressions if enabled
+			let semanticQuery = query;
+			let temporalFilter: TemporalFilterType | null = null;
+
+			if (this.temporalParser) {
+				const parsed = this.temporalParser.parse(query);
+				if (parsed.temporalFilter && parsed.confidence >= this.config.temporalConfidenceThreshold) {
+					semanticQuery = parsed.semanticQuery;
+					temporalFilter = parsed.temporalFilter;
+					console.log(
+						`  [Temporal] "${parsed.temporalFilter.expression}" → ` +
+							`${parsed.temporalFilter.after?.toISOString().split("T")[0] ?? "∞"} to ` +
+							`${parsed.temporalFilter.before?.toISOString().split("T")[0] ?? "∞"} ` +
+							`(conf: ${parsed.confidence.toFixed(2)})`,
+					);
+				}
+			}
+
+			// Step 1: Generate query embeddings (use semantic query without temporal)
+			const denseQuery = await this.textEmbedder.embedQuery(semanticQuery);
 			let sparseQuery: SparseVector | null = null;
 			if (this.config.hybridSearch && this.spladeEmbedder) {
 				try {
-					sparseQuery = await this.spladeEmbedder.embedQuery(query);
+					sparseQuery = await this.spladeEmbedder.embedQuery(semanticQuery);
 				} catch (error) {
 					// Fall back to dense-only if SPLADE fails
 					console.warn("SPLADE embedding failed, using dense-only:", error);
@@ -648,10 +717,10 @@ Return ONLY a JSON array of query strings. No explanations.`;
 
 			if (this.config.hybridSearch && sparseQuery) {
 				// Hybrid search with RRF fusion
-				results = await this.hybridSearch(denseQuery, sparseQuery, fetchLimit);
+				results = await this.hybridSearch(denseQuery, sparseQuery, fetchLimit, temporalFilter);
 			} else {
 				// Dense-only search
-				results = await this.denseSearch(denseQuery, fetchLimit);
+				results = await this.denseSearch(denseQuery, fetchLimit, temporalFilter);
 			}
 
 			// Step 3: Rerank if enabled
@@ -712,34 +781,64 @@ Return ONLY a JSON array of query strings. No explanations.`;
 	}
 
 	/**
-	 * Dense-only vector search with retry
+	 * Dense-only vector search with retry and optional temporal filter
 	 */
 	private async denseSearch(
 		queryVector: number[] | Float32Array,
 		limit: number,
+		temporalFilter?: TemporalFilterType | null,
 	): Promise<QdrantSearchResult[]> {
 		if (!this.client) return [];
 
 		const client = this.client;
+		const qdrantFilter = temporalFilter ? this.buildQdrantFilter(temporalFilter) : undefined;
+
 		return this.retryOperation(async () => {
 			const results = await client.search(this.config.collectionName, {
 				vector: { name: "dense", vector: Array.from(queryVector) },
 				limit,
 				with_payload: true,
+				filter: qdrantFilter,
 			});
 			return results ?? [];
 		});
 	}
 
 	/**
-	 * Hybrid search with RRF fusion (dense + sparse)
+	 * Build Qdrant filter from temporal constraints
+	 */
+	private buildQdrantFilter(filter: TemporalFilterType): Record<string, unknown> {
+		const conditions: Array<{ key: string; range: { gte?: string; lte?: string } }> = [];
+
+		if (filter.after) {
+			conditions.push({
+				key: "valid_time",
+				range: { gte: filter.after.toISOString() },
+			});
+		}
+
+		if (filter.before) {
+			conditions.push({
+				key: "valid_time",
+				range: { lte: filter.before.toISOString() },
+			});
+		}
+
+		return { must: conditions };
+	}
+
+	/**
+	 * Hybrid search with RRF fusion (dense + sparse) and optional temporal filter
 	 */
 	private async hybridSearch(
 		denseQuery: number[] | Float32Array,
 		sparseQuery: SparseVector,
 		limit: number,
+		temporalFilter?: TemporalFilterType | null,
 	): Promise<QdrantSearchResult[]> {
 		if (!this.client) return [];
+
+		const qdrantFilter = temporalFilter ? this.buildQdrantFilter(temporalFilter) : undefined;
 
 		// Use Qdrant's native query API with prefetch for RRF
 		try {
@@ -749,6 +848,7 @@ Return ONLY a JSON array of query strings. No explanations.`;
 						query: Array.from(denseQuery),
 						using: "dense",
 						limit: limit * 2,
+						filter: qdrantFilter,
 					},
 					{
 						query: {
@@ -757,6 +857,7 @@ Return ONLY a JSON array of query strings. No explanations.`;
 						},
 						using: "sparse",
 						limit: limit * 2,
+						filter: qdrantFilter,
 					},
 				],
 				query: { fusion: "rrf" },
@@ -768,7 +869,7 @@ Return ONLY a JSON array of query strings. No explanations.`;
 		} catch {
 			// Fall back to dense-only if hybrid fails
 			console.warn("Hybrid search failed, falling back to dense-only");
-			return this.denseSearch(denseQuery, limit);
+			return this.denseSearch(denseQuery, limit, temporalFilter);
 		}
 	}
 
@@ -1016,4 +1117,33 @@ interface SessionRetrieverInterface {
 
 interface LLMProviderInterface {
 	complete(prompt: string): Promise<{ text: string }>;
+}
+
+interface TemporalFilterType {
+	after?: Date;
+	before?: Date;
+	sortByRecency?: boolean;
+	expression?: string;
+}
+
+interface TemporalParserInterface {
+	parse(query: string): {
+		semanticQuery: string;
+		temporalFilter: TemporalFilterType | null;
+		confidence: number;
+	};
+	setReferenceDate(date: Date): void;
+}
+
+interface QueryFeatureExtractorInterface {
+	extract(query: string): {
+		length: number;
+		entityDensity: number;
+		hasTemporal: boolean;
+		questionType: string;
+		avgIDF: number;
+		hasRareTerms: boolean;
+		hasSpecificTerms: boolean;
+		complexity: number;
+	};
 }

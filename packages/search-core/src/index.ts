@@ -28,3 +28,6 @@ export * from "./services/score-merger";
 export * from "./services/snapshot-manager";
 export * from "./services/splade-embedder";
 export * from "./services/text-embedder";
+export * from "./services/temporal-parser";
+export * from "./services/query-features";
+export * from "./services/embedder-factory";
