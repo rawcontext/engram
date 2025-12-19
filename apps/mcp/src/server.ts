@@ -1,5 +1,5 @@
 import { createLogger, type Logger } from "@engram/logger";
-import { createFalkorClient, FalkorClient, type GraphClient } from "@engram/storage";
+import { FalkorClient, type GraphClient } from "@engram/storage";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
 	type ClientCapabilities,
@@ -8,6 +8,12 @@ import {
 	type SessionContext,
 } from "./capabilities";
 import type { Config } from "./config";
+import { registerPrimePrompt, registerRecapPrompt, registerWhyPrompt } from "./prompts";
+import {
+	registerFileHistoryResource,
+	registerMemoryResource,
+	registerSessionResource,
+} from "./resources";
 import { MemoryRetriever, MemoryStore } from "./services";
 import {
 	registerContextTool,
@@ -98,7 +104,17 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		sessionContext.capabilities,
 	);
 
-	logger.info("Engram MCP server initialized");
+	// Register resources
+	registerMemoryResource(server, graphClient);
+	registerSessionResource(server, graphClient, getSessionContext);
+	registerFileHistoryResource(server, graphClient);
+
+	// Register prompts
+	registerPrimePrompt(server, memoryRetriever, graphClient, getSessionContext);
+	registerRecapPrompt(server, graphClient, getSessionContext);
+	registerWhyPrompt(server, memoryRetriever, getSessionContext);
+
+	logger.info("Engram MCP server initialized with tools, resources, and prompts");
 
 	return {
 		server,
