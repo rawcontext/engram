@@ -78,4 +78,9 @@ export {
 // Re-export network resources
 export { nat, network, router, subnet } from "./network";
 // Re-export secrets
-export { anthropicApiKeySecret, openaiApiKeySecret, xaiApiKeySecret } from "./secrets";
+export {
+	anthropicApiKeySecret,
+	googleGenerativeAiApiKeySecret,
+	openaiApiKeySecret,
+	xaiApiKeySecret,
+} from "./secrets";

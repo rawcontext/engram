@@ -34,10 +34,22 @@ export const anthropicApiKeySecret = new gcp.secretmanager.Secret("anthropic-api
 });
 
 /**
- * xAI API key for Grok models (used in reranking)
+ * xAI API key for Grok models (legacy, being phased out)
  */
 export const xaiApiKeySecret = new gcp.secretmanager.Secret("xai-api-key", {
 	secretId: "xai-api-key",
 	replication,
 	labels: commonLabels,
 });
+
+/**
+ * Google Generative AI API key for Gemini models (reranking, query expansion)
+ */
+export const googleGenerativeAiApiKeySecret = new gcp.secretmanager.Secret(
+	"google-generative-ai-api-key",
+	{
+		secretId: "google-generative-ai-api-key",
+		replication,
+		labels: commonLabels,
+	},
+);

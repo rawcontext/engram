@@ -90,10 +90,46 @@ describe("Secret Management", () => {
 		});
 	});
 
+	describe("Google Generative AI API Key Secret", () => {
+		it("should create a Google Generative AI API key secret", () => {
+			const secretResource = getResource(
+				"gcp:secretmanager/secret:Secret",
+				"google-generative-ai-api-key",
+			);
+			expect(secretResource).toBeDefined();
+		});
+
+		it("should have the correct secret ID", () => {
+			const secretResource = getResource(
+				"gcp:secretmanager/secret:Secret",
+				"google-generative-ai-api-key",
+			);
+			expect(secretResource?.inputs.secretId).toBe("google-generative-ai-api-key");
+		});
+
+		it("should use automatic replication", () => {
+			const secretResource = getResource(
+				"gcp:secretmanager/secret:Secret",
+				"google-generative-ai-api-key",
+			);
+			expect(secretResource?.inputs.replication).toEqual({ auto: {} });
+		});
+
+		it("should have common labels", () => {
+			const secretResource = getResource(
+				"gcp:secretmanager/secret:Secret",
+				"google-generative-ai-api-key",
+			);
+			const labels = secretResource?.inputs.labels as SecretLabels;
+			expect(labels).toBeDefined();
+			expect(labels.project).toBe("engram");
+		});
+	});
+
 	describe("Resource Count", () => {
-		it("should create exactly 3 secrets", () => {
+		it("should create exactly 4 secrets", () => {
 			const secrets = getResourcesByType("gcp:secretmanager/secret:Secret");
-			expect(secrets).toHaveLength(3);
+			expect(secrets).toHaveLength(4);
 		});
 
 		it("should create secrets for all required API keys", () => {
@@ -103,6 +139,7 @@ describe("Secret Management", () => {
 			expect(secretIds).toContain("openai-api-key");
 			expect(secretIds).toContain("anthropic-api-key");
 			expect(secretIds).toContain("xai-api-key");
+			expect(secretIds).toContain("google-generative-ai-api-key");
 		});
 	});
 
@@ -131,6 +168,10 @@ describe("Secret Management", () => {
 
 		it("should export xaiApiKeySecret", () => {
 			expect(infra.xaiApiKeySecret).toBeDefined();
+		});
+
+		it("should export googleGenerativeAiApiKeySecret", () => {
+			expect(infra.googleGenerativeAiApiKeySecret).toBeDefined();
 		});
 	});
 });
