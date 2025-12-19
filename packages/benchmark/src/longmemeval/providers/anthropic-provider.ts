@@ -240,8 +240,8 @@ export class GeminiProvider implements LLMProvider {
 			model?: string;
 		} = {},
 	) {
-		this.apiKey = config.apiKey ?? process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? "";
-		this.model = config.model ?? "gemini-3-flash";
+		this.apiKey = config.apiKey ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? "";
+		this.model = config.model ?? "gemini-3-flash-preview";
 	}
 
 	/**
@@ -254,7 +254,7 @@ export class GeminiProvider implements LLMProvider {
 
 		if (!this.apiKey) {
 			throw new Error(
-				"Gemini API key required. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable.",
+				"Gemini API key required. Set GOOGLE_GENERATIVE_AI_API_KEY environment variable.",
 			);
 		}
 

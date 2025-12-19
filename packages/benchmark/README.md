@@ -75,7 +75,7 @@ npx tsx src/cli/index.ts run longmemeval \
   --variant oracle \
   --embeddings engram \
   --llm gemini \
-  --gemini-model gemini-3-flash \
+  --gemini-model gemini-3-flash-preview \
   --top-k 10 \
   --hybrid-search \
   --rerank \

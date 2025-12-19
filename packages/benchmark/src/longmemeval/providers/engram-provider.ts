@@ -187,7 +187,7 @@ export class EngramRetriever {
 				this.xaiClient = {
 					chat: async (messages: Array<{ role: string; content: string }>) => {
 						const result = await generateText({
-							model: googleProvider("gemini-3-flash"),
+							model: googleProvider("gemini-3-flash-preview"),
 							system: messages.find((m) => m.role === "system")?.content,
 							prompt: messages.find((m) => m.role === "user")?.content ?? "",
 						});
@@ -217,7 +217,7 @@ export class EngramRetriever {
 				this.llmProvider = {
 					complete: async (prompt: string) => {
 						const result = await generateText({
-							model: googleProvider("gemini-3-flash"),
+							model: googleProvider("gemini-3-flash-preview"),
 							prompt,
 						});
 						return { text: result.text };

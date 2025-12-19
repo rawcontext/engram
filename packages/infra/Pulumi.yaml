@@ -4,13 +4,4 @@ runtime:
   options:
     typescript: true
 main: src/
-description: |
-  Engram Infrastructure - GKE Autopilot cluster with supporting resources.
-
-  Deployed resources:
-  - VPC Network and Subnet with Cloud NAT
-  - GKE Autopilot Cluster (regional)
-  - Secret Manager secrets for API keys
-
-  Data services (FalkorDB, Qdrant, Redpanda) are deployed via Helm after
-  cluster provisioning. See k8s/ directory for values files.
+description: Engram Infrastructure - GCP resources for benchmark and services

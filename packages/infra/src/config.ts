@@ -28,11 +28,11 @@ export const gkeConfig = {
 	deletionProtection: environment === "prod",
 };
 
-// Common Tags
+// Common Labels (must be lowercase for GCP)
 export const commonLabels = {
 	project: "engram",
 	environment: environment,
-	managedBy: "pulumi",
+	"managed-by": "pulumi",
 };
 
 // =============================================================================

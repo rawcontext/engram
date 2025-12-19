@@ -4,6 +4,11 @@
  * GPU-enabled Cloud Run Job for running LongMemEval benchmarks
  * with SOTA models (Gemini 2.5 Flash) in GCP.
  *
+ * Architecture:
+ * - Main container: Benchmark runner with GPU for embedding inference
+ * - Sidecar container: Qdrant vector database for hybrid search
+ * - Containers share localhost network (benchmark connects to localhost:6333)
+ *
  * GPU Specs:
  * - NVIDIA L4 (24GB VRAM)
  * - Driver: 535.216.03 (CUDA 12.2)
@@ -13,6 +18,7 @@
  *   gcloud run jobs execute engram-benchmark --region us-central1
  *
  * @see https://cloud.google.com/run/docs/configuring/jobs/gpu
+ * @see https://cloud.google.com/run/docs/deploying#sidecars
  * @see https://www.pulumi.com/registry/packages/gcp/api-docs/cloudrunv2/job/
  */
 
@@ -33,10 +39,10 @@ const config = new pulumi.Config();
 export const benchmarkConfig = {
 	/** Container image for benchmark runner */
 	image: config.get("benchmarkImage") ?? `gcr.io/${gcpProject}/engram-benchmark:latest`,
-	/** CPU allocation (minimum 4 for GPU) */
-	cpu: config.get("benchmarkCpu") ?? "8",
-	/** Memory allocation (minimum 16Gi for GPU) */
-	memory: config.get("benchmarkMemory") ?? "32Gi",
+	/** CPU allocation (minimum 4 for GPU, max 8 total across all containers) */
+	cpu: config.get("benchmarkCpu") ?? "6",
+	/** Memory allocation (minimum 16Gi for GPU, max 24Gi for 6 CPUs) */
+	memory: config.get("benchmarkMemory") ?? "24Gi",
 	/** Task timeout in seconds (max 24 hours for jobs) */
 	timeout: config.get("benchmarkTimeout") ?? "3600s",
 	/** Maximum retries on failure */
@@ -51,10 +57,11 @@ export const benchmarkConfig = {
 // Cloud Run Job with GPU
 // =============================================================================
 
+// GCP labels must be lowercase, no dots/slashes
 const jobLabels = {
-	"app.kubernetes.io/name": "engram-benchmark",
-	"app.kubernetes.io/component": "job",
-	"app.kubernetes.io/part-of": "engram",
+	app: "engram-benchmark",
+	component: "job",
+	"part-of": "engram",
 };
 
 /**
@@ -94,6 +101,7 @@ export const benchmarkJob = new gcp.cloudrunv2.Job("engram-benchmark", {
 			maxRetries: benchmarkConfig.maxRetries,
 
 			containers: [
+				// Main benchmark container
 				{
 					name: "benchmark",
 					image: benchmarkConfig.image,
@@ -141,6 +149,57 @@ export const benchmarkJob = new gcp.cloudrunv2.Job("engram-benchmark", {
 						},
 					],
 				},
+
+				// Qdrant vector database sidecar
+				// Containers share localhost network, so benchmark connects to localhost:6333
+				{
+					name: "qdrant",
+					image: "qdrant/qdrant:v1.12.4",
+
+					// Qdrant resource limits (runs alongside benchmark)
+					resources: {
+						limits: {
+							cpu: "2",
+							memory: "4Gi",
+						},
+					},
+
+					// Qdrant environment variables
+					envs: [
+						{
+							name: "QDRANT__SERVICE__GRPC_PORT",
+							value: "6334",
+						},
+						{
+							name: "QDRANT__SERVICE__HTTP_PORT",
+							value: "6333",
+						},
+						{
+							// Disable telemetry in cloud environment
+							name: "QDRANT__TELEMETRY_DISABLED",
+							value: "true",
+						},
+					],
+
+					// Qdrant data volume
+					volumeMounts: [
+						{
+							name: "qdrant-storage",
+							mountPath: "/qdrant/storage",
+						},
+					],
+
+					// Startup probe to ensure Qdrant is ready before benchmark starts
+					startupProbe: {
+						httpGet: {
+							path: "/readyz",
+							port: 6333,
+						},
+						initialDelaySeconds: 2,
+						periodSeconds: 2,
+						failureThreshold: 30,
+					},
+				},
 			],
 
 			// Volumes
@@ -159,6 +218,14 @@ export const benchmarkJob = new gcp.cloudrunv2.Job("engram-benchmark", {
 						readOnly: false,
 					},
 				},
+				{
+					// Ephemeral storage for Qdrant (data is recreated each job run)
+					name: "qdrant-storage",
+					emptyDir: {
+						medium: "MEMORY",
+						sizeLimit: "2Gi",
+					},
+				},
 			],
 
 			// Service account for GCS access
@@ -171,6 +238,14 @@ export const benchmarkJob = new gcp.cloudrunv2.Job("engram-benchmark", {
 // GCS Buckets for Data and Results
 // =============================================================================
 
+// GCS bucket labels must be lowercase, no dots/slashes
+// See: https://cloud.google.com/storage/docs/tags-and-labels#bucket-labels
+const gcsLabels = {
+	project: "engram",
+	component: "benchmark",
+	"managed-by": "pulumi",
+};
+
 /**
  * Bucket for benchmark input data (datasets)
  */
@@ -178,7 +253,7 @@ export const benchmarkDataBucket = new gcp.storage.Bucket("benchmark-data", {
 	name: pulumi.interpolate`${gcpProject}-benchmark-data`,
 	location: gcpRegion,
 	uniformBucketLevelAccess: true,
-	labels: { ...commonLabels, ...jobLabels },
+	labels: gcsLabels,
 	lifecycleRules: [
 		{
 			action: { type: "Delete" },
@@ -194,7 +269,7 @@ export const benchmarkResultsBucket = new gcp.storage.Bucket("benchmark-results"
 	name: pulumi.interpolate`${gcpProject}-benchmark-results`,
 	location: gcpRegion,
 	uniformBucketLevelAccess: true,
-	labels: { ...commonLabels, ...jobLabels },
+	labels: gcsLabels,
 	versioning: {
 		enabled: true, // Keep history of results
 	},

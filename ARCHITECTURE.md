@@ -28,8 +28,7 @@ flowchart TB
         Ingestion["Ingestion Service<br/>:5001"]
         Memory["Memory Service<br/>(MCP Server)"]
         Search["Search Service<br/>:5002"]
-        Control["Control Service"]
-        Execution["Execution Service<br/>(MCP Server)"]
+        Control["Control Service<br/>(VFS/Time-Travel)"]
         EngramMCP["Engram MCP Server<br/>(stdio/HTTP)"]
     end
 
@@ -65,7 +64,6 @@ flowchart TB
     WebSocket --> NextJS
 
     Control --> Falkor
-    Execution --> Falkor
     EngramMCP --> Falkor
     EngramMCP --> Qdrant
 
@@ -624,8 +622,7 @@ flowchart TB
         Ingestion["Ingestion<br/>:5001"]
         Memory["Memory<br/>(MCP)"]
         Search["Search<br/>:5002"]
-        Control["Control"]
-        Execution["Execution<br/>(MCP)"]
+        Control["Control<br/>(VFS/Time-Travel)"]
         EngramMCP["Engram MCP"]
         Tuner["Tuner<br/>:8000"]
     end
@@ -653,8 +650,7 @@ flowchart TB
 
     Control <-->|"Consume"| Kafka
     Control -->|"Query context"| Graph
-
-    Execution -->|"Query history"| Graph
+    Control -->|"Time-travel"| Graph
 
     EngramMCP -->|"Query"| Graph
     EngramMCP -->|"Search"| Vector
@@ -784,7 +780,7 @@ This enables time-travel queries like "What did we know about session X at time 
 
 ## Time Travel & VFS
 
-The Execution Service provides filesystem reconstruction at any point in time.
+The Control Service provides filesystem reconstruction at any point in time via the integrated ExecutionService.
 
 ```mermaid
 flowchart TB
@@ -820,21 +816,22 @@ flowchart TB
     VFS --> Output
 ```
 
-### MCP Tools (Execution Service)
+### VFS & Time-Travel Operations (Control Service)
 
-| Tool | Purpose |
-|:-----|:--------|
-| **read_file** | Read file from VFS |
-| **apply_patch** | Apply unified diff to VFS |
-| **list_files_at_time** | Get filesystem state at timestamp |
+| Operation | Purpose |
+|:----------|:--------|
+| **readFile** | Read file from VFS |
+| **applyPatch** | Apply unified diff to VFS |
+| **listFilesAtTime** | Get filesystem state at timestamp |
+| **getFilesystemState** | Get full VFS at a point in time |
+| **getZippedState** | Get zipped snapshot of VFS |
 
 ## Package Structure
 
 ```
 the-system/
 ├── apps/
-│   ├── control/          # Orchestration & agent coordination
-│   ├── execution/        # MCP server for VFS/time-travel
+│   ├── control/          # Orchestration, VFS & time-travel
 │   ├── ingestion/        # Event stream processing
 │   ├── interface/        # Next.js frontend
 │   ├── mcp/              # Engram MCP server

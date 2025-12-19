@@ -1,3 +1,5 @@
 config:
   gcp:project: useful-sunup-481709-t6
   gcp:region: us-central1
+  engram-infra:devEnabled: "false"
+encryptionsalt: v1:I2D5M0SLgGA=:v1:qFCWBApf9OaQs9vA:mibwcJVX41j/oiSFyAbiBPgqkCK1mg==

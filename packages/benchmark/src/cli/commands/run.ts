@@ -317,17 +317,15 @@ function createLLMProvider(options: RunOptions): LLMProvider {
 
 		case "gemini":
 		case "google":
-			if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
-				console.error(
-					"❌ GEMINI_API_KEY or GOOGLE_API_KEY environment variable required for Gemini",
-				);
+			if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+				console.error("❌ GOOGLE_GENERATIVE_AI_API_KEY environment variable required for Gemini");
 				process.exit(1);
 			}
 			console.log(
-				`🤖 Using Google Gemini (${options.geminiModel ?? "gemini-3-flash"}) for answer generation`,
+				`🤖 Using Google Gemini (${options.geminiModel ?? "gemini-3-flash-preview"}) for answer generation`,
 			);
 			return new GeminiProvider({
-				model: options.geminiModel ?? "gemini-3-flash",
+				model: options.geminiModel ?? "gemini-3-flash-preview",
 			});
 		default:
 			console.log("⚠️  Using stub LLM (no real generation)");
