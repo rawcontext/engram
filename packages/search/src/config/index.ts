@@ -10,7 +10,7 @@
  *
  * Example usage:
  * ```ts
- * import { searchConfig, rerankerConfig, RuntimeConfig } from '@engram/search-core/config';
+ * import { searchConfig, rerankerConfig, RuntimeConfig } from '@engram/search/config';
  *
  * // Access static configuration
  * const limit = searchConfig.retrieval.defaultLimit;
@@ -28,7 +28,7 @@
  * });
  * ```
  *
- * @module @engram/search-core/config
+ * @module @engram/search/config
  */
 
 import { envBool, envFloat, envNum, envStr } from "@engram/common";

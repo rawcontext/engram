@@ -28,7 +28,7 @@ multiAdapter.addAdapter(executionAdapter);
 // Initialize Core Logic
 // TODO: Replace with real SearchRetriever when available or mocked properly
 const contextAssembler = new ContextAssembler(
-	{} as unknown as import("@engram/search-core").SearchRetriever,
+	{} as unknown as import("@engram/search").SearchRetriever,
 	falkor,
 );
 

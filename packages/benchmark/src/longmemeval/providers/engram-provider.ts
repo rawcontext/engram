@@ -109,6 +109,7 @@ export class EngramRetriever {
 	private llmProvider: LLMProviderInterface | null = null;
 	private temporalParser: TemporalParserInterface | null = null;
 	private learnedFusion: LearnedFusionInterface | null = null;
+	private queryFeatureExtractor: QueryFeatureExtractorInterface | null = null;
 	private embeddingDimensions: number = 384; // Default for e5-small
 
 	constructor(config: Partial<EngramProviderConfig> = {}) {
@@ -123,7 +124,7 @@ export class EngramRetriever {
 
 		try {
 			// Import search-core components
-			const searchCore = await import("@engram/search-core");
+			const searchCore = await import("@engram/search");
 
 			// Initialize embedders with configurable model
 			if (this.config.embeddingModel === "e5-small") {
@@ -185,7 +186,7 @@ export class EngramRetriever {
 
 			// Initialize XAI client for multi-query expansion
 			if (this.config.multiQuery) {
-				const { XAIClient } = await import("@engram/search-core");
+				const { XAIClient } = await import("@engram/search");
 				this.xaiClient = new XAIClient({
 					model: "grok-4-1-fast-reasoning",
 				}) as unknown as XAIClientInterface;
@@ -193,7 +194,7 @@ export class EngramRetriever {
 
 			// Initialize abstention detector
 			if (this.config.abstention) {
-				const { AbstentionDetector } = await import("@engram/search-core");
+				const { AbstentionDetector } = await import("@engram/search");
 				this.abstentionDetector = new AbstentionDetector({
 					minRetrievalScore: this.config.abstentionThreshold,
 				}) as unknown as AbstentionDetectorInterface;
@@ -203,7 +204,7 @@ export class EngramRetriever {
 			if (this.config.sessionAware) {
 				// Create a simple LLM provider for summarization
 				const { XAIClient, SessionSummarizer, SessionAwareRetriever } = await import(
-					"@engram/search-core"
+					"@engram/search"
 				);
 
 				// Use XAI client as LLM provider for summarization
@@ -241,7 +242,7 @@ export class EngramRetriever {
 			}
 		} catch (error) {
 			console.error("Failed to initialize Engram provider:", error);
-			throw new Error("@engram/search-core not available. Install it or use a different provider.");
+			throw new Error("@engram/search not available. Install it or use a different provider.");
 		}
 	}
 
@@ -608,8 +609,8 @@ Return ONLY a JSON array of query strings. No explanations.`;
 			}),
 		);
 
-		// Filter out failed summaries
-		const validSummaries = summaries.filter((s) => s !== null);
+		// Filter out failed summaries (type guard to narrow type)
+		const validSummaries = summaries.filter((s): s is NonNullable<typeof s> => s !== null);
 		console.log(`  [Session-Aware] Generated ${validSummaries.length} session summaries`);
 
 		// Index summaries in sessions collection
@@ -1110,10 +1111,10 @@ export class EngramEmbeddingProvider implements EmbeddingProvider {
 		if (this.textEmbedder) return this.textEmbedder;
 
 		try {
-			const { TextEmbedder } = await import("@engram/search-core");
+			const { TextEmbedder } = await import("@engram/search");
 			this.textEmbedder = new TextEmbedder() as unknown as TextEmbedderInterface;
 		} catch {
-			throw new Error("@engram/search-core not available");
+			throw new Error("@engram/search not available");
 		}
 
 		return this.textEmbedder;

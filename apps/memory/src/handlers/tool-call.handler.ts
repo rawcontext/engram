@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ParsedStreamEvent } from "@engram/events";
-import { ToolCallType, type ToolCallTypeValue } from "@engram/memory-core";
+import { ToolCallType, type ToolCallTypeValue } from "@engram/graph";
 import type {
 	EventHandler,
 	HandlerContext,

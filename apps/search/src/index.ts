@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { createNodeLogger, type Logger } from "@engram/logger";
-import { SchemaManager, SearchIndexer, SearchRetriever } from "@engram/search-core";
+import { SchemaManager, SearchIndexer, SearchRetriever } from "@engram/search";
 import { createKafkaClient } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";
 

@@ -2,7 +2,7 @@
  * Trial execution for optimization loop
  */
 
-import { RuntimeConfig } from "@engram/search-core";
+import { RuntimeConfig } from "@engram/search";
 import type { TunerClient } from "../client/tuner-client.js";
 import { mapParamsToConfig, type TrialConfig } from "./config-mapper.js";
 

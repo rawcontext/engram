@@ -1,7 +1,7 @@
 /**
  * Engram-specific search space definitions
  *
- * These parameters map to RuntimeConfig in @engram/search-core
+ * These parameters map to RuntimeConfig in @engram/search
  * Priority is based on parameter sensitivity analysis from docs/auto-tuning.md
  */
 

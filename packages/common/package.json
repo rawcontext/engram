@@ -13,7 +13,7 @@
 	},
 	"dependencies": {
 		"@engram/storage": "*",
-		"@engram/memory-core": "*"
+		"@engram/graph": "*"
 	},
 	"devDependencies": {
 		"typescript": "^5.9.3",

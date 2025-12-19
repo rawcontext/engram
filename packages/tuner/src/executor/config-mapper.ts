@@ -1,11 +1,11 @@
 /**
  * Maps flat parameter names to configuration structures
  *
- * Note: RuntimeConfig in @engram/search-core only manages RerankerConfig.
+ * Note: RuntimeConfig in @engram/search only manages RerankerConfig.
  * Search and abstention settings are passed directly to the benchmark evaluation.
  */
 
-import type { RerankerTier } from "@engram/search-core";
+import type { RerankerTier } from "@engram/search";
 
 /**
  * Partial RerankerConfig structure for RuntimeConfig.update()

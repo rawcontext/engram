@@ -22,8 +22,8 @@ export type QueryParams = { [key: string]: QueryParam };
  * @template T - The shape of the node's properties
  *
  * @example
- * // Use with domain types from @engram/memory-core
- * import type { SessionNode } from '@engram/memory-core';
+ * // Use with domain types from @engram/graph
+ * import type { SessionNode } from '@engram/graph';
  * const result = await falkor.query<{ s: FalkorNode }>('MATCH (s:Session) RETURN s');
  */
 export interface FalkorNode<T extends Record<string, unknown> = Record<string, unknown>> {
@@ -170,11 +170,11 @@ export const createFalkorClient = () => {
 // DEPRECATED: Domain Types
 // =============================================================================
 // These types are deprecated and will be removed in a future version.
-// Import domain types from @engram/memory-core instead.
+// Import domain types from @engram/graph instead.
 // =============================================================================
 
 /**
- * @deprecated Import BitemporalProperties from @engram/memory-core
+ * @deprecated Import BitemporalProperties from @engram/graph
  */
 export interface BitemporalProperties {
 	vt_start: number;
@@ -184,7 +184,7 @@ export interface BitemporalProperties {
 }
 
 /**
- * @deprecated Import SessionNode from @engram/memory-core and use FalkorNode<SessionNode>
+ * @deprecated Import SessionNode from @engram/graph and use FalkorNode<SessionNode>
  */
 export interface SessionProperties extends Partial<BitemporalProperties> {
 	id: string;
@@ -215,7 +215,7 @@ export interface ThoughtProperties extends Partial<BitemporalProperties> {
 }
 
 /**
- * @deprecated Import TurnNode from @engram/memory-core and use FalkorNode<TurnNode>
+ * @deprecated Import TurnNode from @engram/graph and use FalkorNode<TurnNode>
  */
 export interface TurnProperties extends Partial<BitemporalProperties> {
 	id: string;
@@ -239,7 +239,7 @@ export interface TurnProperties extends Partial<BitemporalProperties> {
 }
 
 /**
- * @deprecated Import ReasoningNode from @engram/memory-core and use FalkorNode<ReasoningNode>
+ * @deprecated Import ReasoningNode from @engram/graph and use FalkorNode<ReasoningNode>
  */
 export interface ReasoningProperties extends Partial<BitemporalProperties> {
 	id: string;
@@ -253,7 +253,7 @@ export interface ReasoningProperties extends Partial<BitemporalProperties> {
 }
 
 /**
- * @deprecated Import FileTouchNode from @engram/memory-core and use FalkorNode<FileTouchNode>
+ * @deprecated Import FileTouchNode from @engram/graph and use FalkorNode<FileTouchNode>
  */
 export interface FileTouchProperties extends Partial<BitemporalProperties> {
 	id: string;
@@ -270,7 +270,7 @@ export interface FileTouchProperties extends Partial<BitemporalProperties> {
 }
 
 /**
- * @deprecated Import ToolCallNode from @engram/memory-core and use FalkorNode<ToolCallNode>
+ * @deprecated Import ToolCallNode from @engram/graph and use FalkorNode<ToolCallNode>
  */
 export interface ToolCallProperties extends Partial<BitemporalProperties> {
 	id: string;
@@ -287,7 +287,7 @@ export interface ToolCallProperties extends Partial<BitemporalProperties> {
 }
 
 /**
- * @deprecated Import ObservationNode from @engram/memory-core and use FalkorNode<ObservationNode>
+ * @deprecated Import ObservationNode from @engram/graph and use FalkorNode<ObservationNode>
  */
 export interface ObservationProperties extends Partial<BitemporalProperties> {
 	id: string;
@@ -305,17 +305,17 @@ export interface ObservationProperties extends Partial<BitemporalProperties> {
 // DEPRECATED: Domain Node Aliases
 // =============================================================================
 
-/** @deprecated Import from @engram/memory-core */
+/** @deprecated Import from @engram/graph */
 export type SessionNode = FalkorNode<SessionProperties>;
 /** @deprecated */
 export type ThoughtNode = FalkorNode<ThoughtProperties>;
-/** @deprecated Import from @engram/memory-core */
+/** @deprecated Import from @engram/graph */
 export type TurnNode = FalkorNode<TurnProperties>;
-/** @deprecated Import from @engram/memory-core */
+/** @deprecated Import from @engram/graph */
 export type ReasoningNode = FalkorNode<ReasoningProperties>;
-/** @deprecated Import from @engram/memory-core */
+/** @deprecated Import from @engram/graph */
 export type FileTouchNode = FalkorNode<FileTouchProperties>;
-/** @deprecated Import from @engram/memory-core */
+/** @deprecated Import from @engram/graph */
 export type ToolCallNode = FalkorNode<ToolCallProperties>;
-/** @deprecated Import from @engram/memory-core */
+/** @deprecated Import from @engram/graph */
 export type ObservationNode = FalkorNode<ObservationProperties>;

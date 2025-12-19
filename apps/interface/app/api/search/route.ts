@@ -1,5 +1,5 @@
-import type { RerankerTier } from "@engram/search-core";
-import { SearchRetriever } from "@engram/search-core";
+import type { RerankerTier } from "@engram/search";
+import { SearchRetriever } from "@engram/search";
 import { apiError, apiSuccess } from "@lib/api-response";
 import { validate } from "@lib/validate";
 import { z } from "zod";

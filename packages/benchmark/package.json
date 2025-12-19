@@ -14,8 +14,8 @@
 	},
 	"dependencies": {
 		"zod": "^4.1.13",
-		"@engram/memory-core": "*",
-		"@engram/search-core": "*",
+		"@engram/graph": "*",
+		"@engram/search": "*",
 		"@engram/storage": "*",
 		"@qdrant/js-client-rest": "^1.16.2",
 		"commander": "^14.0.0"

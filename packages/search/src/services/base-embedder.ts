@@ -11,7 +11,7 @@
  * - Retry logic integration
  * - Model preloading capability
  *
- * @module @engram/search-core/services/base-embedder
+ * @module @engram/search/services/base-embedder
  */
 
 import { type RetryOptions, withRetry } from "@engram/common";

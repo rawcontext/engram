@@ -1,4 +1,4 @@
-import { SearchRetriever } from "@engram/search-core";
+import { SearchRetriever } from "@engram/search";
 import { createFalkorClient } from "@engram/storage/falkor";
 
 const falkor = createFalkorClient();

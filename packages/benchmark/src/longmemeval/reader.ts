@@ -105,7 +105,7 @@ export interface LLMResponse {
 }
 
 /**
- * Interface for AbstentionDetector from @engram/search-core
+ * Interface for AbstentionDetector from @engram/search
  */
 interface AbstentionDetectorInterface {
 	checkHedgingPatterns(answer: string): {
@@ -151,11 +151,11 @@ export class Reader {
 	}
 
 	/**
-	 * Initialize the AbstentionDetector from @engram/search-core
+	 * Initialize the AbstentionDetector from @engram/search
 	 */
 	private async initAbstentionDetector(): Promise<void> {
 		try {
-			const { AbstentionDetector } = await import("@engram/search-core");
+			const { AbstentionDetector } = await import("@engram/search");
 			this.abstentionDetector = new AbstentionDetector({
 				useNLI: this.config.abstentionNLI,
 				nliThreshold: this.config.abstentionNLIThreshold,

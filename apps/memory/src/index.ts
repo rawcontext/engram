@@ -1,5 +1,5 @@
 import { createNodeLogger, type Logger, pino } from "@engram/logger";
-import { GraphPruner } from "@engram/memory-core";
+import { GraphPruner } from "@engram/graph";
 import {
 	createFalkorClient,
 	createKafkaClient,

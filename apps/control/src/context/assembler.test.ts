@@ -1,5 +1,5 @@
 import { GraphOperationError, SearchError } from "@engram/common";
-import type { SearchRetriever } from "@engram/search-core";
+import type { SearchRetriever } from "@engram/search";
 import type { GraphClient, ThoughtNode } from "@engram/storage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ContextAssembler, type ContextAssemblerDeps, createContextAssembler } from "./assembler";

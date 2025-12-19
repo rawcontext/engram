@@ -6,7 +6,7 @@ import {
 	Redactor,
 	type StreamDelta,
 	ThinkingExtractor,
-} from "@engram/ingestion-core";
+} from "@engram/parser";
 import { createNodeLogger, type Logger } from "@engram/logger";
 import { createKafkaClient } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";

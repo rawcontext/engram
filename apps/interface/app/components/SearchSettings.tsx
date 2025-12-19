@@ -1,6 +1,6 @@
 "use client";
 
-import type { RerankerTier } from "@engram/search-core";
+import type { RerankerTier } from "@engram/search";
 import { useEffect, useRef, useState } from "react";
 
 export interface SearchSettingsState {

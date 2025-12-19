@@ -1,5 +1,5 @@
 {
-	"name": "@engram/memory-core",
+	"name": "@engram/temporal",
 	"version": "0.0.0",
 	"type": "module",
 	"main": "./src/index.ts",
@@ -10,9 +10,9 @@
 		"@engram/tsconfig": "*"
 	},
 	"dependencies": {
-		"zod": "^4.1.13",
-		"ulid": "^3.0.2",
-		"@engram/storage": "*"
+		"zod": "^3.25.76",
+		"@engram/storage": "*",
+		"@engram/vfs": "*"
 	},
 	"scripts": {
 		"build": "echo 'Build success'",

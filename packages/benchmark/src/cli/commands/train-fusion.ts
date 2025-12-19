@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises";
-import { QueryFeatureExtractor } from "@engram/search-core";
+import { QueryFeatureExtractor } from "@engram/search";
 import { type LoaderConfig, loadDataset } from "../../longmemeval/loader.js";
 import { type EngramDocument, mapInstance } from "../../longmemeval/mapper.js";
 import { computeRetrievalMetrics, type RetrievalResult } from "../../longmemeval/retriever.js";
@@ -285,7 +285,7 @@ interface WeightedRetriever {
  */
 async function createWeightedRetriever(qdrantUrl: string): Promise<WeightedRetriever> {
 	// Dynamic import to avoid circular dependencies
-	const searchCore = await import("@engram/search-core");
+	const searchCore = await import("@engram/search");
 	const { QdrantClient } = await import("@qdrant/js-client-rest");
 
 	const collectionName = "fusion_training";
@@ -430,7 +430,7 @@ async function createWeightedRetriever(qdrantUrl: string): Promise<WeightedRetri
 
 			if (weights.rerank > 0 && candidates.length > 0) {
 				const reranked = await reranker.rerank(query, candidates, candidates.length);
-				const maxRerank = Math.max(...reranked.map((r) => r.score), 0.001);
+				const maxRerank = Math.max(...reranked.map((r: { score: number }) => r.score), 0.001);
 				for (const r of reranked) {
 					const existing = scoreMap.get(String(r.id));
 					if (existing) {

@@ -6,7 +6,7 @@
 		"@engram/logger": "*",
 		"@engram/events": "*",
 		"@engram/storage": "*",
-		"@engram/ingestion-core": "*",
+		"@engram/parser": "*",
 		"zod": "^3.25.76"
 	},
 	"devDependencies": {

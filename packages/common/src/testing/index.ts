@@ -39,7 +39,7 @@ import type {
 	SessionNode,
 	ToolCallNode,
 	TurnNode,
-} from "@engram/memory-core";
+} from "@engram/graph";
 import type {
 	BlobStore,
 	Consumer,

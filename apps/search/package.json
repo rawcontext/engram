@@ -5,7 +5,7 @@
 	"dependencies": {
 		"@engram/logger": "*",
 		"@engram/storage": "*",
-		"@engram/search-core": "*"
+		"@engram/search": "*"
 	},
 	"devDependencies": {
 		"@types/node": "^24.10.1",

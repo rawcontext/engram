@@ -1,4 +1,4 @@
-import { Rehydrator, TimeTravelService } from "@engram/execution-core";
+import { Rehydrator, TimeTravelService } from "@engram/temporal";
 import { createNodeLogger, type Logger } from "@engram/logger";
 import { createFalkorClient, type GraphClient } from "@engram/storage";
 import { PatchManager, VirtualFileSystem } from "@engram/vfs";

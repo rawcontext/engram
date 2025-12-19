@@ -17,7 +17,7 @@
 		"@engram/benchmark": "*",
 		"@engram/common": "*",
 		"@engram/logger": "*",
-		"@engram/search-core": "*",
+		"@engram/search": "*",
 		"commander": "^14.0.0",
 		"zod": "^4.1.13"
 	},

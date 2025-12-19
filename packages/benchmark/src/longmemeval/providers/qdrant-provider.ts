@@ -35,7 +35,7 @@ const EMBEDDING_DIMENSIONS: Record<string, number> = {
 /**
  * Qdrant-based embedding provider using HuggingFace transformers
  *
- * Uses @engram/search-core's TextEmbedder under the hood when available,
+ * Uses @engram/search's TextEmbedder under the hood when available,
  * otherwise falls back to a lightweight implementation.
  */
 export class QdrantEmbeddingProvider implements EmbeddingProvider {
@@ -58,11 +58,11 @@ export class QdrantEmbeddingProvider implements EmbeddingProvider {
 
 		try {
 			// Try to import from search-core
-			const { TextEmbedder } = await import("@engram/search-core");
+			const { TextEmbedder } = await import("@engram/search");
 			this.embedder = new TextEmbedder() as unknown as TextEmbedderInterface;
 		} catch {
 			// Fall back to stub if search-core not available
-			console.warn("@engram/search-core not available, using stub embedder");
+			console.warn("@engram/search not available, using stub embedder");
 			this.embedder = new StubTextEmbedder(this.dimension);
 		}
 

@@ -1,5 +1,5 @@
 import { GraphOperationError, SearchError } from "@engram/common";
-import type { SearchRetriever } from "@engram/search-core";
+import type { SearchRetriever } from "@engram/search";
 import {
 	createFalkorClient,
 	type FalkorClient,
