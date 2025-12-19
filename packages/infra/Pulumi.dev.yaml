@@ -1,3 +1,3 @@
 config:
-  gcp:project: engram-project-id
+  gcp:project: useful-sunup-481709-t6
   gcp:region: us-central1
