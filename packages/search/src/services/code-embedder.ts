@@ -1,5 +1,10 @@
 import { pipeline } from "@huggingface/transformers";
-import { BasePipelineEmbedder, type EmbedderConfig } from "./base-embedder";
+import {
+	BasePipelineEmbedder,
+	type EmbedderConfig,
+	getDefaultDevice,
+	getDefaultDtype,
+} from "./base-embedder";
 
 /**
  * Configuration for CodeEmbedder.
@@ -55,7 +60,10 @@ export class CodeEmbedder extends BasePipelineEmbedder<CodeEmbedderConfig> {
 	 */
 	protected async getInstance(): Promise<ExtractorFn> {
 		if (!CodeEmbedder.instance) {
-			CodeEmbedder.instance = await pipeline("feature-extraction", this.config.model);
+			CodeEmbedder.instance = await pipeline("feature-extraction", this.config.model, {
+				dtype: this.config.dtype ?? getDefaultDtype(),
+				device: this.config.device ?? getDefaultDevice(),
+			});
 		}
 		return CodeEmbedder.instance as ExtractorFn;
 	}

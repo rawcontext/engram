@@ -148,10 +148,6 @@ export class EngramRetriever {
 				) as unknown as TemporalParserInterface;
 			}
 
-			// Initialize query feature extractor for diagnostics
-			this.queryFeatureExtractor =
-				new searchCore.QueryFeatureExtractor() as unknown as QueryFeatureExtractorInterface;
-
 			if (this.config.hybridSearch) {
 				this.spladeEmbedder = new searchCore.SpladeEmbedder() as unknown as SpladeEmbedderInterface;
 			}
@@ -1266,19 +1262,6 @@ interface TemporalParserInterface {
 		confidence: number;
 	};
 	setReferenceDate(date: Date): void;
-}
-
-interface QueryFeatureExtractorInterface {
-	extract(query: string): {
-		length: number;
-		entityDensity: number;
-		hasTemporal: boolean;
-		questionType: string;
-		avgIDF: number;
-		hasRareTerms: boolean;
-		hasSpecificTerms: boolean;
-		complexity: number;
-	};
 }
 
 interface LearnedFusionInterface {

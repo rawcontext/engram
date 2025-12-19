@@ -32,7 +32,6 @@ export {
 	benchmarkSecretAccess,
 	benchmarkServiceAccount,
 	executeCommand,
-	geminiApiKeySecret,
 	logsCommand,
 } from "./cloudrun";
 // Re-export configuration for reference

@@ -3,6 +3,7 @@ import {
 	BenchmarkPipeline,
 	type CustomRetriever,
 	type PipelineProgress,
+	type RetrievalDebugInfo,
 } from "../../longmemeval/pipeline.js";
 import {
 	AnthropicProvider,
@@ -64,6 +65,8 @@ interface RunOptions {
 	temporalConfidenceThreshold: number;
 	// Embedding model options
 	embeddingModel: string;
+	// Debug options
+	debugRetrieval: boolean;
 }
 
 export async function runCommand(benchmark: string, options: RunOptions): Promise<void> {
@@ -171,6 +174,8 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 				process.stdout.write(`\r${progress.stage}: ${pct}%`);
 			}
 		},
+		// Debug retrieval callback
+		onRetrievalDebug: options.debugRetrieval ? logRetrievalDebug : undefined,
 	});
 
 	try {
@@ -193,6 +198,15 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 			: "longmemeval-report.md";
 		await writeFile(reportPath, result.report, "utf-8");
 		console.log(`📊 Report saved to: ${reportPath}`);
+
+		// ONNX runtime has threading issues that cause ugly errors at exit
+		// Suppress stderr briefly and force exit
+		const originalStderr = process.stderr.write.bind(process.stderr);
+		process.stderr.write = () => true; // Suppress ONNX mutex errors
+		setTimeout(() => {
+			process.stderr.write = originalStderr;
+			process.exit(0);
+		}, 100);
 	} catch (error) {
 		console.error("\n❌ Benchmark failed:", error);
 		process.exit(1);
@@ -319,4 +333,37 @@ function createLLMProvider(options: RunOptions): LLMProvider {
 			console.log("⚠️  Using stub LLM (no real generation)");
 			return new StubLLMProvider();
 	}
+}
+
+/**
+ * Log retrieval debug info to console
+ */
+function logRetrievalDebug(debug: RetrievalDebugInfo): void {
+	const truncate = (s: string, len: number) => (s.length > len ? `${s.slice(0, len)}...` : s);
+
+	console.log("\n" + "─".repeat(80));
+	console.log(`📋 RETRIEVAL DEBUG: ${debug.questionId}`);
+	console.log("─".repeat(80));
+
+	console.log(`\n❓ Question: ${debug.question}`);
+	console.log(`✅ Expected Answer: ${debug.expectedAnswer}`);
+	console.log(`📊 Recall: ${(debug.recall * 100).toFixed(1)}%`);
+
+	console.log(`\n🎯 EXPECTED EVIDENCE (${debug.evidenceDocs.length} docs):`);
+	for (const doc of debug.evidenceDocs) {
+		const found = debug.retrievedDocs.some((r) => r.id === doc.id);
+		const status = found ? "✅" : "❌";
+		console.log(`  ${status} [${doc.sessionId}] ${truncate(doc.content, 100)}`);
+	}
+
+	console.log(`\n🔍 RETRIEVED (${debug.retrievedDocs.length} docs):`);
+	for (let i = 0; i < debug.retrievedDocs.length; i++) {
+		const doc = debug.retrievedDocs[i];
+		const marker = doc.isEvidence ? "🎯" : "  ";
+		console.log(
+			`  ${i + 1}. ${marker} [score=${doc.score.toFixed(3)}] ${truncate(doc.content, 80)}`,
+		);
+	}
+
+	console.log("─".repeat(80) + "\n");
 }

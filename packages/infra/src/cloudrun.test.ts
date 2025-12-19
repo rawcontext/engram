@@ -88,7 +88,7 @@ describe("Cloud Run Infrastructure", () => {
 			expect(volumeNames).toContain("benchmark-results");
 		});
 
-		it("should have environment variables including GEMINI_API_KEY from secret", () => {
+		it("should have environment variables including GOOGLE_GENERATIVE_AI_API_KEY from secret", () => {
 			const job = getResource("gcp:cloudrunv2/job:Job", "engram-benchmark");
 			const template = job?.inputs.template as Record<string, unknown>;
 			const innerTemplate = template?.template as Record<string, unknown>;
@@ -98,11 +98,11 @@ describe("Cloud Run Infrastructure", () => {
 			const envNames = envs?.map((e) => e.name);
 			expect(envNames).toContain("NODE_ENV");
 			expect(envNames).toContain("BENCHMARK_VERBOSE");
-			expect(envNames).toContain("GEMINI_API_KEY");
+			expect(envNames).toContain("GOOGLE_GENERATIVE_AI_API_KEY");
 
-			// GEMINI_API_KEY should come from Secret Manager
-			const geminiEnv = envs?.find((e) => e.name === "GEMINI_API_KEY");
-			expect(geminiEnv?.valueSource).toBeDefined();
+			// GOOGLE_GENERATIVE_AI_API_KEY should come from Secret Manager
+			const googleAiEnv = envs?.find((e) => e.name === "GOOGLE_GENERATIVE_AI_API_KEY");
+			expect(googleAiEnv?.valueSource).toBeDefined();
 		});
 	});
 
@@ -190,18 +190,18 @@ describe("Cloud Run Infrastructure", () => {
 	});
 
 	describe("Secrets", () => {
-		it("should create a Gemini API key secret", () => {
-			const secret = getResource("gcp:secretmanager/secret:Secret", "gemini-api-key");
+		it("should create a Google Generative AI API key secret", () => {
+			const secret = getResource("gcp:secretmanager/secret:Secret", "google-generative-ai-api-key");
 			expect(secret).toBeDefined();
 		});
 
 		it("should have correct secret ID", () => {
-			const secret = getResource("gcp:secretmanager/secret:Secret", "gemini-api-key");
-			expect(secret?.inputs.secretId).toBe("gemini-api-key");
+			const secret = getResource("gcp:secretmanager/secret:Secret", "google-generative-ai-api-key");
+			expect(secret?.inputs.secretId).toBe("google-generative-ai-api-key");
 		});
 
 		it("should use auto replication", () => {
-			const secret = getResource("gcp:secretmanager/secret:Secret", "gemini-api-key");
+			const secret = getResource("gcp:secretmanager/secret:Secret", "google-generative-ai-api-key");
 			const replication = secret?.inputs.replication as Record<string, unknown>;
 			expect(replication?.auto).toBeDefined();
 		});

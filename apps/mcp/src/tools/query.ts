@@ -1,6 +1,6 @@
+import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { GraphClient } from "@engram/storage";
 
 // Allowlist of safe Cypher operations
 const SAFE_CYPHER_PATTERNS = [

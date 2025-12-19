@@ -19,6 +19,7 @@
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
 import { commonLabels, gcpProject, gcpRegion } from "../config";
+import { googleGenerativeAiApiKeySecret } from "../secrets";
 
 // =============================================================================
 // Configuration
@@ -45,22 +46,6 @@ export const benchmarkConfig = {
 	/** Task count (total tasks per execution) */
 	taskCount: config.getNumber("benchmarkTaskCount") ?? 1,
 };
-
-// =============================================================================
-// Secrets for API Keys
-// =============================================================================
-
-/**
- * Reference to existing Gemini API key secret
- * Should be created in Secret Manager before deployment
- */
-export const geminiApiKeySecret = new gcp.secretmanager.Secret("gemini-api-key", {
-	secretId: "gemini-api-key",
-	labels: commonLabels,
-	replication: {
-		auto: {},
-	},
-});
 
 // =============================================================================
 // Cloud Run Job with GPU
@@ -133,11 +118,11 @@ export const benchmarkJob = new gcp.cloudrunv2.Job("engram-benchmark", {
 							value: "true",
 						},
 						{
-							// Gemini API key from Secret Manager
-							name: "GEMINI_API_KEY",
+							// Google Generative AI API key from Secret Manager
+							name: "GOOGLE_GENERATIVE_AI_API_KEY",
 							valueSource: {
 								secretKeyRef: {
-									secret: geminiApiKeySecret.secretId,
+									secret: googleGenerativeAiApiKeySecret.secretId,
 									version: "latest",
 								},
 							},
@@ -252,7 +237,7 @@ export const benchmarkResultsAccess = new gcp.storage.BucketIAMMember("benchmark
 export const benchmarkSecretAccess = new gcp.secretmanager.SecretIamMember(
 	"benchmark-secret-access",
 	{
-		secretId: geminiApiKeySecret.secretId,
+		secretId: googleGenerativeAiApiKeySecret.secretId,
 		role: "roles/secretmanager.secretAccessor",
 		member: pulumi.interpolate`serviceAccount:${benchmarkServiceAccount.email}`,
 	},

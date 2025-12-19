@@ -98,6 +98,8 @@ program
 		"Embedding model: e5-small, e5-base, e5-large, gte-base, gte-large, bge-small, bge-base, bge-large",
 		"e5-small",
 	)
+	// Debug options
+	.option("--debug-retrieval", "Log retrieved vs expected documents for each query", false)
 	.action(runCommand);
 
 // Evaluate results command

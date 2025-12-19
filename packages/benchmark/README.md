@@ -62,41 +62,67 @@ npx tsx src/cli/index.ts run longmemeval \
 
 ### Let Engram Cook (Full Pipeline)
 
-Run the complete Engram retrieval pipeline with all optimizations enabled:
+Run the complete Engram retrieval pipeline with **all optimizations enabled**:
 
 ```bash
 # Ensure infrastructure is running
 docker ps | grep qdrant || npm run infra:up
 
-# Full Engram pipeline with all features
-OPENAI_API_KEY="sk-..." NODE_OPTIONS="--max-old-space-size=8192" \
+# Full Engram pipeline - EVERY FEATURE ENABLED
+GOOGLE_GENERATIVE_AI_API_KEY="..." NODE_OPTIONS="--max-old-space-size=8192" \
 npx tsx src/cli/index.ts run longmemeval \
   --dataset data/longmemeval_oracle.json \
-  --variant single_hop \
+  --variant oracle \
   --embeddings engram \
-  --llm openai \
+  --llm gemini \
+  --gemini-model gemini-3-flash \
   --top-k 10 \
+  --hybrid-search \
   --rerank \
   --rerank-tier accurate \
   --rerank-depth 50 \
-  --hybrid-search \
+  --multi-query \
+  --multi-query-variations 3 \
+  --session-aware \
+  --top-sessions 5 \
+  --turns-per-session 3 \
+  --temporal-aware \
+  --temporal-confidence-threshold 0.5 \
+  --abstention \
+  --abstention-threshold 0.3 \
+  --abstention-hedging \
+  --abstention-nli \
+  --abstention-nli-threshold 0.7 \
   --key-expansion \
   --temporal-analysis \
   --chain-of-note \
   --time-aware \
+  --embedding-model e5-small \
   --verbose \
+  --debug-retrieval \
   --output results/engram-full-$(date +%Y%m%d).jsonl
 ```
 
 **What this enables:**
-- Dense embeddings (E5-small, 384d)
-- Sparse embeddings (SPLADE)
-- Hybrid search with RRF fusion
-- Cross-encoder reranking (accurate tier)
-- Key expansion with fact extraction (+9% recall)
-- Temporal query analysis (+7-11% on TR)
-- Chain-of-Note reading
-- Time-aware query expansion
+
+| Category | Feature | Description |
+|:---------|:--------|:------------|
+| **Retrieval** | Dense embeddings | E5-small (384d) |
+| | Sparse embeddings | SPLADE learned sparse |
+| | Hybrid search | Dense + Sparse + RRF fusion |
+| | Multi-query | Query expansion with 3 variations |
+| | Session-aware | Hierarchical session→turn retrieval |
+| | Temporal parsing | chrono-node date extraction |
+| **Reranking** | Cross-encoder | Accurate tier (deeper model) |
+| | Rerank depth | 50 candidates before reranking |
+| **Reading** | Chain-of-Note | Structured evidence reasoning |
+| | Time-aware | Temporal query expansion |
+| **Abstention** | Layer 1 | Low retrieval confidence detection |
+| | Layer 2 | NLI answer grounding check |
+| | Layer 3 | Hedging pattern detection |
+| **Optimization** | Key expansion | Fact extraction (+9% recall) |
+| | Temporal analysis | Time-aware queries (+7-11% TR) |
+| **Debug** | Debug retrieval | Show retrieved vs expected docs |
 
 ### 4. Evaluate Results
 

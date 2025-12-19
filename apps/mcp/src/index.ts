@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig } from "./config";
-import { createEngramMcpServer, updateClientCapabilities, updateRoots } from "./server";
+import { createEngramMcpServer } from "./server";
 
 async function main() {
 	const config = loadConfig();

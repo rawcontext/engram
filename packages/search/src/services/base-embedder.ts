@@ -17,6 +17,12 @@
 import { type RetryOptions, withRetry } from "@engram/common";
 import type { Logger } from "@engram/logger";
 
+/** Supported dtype options for model loading */
+export type EmbedderDtype = "fp32" | "fp16" | "q8" | "q4";
+
+/** Supported device options */
+export type EmbedderDevice = "cpu" | "cuda";
+
 /**
  * Base configuration for all embedders.
  */
@@ -29,6 +35,51 @@ export interface EmbedderConfig {
 	maxTokens?: number;
 	/** Batch size for batch operations */
 	batchSize?: number;
+	/** Model precision (default: fp32 on CPU, fp16 on GPU) */
+	dtype?: EmbedderDtype;
+	/** Device to run on (default: auto-detect) */
+	device?: EmbedderDevice;
+}
+
+/**
+ * Detect if running in GPU environment.
+ * Checks for NVIDIA GPU indicators commonly found in cloud GPU instances.
+ */
+function detectGpuEnvironment(): boolean {
+	// Explicit env var override
+	if (process.env.EMBEDDER_DEVICE === "cuda") return true;
+	if (process.env.EMBEDDER_DEVICE === "cpu") return false;
+
+	// Check for NVIDIA CUDA environment variables (set by CUDA toolkit/drivers)
+	if (process.env.CUDA_VISIBLE_DEVICES !== undefined) return true;
+	if (process.env.NVIDIA_VISIBLE_DEVICES !== undefined) return true;
+
+	// Check for Cloud Run GPU environment
+	if (process.env.CLOUD_RUN_JOB && process.env.NVIDIA_DRIVER_CAPABILITIES) return true;
+
+	return false;
+}
+
+/**
+ * Get default device based on environment.
+ * Override with EMBEDDER_DEVICE env var (cpu or cuda).
+ */
+export function getDefaultDevice(): EmbedderDevice {
+	return detectGpuEnvironment() ? "cuda" : "cpu";
+}
+
+/**
+ * Get default dtype based on environment.
+ * Override with EMBEDDER_DTYPE env var.
+ * Defaults to fp16 on GPU, fp32 on CPU.
+ */
+export function getDefaultDtype(): EmbedderDtype {
+	const envDtype = process.env.EMBEDDER_DTYPE as EmbedderDtype | undefined;
+	if (envDtype && ["fp32", "fp16", "q8", "q4"].includes(envDtype)) {
+		return envDtype;
+	}
+	// Use fp16 on GPU for speed, fp32 on CPU for compatibility
+	return detectGpuEnvironment() ? "fp16" : "fp32";
 }
 
 /**

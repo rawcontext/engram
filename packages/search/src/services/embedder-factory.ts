@@ -1,5 +1,10 @@
 import { pipeline } from "@huggingface/transformers";
-import { BasePipelineEmbedder, type EmbedderConfig } from "./base-embedder";
+import {
+	BasePipelineEmbedder,
+	type EmbedderConfig,
+	getDefaultDevice,
+	getDefaultDtype,
+} from "./base-embedder";
 import { SpladeEmbedder } from "./splade-embedder";
 
 /**
@@ -173,7 +178,10 @@ export class ConfigurableTextEmbedder extends BasePipelineEmbedder<EmbedderConfi
 		if (!ConfigurableTextEmbedder.instances.has(key)) {
 			ConfigurableTextEmbedder.instances.set(
 				key,
-				await pipeline("feature-extraction", this.modelConfig.hfModel),
+				await pipeline("feature-extraction", this.modelConfig.hfModel, {
+					dtype: this.config.dtype ?? getDefaultDtype(),
+					device: this.config.device ?? getDefaultDevice(),
+				}),
 			);
 		}
 		return ConfigurableTextEmbedder.instances.get(key) as ExtractorFn;

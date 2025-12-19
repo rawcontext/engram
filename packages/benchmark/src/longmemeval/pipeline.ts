@@ -36,6 +36,19 @@ export interface CustomRetriever {
 }
 
 /**
+ * Debug info for retrieval analysis
+ */
+export interface RetrievalDebugInfo {
+	questionId: string;
+	question: string;
+	expectedAnswer: string;
+	evidenceDocIds: string[];
+	evidenceDocs: Array<{ id: string; content: string; sessionId: string }>;
+	retrievedDocs: Array<{ id: string; content: string; score: number; isEvidence: boolean }>;
+	recall: number;
+}
+
+/**
  * Full pipeline configuration
  */
 export interface PipelineConfig {
@@ -57,6 +70,8 @@ export interface PipelineConfig {
 	onProgress?: (progress: PipelineProgress) => void;
 	/** Optional custom retriever (overrides default) */
 	customRetriever?: CustomRetriever;
+	/** Debug retrieval callback - called after each retrieval with detailed info */
+	onRetrievalDebug?: (debug: RetrievalDebugInfo) => void;
 }
 
 /**
@@ -246,6 +261,30 @@ export class BenchmarkPipeline {
 			}
 
 			const retrievalMetrics = computeRetrievalMetrics(retrieved, mapped.evidenceDocIds);
+
+			// Debug callback for retrieval analysis
+			if (this.config.onRetrievalDebug) {
+				const evidenceDocs = mapped.documents
+					.filter((d) => mapped.evidenceDocIds.includes(d.id))
+					.map((d) => ({ id: d.id, content: d.content, sessionId: d.sessionId }));
+
+				const retrievedDocs = retrieved.documents.map((d, idx) => ({
+					id: d.id,
+					content: d.content,
+					score: retrieved.scores[idx] ?? 0,
+					isEvidence: mapped.evidenceDocIds.includes(d.id),
+				}));
+
+				this.config.onRetrievalDebug({
+					questionId: instance.questionId,
+					question: instance.question,
+					expectedAnswer: instance.answer,
+					evidenceDocIds: mapped.evidenceDocIds,
+					evidenceDocs,
+					retrievedDocs,
+					recall: retrievalMetrics.recall,
+				});
+			}
 
 			// Stage 4: Read/Generate answer
 			onProgress?.({

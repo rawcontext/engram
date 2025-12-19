@@ -37,7 +37,6 @@ function convertMcpToolsToAiSdk(
 
 	for (const mcpTool of mcpTools) {
 		// Use tool() with passthrough schema for dynamic MCP tools
-		// @ts-expect-error - AI SDK tool() has deep type inference issues with passthrough schemas
 		aiTools[mcpTool.name] = tool({
 			description: mcpTool.description || `Execute ${mcpTool.name}`,
 			inputSchema: z.object({}).passthrough(),

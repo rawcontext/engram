@@ -1,4 +1,4 @@
-export { registerRememberTool } from "./remember";
-export { registerRecallTool } from "./recall";
-export { registerQueryTool } from "./query";
 export { registerContextTool } from "./context";
+export { registerQueryTool } from "./query";
+export { registerRecallTool } from "./recall";
+export { registerRememberTool } from "./remember";
