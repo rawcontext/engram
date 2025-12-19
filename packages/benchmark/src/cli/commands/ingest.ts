@@ -76,9 +76,9 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 			if (processedSessions.has(sessionId)) continue;
 			processedSessions.add(sessionId);
 
-			// Create Session node - single line query
+			// Create Session node - use double quotes for string values
 			const sessionEpoch = new Date(sessionDate).getTime();
-			const sessionQuery = `MERGE (s:Session {id: '${sessionId}'}) ON CREATE SET s.vt_start = '${sessionDate}', s.vt_end = '9999-12-31T23:59:59.999Z', s.tt_start = '${now}', s.tt_end = '9999-12-31T23:59:59.999Z', s.started_at = ${sessionEpoch}, s.user_id = 'longmemeval', s.agent_type = 'unknown'`;
+			const sessionQuery = `MERGE (s:Session {id: "${sessionId}"}) ON CREATE SET s.vt_start = "${sessionDate}", s.vt_end = "9999-12-31T23:59:59.999Z", s.tt_start = "${now}", s.tt_end = "9999-12-31T23:59:59.999Z", s.started_at = ${sessionEpoch}, s.user_id = "longmemeval", s.agent_type = "unknown"`;
 			await graph.query(sessionQuery);
 			sessionsCreated++;
 
@@ -89,21 +89,21 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 
 				if (!userTurn || userTurn.role !== "user") continue;
 
-				// Escape content for Cypher - double single quotes for escaping
+				// Escape content for Cypher - use double quotes, escape internal quotes
 				const escapeForCypher = (s: string) =>
-					s.replace(/'/g, "''").replace(/\\/g, "\\\\").replace(/\n/g, " ").replace(/\r/g, "");
+					s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, " ").replace(/\r/g, "");
 
 				const userContent = escapeForCypher(userTurn.content).slice(0, 500);
 				const assistantContent = escapeForCypher(assistantTurn?.content ?? "").slice(0, 500);
 				const turnId = `turn_${sessionId}_${turnIdx}`;
 
-				// Create Turn node
-				const turnQuery = `MERGE (t:Turn {id: '${turnId}'}) ON CREATE SET t.vt_start = '${sessionDate}', t.vt_end = '9999-12-31T23:59:59.999Z', t.tt_start = '${now}', t.tt_end = '9999-12-31T23:59:59.999Z', t.user_content = '${userContent}', t.assistant_preview = '${assistantContent}', t.sequence_index = ${Math.floor(turnIdx / 2)}`;
+				// Create Turn node - use double quotes for string values
+				const turnQuery = `MERGE (t:Turn {id: "${turnId}"}) ON CREATE SET t.vt_start = "${sessionDate}", t.vt_end = "9999-12-31T23:59:59.999Z", t.tt_start = "${now}", t.tt_end = "9999-12-31T23:59:59.999Z", t.user_content = "${userContent}", t.assistant_preview = "${assistantContent}", t.sequence_index = ${Math.floor(turnIdx / 2)}`;
 				await graph.query(turnQuery);
 
 				// Link Turn to Session
 				await graph.query(
-					`MATCH (s:Session {id: '${sessionId}'}), (t:Turn {id: '${turnId}'}) MERGE (s)-[:HAS_TURN]->(t)`,
+					`MATCH (s:Session {id: "${sessionId}"}), (t:Turn {id: "${turnId}"}) MERGE (s)-[:HAS_TURN]->(t)`,
 				);
 				turnsCreated++;
 
@@ -113,12 +113,12 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 				);
 				const memoryId = `mem_${sessionId}_${turnIdx}`;
 
-				const memoryQuery = `MERGE (m:Memory {id: '${memoryId}'}) ON CREATE SET m.vt_start = '${sessionDate}', m.vt_end = '9999-12-31T23:59:59.999Z', m.tt_start = '${now}', m.tt_end = '9999-12-31T23:59:59.999Z', m.content = '${memoryContent}', m.type = 'turn', m.source_session_id = '${sessionId}', m.source_turn_id = '${turnId}', m.source = 'import'`;
+				const memoryQuery = `MERGE (m:Memory {id: "${memoryId}"}) ON CREATE SET m.vt_start = "${sessionDate}", m.vt_end = "9999-12-31T23:59:59.999Z", m.tt_start = "${now}", m.tt_end = "9999-12-31T23:59:59.999Z", m.content = "${memoryContent}", m.type = "turn", m.source_session_id = "${sessionId}", m.source_turn_id = "${turnId}", m.source = "import"`;
 				await graph.query(memoryQuery);
 
 				// Link Memory to Turn
 				await graph.query(
-					`MATCH (t:Turn {id: '${turnId}'}), (m:Memory {id: '${memoryId}'}) MERGE (t)-[:PRODUCES]->(m)`,
+					`MATCH (t:Turn {id: "${turnId}"}), (m:Memory {id: "${memoryId}"}) MERGE (t)-[:PRODUCES]->(m)`,
 				);
 				memoriesCreated++;
 			}
