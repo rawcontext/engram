@@ -2,8 +2,9 @@ import { createNodeLogger, type Logger } from "@engram/logger";
 import { createFalkorClient, type FalkorClient, type GraphClient } from "@engram/storage";
 import type { ContextAssembler } from "../context/assembler";
 import { createContextAssembler } from "../context/assembler";
-import { DecisionEngine } from "../engine/decision";
+import { DecisionEngine, type ToolAdapter } from "../engine/decision";
 import type { MultiMcpAdapter } from "../tools/mcp_client";
+import type { ToolRouter } from "../tools/router";
 import { createSessionInitializer, SessionInitializer } from "./initializer";
 
 /**
@@ -13,14 +14,16 @@ import { createSessionInitializer, SessionInitializer } from "./initializer";
 export interface SessionManagerDeps {
 	/** Context assembler for building agent context. */
 	contextAssembler?: ContextAssembler;
-	/** MCP adapter for tool access. Required for production use. */
-	mcpAdapter: MultiMcpAdapter;
+	/** Tool adapter for tool access. Can be ToolRouter or MultiMcpAdapter. Required. */
+	toolAdapter: ToolAdapter;
 	/** Graph client for session persistence. Defaults to FalkorClient. */
 	graphClient?: GraphClient;
 	/** Session initializer. Defaults to new SessionInitializer. */
 	sessionInitializer?: SessionInitializer;
 	/** Logger instance. Defaults to createNodeLogger. */
 	logger?: Logger;
+	/** @deprecated Use toolAdapter instead */
+	mcpAdapter?: MultiMcpAdapter | ToolRouter;
 }
 
 // Session engine TTL: 1 hour of inactivity
@@ -35,13 +38,13 @@ export class SessionManager {
 	private sessions = new Map<string, SessionEntry>();
 	private initializer: SessionInitializer;
 	private contextAssembler: ContextAssembler;
-	private mcpAdapter: MultiMcpAdapter;
+	private toolAdapter: ToolAdapter;
 	private logger: Logger;
 	private cleanupInterval: NodeJS.Timeout | null = null;
 
 	/**
 	 * Create a SessionManager with injectable dependencies.
-	 * @param deps - Dependencies including required mcpAdapter.
+	 * @param deps - Dependencies including required toolAdapter.
 	 */
 	constructor(deps: SessionManagerDeps);
 	/** @deprecated Use SessionManagerDeps object instead */
@@ -55,12 +58,16 @@ export class SessionManager {
 		mcpAdapterArg?: MultiMcpAdapter,
 		falkorArg?: FalkorClient,
 	) {
-		if ("mcpAdapter" in depsOrAssembler && mcpAdapterArg === undefined) {
+		if (
+			("toolAdapter" in depsOrAssembler || "mcpAdapter" in depsOrAssembler) &&
+			mcpAdapterArg === undefined
+		) {
 			// New deps object constructor
 			const deps = depsOrAssembler as SessionManagerDeps;
 			const graphClient = deps.graphClient ?? createFalkorClient();
 			this.contextAssembler = deps.contextAssembler ?? createContextAssembler({ graphClient });
-			this.mcpAdapter = deps.mcpAdapter;
+			// Support both toolAdapter (new) and mcpAdapter (deprecated)
+			this.toolAdapter = deps.toolAdapter ?? (deps.mcpAdapter as ToolAdapter);
 			this.initializer = deps.sessionInitializer ?? createSessionInitializer({ graphClient });
 			this.logger =
 				deps.logger ??
@@ -76,7 +83,7 @@ export class SessionManager {
 			this.contextAssembler = depsOrAssembler as ContextAssembler;
 			if (!mcpAdapterArg) throw new Error("mcpAdapter required for legacy constructor");
 			if (!falkorArg) throw new Error("falkor required for legacy constructor");
-			this.mcpAdapter = mcpAdapterArg;
+			this.toolAdapter = mcpAdapterArg as ToolAdapter;
 			this.initializer = new SessionInitializer(falkorArg);
 			this.logger = createNodeLogger({
 				service: "control-service",
@@ -132,7 +139,10 @@ export class SessionManager {
 		let entry = this.sessions.get(sessionId);
 		if (!entry) {
 			this.logger.info({ sessionId }, "Spawning new DecisionEngine");
-			const engine = new DecisionEngine(this.contextAssembler, this.mcpAdapter);
+			const engine = new DecisionEngine({
+				contextAssembler: this.contextAssembler,
+				toolAdapter: this.toolAdapter,
+			});
 			engine.start();
 			entry = { engine, lastAccess: now };
 			this.sessions.set(sessionId, entry);

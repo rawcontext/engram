@@ -1,33 +1,29 @@
 # Execution Service
 
-Internal MCP server for virtual file system management and time-travel debugging.
+> **DEPRECATED**: This standalone MCP server has been merged into the [Control Service](../control/README.md).
+> The functionality is now available via `ExecutionService` in `apps/control/src/execution/`.
+> This app is kept for backward compatibility but will be removed in a future release.
 
-## Overview
+## Migration
 
-The Execution Service is an **internal** MCP server used by the [Control Service](../control/README.md) to orchestrate file operations. It provides tools for reading files, applying patches, and retrieving historical file snapshots from the virtual file system.
+The execution tools (`read_file`, `apply_patch`, `list_files_at_time`) are now integrated directly into the Control Service via `ToolRouter`:
 
-> **Note:** This is not the MCP server that AI agents connect to directly. For AI agent integration, see [apps/mcp](../mcp/README.md).
+```typescript
+import { ExecutionService } from "./execution";
+import { ToolRouter } from "./tools/router";
 
-## How It Fits
-
-```
-AI Agent (Claude Code)
-    │
-    ▼
-Control Service ──MCP──▶ Execution Service
-    │                         │
-    │                         ├── read_file
-    │                         ├── apply_patch
-    │                         └── list_files_at_time
-    │
-    └──MCP──▶ Engram MCP Server (apps/mcp)
-                   │
-                   ├── remember
-                   ├── recall
-                   └── query
+const executionService = new ExecutionService({ graphClient: falkor });
+const toolRouter = new ToolRouter(executionService, mcpAdapter);
 ```
 
-The Control Service uses Execution for VFS operations while the agent uses the main MCP server for memory operations.
+## Why Was This Changed?
+
+Using MCP for internal service-to-service communication was not idiomatic. MCP is designed for AI-to-tool interfaces, not internal RPC. By merging ExecutionService directly into Control:
+
+- Eliminates unnecessary process overhead (no subprocess for VFS operations)
+- Removes stdio serialization latency
+- Simplifies architecture
+- Maintains the same API through `ToolRouter`
 
 ## MCP Tools
 

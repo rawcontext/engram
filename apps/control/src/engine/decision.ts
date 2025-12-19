@@ -6,11 +6,20 @@ import { z } from "zod";
 import type { ContextAssembler } from "../context/assembler";
 import { type AgentContext, agentMachine, type ToolCall } from "../state/machine";
 import type { MultiMcpAdapter } from "../tools/mcp_client";
+import type { ToolRouter } from "../tools/router";
 
 const model = xai("grok-4-1-fast-reasoning");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AiToolSet = Record<string, any>;
+
+/**
+ * Common interface for tool adapters (MultiMcpAdapter or ToolRouter).
+ */
+export interface ToolAdapter {
+	listTools(): Promise<Array<{ name: string; description?: string; inputSchema?: unknown }>>;
+	callTool(toolName: string, args: Record<string, unknown>): Promise<unknown>;
+}
 
 /**
  * Dependencies for DecisionEngine construction.
@@ -19,10 +28,12 @@ type AiToolSet = Record<string, any>;
 export interface DecisionEngineDeps {
 	/** Context assembler for building agent context. Required. */
 	contextAssembler: ContextAssembler;
-	/** MCP adapter for tool access. Required. */
-	mcpAdapter: MultiMcpAdapter;
+	/** Tool adapter for tool access. Can be ToolRouter or MultiMcpAdapter. Required. */
+	toolAdapter: ToolAdapter;
 	/** Logger instance. Defaults to createNodeLogger. */
 	logger?: Logger;
+	/** @deprecated Use toolAdapter instead */
+	mcpAdapter?: MultiMcpAdapter | ToolRouter;
 }
 
 /**
@@ -82,7 +93,7 @@ export class DecisionEngine {
 	private actor;
 	private cachedTools: AiToolSet = {};
 	private contextAssembler: ContextAssembler;
-	private mcpAdapter: MultiMcpAdapter;
+	private toolAdapter: ToolAdapter;
 	private logger: Logger;
 
 	/**
@@ -96,11 +107,15 @@ export class DecisionEngine {
 		depsOrAssembler: DecisionEngineDeps | ContextAssembler,
 		mcpAdapterArg?: MultiMcpAdapter,
 	) {
-		if ("contextAssembler" in depsOrAssembler && "mcpAdapter" in depsOrAssembler) {
+		if (
+			"contextAssembler" in depsOrAssembler &&
+			("toolAdapter" in depsOrAssembler || "mcpAdapter" in depsOrAssembler)
+		) {
 			// New deps object constructor
 			const deps = depsOrAssembler as DecisionEngineDeps;
 			this.contextAssembler = deps.contextAssembler;
-			this.mcpAdapter = deps.mcpAdapter;
+			// Support both toolAdapter (new) and mcpAdapter (deprecated)
+			this.toolAdapter = deps.toolAdapter ?? (deps.mcpAdapter as ToolAdapter);
 			this.logger =
 				deps.logger ??
 				createNodeLogger({
@@ -111,7 +126,7 @@ export class DecisionEngine {
 			// Legacy constructor
 			this.contextAssembler = depsOrAssembler as ContextAssembler;
 			if (!mcpAdapterArg) throw new Error("mcpAdapter required for legacy constructor");
-			this.mcpAdapter = mcpAdapterArg;
+			this.toolAdapter = mcpAdapterArg as ToolAdapter;
 			this.logger = createNodeLogger({
 				service: "control-service",
 				base: { component: "decision-engine" },
@@ -132,14 +147,14 @@ export class DecisionEngine {
 					generateThought: fromPromise(async ({ input }) => {
 						const ctx = input as AgentContext;
 
-						// Get tools from MCP adapter and convert to AI SDK format
+						// Get tools from tool adapter and convert to AI SDK format
 						let aiTools = this.cachedTools;
 						try {
-							const mcpTools = await this.mcpAdapter.listTools();
-							aiTools = convertMcpToolsToAiSdk(mcpTools);
+							const tools = await this.toolAdapter.listTools();
+							aiTools = convertMcpToolsToAiSdk(tools);
 							this.cachedTools = aiTools; // Cache for subsequent calls
 						} catch (e) {
-							this.logger.warn({ err: e }, "Failed to fetch MCP tools, using cached or empty");
+							this.logger.warn({ err: e }, "Failed to fetch tools, using cached or empty");
 						}
 
 						const hasTools = Object.keys(aiTools).length > 0;
@@ -177,7 +192,7 @@ export class DecisionEngine {
 						const ctx = input as AgentContext;
 						const results = [];
 						for (const call of ctx.currentToolCalls) {
-							const result = await this.mcpAdapter.callTool(call.toolName, call.args);
+							const result = await this.toolAdapter.callTool(call.toolName, call.args);
 							results.push(result);
 						}
 						return { toolOutputs: results };

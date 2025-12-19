@@ -2,8 +2,10 @@ import { createNodeLogger } from "@engram/logger";
 import { createFalkorClient, createKafkaClient } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";
 import { ContextAssembler } from "./context/assembler";
+import { ExecutionService } from "./execution";
 import { SessionManager } from "./session/manager";
 import { McpToolAdapter, MultiMcpAdapter } from "./tools/mcp_client";
+import { ToolRouter } from "./tools/router";
 
 const logger = createNodeLogger({ service: "control-service", base: { component: "main" } });
 
@@ -11,19 +13,19 @@ const logger = createNodeLogger({ service: "control-service", base: { component:
 const kafka = createKafkaClient("control-service");
 const falkor = createFalkorClient();
 
-// Initialize MCP Adapters
-// 1. Wassette (Official Binary)
+// Initialize Execution Service (VFS, TimeTravel) - direct integration
+const executionService = new ExecutionService({ graphClient: falkor });
+
+// Initialize MCP Adapters for external tools
+// Wassette (Official Binary) - placeholder for future external tools
 const wassettePath = `${process.env.HOME}/.local/bin/wassette`;
 const wassetteAdapter = new McpToolAdapter(wassettePath, ["serve", "--stdio"]);
 
-// 2. Execution Service (VFS, TimeTravel)
-// Using 'npx tsx' to run the execution service script (Node.js runtime for native module compatibility)
-const executionAdapter = new McpToolAdapter("npx", ["tsx", "../../apps/execution/src/index.ts"]);
-
-// Unified Adapter
 const multiAdapter = new MultiMcpAdapter();
 multiAdapter.addAdapter(wassetteAdapter);
-multiAdapter.addAdapter(executionAdapter);
+
+// Create unified ToolRouter that combines ExecutionService + MCP tools
+const toolRouter = new ToolRouter(executionService, multiAdapter);
 
 // Initialize Core Logic
 // TODO: Replace with real SearchRetriever when available or mocked properly
@@ -32,7 +34,11 @@ const contextAssembler = new ContextAssembler(
 	falkor,
 );
 
-const sessionManager = new SessionManager(contextAssembler, multiAdapter, falkor);
+const sessionManager = new SessionManager({
+	contextAssembler,
+	toolAdapter: toolRouter,
+	graphClient: falkor,
+});
 
 // Connect to DB and MCP
 async function init() {
