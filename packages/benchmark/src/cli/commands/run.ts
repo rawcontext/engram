@@ -43,6 +43,9 @@ interface RunOptions {
 	// Multi-query retrieval options
 	multiQuery: boolean;
 	multiQueryVariations: number;
+	// Abstention detection options
+	abstention: boolean;
+	abstentionThreshold: number;
 }
 
 export async function runCommand(benchmark: string, options: RunOptions): Promise<void> {
@@ -75,6 +78,10 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 		console.log(`  Multi-Query: ${options.multiQuery}`);
 		if (options.multiQuery) {
 			console.log(`  Multi-Query Variations: ${options.multiQueryVariations}`);
+		}
+		console.log(`  Abstention Detection: ${options.abstention}`);
+		if (options.abstention) {
+			console.log(`  Abstention Threshold: ${options.abstentionThreshold}`);
 		}
 	}
 	if (options.limit) {
@@ -197,6 +204,8 @@ function createCustomRetriever(options: RunOptions): CustomRetriever | undefined
 		topK: options.topK,
 		multiQuery: options.multiQuery,
 		multiQueryVariations: options.multiQueryVariations,
+		abstention: options.abstention,
+		abstentionThreshold: options.abstentionThreshold,
 	});
 }
 

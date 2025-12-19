@@ -47,6 +47,14 @@ program
 		Number.parseInt,
 		3,
 	)
+	// Abstention detection options
+	.option("--abstention", "Enable retrieval confidence abstention detection", false)
+	.option(
+		"--abstention-threshold <n>",
+		"Minimum retrieval score to proceed (0-1)",
+		Number.parseFloat,
+		0.3,
+	)
 	.action(runCommand);
 
 // Evaluate results command

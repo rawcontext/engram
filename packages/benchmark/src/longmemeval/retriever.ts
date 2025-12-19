@@ -36,6 +36,12 @@ export interface RetrievalResult {
 	retrievedIds: string[];
 	/** Time range extracted from query (if time-aware) */
 	extractedTimeRange?: { start: Date; end: Date };
+	/** Whether abstention detection indicated low confidence */
+	abstained?: boolean;
+	/** Reason for abstention (if applicable) */
+	abstentionReason?: string;
+	/** Retrieval confidence score from abstention detector */
+	retrievalConfidence?: number;
 }
 
 /**

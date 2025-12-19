@@ -1,6 +1,7 @@
 export * from "./clients/xai-client";
 export * from "./config/index";
 export * from "./models/schema";
+export * from "./services/abstention-detector";
 export * from "./services/base-embedder";
 export * from "./services/batch-indexer";
 export * from "./services/batched-reranker";

@@ -23,6 +23,10 @@ export interface EngramProviderConfig {
 	multiQuery: boolean;
 	/** Number of query variations to generate */
 	multiQueryVariations: number;
+	/** Enable retrieval confidence abstention detection */
+	abstention: boolean;
+	/** Minimum retrieval score to proceed (0-1) */
+	abstentionThreshold: number;
 }
 
 const DEFAULT_CONFIG: EngramProviderConfig = {
@@ -35,6 +39,8 @@ const DEFAULT_CONFIG: EngramProviderConfig = {
 	topK: 10,
 	multiQuery: false,
 	multiQueryVariations: 3,
+	abstention: false,
+	abstentionThreshold: 0.3,
 };
 
 /**
@@ -58,6 +64,7 @@ export class EngramRetriever {
 	private indexed: boolean = false;
 	private documentEmbeddings: Map<string, Float32Array[]> = new Map(); // ColBERT embeddings cache
 	private xaiClient: XAIClientInterface | null = null; // For multi-query expansion
+	private abstentionDetector: AbstentionDetectorInterface | null = null;
 
 	constructor(config: Partial<EngramProviderConfig> = {}) {
 		this.config = { ...DEFAULT_CONFIG, ...config };
@@ -105,6 +112,14 @@ export class EngramRetriever {
 				this.xaiClient = new XAIClient({
 					model: "grok-4-1-fast-reasoning",
 				}) as unknown as XAIClientInterface;
+			}
+
+			// Initialize abstention detector
+			if (this.config.abstention) {
+				const { AbstentionDetector } = await import("@engram/search-core");
+				this.abstentionDetector = new AbstentionDetector({
+					minRetrievalScore: this.config.abstentionThreshold,
+				}) as unknown as AbstentionDetectorInterface;
 			}
 		} catch (error) {
 			console.error("Failed to initialize Engram provider:", error);
@@ -454,11 +469,25 @@ Return ONLY a JSON array of query strings. No explanations.`;
 				};
 			});
 
-			return {
+			const retrievalResult: RetrievalResult = {
 				documents,
 				scores: results.map((r) => r.score),
 				retrievedIds: documents.map((d) => d.id),
 			};
+
+			// Apply abstention detection if enabled
+			if (this.abstentionDetector && results.length > 0) {
+				const abstentionResult = this.abstentionDetector.checkRetrievalConfidence(results);
+				retrievalResult.abstained = abstentionResult.shouldAbstain;
+				retrievalResult.abstentionReason = abstentionResult.reason;
+				retrievalResult.retrievalConfidence = abstentionResult.confidence;
+
+				if (abstentionResult.shouldAbstain) {
+					console.log(`  [Abstention] ${abstentionResult.reason}: ${abstentionResult.details}`);
+				}
+			}
+
+			return retrievalResult;
 		} catch (error) {
 			console.error("Search failed:", error);
 			return { documents: [], scores: [], retrievedIds: [] };
@@ -718,4 +747,13 @@ interface QdrantSearchResult {
 
 interface XAIClientInterface {
 	chat(messages: Array<{ role: string; content: string }>): Promise<string>;
+}
+
+interface AbstentionDetectorInterface {
+	checkRetrievalConfidence(results: Array<{ score: number }>): {
+		shouldAbstain: boolean;
+		reason?: string;
+		confidence: number;
+		details?: string;
+	};
 }
