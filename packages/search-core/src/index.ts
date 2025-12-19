@@ -13,6 +13,7 @@ export * from "./services/deduplicator";
 export * from "./services/embedding-cache";
 export * from "./services/indexer";
 export * from "./services/llm-reranker";
+export * from "./services/multi-query-retriever";
 export * from "./services/query-cache";
 export * from "./services/rate-limiter";
 export * from "./services/reranker";
