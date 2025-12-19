@@ -139,7 +139,7 @@ mkdir -p /opt/engram
 cd /opt/engram
 
 # Clone with GitHub CLI or git
-if ! git clone https://github.com/engram-labs/engram.git .; then
+if ! git clone https://github.com/ccheney/engram.git .; then
   echo "Failed to clone repo - may need authentication" | tee -a /var/log/benchmark-startup.log
 fi
 

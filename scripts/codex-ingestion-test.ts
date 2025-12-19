@@ -44,7 +44,7 @@ async function sendToIngestion(event: CodexStreamEvent): Promise<void> {
 		headers: {
 			"x-session-id": SESSION_ID,
 			"x-working-dir": process.cwd(),
-			"x-git-remote": "github.com/engram-labs/engram",
+			"x-git-remote": "github.com/ccheney/engram",
 			"x-agent-type": "codex",
 		},
 	};

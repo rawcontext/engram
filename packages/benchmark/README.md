@@ -1,7 +1,6 @@
 # @engram/benchmark
 
-<!-- Badge: Update URL to your fork -->
-<!-- [![LongMemEval](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<your-org>/engram/main/.github/benchmark-history/badge.json)](https://github.com/<your-org>/engram/actions/workflows/benchmark.yml) -->
+[![LongMemEval](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ccheney/engram/main/.github/benchmark-history/badge.json)](https://github.com/ccheney/engram/actions/workflows/benchmark.yml)
 
 Benchmark suite for evaluating Engram's memory system against industry-standard benchmarks.
 
