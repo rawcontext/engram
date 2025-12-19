@@ -1,0 +1,249 @@
+# Tuner Service Deployment
+# FastAPI + Optuna hyperparameter optimization service
+#
+# Deploy with: kubectl apply -f tuner-deployment.yaml
+# Requires: tuner-postgres to be running first
+#
+# Service: http://tuner.engram.svc.cluster.local:8000
+# Dashboard: http://tuner-dashboard.engram.svc.cluster.local:8080
+#
+# Best practices applied from:
+# - https://neon.com/guides/optuna-hyperprameter-kubernetes
+# - https://fastapi.tiangolo.com/deployment/concepts/
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tuner-config
+  namespace: engram
+  labels:
+    app.kubernetes.io/name: tuner
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: engram
+data:
+  # Allowed CORS origins (comma-separated in env, parsed as JSON)
+  CORS_ORIGINS: '["http://localhost:3000","http://localhost:5173"]'
+  # Workers per pod (Uvicorn)
+  WORKERS: "2"
+  # Log level
+  LOG_LEVEL: "info"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tuner-secrets
+  namespace: engram
+  labels:
+    app.kubernetes.io/name: tuner
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: engram
+type: Opaque
+stringData:
+  # Database connection URL for Optuna storage
+  # Uses internal service DNS: tuner-postgres.engram.svc.cluster.local
+  DATABASE_URL: postgresql://postgres:postgres@tuner-postgres.engram.svc.cluster.local:5432/optuna
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tuner
+  namespace: engram
+  labels:
+    app.kubernetes.io/name: tuner
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: engram
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tuner
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tuner
+        app.kubernetes.io/component: service
+        app.kubernetes.io/part-of: engram
+    spec:
+      # Run as non-root user (security best practice)
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: tuner
+          # Image will be built and pushed to GCR
+          # Replace with your container registry path
+          image: gcr.io/PROJECT_ID/engram-tuner:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: tuner-config
+            - secretRef:
+                name: tuner-secrets
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          # Liveness probe - is the process running?
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Readiness probe - is it ready to serve traffic?
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Startup probe - give time for initial startup
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      # Prefer spreading pods across nodes
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: tuner
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tuner
+  namespace: engram
+  labels:
+    app.kubernetes.io/name: tuner
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: engram
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: tuner
+---
+# Pod Disruption Budget to ensure availability during upgrades
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: tuner-pdb
+  namespace: engram
+  labels:
+    app.kubernetes.io/name: tuner
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: engram
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tuner
+---
+# Optuna Dashboard for visualization
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tuner-dashboard
+  namespace: engram
+  labels:
+    app.kubernetes.io/name: tuner-dashboard
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/part-of: engram
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tuner-dashboard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tuner-dashboard
+        app.kubernetes.io/component: dashboard
+        app.kubernetes.io/part-of: engram
+    spec:
+      containers:
+        - name: dashboard
+          image: ghcr.io/optuna/optuna-dashboard:latest
+          args:
+            - "postgresql://postgres:postgres@tuner-postgres.engram.svc.cluster.local:5432/optuna"
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tuner-dashboard
+  namespace: engram
+  labels:
+    app.kubernetes.io/name: tuner-dashboard
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/part-of: engram
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: tuner-dashboard

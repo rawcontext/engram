@@ -9,9 +9,14 @@
  * - gke.ts: GKE Autopilot cluster
  * - secrets.ts: Secret Manager secrets
  *
- * Note: Data plane services (FalkorDB, Qdrant, Redpanda) are deployed
- * via Helm charts after the cluster is provisioned. See k8s/ directory
- * for Helm values files.
+ * Note: Data plane services are deployed via kubectl/Helm after the
+ * cluster is provisioned. See k8s/ directory for manifests:
+ *
+ * - falkordb-statefulset.yaml: Graph database (Redis protocol)
+ * - qdrant-values.yaml: Vector database Helm values
+ * - redpanda-values.yaml: Kafka-compatible streaming Helm values
+ * - tuner-postgres-statefulset.yaml: PostgreSQL for Optuna persistence
+ * - tuner-deployment.yaml: Tuner service + Optuna dashboard
  */
 
 // Re-export configuration for reference
