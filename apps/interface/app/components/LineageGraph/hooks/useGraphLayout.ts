@@ -24,7 +24,7 @@ export function useGraphLayout({
 	centerX = 400,
 	centerY = 300,
 }: UseGraphLayoutOptions): UseGraphLayoutResult {
-	const lastDataKeyRef = useRef<string>("");
+	const _lastDataKeyRef = useRef<string>("");
 
 	// Create a stable key based on node/edge IDs to detect actual data changes
 	const dataKey = useMemo(() => {

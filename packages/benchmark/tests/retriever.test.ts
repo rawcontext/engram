@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { mapInstance } from "../src/longmemeval/mapper.js";
 import {
-	Retriever,
-	InMemoryVectorStore,
 	computeRetrievalMetrics,
 	type EmbeddingProvider,
+	InMemoryVectorStore,
+	Retriever,
 } from "../src/longmemeval/retriever.js";
-import { mapInstance } from "../src/longmemeval/mapper.js";
 import type { ParsedInstance } from "../src/longmemeval/types.js";
 
 /**

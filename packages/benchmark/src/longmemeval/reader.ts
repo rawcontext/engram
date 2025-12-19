@@ -1,5 +1,4 @@
 import type { EngramDocument } from "./mapper.js";
-import { formatDocumentsForContext } from "./mapper.js";
 
 /**
  * Configuration for the reading/answer generation stage

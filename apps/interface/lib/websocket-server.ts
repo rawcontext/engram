@@ -187,7 +187,7 @@ function isGroupReady(description: GroupDescription): boolean {
 	return description.state === ConsumerGroupStates.STABLE && description.members.length >= 1;
 }
 
-async function checkConsumerGroups(): Promise<ConsumerStatusResponse> {
+async function _checkConsumerGroups(): Promise<ConsumerStatusResponse> {
 	const brokers = process.env.REDPANDA_BROKERS || "localhost:19092";
 
 	const admin: AdminClient = Kafka.AdminClient.create({
@@ -236,7 +236,7 @@ async function checkConsumerGroups(): Promise<ConsumerStatusResponse> {
 	}
 }
 
-function getUnknownStatus(): ConsumerStatusResponse {
+function _getUnknownStatus(): ConsumerStatusResponse {
 	return {
 		groups: CONSUMER_GROUPS.map((groupId) => ({
 			groupId,

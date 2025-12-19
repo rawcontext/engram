@@ -1,4 +1,4 @@
-import type { FalkorNode, GraphClient } from "@engram/storage";
+import type { FalkorNode } from "@engram/storage";
 import { EdgeTypes } from "../models/edges";
 import { FalkorBaseRepository } from "./falkor-base";
 import type { TurnRepository } from "./turn.repository";
@@ -36,10 +36,6 @@ type TurnNodeProps = {
  * FalkorDB implementation of TurnRepository.
  */
 export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRepository {
-	constructor(graphClient: GraphClient) {
-		super(graphClient);
-	}
-
 	async findById(id: string): Promise<Turn | null> {
 		const results = await this.query<{ t: FalkorNode<TurnNodeProps>; sessionId: string }>(
 			`MATCH (s:Session)-[:${EdgeTypes.HAS_TURN}]->(t:Turn {id: $id})

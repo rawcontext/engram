@@ -1,12 +1,11 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { EngramDocument } from "../src/longmemeval/mapper.js";
 import {
+	DEFAULT_READER_CONFIG,
+	MockLLMProvider,
 	Reader,
 	StubLLMProvider,
-	MockLLMProvider,
-	DEFAULT_READER_CONFIG,
-	type ConfidenceSignals,
 } from "../src/longmemeval/reader.js";
-import type { EngramDocument } from "../src/longmemeval/mapper.js";
 
 const createMockDocument = (
 	content: string,

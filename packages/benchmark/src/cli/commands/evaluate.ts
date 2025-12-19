@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { loadDataset } from "../../longmemeval/loader.js";
 import { Evaluator, formatMetricsReport, parseJsonlResults } from "../../longmemeval/evaluator.js";
+import { loadDataset } from "../../longmemeval/loader.js";
 
 interface EvaluateOptions {
 	hypothesis: string;

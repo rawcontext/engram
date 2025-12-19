@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { runCommand } from "./commands/run.js";
 import { evaluateCommand } from "./commands/evaluate.js";
+import { runCommand } from "./commands/run.js";
 import { validateCommand } from "./commands/validate.js";
 
 const program = new Command();

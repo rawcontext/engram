@@ -71,7 +71,7 @@ export class Rehydrator {
 			const blobContent = await this.blobStore.load(blobRef);
 			try {
 				await vfs.loadSnapshot(Buffer.from(blobContent));
-			} catch (snapshotError) {
+			} catch (_snapshotError) {
 				// If gzip fails, try loading as JSON directly
 				try {
 					const parsed = JSON.parse(blobContent);

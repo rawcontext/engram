@@ -1,4 +1,4 @@
-import type { FalkorNode, GraphClient } from "@engram/storage";
+import type { FalkorNode } from "@engram/storage";
 import { EdgeTypes } from "../models/edges";
 import { FalkorBaseRepository } from "./falkor-base";
 import type { ToolCallRepository } from "./tool-call.repository";
@@ -29,10 +29,6 @@ type ToolCallNodeProps = {
  * FalkorDB implementation of ToolCallRepository.
  */
 export class FalkorToolCallRepository extends FalkorBaseRepository implements ToolCallRepository {
-	constructor(graphClient: GraphClient) {
-		super(graphClient);
-	}
-
 	async findById(id: string): Promise<ToolCall | null> {
 		const results = await this.query<{ tc: FalkorNode<ToolCallNodeProps>; turnId: string }>(
 			`MATCH (t:Turn)-[:${EdgeTypes.INVOKES}]->(tc:ToolCall {id: $id})

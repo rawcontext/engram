@@ -1,4 +1,4 @@
-import type { FalkorNode, GraphClient } from "@engram/storage";
+import type { FalkorNode } from "@engram/storage";
 import { FalkorBaseRepository } from "./falkor-base";
 import type { SessionRepository } from "./session.repository";
 import type { CreateSessionInput, Session, UpdateSessionInput } from "./types";
@@ -30,10 +30,6 @@ type SessionNodeProps = {
  * FalkorDB implementation of SessionRepository.
  */
 export class FalkorSessionRepository extends FalkorBaseRepository implements SessionRepository {
-	constructor(graphClient: GraphClient) {
-		super(graphClient);
-	}
-
 	async findById(id: string): Promise<Session | null> {
 		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(
 			`MATCH (s:Session {id: $id}) WHERE s.tt_end = ${this.maxDate} RETURN s`,

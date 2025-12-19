@@ -2,13 +2,13 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
 	type DatasetVariant,
+	getMemoryAbility,
 	type LongMemEvalDataset,
-	type LongMemEvalInstance,
 	LongMemEvalDatasetSchema,
+	type LongMemEvalInstance,
 	type ParsedInstance,
 	type ParsedSession,
 	type ParsedTurn,
-	getMemoryAbility,
 } from "./types.js";
 
 /**
@@ -64,7 +64,7 @@ export async function loadDataset(config: LoaderConfig): Promise<LoadResult> {
 
 	if (config.questionTypes && config.questionTypes.length > 0) {
 		filteredDataset = filteredDataset.filter((instance) =>
-			config.questionTypes!.includes(instance.question_type),
+			config.questionTypes?.includes(instance.question_type),
 		);
 	}
 

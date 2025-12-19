@@ -1,3 +1,4 @@
+import type { LLMProvider } from "./reader.js";
 import type {
 	AbilityMetrics,
 	AbstentionMetrics,
@@ -8,7 +9,6 @@ import type {
 	ParsedInstance,
 	RetrievalMetrics,
 } from "./types.js";
-import type { LLMProvider } from "./reader.js";
 
 /**
  * Configuration for evaluation
@@ -70,7 +70,7 @@ export class Evaluator {
 	async evaluateOne(
 		result: BenchmarkResult,
 		instance: ParsedInstance,
-		abstained?: boolean,
+		_abstained?: boolean,
 	): Promise<EvaluatedResult> {
 		const correct =
 			this.config.useLLMEvaluation && this.llm

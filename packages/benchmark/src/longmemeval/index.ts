@@ -7,22 +7,18 @@
  * @see https://arxiv.org/abs/2410.10813
  */
 
-// Types
-export * from "./types.js";
-
+export * from "./evaluator.js";
+// Optimizations (Milestone 2)
+export * from "./key-expansion.js";
 // Core components
 export * from "./loader.js";
 export * from "./mapper.js";
-export * from "./retriever.js";
-export * from "./reader.js";
-export * from "./evaluator.js";
-
-// Optimizations (Milestone 2)
-export * from "./key-expansion.js";
-export * from "./temporal.js";
-
 // Pipeline
 export * from "./pipeline.js";
-
 // Providers (real implementations)
 export * from "./providers/index.js";
+export * from "./reader.js";
+export * from "./retriever.js";
+export * from "./temporal.js";
+// Types
+export * from "./types.js";

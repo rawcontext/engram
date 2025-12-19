@@ -1,5 +1,5 @@
-import type { EmbeddingProvider, RetrievalResult, RetrieverConfig } from "../retriever.js";
 import type { EngramDocument, MappedInstance } from "../mapper.js";
+import type { EmbeddingProvider, RetrievalResult } from "../retriever.js";
 
 /**
  * Configuration for the Engram provider
@@ -297,12 +297,12 @@ Return ONLY a JSON array of query strings. No explanations.`;
 
 		// Generate dense embeddings
 		const texts = documents.map((d) => d.content);
-		const denseEmbeddings = await Promise.all(texts.map((text) => this.textEmbedder!.embed(text)));
+		const denseEmbeddings = await Promise.all(texts.map((text) => this.textEmbedder?.embed(text)));
 
 		// Generate sparse embeddings if hybrid search enabled
 		let sparseEmbeddings: SparseVector[] | null = null;
 		if (this.config.hybridSearch && this.spladeEmbedder) {
-			sparseEmbeddings = await Promise.all(texts.map((text) => this.spladeEmbedder!.embed(text)));
+			sparseEmbeddings = await Promise.all(texts.map((text) => this.spladeEmbedder?.embed(text)));
 		}
 
 		// Generate ColBERT embeddings if using ColBERT reranking
@@ -334,7 +334,7 @@ Return ONLY a JSON array of query strings. No explanations.`;
 			};
 
 			// Add sparse vector if available
-			if (sparseEmbeddings && sparseEmbeddings[i]) {
+			if (sparseEmbeddings?.[i]) {
 				point.vector.sparse = sparseEmbeddings[i];
 			}
 
@@ -346,7 +346,7 @@ Return ONLY a JSON array of query strings. No explanations.`;
 		for (let i = 0; i < points.length; i += batchSize) {
 			const batch = points.slice(i, i + batchSize);
 			await this.retryOperation(() =>
-				this.client!.upsert(this.config.collectionName, {
+				this.client?.upsert(this.config.collectionName, {
 					wait: true,
 					points: batch,
 				}),
@@ -371,7 +371,7 @@ Return ONLY a JSON array of query strings. No explanations.`;
 			} catch (error) {
 				lastError = error as Error;
 				if (attempt < maxRetries - 1) {
-					const delay = baseDelayMs * Math.pow(2, attempt);
+					const delay = baseDelayMs * 2 ** attempt;
 					await new Promise((resolve) => setTimeout(resolve, delay));
 				}
 			}
@@ -465,7 +465,7 @@ Return ONLY a JSON array of query strings. No explanations.`;
 		if (!this.client) return [];
 
 		return this.retryOperation(async () => {
-			const results = await this.client!.search(this.config.collectionName, {
+			const results = await this.client?.search(this.config.collectionName, {
 				vector: { name: "dense", vector: Array.from(queryVector) },
 				limit,
 				with_payload: true,

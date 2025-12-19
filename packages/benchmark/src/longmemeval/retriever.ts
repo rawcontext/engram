@@ -178,8 +178,8 @@ export class Retriever {
 			const filtered = result.documents.filter((doc) => {
 				const docTime = doc.validTime.getTime();
 				return (
-					docTime >= extractedTimeRange!.start.getTime() &&
-					docTime <= extractedTimeRange!.end.getTime()
+					docTime >= extractedTimeRange?.start.getTime() &&
+					docTime <= extractedTimeRange?.end.getTime()
 				);
 			});
 
@@ -285,7 +285,7 @@ export function computeRetrievalMetrics(
 	recallAtK: Record<number, number>;
 } {
 	const evidenceSet = new Set(evidenceDocIds);
-	const retrievedSet = new Set(result.retrievedIds);
+	const _retrievedSet = new Set(result.retrievedIds);
 
 	// Compute recall and precision
 	let hits = 0;

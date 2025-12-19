@@ -1,5 +1,5 @@
-import type { LLMProvider } from "./reader.js";
 import type { EngramDocument } from "./mapper.js";
+import type { LLMProvider } from "./reader.js";
 
 /**
  * Key Expansion for improved retrieval
@@ -196,7 +196,7 @@ ${content}
 
 Summary (one sentence):`;
 
-		const response = await this.config.llm!.complete(prompt, { maxTokens: 100 });
+		const response = await this.config.llm?.complete(prompt, { maxTokens: 100 });
 		return response.text.trim();
 	}
 
@@ -208,7 +208,7 @@ ${content}
 
 Key phrases:`;
 
-		const response = await this.config.llm!.complete(prompt, { maxTokens: 100 });
+		const response = await this.config.llm?.complete(prompt, { maxTokens: 100 });
 		return response.text
 			.split("\n")
 			.map((line) => line.trim().replace(/^[-•*]\s*/, ""))
@@ -223,7 +223,7 @@ ${content}
 
 User facts (if any):`;
 
-		const response = await this.config.llm!.complete(prompt, { maxTokens: 150 });
+		const response = await this.config.llm?.complete(prompt, { maxTokens: 150 });
 		return response.text
 			.split("\n")
 			.map((line) => line.trim().replace(/^[-•*]\s*/, ""))
@@ -245,7 +245,7 @@ Base date for relative references: ${baseDate.toISOString().split("T")[0]}
 
 Return JSON array of objects with "description" and optional "dateText" fields:`;
 
-		const response = await this.config.llm!.complete(prompt, { maxTokens: 200 });
+		const response = await this.config.llm?.complete(prompt, { maxTokens: 200 });
 
 		try {
 			const jsonMatch = response.text.match(/\[[\s\S]*\]/);
@@ -267,7 +267,7 @@ Return JSON array of objects with "description" and optional "dateText" fields:`
 		if (firstSentence && firstSentence[0].length < 200) {
 			return firstSentence[0].trim();
 		}
-		return content.slice(0, 100).trim() + "...";
+		return `${content.slice(0, 100).trim()}...`;
 	}
 
 	private heuristicKeyphrases(content: string): string[] {
@@ -410,7 +410,7 @@ Return JSON array of objects with "description" and optional "dateText" fields:`
 
 	private heuristicUserFacts(content: string): string[] {
 		const facts: string[] = [];
-		const lowerContent = content.toLowerCase();
+		const _lowerContent = content.toLowerCase();
 
 		// Patterns for user facts
 		const patterns = [
@@ -424,8 +424,7 @@ Return JSON array of objects with "description" and optional "dateText" fields:`
 		];
 
 		for (const pattern of patterns) {
-			let match;
-			while ((match = pattern.exec(content)) !== null) {
+			for (const match of content.matchAll(pattern)) {
 				const fact = match[0].trim();
 				if (fact.length > 5 && fact.length < 100) {
 					facts.push(fact);
@@ -436,7 +435,7 @@ Return JSON array of objects with "description" and optional "dateText" fields:`
 		return [...new Set(facts)].slice(0, 5);
 	}
 
-	private heuristicEvents(content: string, baseDate: Date): TimestampedEvent[] {
+	private heuristicEvents(content: string, _baseDate: Date): TimestampedEvent[] {
 		const events: TimestampedEvent[] = [];
 
 		// Patterns for events with dates
@@ -458,16 +457,14 @@ Return JSON array of objects with "description" and optional "dateText" fields:`
 		// Extract date mentions
 		const dateMentions: string[] = [];
 		for (const pattern of datePatterns) {
-			let match;
-			while ((match = pattern.exec(content)) !== null) {
+			for (const match of content.matchAll(pattern)) {
 				dateMentions.push(match[1]);
 			}
 		}
 
 		// Extract activities
 		for (const pattern of activityPatterns) {
-			let match;
-			while ((match = pattern.exec(content)) !== null) {
+			for (const match of content.matchAll(pattern)) {
 				const description = match[0].trim();
 				if (description.length > 10 && description.length < 150) {
 					events.push({

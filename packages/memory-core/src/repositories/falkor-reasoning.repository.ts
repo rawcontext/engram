@@ -1,4 +1,4 @@
-import type { FalkorNode, GraphClient } from "@engram/storage";
+import type { FalkorNode } from "@engram/storage";
 import { EdgeTypes } from "../models/edges";
 import { FalkorBaseRepository } from "./falkor-base";
 import type { ReasoningRepository } from "./reasoning.repository";
@@ -26,10 +26,6 @@ type ReasoningNodeProps = {
  * FalkorDB implementation of ReasoningRepository.
  */
 export class FalkorReasoningRepository extends FalkorBaseRepository implements ReasoningRepository {
-	constructor(graphClient: GraphClient) {
-		super(graphClient);
-	}
-
 	async findById(id: string): Promise<Reasoning | null> {
 		const results = await this.query<{ r: FalkorNode<ReasoningNodeProps>; turnId: string }>(
 			`MATCH (t:Turn)-[:${EdgeTypes.CONTAINS}]->(r:Reasoning {id: $id})

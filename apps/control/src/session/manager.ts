@@ -4,11 +4,7 @@ import type { ContextAssembler } from "../context/assembler";
 import { createContextAssembler } from "../context/assembler";
 import { DecisionEngine } from "../engine/decision";
 import type { MultiMcpAdapter } from "../tools/mcp_client";
-import {
-	createSessionInitializer,
-	SessionInitializer,
-	type SessionInitializerDeps,
-} from "./initializer";
+import { createSessionInitializer, SessionInitializer } from "./initializer";
 
 /**
  * Dependencies for SessionManager construction.

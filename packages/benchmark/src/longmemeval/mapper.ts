@@ -1,4 +1,4 @@
-import type { ParsedInstance, ParsedSession, ParsedTurn } from "./types.js";
+import type { ParsedInstance, ParsedSession } from "./types.js";
 
 /**
  * Configuration for mapping LongMemEval data to Engram format
@@ -209,7 +209,7 @@ export function formatDocumentsForContext(
 
 	// Truncate if needed
 	if (maxLength && result.length > maxLength) {
-		result = result.slice(0, maxLength) + "\n... (truncated)";
+		result = `${result.slice(0, maxLength)}\n... (truncated)`;
 	}
 
 	return result;

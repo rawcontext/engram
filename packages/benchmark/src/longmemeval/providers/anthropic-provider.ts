@@ -1,4 +1,4 @@
-import type { LLMProvider, LLMOptions, LLMResponse } from "../reader.js";
+import type { LLMOptions, LLMProvider, LLMResponse } from "../reader.js";
 
 /**
  * Configuration for the Anthropic LLM provider

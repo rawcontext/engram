@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-	mapInstance,
+	DEFAULT_MAPPER_CONFIG,
 	formatDocumentsForContext,
 	groupBySession,
-	DEFAULT_MAPPER_CONFIG,
+	mapInstance,
 } from "../src/longmemeval/mapper.js";
-import type { ParsedInstance, ParsedSession } from "../src/longmemeval/types.js";
+import type { ParsedInstance } from "../src/longmemeval/types.js";
 
 const createMockInstance = (overrides?: Partial<ParsedInstance>): ParsedInstance => ({
 	questionId: "test_001",

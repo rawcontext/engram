@@ -1,5 +1,5 @@
 import * as gcp from "@pulumi/gcp";
-import { commonLabels, gcpRegion, networkConfig } from "./config";
+import { gcpRegion, networkConfig } from "./config";
 
 /**
  * Engram Network Infrastructure

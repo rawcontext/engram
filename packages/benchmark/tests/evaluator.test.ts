@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-	Evaluator,
 	DEFAULT_EVALUATOR_CONFIG,
+	Evaluator,
 	formatMetricsReport,
-	resultsToJsonl,
 	parseJsonlResults,
 	type RetrievalData,
+	resultsToJsonl,
 } from "../src/longmemeval/evaluator.js";
-import type { BenchmarkResult, ParsedInstance, MemoryAbility } from "../src/longmemeval/types.js";
 import type { LLMProvider, LLMResponse } from "../src/longmemeval/reader.js";
+import type { BenchmarkResult, MemoryAbility, ParsedInstance } from "../src/longmemeval/types.js";
 
 const createMockInstance = (
 	questionId: string,

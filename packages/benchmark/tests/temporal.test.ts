@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-	TemporalAnalyzer,
 	analyzeTemporalQuery,
 	filterByTimeRange,
+	TemporalAnalyzer,
 	type TimeRange,
 } from "../src/longmemeval/temporal.js";
 

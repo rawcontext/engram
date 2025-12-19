@@ -319,7 +319,7 @@ describe("Redis Storage", () => {
 
 				// Capture the message handler
 				let messageHandler: (message: string) => void;
-				mockSubscribe.mockImplementationOnce((channel, handler) => {
+				mockSubscribe.mockImplementationOnce((_channel, handler) => {
 					messageHandler = handler;
 					return Promise.resolve();
 				});
@@ -327,7 +327,7 @@ describe("Redis Storage", () => {
 				await subscriber.subscribe("session-123", callback);
 
 				// Simulate receiving a message
-				messageHandler!(JSON.stringify(testMessage));
+				messageHandler?.(JSON.stringify(testMessage));
 
 				expect(callback).toHaveBeenCalledWith(testMessage);
 			});
@@ -344,7 +344,7 @@ describe("Redis Storage", () => {
 				};
 
 				let messageHandler: (message: string) => void;
-				mockSubscribe.mockImplementationOnce((channel, handler) => {
+				mockSubscribe.mockImplementationOnce((_channel, handler) => {
 					messageHandler = handler;
 					return Promise.resolve();
 				});
@@ -356,7 +356,7 @@ describe("Redis Storage", () => {
 				expect(mockSubscribe).toHaveBeenCalledTimes(1);
 
 				// Both callbacks should be invoked
-				messageHandler!(JSON.stringify(testMessage));
+				messageHandler?.(JSON.stringify(testMessage));
 
 				expect(callback1).toHaveBeenCalledWith(testMessage);
 				expect(callback2).toHaveBeenCalledWith(testMessage);
@@ -368,7 +368,7 @@ describe("Redis Storage", () => {
 				const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 				let messageHandler: (message: string) => void;
-				mockSubscribe.mockImplementationOnce((channel, handler) => {
+				mockSubscribe.mockImplementationOnce((_channel, handler) => {
 					messageHandler = handler;
 					return Promise.resolve();
 				});
@@ -376,7 +376,7 @@ describe("Redis Storage", () => {
 				await subscriber.subscribe("session-123", callback);
 
 				// Send invalid JSON
-				messageHandler!("not valid json");
+				messageHandler?.("not valid json");
 
 				expect(callback).not.toHaveBeenCalled();
 				expect(consoleSpy).toHaveBeenCalledWith(
@@ -403,7 +403,7 @@ describe("Redis Storage", () => {
 				const callback2 = vi.fn();
 
 				let messageHandler: (message: string) => void;
-				mockSubscribe.mockImplementationOnce((channel, handler) => {
+				mockSubscribe.mockImplementationOnce((_channel, handler) => {
 					messageHandler = handler;
 					return Promise.resolve();
 				});
@@ -424,7 +424,7 @@ describe("Redis Storage", () => {
 					data: {},
 					timestamp: Date.now(),
 				};
-				messageHandler!(JSON.stringify(testMessage));
+				messageHandler?.(JSON.stringify(testMessage));
 
 				expect(callback1).not.toHaveBeenCalled();
 				expect(callback2).toHaveBeenCalledWith(testMessage);
@@ -473,7 +473,7 @@ describe("Redis Storage", () => {
 				const callback = vi.fn();
 
 				let messageHandler: (message: string) => void;
-				mockSubscribe.mockImplementation((channel, handler) => {
+				mockSubscribe.mockImplementation((_channel, handler) => {
 					messageHandler = handler;
 					return Promise.resolve();
 				});

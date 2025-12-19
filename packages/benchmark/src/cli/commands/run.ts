@@ -1,19 +1,19 @@
 import { writeFile } from "node:fs/promises";
 import {
 	BenchmarkPipeline,
-	type PipelineProgress,
 	type CustomRetriever,
+	type PipelineProgress,
 } from "../../longmemeval/pipeline.js";
-import { StubEmbeddingProvider, StubLLMProvider } from "../../longmemeval/reader.js";
-import { QdrantEmbeddingProvider } from "../../longmemeval/providers/qdrant-provider.js";
-import { EngramRetriever } from "../../longmemeval/providers/engram-provider.js";
 import {
 	AnthropicProvider,
 	OllamaProvider,
 	OpenAICompatibleProvider,
 } from "../../longmemeval/providers/anthropic-provider.js";
-import type { EmbeddingProvider } from "../../longmemeval/retriever.js";
+import { EngramRetriever } from "../../longmemeval/providers/engram-provider.js";
+import { QdrantEmbeddingProvider } from "../../longmemeval/providers/qdrant-provider.js";
 import type { LLMProvider } from "../../longmemeval/reader.js";
+import { StubEmbeddingProvider, StubLLMProvider } from "../../longmemeval/reader.js";
+import type { EmbeddingProvider } from "../../longmemeval/retriever.js";
 import type { DatasetVariant } from "../../longmemeval/types.js";
 
 interface RunOptions {
@@ -174,8 +174,6 @@ function createEmbeddingProvider(options: RunOptions): EmbeddingProvider {
 			return new QdrantEmbeddingProvider({
 				url: options.qdrantUrl ?? "http://localhost:6333",
 			});
-
-		case "stub":
 		default:
 			console.log("⚠️  Using stub embeddings (random vectors)");
 			return new StubEmbeddingProvider();
@@ -231,8 +229,6 @@ function createLLMProvider(options: RunOptions): LLMProvider {
 				baseUrl: options.ollamaUrl ?? "http://localhost:11434",
 				model: options.ollamaModel ?? "llama3.2",
 			});
-
-		case "stub":
 		default:
 			console.log("⚠️  Using stub LLM (no real generation)");
 			return new StubLLMProvider();

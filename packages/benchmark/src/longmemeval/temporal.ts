@@ -114,8 +114,7 @@ export class TemporalAnalyzer {
 		];
 
 		for (const pattern of patterns) {
-			let match;
-			while ((match = pattern.exec(lowerQuery)) !== null) {
+			for (const match of lowerQuery.matchAll(pattern)) {
 				keywords.push(match[0]);
 			}
 		}
@@ -340,7 +339,7 @@ If no time constraint is implied, return: {"noTimeConstraint": true}
 
 JSON response:`;
 
-		const response = await this.config.llm!.complete(prompt, { maxTokens: 100 });
+		const response = await this.config.llm?.complete(prompt, { maxTokens: 100 });
 
 		try {
 			const jsonMatch = response.text.match(/\{[\s\S]*\}/);
@@ -367,7 +366,7 @@ JSON response:`;
 	/**
 	 * Expand query with temporal context
 	 */
-	private expandQuery(query: string, timeRange: TimeRange | undefined, queryDate: Date): string {
+	private expandQuery(query: string, timeRange: TimeRange | undefined, _queryDate: Date): string {
 		if (!timeRange) {
 			return query;
 		}

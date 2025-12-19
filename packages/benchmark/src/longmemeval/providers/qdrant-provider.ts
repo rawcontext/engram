@@ -1,6 +1,6 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
-import type { EmbeddingProvider, RetrievalResult } from "../retriever.js";
 import type { EngramDocument } from "../mapper.js";
+import type { EmbeddingProvider, RetrievalResult } from "../retriever.js";
 
 /**
  * Configuration for the Qdrant provider

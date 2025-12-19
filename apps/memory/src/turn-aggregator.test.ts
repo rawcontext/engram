@@ -978,7 +978,7 @@ describe("TurnAggregator", () => {
 				label: "Reasoning",
 				properties: { test: true },
 			};
-			context.emitNodeCreated!(testNode);
+			context.emitNodeCreated?.(testNode);
 
 			expect(mockNodeCreated).toHaveBeenCalledWith(sessionId, testNode);
 		});

@@ -45,12 +45,6 @@ export class InMemoryFileSystem implements IFileSystem {
 		return normalized.slice(0, lastSlash);
 	}
 
-	private getBaseName(path: string): string {
-		const normalized = this.normalizePath(path);
-		const lastSlash = normalized.lastIndexOf("/");
-		return normalized.slice(lastSlash + 1);
-	}
-
 	exists(path: string): boolean {
 		return this.entries.has(this.normalizePath(path));
 	}

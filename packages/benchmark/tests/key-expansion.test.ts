@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { KeyExpander, expandDocuments } from "../src/longmemeval/key-expansion.js";
+import { describe, expect, it } from "vitest";
+import { expandDocuments, KeyExpander } from "../src/longmemeval/key-expansion.js";
 import type { EngramDocument } from "../src/longmemeval/mapper.js";
 
 const createMockDocument = (content: string, id = "test-1"): EngramDocument => ({
@@ -38,7 +38,7 @@ describe("Key Expansion", () => {
 			const expanded = await expander.expand(doc);
 
 			expect(expanded.expansion.keyphrases).toBeDefined();
-			expect(expanded.expansion.keyphrases!.length).toBeGreaterThan(0);
+			expect(expanded.expansion.keyphrases?.length).toBeGreaterThan(0);
 		});
 
 		it("should extract user facts", async () => {
@@ -47,7 +47,7 @@ describe("Key Expansion", () => {
 
 			expect(expanded.expansion.userFacts).toBeDefined();
 			// Should extract facts about color and occupation
-			const facts = expanded.expansion.userFacts!.join(" ").toLowerCase();
+			const facts = expanded.expansion.userFacts?.join(" ").toLowerCase();
 			expect(facts).toMatch(/favorite|color|blue|engineer/);
 		});
 
@@ -71,7 +71,7 @@ describe("Key Expansion", () => {
 			const expanded = await expander.expand(doc);
 
 			expect(expanded.expansion.summary).toBeDefined();
-			expect(expanded.expansion.summary!.length).toBeLessThan(doc.content.length);
+			expect(expanded.expansion.summary?.length).toBeLessThan(doc.content.length);
 		});
 	});
 
