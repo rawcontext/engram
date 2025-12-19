@@ -180,10 +180,10 @@ npx tsx scripts/traffic-gen.ts
 engram/
 ├── apps/
 │   ├── control/            # Session orchestration & agent coordination
-│   ├── execution/          # MCP server for VFS & time travel
+│   ├── execution/          # Internal MCP server for VFS & time travel (used by Control)
 │   ├── ingestion/          # Event parsing & normalization
 │   ├── interface/          # Neural Observatory (Next.js)
-│   ├── mcp/                # Engram MCP server (remember/recall/query)
+│   ├── mcp/                # Engram MCP server for AI agents (remember/recall/query)
 │   ├── memory/             # Graph persistence & pub/sub
 │   ├── search/             # Vector search & reranking
 │   └── tuner/              # Python/FastAPI hyperparameter optimization
@@ -205,6 +205,36 @@ engram/
 ├── ARCHITECTURE.md         # Detailed system architecture
 └── docker-compose.dev.yml  # Local infrastructure
 ```
+
+### Apps
+
+| App | Description | Docs |
+|:----|:------------|:-----|
+| [control](./apps/control/) | Session orchestration & agent coordination | [README](./apps/control/README.md) |
+| [execution](./apps/execution/) | Internal VFS & time-travel MCP server (used by Control) | [README](./apps/execution/README.md) |
+| [ingestion](./apps/ingestion/) | Event parsing & normalization pipeline | [README](./apps/ingestion/README.md) |
+| [interface](./apps/interface/) | Neural Observatory web UI | [README](./apps/interface/README.md) |
+| [mcp](./apps/mcp/) | MCP server for AI agent integration | [README](./apps/mcp/README.md) |
+| [memory](./apps/memory/) | Graph persistence & real-time pub/sub | [README](./apps/memory/README.md) |
+| [search](./apps/search/) | Vector search & reranking service | [README](./apps/search/README.md) |
+| [tuner](./apps/tuner/) | Hyperparameter optimization (Python/FastAPI) | [README](./apps/tuner/README.md) |
+
+### Packages
+
+| Package | Description | Docs |
+|:--------|:------------|:-----|
+| [benchmark](./packages/benchmark/) | LongMemEval evaluation suite | [README](./packages/benchmark/README.md) |
+| [common](./packages/common/) | Shared utilities & error types | [README](./packages/common/README.md) |
+| [events](./packages/events/) | Event schemas (Zod) | [README](./packages/events/README.md) |
+| [graph](./packages/graph/) | Bitemporal graph models & repositories | [README](./packages/graph/README.md) |
+| [infra](./packages/infra/) | Pulumi infrastructure (GCP/K8s) | [README](./packages/infra/README.md) |
+| [logger](./packages/logger/) | Pino-based structured logging | [README](./packages/logger/README.md) |
+| [parser](./packages/parser/) | Provider parsers & extractors | [README](./packages/parser/README.md) |
+| [search](./packages/search/) | Embedders, rerankers & fusion | [README](./packages/search/README.md) |
+| [storage](./packages/storage/) | DB clients (Kafka, Redis, FalkorDB, Qdrant) | [README](./packages/storage/README.md) |
+| [temporal](./packages/temporal/) | Time-travel service & rehydration | [README](./packages/temporal/README.md) |
+| [tuner](./packages/tuner/) | Tuner client & search space builders | [README](./packages/tuner/README.md) |
+| [vfs](./packages/vfs/) | Virtual file system | [README](./packages/vfs/README.md) |
 
 ---
 

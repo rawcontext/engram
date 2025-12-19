@@ -1,10 +1,33 @@
 # Execution Service
 
-Virtual file system management and time-travel debugging via MCP.
+Internal MCP server for virtual file system management and time-travel debugging.
 
 ## Overview
 
-The Execution Service is an MCP server that provides tools for executing code modifications, managing project state, and retrieving historical file snapshots. It maintains an in-memory virtual file system and supports temporal queries.
+The Execution Service is an **internal** MCP server used by the [Control Service](../control/README.md) to orchestrate file operations. It provides tools for reading files, applying patches, and retrieving historical file snapshots from the virtual file system.
+
+> **Note:** This is not the MCP server that AI agents connect to directly. For AI agent integration, see [apps/mcp](../mcp/README.md).
+
+## How It Fits
+
+```
+AI Agent (Claude Code)
+    │
+    ▼
+Control Service ──MCP──▶ Execution Service
+    │                         │
+    │                         ├── read_file
+    │                         ├── apply_patch
+    │                         └── list_files_at_time
+    │
+    └──MCP──▶ Engram MCP Server (apps/mcp)
+                   │
+                   ├── remember
+                   ├── recall
+                   └── query
+```
+
+The Control Service uses Execution for VFS operations while the agent uses the main MCP server for memory operations.
 
 ## MCP Tools
 
