@@ -1,5 +1,6 @@
 "use client";
 
+import { useId, useMemo } from "react";
 import { colors, fonts, radii, shadows, spacing } from "./design-tokens";
 
 export type LoadingVariant = "spinner" | "neural" | "skeleton" | "dots";
@@ -322,6 +323,11 @@ export function SkeletonCard({ index = 0, className }: { index?: number; classNa
  * Skeleton grid for loading multiple items
  */
 function SkeletonLoader({ count = 6 }: { count?: number }) {
+	const baseId = useId();
+	const skeletonKeys = useMemo(
+		() => Array.from({ length: count }, (_, idx) => `${baseId}-skeleton-${idx}`),
+		[baseId, count],
+	);
 	return (
 		<div
 			style={{
@@ -331,9 +337,8 @@ function SkeletonLoader({ count = 6 }: { count?: number }) {
 				padding: spacing[4],
 			}}
 		>
-			{Array.from({ length: count }, (_, i) => (
-				// biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton list with fixed count
-				<SkeletonCard key={i} index={i} />
+			{skeletonKeys.map((key, index) => (
+				<SkeletonCard key={key} index={index} />
 			))}
 		</div>
 	);

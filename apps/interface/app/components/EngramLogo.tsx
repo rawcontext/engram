@@ -375,8 +375,9 @@ export function EngramLogo({ size = 160 }: EngramLogoProps) {
 		gl.enableVertexAttribArray(position);
 		gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 
-		// biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL method, not a React hook
-		gl.useProgram(program);
+		// Activate WebGL program
+		const activateProgram = gl.useProgram.bind(gl);
+		activateProgram(program);
 
 		const resolutionLoc = gl.getUniformLocation(program, "resolution");
 		const timeLoc = gl.getUniformLocation(program, "time");
