@@ -165,12 +165,12 @@ export function createSessionContext(capabilities: ClientCapabilities): SessionC
 	};
 }
 
-// Export capability services
-export { SamplingService, type SamplingOptions, type SamplingResult } from "./sampling";
 export {
-	ElicitationService,
-	type ElicitationResult,
 	type ConfirmationOptions,
+	type ElicitationResult,
+	ElicitationService,
 	type SelectionOption,
 } from "./elicitation";
-export { RootsService, type Root } from "./roots";
+export { type Root, RootsService } from "./roots";
+// Export capability services
+export { type SamplingOptions, type SamplingResult, SamplingService } from "./sampling";

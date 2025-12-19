@@ -11,9 +11,10 @@
  * - POST /ingest/prompt  - User prompts
  * - POST /ingest/session - Session lifecycle events
  */
-import { serve } from "@hono/node-server";
+
 import { createLogger } from "@engram/logger";
 import { FalkorClient } from "@engram/storage";
+import { serve } from "@hono/node-server";
 import { loadConfig } from "./config";
 import { createIngestRouter } from "./ingest";
 import { MemoryStore } from "./services";

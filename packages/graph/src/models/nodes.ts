@@ -58,7 +58,7 @@ export const ToolCallTypeEnum = z.enum([
 ]);
 
 export const SessionNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["Session"]),
+	labels: z.tuple([z.literal("Session")]),
 	title: z.string().optional(),
 	user_id: z.string(),
 	started_at: z.number(), // Epoch
@@ -81,7 +81,7 @@ export type SessionNode = z.infer<typeof SessionNodeSchema>;
 // Kept for backward compatibility during migration
 // =============================================================================
 export const ThoughtNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["Thought"]),
+	labels: z.tuple([z.literal("Thought")]),
 	content_hash: z.string(), // SHA256 of content for dedupe
 	role: z.enum(["user", "assistant", "system"]),
 	is_thinking: z.boolean().default(false), // True if <thinking> block
@@ -99,7 +99,7 @@ export type ThoughtNode = z.infer<typeof ThoughtNodeSchema>;
 // This is the atomic unit for agent memory retrieval
 // =============================================================================
 export const TurnNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["Turn"]),
+	labels: z.tuple([z.literal("Turn")]),
 
 	// User prompt
 	user_content: z.string(), // The user's prompt/message
@@ -138,7 +138,7 @@ export type TurnNode = z.infer<typeof TurnNodeSchema>;
 // Captures the agent's internal reasoning process
 // =============================================================================
 export const ReasoningNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["Reasoning"]),
+	labels: z.tuple([z.literal("Reasoning")]),
 
 	content_hash: z.string(), // SHA256 for deduplication
 	preview: z.string().max(1000), // First 1000 chars
@@ -163,7 +163,7 @@ export type ReasoningNode = z.infer<typeof ReasoningNodeSchema>;
 // Now linked through ToolCall for full lineage: Reasoning -> ToolCall -> FileTouch
 // =============================================================================
 export const FileTouchNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["FileTouch"]),
+	labels: z.tuple([z.literal("FileTouch")]),
 
 	file_path: z.string(), // Indexed path, e.g., "src/auth/login.ts"
 	action: z.enum(["read", "edit", "create", "delete", "list", "search"]),
@@ -190,7 +190,7 @@ export type FileTouchNode = z.infer<typeof FileTouchNodeSchema>;
 // Creates causal lineage: Reasoning -[TRIGGERS]-> ToolCall -[TOUCHES]-> FileTouch
 // =============================================================================
 export const ToolCallNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["ToolCall"]),
+	labels: z.tuple([z.literal("ToolCall")]),
 
 	// Identity
 	call_id: z.string(), // Provider ID (e.g. "toolu_01ABC...")
@@ -214,7 +214,7 @@ export const ToolCallNodeSchema = BaseNodeSchema.extend({
 export type ToolCallNode = z.infer<typeof ToolCallNodeSchema>;
 
 export const CodeArtifactNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["CodeArtifact"]),
+	labels: z.tuple([z.literal("CodeArtifact")]),
 	filename: z.string(),
 	language: z.string(), // ts, py, etc.
 	content_hash: z.string(),
@@ -223,7 +223,7 @@ export const CodeArtifactNodeSchema = BaseNodeSchema.extend({
 export type CodeArtifactNode = z.infer<typeof CodeArtifactNodeSchema>;
 
 export const DiffHunkNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["DiffHunk"]),
+	labels: z.tuple([z.literal("DiffHunk")]),
 	file_path: z.string(),
 	original_line_start: z.number().int(),
 	original_line_end: z.number().int(),
@@ -236,7 +236,7 @@ export type DiffHunkNode = z.infer<typeof DiffHunkNodeSchema>;
 // Links back to ToolCall via tool_call_id
 // =============================================================================
 export const ObservationNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["Observation"]),
+	labels: z.tuple([z.literal("Observation")]),
 
 	// Identity
 	tool_call_id: z.string(), // Reference to parent ToolCall
@@ -256,7 +256,7 @@ export const ObservationNodeSchema = BaseNodeSchema.extend({
 export type ObservationNode = z.infer<typeof ObservationNodeSchema>;
 
 export const SnapshotNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["Snapshot"]),
+	labels: z.tuple([z.literal("Snapshot")]),
 	vfs_state_blob_ref: z.string().url(),
 	state_hash: z.string(),
 	snapshot_at: z.number(), // Epoch
@@ -278,7 +278,7 @@ export const MemoryTypeEnum = z.enum([
 export type MemoryType = z.infer<typeof MemoryTypeEnum>;
 
 export const MemoryNodeSchema = BaseNodeSchema.extend({
-	labels: z.literal(["Memory"]),
+	labels: z.tuple([z.literal("Memory")]),
 
 	// Content
 	content: z.string(), // The memory content

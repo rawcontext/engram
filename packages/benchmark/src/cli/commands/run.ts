@@ -341,7 +341,7 @@ function createLLMProvider(options: RunOptions): LLMProvider {
 function logRetrievalDebug(debug: RetrievalDebugInfo): void {
 	const truncate = (s: string, len: number) => (s.length > len ? `${s.slice(0, len)}...` : s);
 
-	console.log("\n" + "─".repeat(80));
+	console.log(`\n${"─".repeat(80)}`);
 	console.log(`📋 RETRIEVAL DEBUG: ${debug.questionId}`);
 	console.log("─".repeat(80));
 
@@ -365,5 +365,5 @@ function logRetrievalDebug(debug: RetrievalDebugInfo): void {
 		);
 	}
 
-	console.log("─".repeat(80) + "\n");
+	console.log(`${"─".repeat(80)}\n`);
 }

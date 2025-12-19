@@ -1,7 +1,7 @@
+import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MemoryRetriever } from "../services/memory-retriever";
-import type { GraphClient } from "@engram/storage";
 
 /**
  * Format context items for display

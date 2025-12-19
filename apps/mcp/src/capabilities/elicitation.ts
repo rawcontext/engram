@@ -1,5 +1,5 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Logger } from "@engram/logger";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export interface ElicitationResult<T = Record<string, unknown>> {
 	accepted: boolean;

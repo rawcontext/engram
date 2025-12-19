@@ -1,6 +1,6 @@
+import type { Logger } from "@engram/logger";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { RootsListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
-import type { Logger } from "@engram/logger";
 
 export interface Root {
 	uri: string;

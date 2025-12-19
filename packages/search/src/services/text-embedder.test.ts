@@ -77,6 +77,7 @@ describe("TextEmbedder", () => {
 		expect(mockPipeline).toHaveBeenCalledWith(
 			"feature-extraction",
 			expect.stringContaining("e5-small"),
+			expect.objectContaining({ dtype: expect.any(String) }),
 		);
 		expect(mockExtractor).toHaveBeenCalledWith("passage: hello world", expect.any(Object));
 		expect(vector).toHaveLength(3);

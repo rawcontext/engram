@@ -1,7 +1,7 @@
+import type { FileTouchNode, SessionNode } from "@engram/graph";
+import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { GraphClient } from "@engram/storage";
-import type { FileTouchNode, SessionNode } from "@engram/graph";
 
 interface FileHistoryEntry {
 	action: string;

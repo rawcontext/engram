@@ -31,6 +31,7 @@ describe("CodeEmbedder", () => {
 		expect(mockPipeline).toHaveBeenCalledWith(
 			"feature-extraction",
 			expect.stringContaining("nomic-embed-text"),
+			expect.objectContaining({ dtype: expect.any(String) }),
 		);
 		expect(vector[0]).toBeCloseTo(0.9);
 	});
