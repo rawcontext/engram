@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MultiQueryRetriever } from "./multi-query-retriever";
+
+// Mock generateObject from ai - must be defined before vi.mock for hoisting
+const mockGenerateObject = vi.fn();
 
 // Mock logger
 vi.mock("@engram/logger", () => ({
@@ -11,9 +13,21 @@ vi.mock("@engram/logger", () => ({
 	}),
 }));
 
+// Mock AI SDK
+vi.mock("ai", () => ({
+	generateObject: mockGenerateObject,
+}));
+
+// Mock xAI provider
+vi.mock("@ai-sdk/xai", () => ({
+	createXai: vi.fn(() => vi.fn((model: string) => ({ modelId: model }))),
+}));
+
+// Import after mocking
+const { MultiQueryRetriever } = await import("./multi-query-retriever");
+
 describe("MultiQueryRetriever", () => {
-	let retriever: MultiQueryRetriever;
-	let mockLLMClient: any;
+	let retriever: InstanceType<typeof MultiQueryRetriever>;
 	let mockBaseRetriever: any;
 
 	const mockSearchResults = [
@@ -25,22 +39,30 @@ describe("MultiQueryRetriever", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 
-		// Create mock LLM client
-		mockLLMClient = {
-			chatJSON: vi.fn(),
-			getTotalCost: vi.fn().mockReturnValue(2.5),
-			getTotalTokens: vi.fn().mockReturnValue(500),
-			resetCounters: vi.fn(),
-		};
-
 		// Create mock base retriever
 		mockBaseRetriever = {
 			search: vi.fn().mockResolvedValue(mockSearchResults),
 		};
 
+		// Default mock for generateObject
+		mockGenerateObject.mockResolvedValue({
+			object: {
+				queries: [
+					"OAuth2 authentication implementation",
+					"how to add OAuth login",
+					"authentication flow for web apps",
+				],
+			},
+			usage: {
+				inputTokens: 500,
+				outputTokens: 50,
+				totalTokens: 550,
+			},
+		});
+
 		retriever = new MultiQueryRetriever({
 			baseRetriever: mockBaseRetriever,
-			llmClient: mockLLMClient as any,
+			apiKey: "test-key",
 			config: {
 				numVariations: 3,
 				strategies: ["paraphrase", "keyword", "stepback"],
@@ -58,7 +80,6 @@ describe("MultiQueryRetriever", () => {
 		it("should use default config when none provided", () => {
 			const defaultRetriever = new MultiQueryRetriever({
 				baseRetriever: mockBaseRetriever,
-				llmClient: mockLLMClient as any,
 			});
 			expect(defaultRetriever.getConfig()).toEqual({
 				numVariations: 3,
@@ -71,7 +92,6 @@ describe("MultiQueryRetriever", () => {
 		it("should use provided config options", () => {
 			const customRetriever = new MultiQueryRetriever({
 				baseRetriever: mockBaseRetriever,
-				llmClient: mockLLMClient as any,
 				config: {
 					numVariations: 5,
 					strategies: ["paraphrase", "decompose"],
@@ -90,12 +110,16 @@ describe("MultiQueryRetriever", () => {
 
 	describe("search()", () => {
 		it("should generate query variations and search with each", async () => {
-			// Mock LLM to return expanded queries
-			mockLLMClient.chatJSON.mockResolvedValueOnce([
-				"OAuth2 authentication implementation",
-				"how to add OAuth login",
-				"authentication flow for web apps",
-			]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: {
+					queries: [
+						"OAuth2 authentication implementation",
+						"how to add OAuth login",
+						"authentication flow for web apps",
+					],
+				},
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			await retriever.search({ text: "How to implement OAuth2?", limit: 10 });
 
@@ -104,7 +128,10 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should include original query when configured", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["variation1", "variation2", "variation3"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["variation1", "variation2", "variation3"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			await retriever.search({ text: "original query", limit: 10 });
 
@@ -117,11 +144,13 @@ describe("MultiQueryRetriever", () => {
 		it("should exclude original query when not configured", async () => {
 			const noOriginalRetriever = new MultiQueryRetriever({
 				baseRetriever: mockBaseRetriever,
-				llmClient: mockLLMClient as any,
 				config: { includeOriginal: false, numVariations: 2 },
 			});
 
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["variation1", "variation2"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["variation1", "variation2"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			await noOriginalRetriever.search({ text: "original query", limit: 10 });
 
@@ -133,7 +162,10 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should fuse results using RRF", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["variation1", "variation2"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["variation1", "variation2"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			// Set up different results for each query
 			const results1 = [
@@ -167,7 +199,10 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should respect limit parameter", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["v1", "v2"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["v1", "v2"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			// Return more results than requested limit
 			const manyResults = Array.from({ length: 20 }, (_, i) => ({
@@ -184,7 +219,7 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should fall back to single query on expansion error", async () => {
-			mockLLMClient.chatJSON.mockRejectedValueOnce(new Error("LLM API error"));
+			mockGenerateObject.mockRejectedValueOnce(new Error("LLM API error"));
 
 			const results = await retriever.search({ text: "test query", limit: 10 });
 
@@ -194,7 +229,10 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should pass through search query options", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["variation"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["variation"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			await retriever.search({
 				text: "test query",
@@ -216,11 +254,16 @@ describe("MultiQueryRetriever", () => {
 
 	describe("expandQuery()", () => {
 		it("should return variations including original query", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce([
-				"OAuth2 authentication guide",
-				"implementing OAuth login",
-				"secure authentication flow",
-			]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: {
+					queries: [
+						"OAuth2 authentication guide",
+						"implementing OAuth login",
+						"secure authentication flow",
+					],
+				},
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			const variations = await retriever.expandQuery("How to implement OAuth2?");
 
@@ -230,12 +273,17 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should filter out empty variations", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce([
-				"valid query",
-				"  ", // Empty/whitespace
-				"another valid",
-				"", // Empty
-			]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: {
+					queries: [
+						"valid query",
+						"  ", // Empty/whitespace
+						"another valid",
+						"", // Empty
+					],
+				},
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			const variations = await retriever.expandQuery("original");
 
@@ -246,11 +294,16 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should not duplicate original query in variations", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce([
-				"original", // Same as input
-				"variation 1",
-				"variation 2",
-			]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: {
+					queries: [
+						"original", // Same as input
+						"variation 1",
+						"variation 2",
+					],
+				},
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			const variations = await retriever.expandQuery("original");
 
@@ -259,13 +312,12 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should limit variations to numVariations config", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce([
-				"variation 1",
-				"variation 2",
-				"variation 3",
-				"variation 4",
-				"variation 5",
-			]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: {
+					queries: ["variation 1", "variation 2", "variation 3", "variation 4", "variation 5"],
+				},
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			const variations = await retriever.expandQuery("original");
 
@@ -274,7 +326,7 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should return only original on LLM error", async () => {
-			mockLLMClient.chatJSON.mockRejectedValueOnce(new Error("API error"));
+			mockGenerateObject.mockRejectedValueOnce(new Error("API error"));
 
 			const variations = await retriever.expandQuery("original");
 
@@ -282,42 +334,48 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should build prompt with configured strategies", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["v1", "v2", "v3"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["v1", "v2", "v3"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			await retriever.expandQuery("test query");
 
-			const callArgs = mockLLMClient.chatJSON.mock.calls[0][0];
-			const userMessage = callArgs.find((msg: any) => msg.role === "user");
+			const callArgs = mockGenerateObject.mock.calls[0][0];
 
-			expect(userMessage.content).toContain("Paraphrase");
-			expect(userMessage.content).toContain("Keyword");
-			expect(userMessage.content).toContain("Step-back");
+			expect(callArgs.prompt).toContain("Paraphrase");
+			expect(callArgs.prompt).toContain("Keyword");
+			expect(callArgs.prompt).toContain("Step-back");
 		});
 
 		it("should include decompose strategy when configured", async () => {
 			const decomposeRetriever = new MultiQueryRetriever({
 				baseRetriever: mockBaseRetriever,
-				llmClient: mockLLMClient as any,
 				config: {
 					strategies: ["decompose"],
 					numVariations: 2,
 				},
 			});
 
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["sub-q1", "sub-q2"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["sub-q1", "sub-q2"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			await decomposeRetriever.expandQuery("complex query");
 
-			const callArgs = mockLLMClient.chatJSON.mock.calls[0][0];
-			const userMessage = callArgs.find((msg: any) => msg.role === "user");
+			const callArgs = mockGenerateObject.mock.calls[0][0];
 
-			expect(userMessage.content).toContain("Decompose");
+			expect(callArgs.prompt).toContain("Decompose");
 		});
 	});
 
 	describe("RRF fusion", () => {
 		it("should compute correct RRF scores", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["q1", "q2"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["q1", "q2"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			// Set up results where doc-1 appears first in both sets
 			const results1 = [
@@ -334,7 +392,6 @@ describe("MultiQueryRetriever", () => {
 			// Create retriever that doesn't include original
 			const rrfRetriever = new MultiQueryRetriever({
 				baseRetriever: mockBaseRetriever,
-				llmClient: mockLLMClient as any,
 				config: { includeOriginal: false, numVariations: 2, rrfK: 60 },
 			});
 
@@ -350,7 +407,10 @@ describe("MultiQueryRetriever", () => {
 		});
 
 		it("should deduplicate documents across result sets", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["v1"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["v1"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			// Same document appears in multiple result sets
 			const results1 = [{ id: "doc-1", score: 0.9, payload: {} }];
@@ -368,7 +428,10 @@ describe("MultiQueryRetriever", () => {
 
 	describe("getUsage()", () => {
 		it("should track LLM usage", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["v1", "v2"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["v1", "v2"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 
 			await retriever.search({ text: "test", limit: 10 });
 
@@ -380,12 +443,17 @@ describe("MultiQueryRetriever", () => {
 
 	describe("resetUsage()", () => {
 		it("should reset usage counters", async () => {
-			mockLLMClient.chatJSON.mockResolvedValueOnce(["v1"]);
+			mockGenerateObject.mockResolvedValueOnce({
+				object: { queries: ["v1"] },
+				usage: { inputTokens: 500, outputTokens: 50, totalTokens: 550 },
+			});
 			await retriever.search({ text: "test", limit: 10 });
 
 			retriever.resetUsage();
 
-			expect(mockLLMClient.resetCounters).toHaveBeenCalled();
+			const usage = retriever.getUsage();
+			expect(usage.totalCostCents).toBe(0);
+			expect(usage.totalTokens).toBe(0);
 		});
 	});
 

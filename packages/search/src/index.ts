@@ -1,4 +1,3 @@
-export * from "./clients/xai-client";
 export * from "./config/index";
 export * from "./models/schema";
 export * from "./services/abstention-detector";

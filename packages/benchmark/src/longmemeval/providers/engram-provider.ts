@@ -186,10 +186,19 @@ export class EngramRetriever {
 
 			// Initialize XAI client for multi-query expansion
 			if (this.config.multiQuery) {
-				const { XAIClient } = await import("@engram/search");
-				this.xaiClient = new XAIClient({
-					model: "grok-4-1-fast-reasoning",
-				}) as unknown as XAIClientInterface;
+				const { createXai } = await import("@ai-sdk/xai");
+				const { generateText } = await import("ai");
+				const xaiProvider = createXai();
+				this.xaiClient = {
+					chat: async (messages: Array<{ role: string; content: string }>) => {
+						const result = await generateText({
+							model: xaiProvider("grok-3-fast"),
+							system: messages.find((m) => m.role === "system")?.content,
+							prompt: messages.find((m) => m.role === "user")?.content ?? "",
+						});
+						return result.text;
+					},
+				};
 			}
 
 			// Initialize abstention detector
@@ -203,19 +212,20 @@ export class EngramRetriever {
 			// Initialize session-aware components
 			if (this.config.sessionAware) {
 				// Create a simple LLM provider for summarization
-				const { XAIClient, SessionSummarizer, SessionAwareRetriever } = await import(
-					"@engram/search"
-				);
+				const { SessionSummarizer, SessionAwareRetriever } = await import("@engram/search");
+				const { createXai } = await import("@ai-sdk/xai");
+				const { generateText } = await import("ai");
 
-				// Use XAI client as LLM provider for summarization
-				const xaiForSummary = new XAIClient({
-					model: "grok-4-1-fast-reasoning",
-				});
+				// Use xAI via AI SDK as LLM provider for summarization
+				const xaiProvider = createXai();
 
 				this.llmProvider = {
 					complete: async (prompt: string) => {
-						const response = await xaiForSummary.chat([{ role: "user", content: prompt }]);
-						return { text: response };
+						const result = await generateText({
+							model: xaiProvider("grok-3-fast"),
+							prompt,
+						});
+						return { text: result.text };
 					},
 				};
 

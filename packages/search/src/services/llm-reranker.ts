@@ -1,6 +1,7 @@
+import { createXai } from "@ai-sdk/xai";
 import { createLogger } from "@engram/logger";
+import { generateObject } from "ai";
 import { z } from "zod";
-import { XAIClient } from "../clients/xai-client";
 import type { BatchedRerankResult, DocumentCandidate } from "./batched-reranker";
 import { RateLimiter } from "./rate-limiter";
 import { recordRerankMetrics } from "./reranker-metrics";
@@ -46,10 +47,12 @@ Return the ranking as a JSON array of indices (0-based), most relevant first.`;
 /**
  * Zod schema for validating LLM ranking output.
  */
-const RankingSchema = z.array(z.number().int().nonnegative());
+const RankingSchema = z.object({
+	ranking: z.array(z.number().int().nonnegative()),
+});
 
 export interface LLMRerankerOptions {
-	/** Model to use - defaults to grok-4-1-fast-reasoning */
+	/** Model to use - defaults to grok-3-fast */
 	model?: string;
 	/** Maximum candidates to send to LLM (context efficiency) - defaults to 10 */
 	maxCandidates?: number;
@@ -84,25 +87,27 @@ export interface LLMRerankerOptions {
  * ```
  */
 export class LLMListwiseReranker {
-	private client: XAIClient;
+	private xai: ReturnType<typeof createXai>;
 	private model: string;
 	private maxCandidates: number;
 	private systemPrompt: string;
 	private logger = createLogger({ component: "LLMListwiseReranker" });
 	private rateLimiter?: RateLimiter;
 	private enableRateLimiting: boolean;
+	private totalCostCents = 0;
+	private totalTokens = 0;
 
 	constructor(options: LLMRerankerOptions = {}) {
-		this.model = options.model ?? "grok-4-1-fast-reasoning";
+		this.model = options.model ?? "grok-3-fast";
 		this.maxCandidates = options.maxCandidates ?? 10;
 		this.systemPrompt = options.systemPrompt ?? RERANK_SYSTEM_PROMPT;
 		this.enableRateLimiting = options.enableRateLimiting ?? true;
-		this.rateLimiter = options.rateLimiter;
 
-		this.client = new XAIClient({
+		this.xai = createXai({
 			apiKey: options.apiKey,
-			model: this.model,
 		});
+
+		this.rateLimiter = options.rateLimiter;
 
 		// Create default rate limiter if not provided and rate limiting is enabled
 		if (this.enableRateLimiting && !this.rateLimiter) {
@@ -184,22 +189,33 @@ export class LLMListwiseReranker {
 			// Build prompt
 			const userPrompt = buildUserPrompt(query, limitedCandidates);
 
-			// Call LLM to get ranking
-			const ranking = await this.client.chatJSON(
-				[
-					{ role: "system", content: this.systemPrompt },
-					{ role: "user", content: userPrompt },
-				],
-				RankingSchema,
-			);
+			// Call LLM to get ranking using AI SDK
+			const { object, usage } = await generateObject({
+				model: this.xai(this.model),
+				schema: RankingSchema,
+				system: this.systemPrompt,
+				prompt: userPrompt,
+			});
+
+			const ranking = object.ranking;
+
+			// Track usage and cost
+			if (usage) {
+				this.totalTokens += usage.totalTokens ?? 0;
+				// Cost estimation for grok-3-fast (example rates)
+				// Input: $5/1M tokens, Output: $15/1M tokens
+				const inputTokens = usage.inputTokens ?? 0;
+				const outputTokens = usage.outputTokens ?? 0;
+				const costCents = (inputTokens / 1_000_000) * 500 + (outputTokens / 1_000_000) * 1500;
+				this.totalCostCents += costCents;
+			}
 
 			// Validate ranking indices
 			this.validateRanking(ranking, limitedCandidates.length);
 
 			// Record request for rate limiting
 			if (this.enableRateLimiting && this.rateLimiter) {
-				const cost = this.client.getTotalCost();
-				this.rateLimiter.recordRequest(userId, "llm", cost);
+				this.rateLimiter.recordRequest(userId, "llm", this.totalCostCents);
 			}
 
 			// Convert ranking to rerank results
@@ -234,8 +250,8 @@ export class LLMListwiseReranker {
 				maxScore: maxScore.toFixed(3),
 				minScore: minScore.toFixed(3),
 				scoreImprovement: scoreImprovement?.toFixed(3),
-				totalCostCents: this.client.getTotalCost().toFixed(4),
-				totalTokens: this.client.getTotalTokens(),
+				totalCostCents: this.totalCostCents.toFixed(4),
+				totalTokens: this.totalTokens,
 			});
 
 			// Record metrics
@@ -358,8 +374,8 @@ export class LLMListwiseReranker {
 		totalTokens: number;
 	} {
 		return {
-			totalCostCents: this.client.getTotalCost(),
-			totalTokens: this.client.getTotalTokens(),
+			totalCostCents: this.totalCostCents,
+			totalTokens: this.totalTokens,
 		};
 	}
 
@@ -367,6 +383,7 @@ export class LLMListwiseReranker {
 	 * Reset usage counters.
 	 */
 	resetUsage(): void {
-		this.client.resetCounters();
+		this.totalCostCents = 0;
+		this.totalTokens = 0;
 	}
 }

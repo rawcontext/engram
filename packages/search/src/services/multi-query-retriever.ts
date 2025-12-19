@@ -1,6 +1,7 @@
+import { createXai } from "@ai-sdk/xai";
 import { createLogger } from "@engram/logger";
+import { generateObject } from "ai";
 import { z } from "zod";
-import { type ChatMessage, XAIClient } from "../clients/xai-client";
 import type { SearchQuery, SearchResult, SearchResultPayload } from "../models/schema";
 import type { SearchRetriever } from "./retriever";
 
@@ -53,7 +54,9 @@ const DEFAULT_CONFIG: MultiQueryConfig = {
 /**
  * Zod schema for LLM query expansion response.
  */
-const QueryExpansionSchema = z.array(z.string().min(1));
+const QueryExpansionSchema = z.object({
+	queries: z.array(z.string().min(1)),
+});
 
 /**
  * System prompt for query expansion.
@@ -64,18 +67,16 @@ const EXPANSION_SYSTEM_PROMPT = `You are a search query expansion expert. Given 
 Rules:
 - Generate queries that are semantically different but target the same information need
 - Each query should emphasize different aspects or use different vocabulary
-- Return ONLY a JSON array of query strings
-- Example: ["query 1", "query 2", "query 3"]
+- Return ONLY a JSON object with a "queries" array of query strings
+- Example: {"queries": ["query 1", "query 2", "query 3"]}
 - Do not include numbering, bullets, or markdown formatting`;
 
 export interface MultiQueryRetrieverOptions {
 	/** Base retriever to use for each query */
 	baseRetriever: SearchRetriever;
-	/** LLM client for query expansion (created if not provided) */
-	llmClient?: XAIClient;
 	/** Multi-query configuration */
 	config?: Partial<MultiQueryConfig>;
-	/** Model to use for expansion - defaults to grok-4-1-fast-reasoning */
+	/** Model to use for expansion - defaults to grok-3-fast */
 	model?: string;
 	/** xAI API key - defaults to XAI_API_KEY env var */
 	apiKey?: string;
@@ -109,7 +110,8 @@ export interface MultiQueryRetrieverOptions {
  */
 export class MultiQueryRetriever {
 	private baseRetriever: SearchRetriever;
-	private llmClient: XAIClient;
+	private xai: ReturnType<typeof createXai>;
+	private model: string;
 	private config: MultiQueryConfig;
 	private logger = createLogger({ component: "MultiQueryRetriever" });
 	private totalCostCents = 0;
@@ -118,13 +120,11 @@ export class MultiQueryRetriever {
 	constructor(options: MultiQueryRetrieverOptions) {
 		this.baseRetriever = options.baseRetriever;
 		this.config = { ...DEFAULT_CONFIG, ...options.config };
+		this.model = options.model ?? "grok-3-fast";
 
-		this.llmClient =
-			options.llmClient ??
-			new XAIClient({
-				apiKey: options.apiKey,
-				model: options.model ?? "grok-4-1-fast-reasoning",
-			});
+		this.xai = createXai({
+			apiKey: options.apiKey,
+		});
 	}
 
 	/**
@@ -227,20 +227,27 @@ export class MultiQueryRetriever {
 		}
 
 		const prompt = this.buildExpansionPrompt(query);
-		const messages: ChatMessage[] = [
-			{ role: "system", content: EXPANSION_SYSTEM_PROMPT },
-			{ role: "user", content: prompt },
-		];
 
 		try {
-			const expanded = await this.llmClient.chatJSON(messages, QueryExpansionSchema);
+			const { object, usage } = await generateObject({
+				model: this.xai(this.model),
+				schema: QueryExpansionSchema,
+				system: EXPANSION_SYSTEM_PROMPT,
+				prompt,
+			});
 
 			// Track LLM usage
-			this.totalCostCents += this.llmClient.getTotalCost();
-			this.totalTokens += this.llmClient.getTotalTokens();
+			if (usage) {
+				this.totalTokens += usage.totalTokens ?? 0;
+				// Cost estimation for grok-3-fast
+				const inputTokens = usage.inputTokens ?? 0;
+				const outputTokens = usage.outputTokens ?? 0;
+				const costCents = (inputTokens / 1_000_000) * 500 + (outputTokens / 1_000_000) * 1500;
+				this.totalCostCents += costCents;
+			}
 
 			// Filter and limit variations
-			const validVariations = expanded
+			const validVariations = object.queries
 				.filter((v) => v.trim().length > 0 && v !== query)
 				.slice(0, this.config.numVariations);
 
@@ -286,7 +293,7 @@ export class MultiQueryRetriever {
 Use these strategies:
 ${strategyInstructions}
 
-Return ONLY a JSON array of query strings. No explanations.`;
+Return ONLY a JSON object with a "queries" array. No explanations.`;
 	}
 
 	/**
@@ -350,7 +357,6 @@ Return ONLY a JSON array of query strings. No explanations.`;
 	resetUsage(): void {
 		this.totalCostCents = 0;
 		this.totalTokens = 0;
-		this.llmClient.resetCounters();
 	}
 
 	/**
