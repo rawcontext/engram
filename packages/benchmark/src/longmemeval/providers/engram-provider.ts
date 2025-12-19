@@ -30,8 +30,8 @@ export interface EngramProviderConfig {
 	fusionModel: string;
 	/** Enable reranking */
 	rerank: boolean;
-	/** Reranker tier: fast, accurate, code, or colbert */
-	rerankTier: "fast" | "accurate" | "code" | "colbert";
+	/** Reranker tier: fast, accurate, code, colbert, or llm */
+	rerankTier: "fast" | "accurate" | "code" | "colbert" | "llm";
 	/** Number of candidates to fetch before reranking */
 	rerankDepth: number;
 	/** Number of documents to return */

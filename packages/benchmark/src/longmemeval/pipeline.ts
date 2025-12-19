@@ -70,6 +70,24 @@ export interface PipelineProgress {
 }
 
 /**
+ * Latency metrics computed from per-query timings
+ */
+export interface LatencyMetrics {
+	/** Per-query latencies in ms (for computing percentiles) */
+	perQueryLatencies: number[];
+	/** 50th percentile latency in ms */
+	p50: number;
+	/** 95th percentile latency in ms */
+	p95: number;
+	/** 99th percentile latency in ms */
+	p99: number;
+	/** Mean latency in ms */
+	mean: number;
+	/** Total pipeline duration in ms */
+	totalDurationMs: number;
+}
+
+/**
  * Result of running the full pipeline
  */
 export interface PipelineResult {
@@ -83,6 +101,8 @@ export interface PipelineResult {
 	jsonl: string;
 	/** Per-instance details for debugging */
 	details: InstanceDetail[];
+	/** Latency metrics */
+	latency: LatencyMetrics;
 }
 
 /**
@@ -97,6 +117,8 @@ export interface InstanceDetail {
 	retrievedCount: number;
 	evidenceRetrieved: number;
 	retrievalRecall: number;
+	/** Query latency in ms (retrieval + reading time) */
+	latencyMs: number;
 }
 
 /**
@@ -117,6 +139,7 @@ export class BenchmarkPipeline {
 	 * Run the full benchmark pipeline
 	 */
 	async run(): Promise<PipelineResult> {
+		const pipelineStartTime = Date.now();
 		const { onProgress } = this.config;
 
 		// Stage 1: Load dataset
@@ -159,10 +182,12 @@ export class BenchmarkPipeline {
 		// Process each instance
 		const results: BenchmarkResult[] = [];
 		const details: InstanceDetail[] = [];
+		const perQueryLatencies: number[] = [];
 		const total = instances.length;
 
 		for (let i = 0; i < instances.length; i++) {
 			const instance = instances[i];
+			const queryStartTime = Date.now();
 
 			// Stage 2: Map and index
 			onProgress?.({
@@ -237,6 +262,10 @@ export class BenchmarkPipeline {
 				retrieved.scores,
 			);
 
+			// Compute query latency (indexing + retrieval + reading)
+			const queryLatencyMs = Date.now() - queryStartTime;
+			perQueryLatencies.push(queryLatencyMs);
+
 			// Store result
 			results.push({
 				questionId: instance.questionId,
@@ -254,6 +283,7 @@ export class BenchmarkPipeline {
 				evidenceRetrieved: mapped.evidenceDocIds.filter((id) => retrieved.retrievedIds.includes(id))
 					.length,
 				retrievalRecall: retrievalMetrics.recall,
+				latencyMs: queryLatencyMs,
 			});
 
 			// Clear index for next instance
@@ -296,14 +326,56 @@ export class BenchmarkPipeline {
 			message: "Evaluation complete",
 		});
 
+		// Compute latency metrics
+		const totalDurationMs = Date.now() - pipelineStartTime;
+		const latency = computeLatencyMetrics(perQueryLatencies, totalDurationMs);
+
 		return {
 			results,
 			metrics,
 			report: formatMetricsReport(metrics),
 			jsonl: resultsToJsonl(results),
 			details,
+			latency,
 		};
 	}
+}
+
+/**
+ * Compute latency percentiles from an array of latencies
+ */
+function computeLatencyMetrics(latencies: number[], totalDurationMs: number): LatencyMetrics {
+	if (latencies.length === 0) {
+		return {
+			perQueryLatencies: [],
+			p50: 0,
+			p95: 0,
+			p99: 0,
+			mean: 0,
+			totalDurationMs,
+		};
+	}
+
+	const sorted = [...latencies].sort((a, b) => a - b);
+	const len = sorted.length;
+
+	// Compute percentile indices
+	const p50Index = Math.floor(len * 0.5);
+	const p95Index = Math.min(Math.floor(len * 0.95), len - 1);
+	const p99Index = Math.min(Math.floor(len * 0.99), len - 1);
+
+	// Compute mean
+	const sum = latencies.reduce((acc, val) => acc + val, 0);
+	const mean = sum / len;
+
+	return {
+		perQueryLatencies: latencies,
+		p50: sorted[p50Index],
+		p95: sorted[p95Index],
+		p99: sorted[p99Index],
+		mean: Math.round(mean),
+		totalDurationMs,
+	};
 }
 
 /**

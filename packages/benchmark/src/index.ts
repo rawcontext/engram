@@ -10,4 +10,20 @@
  * @see https://github.com/xiaowu0162/LongMemEval
  */
 
+// Programmatic API (primary exports for automation/tuning)
+export {
+	buildBenchmarkConfig,
+	DEFAULT_BENCHMARK_CONFIG,
+	runBenchmark,
+	type BenchmarkCallbacks,
+	type BenchmarkMetrics,
+	type BenchmarkProgress,
+	type BenchmarkRunResult,
+	type EmbeddingModel,
+	type LLMProviderType,
+	type RerankerTier,
+	type RunBenchmarkConfig,
+} from "./core/index.js";
+
+// LongMemEval-specific exports
 export * from "./longmemeval/index.js";
