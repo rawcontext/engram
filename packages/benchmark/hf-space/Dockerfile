@@ -73,16 +73,10 @@ ENV HF_HOME=/app/.cache
 ENV TRANSFORMERS_CACHE=/app/.cache
 ENV XDG_CACHE_HOME=/app/.cache
 
-# Pre-download HuggingFace models (FP16 for GPU)
-RUN mkdir -p /app/.cache && \
-    node -e "const { pipeline } = require('@huggingface/transformers'); \
-    (async () => { \
-      console.log('Pre-downloading embedding models (fp16 for GPU)...'); \
-      await pipeline('feature-extraction', 'Xenova/multilingual-e5-large', { dtype: 'fp16' }); \
-      console.log('Pre-downloading reranker models...'); \
-      await pipeline('text-classification', 'Xenova/ms-marco-MiniLM-L-6-v2', { dtype: 'fp16' }); \
-      console.log('Models pre-downloaded successfully'); \
-    })().catch(e => { console.error('Model preload failed:', e); process.exit(1); });"
+# Create cache directory for models (downloaded on first run)
+# Skipping model preload during Docker build to avoid build failures
+# Models will be cached after first run
+RUN mkdir -p /app/.cache
 
 # Install Qdrant for local vector search
 RUN wget -q https://github.com/qdrant/qdrant/releases/download/v1.16.2/qdrant-x86_64-unknown-linux-gnu.tar.gz \
