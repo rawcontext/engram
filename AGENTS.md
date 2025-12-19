@@ -101,6 +101,26 @@ cd packages/infra && pulumi preview
 cd packages/infra && pulumi up
 ```
 
+## External Tools
+
+### Hugging Face CLI
+
+**IMPORTANT:** Use `hf` CLI, NOT the deprecated `huggingface-cli`.
+
+```bash
+# Auth
+hf auth login
+hf auth whoami
+
+# Upload to Spaces
+hf upload <space-name> . . --repo-type space
+
+# Download models/datasets
+hf download <repo-id>
+```
+
+Install with: `pip install huggingface_hub[cli]`
+
 ## Agent Mandates
 
 ### CRITICAL: Ground Your Reasoning

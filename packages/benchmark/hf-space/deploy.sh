@@ -23,10 +23,10 @@ echo "Space: $SPACE_NAME"
 echo "Repo root: $REPO_ROOT"
 echo ""
 
-# Check if huggingface-cli is installed
-if ! command -v huggingface-cli &> /dev/null; then
-    echo "Error: huggingface-cli not found"
-    echo "Install with: pip install huggingface_hub"
+# Check if hf CLI is installed
+if ! command -v hf &> /dev/null; then
+    echo "Error: hf CLI not found"
+    echo "Install with: pip install huggingface_hub[cli]"
     exit 1
 fi
 
@@ -82,7 +82,7 @@ git add -A
 git commit -q -m "Deploy Engram Benchmark"
 
 # Push to HF Spaces
-huggingface-cli upload "$SPACE_NAME" . . --repo-type space
+hf upload "$SPACE_NAME" . . --repo-type space
 
 echo ""
 echo "=== Deployment Complete ==="

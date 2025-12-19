@@ -1,6 +1,6 @@
 ---
 title: Engram Benchmark
-emoji: brain
+emoji: 🧠
 colorFrom: purple
 colorTo: blue
 sdk: docker
