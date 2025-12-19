@@ -105,6 +105,8 @@ USER engram
 # Environment configuration
 ENV NODE_ENV=production
 ENV BENCHMARK_VERBOSE=true
+# Increase Node.js heap size (default ~4GB is too small for loading multiple models)
+ENV NODE_OPTIONS="--max-old-space-size=16384"
 
 # Force CPU mode to avoid ONNX Runtime CUDA memory allocation issues
 # The BFC arena in CUDAExecutionProvider allocates 4-10x model size

@@ -64,8 +64,8 @@ export const SessionNodeSchema = BaseNodeSchema.extend({
 	started_at: z.number(), // Epoch
 
 	// Project context for per-repo memory filtering
-	working_dir: z.string().optional(), // e.g., /Users/ccheney/Projects/the-system
-	git_remote: z.string().optional(), // e.g., github.com/user/the-system
+	working_dir: z.string().optional(), // e.g., /Users/ccheney/Projects/engram
+	git_remote: z.string().optional(), // e.g., github.com/ccheney/engram
 	agent_type: z
 		.enum(["claude-code", "codex", "gemini-cli", "opencode", "aider", "cursor", "unknown"])
 		.default("unknown"),

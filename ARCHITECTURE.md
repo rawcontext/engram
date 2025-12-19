@@ -829,7 +829,7 @@ flowchart TB
 ## Package Structure
 
 ```
-the-system/
+engram/
 ├── apps/
 │   ├── control/          # Orchestration, VFS & time-travel
 │   ├── ingestion/        # Event stream processing

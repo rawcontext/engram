@@ -67,7 +67,7 @@ while IFS= read -r line; do
       headers: {
         "x-session-id": $session_id,
         "x-working-dir": $cwd,
-        "x-git-remote": "github.com/the-system/engram",
+        "x-git-remote": "github.com/ccheney/engram",
         "x-agent-type": "claude-code"
       }
     }')
