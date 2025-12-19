@@ -109,7 +109,6 @@ export class EngramRetriever {
 	private llmProvider: LLMProviderInterface | null = null;
 	private temporalParser: TemporalParserInterface | null = null;
 	private learnedFusion: LearnedFusionInterface | null = null;
-	private queryFeatureExtractor: QueryFeatureExtractorInterface | null = null;
 	private embeddingDimensions: number = 384; // Default for e5-small
 
 	constructor(config: Partial<EngramProviderConfig> = {}) {

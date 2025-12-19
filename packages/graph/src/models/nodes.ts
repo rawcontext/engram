@@ -262,3 +262,42 @@ export const SnapshotNodeSchema = BaseNodeSchema.extend({
 	snapshot_at: z.number(), // Epoch
 });
 export type SnapshotNode = z.infer<typeof SnapshotNodeSchema>;
+
+// =============================================================================
+// MemoryNode: Explicit user-defined memories for long-term storage
+// Created via engram_remember tool or auto-extracted from sessions
+// =============================================================================
+export const MemoryTypeEnum = z.enum([
+	"decision", // Architectural or design decisions
+	"context", // Background context about the project
+	"insight", // Learned patterns or observations
+	"preference", // User preferences (coding style, tools, etc.)
+	"fact", // Factual information to remember
+	"turn", // Auto-generated from conversation turns
+]);
+export type MemoryType = z.infer<typeof MemoryTypeEnum>;
+
+export const MemoryNodeSchema = BaseNodeSchema.extend({
+	labels: z.literal(["Memory"]),
+
+	// Content
+	content: z.string(), // The memory content
+	content_hash: z.string(), // SHA256 for deduplication
+
+	// Classification
+	type: MemoryTypeEnum.default("context"),
+	tags: z.array(z.string()).default([]), // User-defined tags
+
+	// Source tracking
+	source_session_id: z.string().optional(), // Session where memory was created
+	source_turn_id: z.string().optional(), // Turn where memory was created
+	source: z.enum(["user", "auto", "import"]).default("user"), // How it was created
+
+	// Project context (for scoping)
+	project: z.string().optional(), // Project/repo identifier
+	working_dir: z.string().optional(), // Working directory when created
+
+	// Semantic retrieval
+	embedding: z.array(z.number()).optional(), // Vector for similarity search
+});
+export type MemoryNode = z.infer<typeof MemoryNodeSchema>;

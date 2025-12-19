@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
+import { createNodeLogger, type Logger } from "@engram/logger";
 import {
 	DiffExtractor,
 	defaultRegistry,
@@ -7,7 +8,6 @@ import {
 	type StreamDelta,
 	ThinkingExtractor,
 } from "@engram/parser";
-import { createNodeLogger, type Logger } from "@engram/logger";
 import { createKafkaClient } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";
 
