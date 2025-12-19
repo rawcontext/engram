@@ -4,6 +4,7 @@ export * from "./models/schema";
 export * from "./services/abstention-detector";
 export * from "./services/base-embedder";
 export * from "./services/session-summarizer";
+export * from "./services/session-retriever";
 export * from "./services/batch-indexer";
 export * from "./services/batched-reranker";
 export * from "./services/cache-metrics";
