@@ -165,14 +165,7 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    if (ingestStatus !== "completed") {
-      res.statusCode = 400;
-      res.end(JSON.stringify({
-        error: "Data not ingested. POST /ingest first.",
-        ingestStatus
-      }));
-      return;
-    }
+    // Note: Skipping ingest requirement - benchmark indexes directly to Qdrant
 
     status = "running";
     output = [];
@@ -185,7 +178,6 @@ const server = http.createServer((req, res) => {
       "--embeddings", "engram",
       "--llm", "gemini",
       "--gemini-model", "gemini-2.5-flash-preview-05-20",
-      "--falkor-url", "redis://localhost:6379",
       "--qdrant-url", "http://localhost:6333",
       "--top-k", "10",
       "--hybrid-search",
