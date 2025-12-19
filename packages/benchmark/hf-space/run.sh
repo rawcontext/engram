@@ -25,23 +25,46 @@ if [ ! -f "$FALKORDB_MODULE" ]; then
 fi
 
 # Start Redis with FalkorDB module
+echo "Starting redis-server with FalkorDB module..."
 redis-server --daemonize yes \
   --port 6379 \
+  --bind 127.0.0.1 \
   --dir /app/falkordb-data \
   --loadmodule "$FALKORDB_MODULE" \
-  --save 60 1 \
-  --appendonly yes
+  --loglevel verbose \
+  --logfile /app/redis.log \
+  --save "" \
+  --appendonly no
+
+# Check if redis started
+sleep 2
+if [ -f /app/redis.log ]; then
+  echo "Redis log (first 20 lines):"
+  head -20 /app/redis.log
+fi
 
 # Wait for FalkorDB to be ready
 echo "Waiting for FalkorDB..."
-for i in {1..30}; do
-  if redis-cli ping > /dev/null 2>&1; then
+FALKOR_READY=0
+for i in $(seq 1 30); do
+  if redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG; then
     echo "FalkorDB is ready!"
-    redis-cli MODULE LIST | grep -i falkor && echo "FalkorDB module loaded!"
+    redis-cli -h 127.0.0.1 MODULE LIST
+    FALKOR_READY=1
     break
   fi
+  echo "  Attempt $i: waiting..."
   sleep 1
 done
+
+if [ "$FALKOR_READY" -eq 0 ]; then
+  echo "ERROR: FalkorDB failed to start!"
+  echo "Redis log:"
+  cat /app/redis.log 2>/dev/null || echo "No log file"
+  echo "Checking redis process:"
+  ps aux | grep redis || echo "No redis process"
+  exit 1
+fi
 
 # -----------------------------------------------------------------------------
 # Start Qdrant
@@ -165,7 +188,14 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    // Note: Skipping ingest requirement - benchmark indexes directly to Qdrant
+    if (ingestStatus !== "completed") {
+      res.statusCode = 400;
+      res.end(JSON.stringify({
+        error: "Data not ingested. POST /ingest first.",
+        ingestStatus
+      }));
+      return;
+    }
 
     status = "running";
     output = [];
@@ -178,6 +208,7 @@ const server = http.createServer((req, res) => {
       "--embeddings", "engram",
       "--llm", "gemini",
       "--gemini-model", "gemini-2.5-flash-preview-05-20",
+      "--falkor-url", "redis://127.0.0.1:6379",
       "--qdrant-url", "http://localhost:6333",
       "--top-k", "10",
       "--hybrid-search",
