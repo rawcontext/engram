@@ -19,6 +19,10 @@ export interface EngramProviderConfig {
 	rerankDepth: number;
 	/** Number of documents to return */
 	topK: number;
+	/** Enable multi-query expansion with RRF fusion */
+	multiQuery: boolean;
+	/** Number of query variations to generate */
+	multiQueryVariations: number;
 }
 
 const DEFAULT_CONFIG: EngramProviderConfig = {
@@ -29,6 +33,8 @@ const DEFAULT_CONFIG: EngramProviderConfig = {
 	rerankTier: "fast",
 	rerankDepth: 30,
 	topK: 10,
+	multiQuery: false,
+	multiQueryVariations: 3,
 };
 
 /**
@@ -51,6 +57,7 @@ export class EngramRetriever {
 	private client: QdrantClientInterface | null = null;
 	private indexed: boolean = false;
 	private documentEmbeddings: Map<string, Float32Array[]> = new Map(); // ColBERT embeddings cache
+	private xaiClient: XAIClientInterface | null = null; // For multi-query expansion
 
 	constructor(config: Partial<EngramProviderConfig> = {}) {
 		this.config = { ...DEFAULT_CONFIG, ...config };
@@ -91,6 +98,14 @@ export class EngramRetriever {
 			// Initialize Qdrant client
 			const { QdrantClient } = await import("@qdrant/js-client-rest");
 			this.client = new QdrantClient({ url: this.config.qdrantUrl }) as QdrantClientInterface;
+
+			// Initialize XAI client for multi-query expansion
+			if (this.config.multiQuery) {
+				const { XAIClient } = await import("@engram/search-core");
+				this.xaiClient = new XAIClient({
+					model: "grok-4-1-fast-reasoning",
+				}) as unknown as XAIClientInterface;
+			}
 		} catch (error) {
 			console.error("Failed to initialize Engram provider:", error);
 			throw new Error("@engram/search-core not available. Install it or use a different provider.");
@@ -144,9 +159,131 @@ export class EngramRetriever {
 
 	/**
 	 * Retrieve relevant documents for a question (Retriever interface)
+	 * Uses multi-query expansion and RRF fusion when enabled.
 	 */
 	async retrieve(question: string, _questionDate?: Date): Promise<RetrievalResult> {
+		if (this.config.multiQuery && this.xaiClient) {
+			return this.multiQuerySearch(question, this.config.topK);
+		}
 		return this.search(question, this.config.topK);
+	}
+
+	/**
+	 * Multi-query search: expand query into variations and fuse results with RRF.
+	 * Based on DMQR-RAG: Diverse Multi-Query Rewriting for RAG.
+	 * @see https://arxiv.org/abs/2411.13154
+	 */
+	private async multiQuerySearch(query: string, topK: number): Promise<RetrievalResult> {
+		await this.initialize();
+
+		try {
+			// Step 1: Expand query into variations
+			const variations = await this.expandQuery(query);
+			console.log(`  [Multi-Query] Generated ${variations.length} query variations`);
+
+			// Step 2: Search with each variation in parallel
+			const perQueryLimit = Math.max(topK * 2, 20);
+			const allResults = await Promise.all(
+				variations.map((varQuery) => this.search(varQuery, perQueryLimit)),
+			);
+
+			// Step 3: Fuse results using RRF
+			const fused = this.rrfFusionResults(allResults, topK);
+
+			console.log(
+				`  [Multi-Query] Fused ${allResults.reduce((sum, r) => sum + r.documents.length, 0)} candidates into ${fused.documents.length} results`,
+			);
+
+			return fused;
+		} catch (error) {
+			console.warn("[Multi-Query] Expansion failed, falling back to single query:", error);
+			return this.search(query, topK);
+		}
+	}
+
+	/**
+	 * Expand a query into multiple variations using LLM.
+	 */
+	private async expandQuery(query: string): Promise<string[]> {
+		const variations: string[] = [query]; // Always include original
+
+		if (!this.xaiClient) {
+			return variations;
+		}
+
+		const systemPrompt = `You are a search query expansion expert. Given a user query, generate alternative search queries that will help retrieve relevant documents.
+
+Rules:
+- Generate queries that are semantically different but target the same information need
+- Each query should emphasize different aspects or use different vocabulary
+- Return ONLY a JSON array of query strings
+- Example: ["query 1", "query 2", "query 3"]
+- Do not include numbering, bullets, or markdown formatting`;
+
+		const userPrompt = `Generate ${this.config.multiQueryVariations} alternative search queries for:
+"${query}"
+
+Use these strategies:
+- Paraphrase: Rephrase the query using different words and synonyms
+- Keyword: Focus on key entities, names, and technical terms
+- Step-back: Generalize to a broader concept or category
+
+Return ONLY a JSON array of query strings. No explanations.`;
+
+		try {
+			const response = await this.xaiClient.chat([
+				{ role: "system", content: systemPrompt },
+				{ role: "user", content: userPrompt },
+			]);
+
+			// Parse JSON array from response
+			const jsonMatch = response.match(/\[[\s\S]*\]/);
+			if (jsonMatch) {
+				const parsed = JSON.parse(jsonMatch[0]) as string[];
+				const validVariations = parsed
+					.filter((v) => typeof v === "string" && v.trim().length > 0 && v !== query)
+					.slice(0, this.config.multiQueryVariations);
+				variations.push(...validVariations);
+			}
+		} catch (error) {
+			console.warn("[Multi-Query] Query expansion parsing failed:", error);
+		}
+
+		return variations;
+	}
+
+	/**
+	 * Fuse multiple RetrievalResults using Reciprocal Rank Fusion (RRF).
+	 * RRF score = sum(1 / (k + rank_i)) across all result sets.
+	 */
+	private rrfFusionResults(resultSets: RetrievalResult[], topK: number): RetrievalResult {
+		const k = 60; // RRF constant
+		const scoreMap = new Map<string, { document: EngramDocument; rrfScore: number }>();
+
+		for (const results of resultSets) {
+			for (let rank = 0; rank < results.documents.length; rank++) {
+				const doc = results.documents[rank];
+				const rrfScore = 1 / (k + rank + 1);
+
+				const existing = scoreMap.get(doc.id);
+				if (existing) {
+					existing.rrfScore += rrfScore;
+				} else {
+					scoreMap.set(doc.id, { document: doc, rrfScore });
+				}
+			}
+		}
+
+		// Sort by RRF score and return top K
+		const sorted = Array.from(scoreMap.values())
+			.sort((a, b) => b.rrfScore - a.rrfScore)
+			.slice(0, topK);
+
+		return {
+			documents: sorted.map((s) => s.document),
+			scores: sorted.map((s) => s.rrfScore),
+			retrievedIds: sorted.map((s) => s.document.id),
+		};
 	}
 
 	/**
@@ -564,4 +701,8 @@ interface QdrantSearchResult {
 	id: number | string;
 	score: number;
 	payload?: Record<string, unknown>;
+}
+
+interface XAIClientInterface {
+	chat(messages: Array<{ role: string; content: string }>): Promise<string>;
 }

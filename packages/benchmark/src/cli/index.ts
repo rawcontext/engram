@@ -39,6 +39,14 @@ program
 	.option("--rerank-tier <tier>", "Reranker tier: fast, accurate, code, colbert", "fast")
 	.option("--rerank-depth <n>", "Candidates to fetch before reranking", Number.parseInt, 30)
 	.option("--hybrid-search", "Enable hybrid search with RRF (requires --embeddings engram)", true)
+	// Multi-query retrieval options
+	.option("--multi-query", "Enable multi-query expansion with RRF fusion", false)
+	.option(
+		"--multi-query-variations <n>",
+		"Number of query variations to generate",
+		Number.parseInt,
+		3,
+	)
 	.action(runCommand);
 
 // Evaluate results command

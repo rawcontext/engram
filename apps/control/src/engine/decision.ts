@@ -206,8 +206,11 @@ export class DecisionEngine {
 					},
 				},
 				guards: {
-					requiresTool: ({ context }) => {
-						return context.currentToolCalls && context.currentToolCalls.length > 0;
+					requiresTool: ({ event }) => {
+						// In XState v5, guards are evaluated BEFORE actions run.
+						// Access event.output directly to get the latest toolCalls.
+						const toolCalls = event.output?.toolCalls;
+						return Array.isArray(toolCalls) && toolCalls.length > 0;
 					},
 				},
 			}),

@@ -40,6 +40,9 @@ interface RunOptions {
 	rerankTier: string;
 	rerankDepth: number;
 	hybridSearch: boolean;
+	// Multi-query retrieval options
+	multiQuery: boolean;
+	multiQueryVariations: number;
 }
 
 export async function runCommand(benchmark: string, options: RunOptions): Promise<void> {
@@ -68,6 +71,10 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 		if (options.rerank) {
 			console.log(`  Rerank Tier: ${options.rerankTier}`);
 			console.log(`  Rerank Depth: ${options.rerankDepth}`);
+		}
+		console.log(`  Multi-Query: ${options.multiQuery}`);
+		if (options.multiQuery) {
+			console.log(`  Multi-Query Variations: ${options.multiQueryVariations}`);
 		}
 	}
 	if (options.limit) {
@@ -190,6 +197,8 @@ function createCustomRetriever(options: RunOptions): CustomRetriever | undefined
 		rerankTier: options.rerankTier as "fast" | "accurate" | "code" | "colbert",
 		rerankDepth: options.rerankDepth,
 		topK: options.topK,
+		multiQuery: options.multiQuery,
+		multiQueryVariations: options.multiQueryVariations,
 	});
 }
 
