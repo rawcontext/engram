@@ -200,16 +200,19 @@ export class RuntimeConfig {
 
 	/**
 	 * Validate that required API keys are present for enabled tiers.
+	 * Logs a warning and disables the tier if API key is missing (instead of crashing).
 	 *
 	 * @param config - Reranker configuration
-	 * @throws {Error} If required API keys are missing
 	 */
 	private validateApiKeys(config: RerankerConfig): void {
 		// Check if LLM tier is enabled and requires API key
 		if (config.tiers.llm.enabled && !process.env.XAI_API_KEY) {
-			throw new Error(
-				"XAI_API_KEY environment variable is required when LLM reranker tier is enabled",
-			);
+			// Log warning and disable tier instead of crashing
+			logger.warn({
+				msg: "XAI_API_KEY not set - LLM reranker tier will be disabled",
+				tier: "llm",
+			});
+			config.tiers.llm.enabled = false;
 		}
 	}
 

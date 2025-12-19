@@ -84,8 +84,11 @@ export const resolvers = {
 		},
 		sessions: async (_: unknown, { limit = 10 }: { limit: number }) => {
 			await falkor.connect();
+			// Validate and sanitize limit to prevent injection
+			const safeLimit = Math.min(Math.max(1, Math.floor(Number(limit) || 10)), 100);
 			const res = await falkor.query(
-				`MATCH (s:Session) RETURN s ORDER BY s.startedAt DESC LIMIT ${limit}`,
+				"MATCH (s:Session) RETURN s ORDER BY s.startedAt DESC LIMIT $limit",
+				{ limit: safeLimit },
 			);
 			return res || [];
 		},
@@ -112,22 +115,29 @@ export const resolvers = {
 				};
 			});
 		},
-		graph: async (_: unknown, { cypher }: { cypher: string }) => {
-			await falkor.connect();
-			// Execute raw Cypher query - useful for ad-hoc exploration
-			// Warning: This should be protected in production
-			const res = await falkor.query(cypher);
-			return res;
+		graph: async (_: unknown, { cypher: _cypher }: { cypher: string }) => {
+			// SECURITY: Arbitrary Cypher execution is disabled to prevent injection attacks.
+			// This endpoint should only be enabled for authenticated admin users.
+			// To re-enable, implement proper authentication and authorization checks.
+			throw new Error(
+				"Arbitrary Cypher query execution is disabled. Use specific query endpoints instead.",
+			);
+
+			// Original implementation (disabled for security):
+			// await falkor.connect();
+			// const res = await falkor.query(cypher);
+			// return res;
 		},
 	},
 	Session: {
 		thoughts: async (parent: SessionParent, { limit = 50 }: { limit: number }) => {
 			await falkor.connect();
+			// Validate and sanitize limit to prevent injection
+			const safeLimit = Math.min(Math.max(1, Math.floor(Number(limit) || 50)), 500);
 			// Traverse NEXT edge or TRIGGERS
 			const res = await falkor.query(
-				`MATCH (s:Session {id: $id})-[:TRIGGERS|NEXT*]->(t:Thought)
-         RETURN t ORDER BY t.vt_start ASC LIMIT ${limit}`,
-				{ id: parent.id },
+				"MATCH (s:Session {id: $id})-[:TRIGGERS|NEXT*]->(t:Thought) RETURN t ORDER BY t.vt_start ASC LIMIT $limit",
+				{ id: parent.id, limit: safeLimit },
 			);
 			return res || [];
 		},

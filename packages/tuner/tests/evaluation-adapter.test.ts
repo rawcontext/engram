@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
-import {
-	mapTrialToBenchmarkConfig,
-	mapBenchmarkToTrialMetrics,
-} from "../src/executor/evaluation-adapter.js";
-import type { TrialConfig } from "../src/executor/config-mapper.js";
 import type { BenchmarkMetrics } from "@engram/benchmark";
+import { describe, expect, it } from "vitest";
+import type { TrialConfig } from "../src/executor/config-mapper.js";
+import {
+	mapBenchmarkToTrialMetrics,
+	mapTrialToBenchmarkConfig,
+} from "../src/executor/evaluation-adapter.js";
 
 describe("mapTrialToBenchmarkConfig", () => {
 	const baseTrialConfig: TrialConfig = {

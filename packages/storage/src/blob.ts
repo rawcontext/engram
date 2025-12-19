@@ -27,8 +27,42 @@ export class FileSystemBlobStore implements BlobStore {
 		if (!uri.startsWith("file://")) {
 			throw new Error(`Invalid URI scheme for FileSystemBlobStore: ${uri}`);
 		}
-		const filePath = uri.slice(7); // Remove 'file://'
-		return fs.readFile(filePath, "utf-8");
+
+		// Extract and decode the file path from URI
+		let filePath = uri.slice(7); // Remove 'file://'
+		filePath = decodeURIComponent(filePath);
+
+		// Get just the filename (should be a SHA-256 hash)
+		const filename = path.basename(filePath);
+
+		// Validate filename format (must be a 64-character hex string)
+		if (!/^[a-f0-9]{64}$/.test(filename)) {
+			throw new StorageError(
+				`Invalid blob filename format: ${filename}`,
+				ErrorCodes.STORAGE_INVALID_PATH,
+				uri,
+				undefined,
+				"read",
+			);
+		}
+
+		// Construct safe path using only the validated filename
+		const safePath = path.join(this.basePath, filename);
+		const resolvedPath = path.resolve(safePath);
+		const resolvedBase = path.resolve(this.basePath);
+
+		// Double-check containment (defense in depth)
+		if (!resolvedPath.startsWith(resolvedBase + path.sep) && resolvedPath !== resolvedBase) {
+			throw new StorageError(
+				`Path traversal detected in URI: ${uri}`,
+				ErrorCodes.STORAGE_INVALID_PATH,
+				uri,
+				undefined,
+				"read",
+			);
+		}
+
+		return fs.readFile(resolvedPath, "utf-8");
 	}
 
 	/**

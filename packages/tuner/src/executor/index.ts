@@ -1,31 +1,29 @@
 export {
-	mapParamsToConfig,
+	type CacheEntry,
+	type CacheStats,
+	EvaluationCache,
+} from "./cache.js";
+export {
+	type AbstentionSettings,
 	flattenConfig,
+	mapParamsToConfig,
 	type PartialRerankerConfig,
 	type SearchSettings,
-	type AbstentionSettings,
 	type TrialConfig,
 } from "./config-mapper.js";
 
 export {
+	type EvaluationAdapterOptions,
+	evaluateWithBenchmark,
+	mapBenchmarkToTrialMetrics,
+	mapTrialToBenchmarkConfig,
+} from "./evaluation-adapter.js";
+export {
+	computeObjectiveValues,
+	type ObjectiveConfig,
 	runTrial,
 	runTrials,
-	computeObjectiveValues,
-	type TrialRunnerOptions,
 	type TrialMetrics,
-	type ObjectiveConfig,
 	type TrialProgressEvent,
+	type TrialRunnerOptions,
 } from "./trial-runner.js";
-
-export {
-	evaluateWithBenchmark,
-	mapTrialToBenchmarkConfig,
-	mapBenchmarkToTrialMetrics,
-	type EvaluationAdapterOptions,
-} from "./evaluation-adapter.js";
-
-export {
-	EvaluationCache,
-	type CacheEntry,
-	type CacheStats,
-} from "./cache.js";

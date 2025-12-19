@@ -1,10 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-	SessionSummarizer,
 	DEFAULT_SESSION_SUMMARIZER_CONFIG,
-	type Turn,
 	type LLMProvider,
 	type LLMResponse,
+	SessionSummarizer,
+	type Turn,
 } from "./session-summarizer";
 
 /**
@@ -116,9 +116,9 @@ describe("SessionSummarizer", () => {
 	describe("extractCandidateKeywords", () => {
 		it("should extract unique keywords from text", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const extractCandidates = (summarizer as never)["extractCandidateKeywords"].bind(
-				summarizer,
-			) as (text: string) => string[];
+			const extractCandidates = (summarizer as never).extractCandidateKeywords.bind(summarizer) as (
+				text: string,
+			) => string[];
 
 			const text = "The TypeScript project uses Docker and Kubernetes for deployment";
 			const keywords = extractCandidates(text);
@@ -131,9 +131,9 @@ describe("SessionSummarizer", () => {
 
 		it("should filter common stopwords", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const extractCandidates = (summarizer as never)["extractCandidateKeywords"].bind(
-				summarizer,
-			) as (text: string) => string[];
+			const extractCandidates = (summarizer as never).extractCandidateKeywords.bind(summarizer) as (
+				text: string,
+			) => string[];
 
 			const text = "The user is working on a project";
 			const keywords = extractCandidates(text);
@@ -147,9 +147,9 @@ describe("SessionSummarizer", () => {
 
 		it("should generate bigrams", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const extractCandidates = (summarizer as never)["extractCandidateKeywords"].bind(
-				summarizer,
-			) as (text: string) => string[];
+			const extractCandidates = (summarizer as never).extractCandidateKeywords.bind(summarizer) as (
+				text: string,
+			) => string[];
 
 			const text = "machine learning models neural networks";
 			const keywords = extractCandidates(text);
@@ -160,9 +160,9 @@ describe("SessionSummarizer", () => {
 
 		it("should filter short words", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const extractCandidates = (summarizer as never)["extractCandidateKeywords"].bind(
-				summarizer,
-			) as (text: string) => string[];
+			const extractCandidates = (summarizer as never).extractCandidateKeywords.bind(summarizer) as (
+				text: string,
+			) => string[];
 
 			const text = "AI ML API SDK CLI";
 			const keywords = extractCandidates(text);
@@ -179,7 +179,7 @@ describe("SessionSummarizer", () => {
 	describe("cosineSimilarity", () => {
 		it("should calculate correct similarity for identical vectors", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const cosine = (summarizer as never)["cosineSimilarity"].bind(summarizer) as (
+			const cosine = (summarizer as never).cosineSimilarity.bind(summarizer) as (
 				a: number[],
 				b: number[],
 			) => number;
@@ -192,7 +192,7 @@ describe("SessionSummarizer", () => {
 
 		it("should calculate correct similarity for orthogonal vectors", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const cosine = (summarizer as never)["cosineSimilarity"].bind(summarizer) as (
+			const cosine = (summarizer as never).cosineSimilarity.bind(summarizer) as (
 				a: number[],
 				b: number[],
 			) => number;
@@ -206,7 +206,7 @@ describe("SessionSummarizer", () => {
 
 		it("should calculate correct similarity for opposite vectors", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const cosine = (summarizer as never)["cosineSimilarity"].bind(summarizer) as (
+			const cosine = (summarizer as never).cosineSimilarity.bind(summarizer) as (
 				a: number[],
 				b: number[],
 			) => number;
@@ -220,7 +220,7 @@ describe("SessionSummarizer", () => {
 
 		it("should throw error for different length vectors", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const cosine = (summarizer as never)["cosineSimilarity"].bind(summarizer) as (
+			const cosine = (summarizer as never).cosineSimilarity.bind(summarizer) as (
 				a: number[],
 				b: number[],
 			) => number;
@@ -233,7 +233,7 @@ describe("SessionSummarizer", () => {
 
 		it("should handle zero vectors", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const cosine = (summarizer as never)["cosineSimilarity"].bind(summarizer) as (
+			const cosine = (summarizer as never).cosineSimilarity.bind(summarizer) as (
 				a: number[],
 				b: number[],
 			) => number;
@@ -249,7 +249,7 @@ describe("SessionSummarizer", () => {
 	describe("cleanEntityWord", () => {
 		it("should remove BERT subword prefix", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const clean = (summarizer as never)["cleanEntityWord"].bind(summarizer) as (
+			const clean = (summarizer as never).cleanEntityWord.bind(summarizer) as (
 				word: string,
 			) => string;
 
@@ -259,7 +259,7 @@ describe("SessionSummarizer", () => {
 
 		it("should leave normal words unchanged", () => {
 			const summarizer = new SessionSummarizer(mockLLM);
-			const clean = (summarizer as never)["cleanEntityWord"].bind(summarizer) as (
+			const clean = (summarizer as never).cleanEntityWord.bind(summarizer) as (
 				word: string,
 			) => string;
 
@@ -295,7 +295,7 @@ describe("SessionSummarizer", () => {
 			mockLLM.setSummaryResponse("  Generated summary with whitespace  ");
 			const summarizer = new SessionSummarizer(mockLLM);
 
-			const generateSummary = (summarizer as never)["generateSummary"].bind(summarizer) as (
+			const generateSummary = (summarizer as never).generateSummary.bind(summarizer) as (
 				context: string,
 			) => Promise<string>;
 

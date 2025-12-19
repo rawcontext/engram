@@ -12,17 +12,17 @@
 
 // Programmatic API (primary exports for automation/tuning)
 export {
-	buildBenchmarkConfig,
-	DEFAULT_BENCHMARK_CONFIG,
-	runBenchmark,
 	type BenchmarkCallbacks,
 	type BenchmarkMetrics,
 	type BenchmarkProgress,
 	type BenchmarkRunResult,
+	buildBenchmarkConfig,
+	DEFAULT_BENCHMARK_CONFIG,
 	type EmbeddingModel,
 	type LLMProviderType,
 	type RerankerTier,
 	type RunBenchmarkConfig,
+	runBenchmark,
 } from "./core/index.js";
 
 // LongMemEval-specific exports

@@ -32,10 +32,11 @@ program
 	.option("--verbose", "Show detailed progress", false)
 	// Provider options
 	.option("--embeddings <provider>", "Embedding provider (stub, qdrant, e5, engram)", "stub")
-	.option("--llm <provider>", "LLM provider (stub, anthropic, openai, ollama)", "stub")
+	.option("--llm <provider>", "LLM provider (stub, anthropic, openai, ollama, gemini)", "stub")
 	.option("--qdrant-url <url>", "Qdrant server URL", "http://localhost:6333")
 	.option("--ollama-url <url>", "Ollama server URL", "http://localhost:11434")
-	.option("--ollama-model <model>", "Ollama model name", "llama3.2")
+	.option("--ollama-model <model>", "Ollama model name")
+	.option("--gemini-model <model>", "Gemini model name", "gemini-3-flash")
 	// Milestone 2 optimizations
 	.option("--key-expansion", "Enable key expansion with fact extraction (+9% recall)", false)
 	.option("--temporal-analysis", "Enable improved temporal query analysis (+7-11% on TR)", false)

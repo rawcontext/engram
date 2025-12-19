@@ -17,22 +17,28 @@ export class Deduplicator {
 	/**
 	 * Checks if semantically identical content exists.
 	 * @param content The text content to check.
+	 * @param vectorName The named vector to search against (default: text_dense).
 	 * @returns The ID of the existing document if found, or null.
 	 */
-	async findDuplicate(content: string): Promise<string | null> {
+	async findDuplicate(
+		content: string,
+		vectorName: "text_dense" | "code_dense" = "text_dense",
+	): Promise<string | null> {
 		const vector = await this.textEmbedder.embed(content);
 
-		const results = await this.client.search(this.collectionName, {
-			vector: vector,
+		// Use query API with named vector specification
+		const results = await this.client.query(this.collectionName, {
+			query: vector,
+			using: vectorName,
 			limit: 1,
 			score_threshold: this.threshold,
 			with_payload: true,
 		});
 
-		if (results.length > 0) {
+		if (results.points.length > 0) {
 			// Double check? For now, trust the vector similarity.
 			// We could compare exact string if payload allows.
-			return results[0].id as string;
+			return results.points[0].id as string;
 		}
 
 		return null;

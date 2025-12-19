@@ -1,18 +1,68 @@
 import * as fs from "node:fs";
+import * as path from "node:path";
 import type { FileStat, IFileSystem } from "./interfaces";
+
+/**
+ * Path traversal error thrown when a path escapes the base directory.
+ */
+export class PathTraversalError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "PathTraversalError";
+	}
+}
 
 /**
  * Node.js file system implementation of IFileSystem.
  * Wraps the native fs module for production use.
+ *
+ * Security: All paths are validated against the base directory to prevent
+ * path traversal attacks (e.g., ../../etc/passwd).
  */
 export class NodeFileSystem implements IFileSystem {
+	private readonly baseDir: string;
+
+	/**
+	 * Create a new NodeFileSystem instance.
+	 * @param baseDir - Base directory for all operations. Paths are restricted to this directory.
+	 *                  Defaults to current working directory.
+	 */
+	constructor(baseDir: string = process.cwd()) {
+		this.baseDir = path.resolve(baseDir);
+	}
+
+	/**
+	 * Validate that a path is contained within the base directory.
+	 * Prevents path traversal attacks.
+	 *
+	 * @param filePath - The path to validate
+	 * @returns The resolved, safe path
+	 * @throws PathTraversalError if the path escapes the base directory
+	 */
+	private validatePath(filePath: string): string {
+		// Resolve the path relative to base directory
+		const resolved = path.resolve(this.baseDir, filePath);
+		const resolvedBase = this.baseDir + path.sep;
+
+		// Check if resolved path is within base directory
+		if (!resolved.startsWith(resolvedBase) && resolved !== this.baseDir) {
+			throw new PathTraversalError(
+				`Path traversal detected: "${filePath}" resolves outside base directory`,
+			);
+		}
+
+		return resolved;
+	}
+
 	exists(filePath: string): boolean {
-		return fs.existsSync(filePath);
+		const safePath = this.validatePath(filePath);
+		return fs.existsSync(safePath);
 	}
 
 	async existsAsync(filePath: string): Promise<boolean> {
+		const safePath = this.validatePath(filePath);
 		try {
-			await fs.promises.access(filePath);
+			await fs.promises.access(safePath);
 			return true;
 		} catch {
 			return false;
@@ -20,63 +70,76 @@ export class NodeFileSystem implements IFileSystem {
 	}
 
 	mkdir(dirPath: string, options?: { recursive?: boolean }): void {
-		fs.mkdirSync(dirPath, options);
+		const safePath = this.validatePath(dirPath);
+		fs.mkdirSync(safePath, options);
 	}
 
 	async mkdirAsync(dirPath: string, options?: { recursive?: boolean }): Promise<void> {
-		await fs.promises.mkdir(dirPath, options);
+		const safePath = this.validatePath(dirPath);
+		await fs.promises.mkdir(safePath, options);
 	}
 
 	readDir(dirPath: string): string[] {
-		return fs.readdirSync(dirPath);
+		const safePath = this.validatePath(dirPath);
+		return fs.readdirSync(safePath);
 	}
 
 	async readDirAsync(dirPath: string): Promise<string[]> {
-		return fs.promises.readdir(dirPath);
+		const safePath = this.validatePath(dirPath);
+		return fs.promises.readdir(safePath);
 	}
 
 	rmdir(dirPath: string, options?: { recursive?: boolean }): void {
+		const safePath = this.validatePath(dirPath);
 		if (options?.recursive) {
-			fs.rmSync(dirPath, { recursive: true, force: true });
+			fs.rmSync(safePath, { recursive: true, force: true });
 		} else {
-			fs.rmdirSync(dirPath);
+			fs.rmdirSync(safePath);
 		}
 	}
 
 	async rmdirAsync(dirPath: string, options?: { recursive?: boolean }): Promise<void> {
+		const safePath = this.validatePath(dirPath);
 		if (options?.recursive) {
-			await fs.promises.rm(dirPath, { recursive: true, force: true });
+			await fs.promises.rm(safePath, { recursive: true, force: true });
 		} else {
-			await fs.promises.rmdir(dirPath);
+			await fs.promises.rmdir(safePath);
 		}
 	}
 
 	writeFile(filePath: string, content: string | Buffer): void {
-		fs.writeFileSync(filePath, content);
+		const safePath = this.validatePath(filePath);
+		fs.writeFileSync(safePath, content);
 	}
 
 	async writeFileAsync(filePath: string, content: string | Buffer): Promise<void> {
-		await fs.promises.writeFile(filePath, content);
+		const safePath = this.validatePath(filePath);
+		await fs.promises.writeFile(safePath, content);
 	}
 
 	readFile(filePath: string): string {
-		return fs.readFileSync(filePath, "utf-8");
+		const safePath = this.validatePath(filePath);
+		return fs.readFileSync(safePath, "utf-8");
 	}
 
 	async readFileAsync(filePath: string): Promise<string> {
-		return fs.promises.readFile(filePath, "utf-8");
+		const safePath = this.validatePath(filePath);
+		return fs.promises.readFile(safePath, "utf-8");
 	}
 
 	unlink(filePath: string): void {
-		fs.unlinkSync(filePath);
+		const safePath = this.validatePath(filePath);
+		fs.unlinkSync(safePath);
 	}
 
 	async unlinkAsync(filePath: string): Promise<void> {
-		await fs.promises.unlink(filePath);
+		const safePath = this.validatePath(filePath);
+		await fs.promises.unlink(safePath);
 	}
 
 	stat(filePath: string): FileStat {
-		const stats = fs.statSync(filePath);
+		const safePath = this.validatePath(filePath);
+		const stats = fs.statSync(safePath);
 		return {
 			isFile: () => stats.isFile(),
 			isDirectory: () => stats.isDirectory(),
@@ -86,7 +149,8 @@ export class NodeFileSystem implements IFileSystem {
 	}
 
 	async statAsync(filePath: string): Promise<FileStat> {
-		const stats = await fs.promises.stat(filePath);
+		const safePath = this.validatePath(filePath);
+		const stats = await fs.promises.stat(safePath);
 		return {
 			isFile: () => stats.isFile(),
 			isDirectory: () => stats.isDirectory(),

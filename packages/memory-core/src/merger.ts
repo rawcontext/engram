@@ -1,5 +1,27 @@
 import type { FalkorClient, QueryParams } from "@engram/storage";
 
+/**
+ * Regex pattern for valid Cypher relationship types.
+ * Types must:
+ * - Start with a letter (a-z, A-Z)
+ * - Contain only letters, digits, and underscores
+ * - Be at most 100 characters long
+ */
+const VALID_RELATIONSHIP_TYPE = /^[a-zA-Z][a-zA-Z0-9_]{0,99}$/;
+
+/**
+ * Validate a relationship type to prevent Cypher injection.
+ * @param type The relationship type to validate
+ * @throws Error if the type is invalid
+ */
+function validateRelationshipType(type: string): void {
+	if (!VALID_RELATIONSHIP_TYPE.test(type)) {
+		throw new Error(
+			`Invalid relationship type: "${type}". Must start with a letter and contain only letters, digits, and underscores (max 100 chars).`,
+		);
+	}
+}
+
 export class GraphMerger {
 	constructor(private client: FalkorClient) {}
 
@@ -19,6 +41,9 @@ export class GraphMerger {
 			const isOutgoing = row[1] as boolean;
 			const neighborId = row[2] as string;
 			const props = (row[3] || {}) as QueryParams;
+
+			// Validate relationship type to prevent Cypher injection
+			validateRelationshipType(type);
 
 			// Re-create edge to target
 			let createQuery = "";

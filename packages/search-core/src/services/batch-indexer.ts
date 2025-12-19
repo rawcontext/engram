@@ -20,9 +20,16 @@ export class BatchIndexer {
 	public add(node: IndexableNode) {
 		this.buffer.push(node);
 		if (this.buffer.length >= this.batchSize) {
-			this.flush();
+			// Fire-and-forget with explicit error handling to prevent unhandled rejections
+			void this.flush().catch((err) => {
+				console.error("[BatchIndexer] Background flush failed:", err);
+			});
 		} else if (!this.timer) {
-			this.timer = setTimeout(() => this.flush(), this.flushInterval);
+			this.timer = setTimeout(() => {
+				void this.flush().catch((err) => {
+					console.error("[BatchIndexer] Scheduled flush failed:", err);
+				});
+			}, this.flushInterval);
 		}
 	}
 

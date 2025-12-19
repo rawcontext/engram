@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
-import { type FusionQueryFeatures, QueryFeatureExtractor } from "@engram/search-core";
-import { loadDataset, type LoaderConfig } from "../../longmemeval/loader.js";
-import { type EngramDocument, mapInstance, type MappedInstance } from "../../longmemeval/mapper.js";
+import { QueryFeatureExtractor } from "@engram/search-core";
+import { type LoaderConfig, loadDataset } from "../../longmemeval/loader.js";
+import { type EngramDocument, mapInstance } from "../../longmemeval/mapper.js";
 import { computeRetrievalMetrics, type RetrievalResult } from "../../longmemeval/retriever.js";
 import type { DatasetVariant, ParsedInstance } from "../../longmemeval/types.js";
 
@@ -252,7 +252,7 @@ function analyzeWeightDistribution(samples: FusionTrainingSample[]): void {
 		else if (typeValue < 0.8) type = "opinion";
 
 		if (!byType.has(type)) byType.set(type, []);
-		byType.get(type)!.push(sample);
+		byType.get(type)?.push(sample);
 	}
 
 	for (const [type, typeSamples] of byType) {

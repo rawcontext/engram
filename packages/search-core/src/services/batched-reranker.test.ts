@@ -177,7 +177,7 @@ describe("BatchedReranker", () => {
 			// Create a mock that tracks concurrent executions
 			const { pipeline } = await import("@huggingface/transformers");
 			(pipeline as any).mockResolvedValue(
-				vi.fn().mockImplementation(async (input: { text: string; text_pair: string }) => {
+				vi.fn().mockImplementation(async (_input: { text: string; text_pair: string }) => {
 					concurrentCount++;
 					maxConcurrent = Math.max(maxConcurrent, concurrentCount);
 					// Simulate some async work
@@ -210,7 +210,7 @@ describe("BatchedReranker", () => {
 
 			const { pipeline } = await import("@huggingface/transformers");
 			(pipeline as any).mockResolvedValue(
-				vi.fn().mockImplementation(async (input: { text: string; text_pair: string }) => {
+				vi.fn().mockImplementation(async (_input: { text: string; text_pair: string }) => {
 					processedBatches.push(Date.now());
 					await new Promise((resolve) => setTimeout(resolve, 5));
 					return [{ label: "LABEL_0", score: 0.5 }];

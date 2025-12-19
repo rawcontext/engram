@@ -166,6 +166,31 @@ export function setupPulumiMocks(project = "engram", stack = "test"): void {
 					case "pulumi:providers:kubernetes":
 						// Provider resources
 						break;
+
+					// Cloud Run resources
+					case "gcp:cloudrunv2/job:Job":
+						defaultState.uid = `${args.name}-uid`;
+						defaultState.generation = "1";
+						defaultState.observedGeneration = "1";
+						break;
+
+					case "gcp:storage/bucket:Bucket":
+						defaultState.url = `gs://${args.inputs.name}`;
+						defaultState.selfLink = `https://storage.googleapis.com/storage/v1/b/${args.inputs.name}`;
+						break;
+
+					case "gcp:storage/bucketIAMMember:BucketIAMMember":
+						// IAM bindings don't have special outputs
+						break;
+
+					case "gcp:serviceaccount/account:Account":
+						defaultState.email = `${args.inputs.accountId}@test-project.iam.gserviceaccount.com`;
+						defaultState.uniqueId = `${args.name}-unique-id`;
+						break;
+
+					case "gcp:secretmanager/secretIamMember:SecretIamMember":
+						// IAM bindings don't have special outputs
+						break;
 				}
 
 				return {

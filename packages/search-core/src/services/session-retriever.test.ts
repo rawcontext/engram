@@ -1,9 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import {
-	SessionAwareRetriever,
-	DEFAULT_SESSION_RETRIEVER_CONFIG,
-	type SessionRetrieverConfig,
-} from "./session-retriever";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_SESSION_RETRIEVER_CONFIG, SessionAwareRetriever } from "./session-retriever";
 
 /**
  * Mock Qdrant client for testing

@@ -34,17 +34,22 @@ interface CacheEntry {
  * In-memory LRU cache for ColBERT document embeddings.
  *
  * Features:
- * - LRU eviction when size limit is reached
+ * - LRU eviction when size limit is reached (O(1) operations)
  * - TTL-based expiration (default: 1 hour)
  * - Size tracking in bytes
  * - Hit rate metrics
+ *
+ * Implementation uses Map's insertion order for O(1) LRU operations:
+ * - On access: delete and re-insert to move to end
+ * - On eviction: iterate from start (oldest entries)
  *
  * This cache prevents redundant re-encoding of frequently accessed documents,
  * significantly improving reranking performance for repeated queries.
  */
 export class EmbeddingCache {
 	private cache: Map<string, CacheEntry> = new Map();
-	private accessOrder: string[] = []; // LRU tracking
+	// Note: We now use Map's insertion order for LRU tracking (O(1) operations)
+	// instead of maintaining a separate array (O(n) indexOf/splice)
 	private currentSizeBytes = 0;
 	private readonly maxSizeBytes: number;
 	private readonly ttlMs: number;
@@ -121,12 +126,16 @@ export class EmbeddingCache {
 			return;
 		}
 
-		// Evict if necessary to make room
-		while (this.currentSizeBytes + sizeBytes > this.maxSizeBytes && this.accessOrder.length > 0) {
-			const oldestId = this.accessOrder[0];
-			this.remove(oldestId);
-			this.evictions++;
-			recordEmbeddingCacheEviction();
+		// Evict if necessary to make room (O(1) per eviction using Map iteration)
+		while (this.currentSizeBytes + sizeBytes > this.maxSizeBytes && this.cache.size > 0) {
+			const oldestId = this.getOldestKey();
+			if (oldestId) {
+				this.remove(oldestId);
+				this.evictions++;
+				recordEmbeddingCacheEviction();
+			} else {
+				break;
+			}
 		}
 
 		// Add new entry
@@ -138,7 +147,7 @@ export class EmbeddingCache {
 			lastAccessedAt: now,
 		});
 
-		this.accessOrder.push(documentId);
+		// No need to track accessOrder separately - Map maintains insertion order
 		this.currentSizeBytes += sizeBytes;
 		this.updateMetrics();
 	}
@@ -155,7 +164,6 @@ export class EmbeddingCache {
 	 */
 	clear(): void {
 		this.cache.clear();
-		this.accessOrder = [];
 		this.currentSizeBytes = 0;
 		this.hits = 0;
 		this.misses = 0;
@@ -194,6 +202,7 @@ export class EmbeddingCache {
 
 	/**
 	 * Remove an entry from the cache.
+	 * O(1) operation using Map's delete.
 	 */
 	private remove(documentId: string): void {
 		const entry = this.cache.get(documentId);
@@ -201,24 +210,28 @@ export class EmbeddingCache {
 
 		this.cache.delete(documentId);
 		this.currentSizeBytes -= entry.sizeBytes;
-
-		// Remove from access order
-		const index = this.accessOrder.indexOf(documentId);
-		if (index !== -1) {
-			this.accessOrder.splice(index, 1);
-		}
+		// No need to update accessOrder - we use Map's insertion order
 	}
 
 	/**
 	 * Update LRU access order.
-	 * Move accessed item to end of list.
+	 * O(1) operation: delete and re-insert to move to end of Map's iteration order.
 	 */
 	private updateAccessOrder(documentId: string): void {
-		const index = this.accessOrder.indexOf(documentId);
-		if (index !== -1) {
-			this.accessOrder.splice(index, 1);
+		const entry = this.cache.get(documentId);
+		if (entry) {
+			// Delete and re-insert to move to end of Map's insertion order
+			this.cache.delete(documentId);
+			this.cache.set(documentId, entry);
 		}
-		this.accessOrder.push(documentId);
+	}
+
+	/**
+	 * Get the oldest entry key (first in Map's iteration order).
+	 * O(1) operation using Map.keys().next().
+	 */
+	private getOldestKey(): string | undefined {
+		return this.cache.keys().next().value;
 	}
 
 	/**

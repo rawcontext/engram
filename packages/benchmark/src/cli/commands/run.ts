@@ -6,6 +6,7 @@ import {
 } from "../../longmemeval/pipeline.js";
 import {
 	AnthropicProvider,
+	GeminiProvider,
 	OllamaProvider,
 	OpenAICompatibleProvider,
 } from "../../longmemeval/providers/anthropic-provider.js";
@@ -32,6 +33,8 @@ interface RunOptions {
 	qdrantUrl?: string;
 	ollamaUrl?: string;
 	ollamaModel?: string;
+	// Gemini options
+	geminiModel?: string;
 	// Milestone 2 optimizations
 	keyExpansion: boolean;
 	temporalAnalysis: boolean;
@@ -288,10 +291,29 @@ function createLLMProvider(options: RunOptions): LLMProvider {
 			return new OpenAICompatibleProvider();
 
 		case "ollama":
-			console.log(`🤖 Using Ollama (${options.ollamaModel ?? "llama3.2"}) for answer generation`);
+			if (!options.ollamaModel) {
+				console.error("❌ --ollama-model is required when using Ollama");
+				process.exit(1);
+			}
+			console.log(`🤖 Using Ollama (${options.ollamaModel}) for answer generation`);
 			return new OllamaProvider({
 				baseUrl: options.ollamaUrl ?? "http://localhost:11434",
-				model: options.ollamaModel ?? "llama3.2",
+				model: options.ollamaModel,
+			});
+
+		case "gemini":
+		case "google":
+			if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+				console.error(
+					"❌ GEMINI_API_KEY or GOOGLE_API_KEY environment variable required for Gemini",
+				);
+				process.exit(1);
+			}
+			console.log(
+				`🤖 Using Google Gemini (${options.geminiModel ?? "gemini-3-flash"}) for answer generation`,
+			);
+			return new GeminiProvider({
+				model: options.geminiModel ?? "gemini-3-flash",
 			});
 		default:
 			console.log("⚠️  Using stub LLM (no real generation)");

@@ -20,6 +20,7 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const RUN_INTEGRATION_TESTS = process.env.RUN_INTEGRATION_TESTS === "1";
+
 import { BatchedReranker, type DocumentCandidate } from "./batched-reranker";
 import { RerankerRouter } from "./reranker-router";
 import { SearchRetriever } from "./retriever";

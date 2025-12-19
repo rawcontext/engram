@@ -8,11 +8,10 @@
  * - Tuner: Hyperparameter optimization (PostgreSQL + API + Dashboard)
  */
 
-// Namespace and K8s Provider
-export { k8sProvider, namespace, namespaceName } from "./namespace";
-
 // FalkorDB Graph Database
 export { falkordbEndpoint, falkordbService, falkordbStatefulSet } from "./falkordb";
+// Namespace and K8s Provider
+export { k8sProvider, namespace, namespaceName } from "./namespace";
 
 // Qdrant Vector Database
 export { qdrantEndpoint, qdrantGrpcEndpoint, qdrantRelease } from "./qdrant";

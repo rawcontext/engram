@@ -4,12 +4,12 @@
 
 import type { LLMProviderType } from "@engram/benchmark";
 import { TunerClient } from "../../client/tuner-client.js";
-import type { Direction, SamplerType, PrunerType } from "../../client/types.js";
+import type { Direction, PrunerType, SamplerType } from "../../client/types.js";
 import { EvaluationCache } from "../../executor/cache.js";
 import { flattenConfig } from "../../executor/config-mapper.js";
 import { evaluateWithBenchmark } from "../../executor/evaluation-adapter.js";
-import { runTrial, type ObjectiveConfig } from "../../executor/trial-runner.js";
-import { SearchSpacePresets, type SearchSpacePresetName } from "../../spaces/engram.js";
+import { type ObjectiveConfig, runTrial } from "../../executor/trial-runner.js";
+import { type SearchSpacePresetName, SearchSpacePresets } from "../../spaces/engram.js";
 
 interface OptimizeOptions {
 	dataset: string;
@@ -51,7 +51,7 @@ export async function optimizeCommand(options: OptimizeOptions): Promise<void> {
 			console.error("Make sure PostgreSQL is running and accessible");
 			process.exit(1);
 		}
-	} catch (error) {
+	} catch (_error) {
 		console.error("Error: Could not connect to tuner service at", options.serviceUrl);
 		console.error("Make sure the tuner service is running (docker compose up tuner)");
 		process.exit(1);
@@ -187,7 +187,7 @@ export async function optimizeCommand(options: OptimizeOptions): Promise<void> {
 		}
 		console.log(`\nBest value: ${JSON.stringify(best.value)}`);
 		console.log(`Trial ID: ${best.trial_id}`);
-	} catch (error) {
+	} catch (_error) {
 		console.log("Could not retrieve best params (no completed trials yet)");
 	}
 

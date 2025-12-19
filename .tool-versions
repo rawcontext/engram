@@ -3,3 +3,4 @@ gcloud 548.0.0
 pulumi 3.140.0
 nodejs 24.11.1
 rust 1.91.1
+uv 0.9.18

@@ -7,14 +7,14 @@
  * @module @engram/tuner/executor
  */
 
+import type { DatasetVariant } from "@engram/benchmark";
 import {
-	buildBenchmarkConfig,
-	runBenchmark,
 	type BenchmarkProgress,
+	buildBenchmarkConfig,
 	type LLMProviderType,
 	type RunBenchmarkConfig,
+	runBenchmark,
 } from "@engram/benchmark";
-import type { DatasetVariant } from "@engram/benchmark";
 import type { TrialConfig } from "./config-mapper.js";
 import type { TrialMetrics } from "./trial-runner.js";
 
@@ -153,7 +153,7 @@ export async function evaluateWithBenchmark(
 	// Run benchmark with progress callback
 	const result = await runBenchmark(benchmarkConfig, {
 		onProgress: options.onProgress
-			? (p: BenchmarkProgress) => options.onProgress!(p.stage, (p.current / p.total) * 100)
+			? (p: BenchmarkProgress) => options.onProgress?.(p.stage, (p.current / p.total) * 100)
 			: undefined,
 	});
 

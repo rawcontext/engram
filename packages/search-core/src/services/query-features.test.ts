@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { QueryFeatureExtractor, getFusionHints } from "./query-features";
+import { getFusionHints, QueryFeatureExtractor } from "./query-features";
 
 describe("QueryFeatureExtractor", () => {
 	const extractor = new QueryFeatureExtractor();

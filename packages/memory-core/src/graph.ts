@@ -2,6 +2,29 @@ import type { FalkorClient, QueryParams } from "@engram/storage";
 import type { BaseNode } from "./models/base";
 import { createBitemporal, MAX_DATE, now } from "./utils/time";
 
+/**
+ * Regex pattern for valid Cypher labels and relationship types.
+ * Labels/types must:
+ * - Start with a letter (a-z, A-Z)
+ * - Contain only letters, digits, and underscores
+ * - Be at most 100 characters long
+ */
+const VALID_CYPHER_IDENTIFIER = /^[a-zA-Z][a-zA-Z0-9_]{0,99}$/;
+
+/**
+ * Validate a label or relationship type to prevent Cypher injection.
+ * @param identifier The label or relationship type to validate
+ * @param type Description for error message (e.g., "label", "relationship type")
+ * @throws Error if the identifier is invalid
+ */
+function validateCypherIdentifier(identifier: string, type: string): void {
+	if (!VALID_CYPHER_IDENTIFIER.test(identifier)) {
+		throw new Error(
+			`Invalid ${type}: "${identifier}". Must start with a letter and contain only letters, digits, and underscores (max 100 chars).`,
+		);
+	}
+}
+
 export class GraphWriter {
 	constructor(private client: FalkorClient) {}
 
@@ -10,6 +33,9 @@ export class GraphWriter {
 		data: Omit<T, "vt_start" | "vt_end" | "tt_start" | "tt_end">,
 		validFrom: number = now(),
 	): Promise<void> {
+		// Validate label to prevent Cypher injection
+		validateCypherIdentifier(label, "label");
+
 		const temporal = createBitemporal(validFrom);
 		const nodeData = { ...data, ...temporal };
 
@@ -28,6 +54,9 @@ export class GraphWriter {
 		props: Record<string, unknown> = {},
 		validFrom: number = now(),
 	): Promise<void> {
+		// Validate relationship type to prevent Cypher injection
+		validateCypherIdentifier(relationType, "relationship type");
+
 		const temporal = createBitemporal(validFrom);
 		const edgeData = { ...props, ...temporal };
 

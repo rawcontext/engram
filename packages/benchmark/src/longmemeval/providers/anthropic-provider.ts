@@ -181,9 +181,9 @@ export class OllamaProvider implements LLMProvider {
 	private baseUrl: string;
 	private model: string;
 
-	constructor(config: { baseUrl?: string; model?: string } = {}) {
+	constructor(config: { baseUrl?: string; model: string }) {
 		this.baseUrl = config.baseUrl ?? "http://localhost:11434";
-		this.model = config.model ?? "llama3.2";
+		this.model = config.model;
 	}
 
 	async complete(prompt: string, options?: LLMOptions): Promise<LLMResponse> {
@@ -221,4 +221,101 @@ interface OllamaResponse {
 	response?: string;
 	prompt_eval_count?: number;
 	eval_count?: number;
+}
+
+/**
+ * Google Gemini provider for LLM operations
+ *
+ * Uses the @google/genai SDK (recommended as of 2025)
+ * Supports Gemini 2.5 Flash and other Gemini models
+ */
+export class GeminiProvider implements LLMProvider {
+	private model: string;
+	private apiKey: string;
+	private client: GoogleGenAIClient | null = null;
+
+	constructor(
+		config: {
+			apiKey?: string;
+			model?: string;
+		} = {},
+	) {
+		this.apiKey = config.apiKey ?? process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? "";
+		this.model = config.model ?? "gemini-3-flash";
+	}
+
+	/**
+	 * Initialize the Gemini client (lazy loading)
+	 */
+	private async getClient(): Promise<GoogleGenAIClient> {
+		if (this.client) {
+			return this.client;
+		}
+
+		if (!this.apiKey) {
+			throw new Error(
+				"Gemini API key required. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable.",
+			);
+		}
+
+		try {
+			// Dynamic import to handle optional dependency
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const genaiModule = await import("@google/genai" as string);
+			const GoogleGenAI = genaiModule.GoogleGenAI;
+			this.client = new GoogleGenAI({ apiKey: this.apiKey }) as unknown as GoogleGenAIClient;
+		} catch {
+			throw new Error("@google/genai not installed. Run: npm install @google/genai");
+		}
+
+		return this.client;
+	}
+
+	async complete(prompt: string, options?: LLMOptions): Promise<LLMResponse> {
+		const client = await this.getClient();
+
+		const response = await client.models.generateContent({
+			model: this.model,
+			contents: prompt,
+			config: {
+				maxOutputTokens: options?.maxTokens ?? 4096,
+				temperature: options?.temperature ?? 0.1,
+			},
+		});
+
+		return {
+			text: response.text ?? "",
+			usage: response.usageMetadata
+				? {
+						inputTokens: response.usageMetadata.promptTokenCount ?? 0,
+						outputTokens: response.usageMetadata.candidatesTokenCount ?? 0,
+					}
+				: undefined,
+		};
+	}
+}
+
+/**
+ * Interface for GoogleGenAI client (to avoid importing types)
+ */
+interface GoogleGenAIClient {
+	models: {
+		generateContent(params: {
+			model: string;
+			contents: string;
+			config?: {
+				maxOutputTokens?: number;
+				temperature?: number;
+				topP?: number;
+				topK?: number;
+			};
+		}): Promise<{
+			text?: string;
+			usageMetadata?: {
+				promptTokenCount?: number;
+				candidatesTokenCount?: number;
+				totalTokenCount?: number;
+			};
+		}>;
+	};
 }

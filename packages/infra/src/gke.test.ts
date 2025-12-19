@@ -11,7 +11,9 @@ import { getOutputValue, getResource, getResourcesByType } from "./testing";
 
 describe("GKE Infrastructure", () => {
 	describe("GKE Autopilot Cluster", () => {
-		it("should create a GKE cluster", async () => {
+		it("should create a GKE cluster when devEnabled=true", async () => {
+			expect(infra.cluster).toBeDefined();
+			if (!infra.cluster) return; // Type guard
 			const name = await getOutputValue(infra.cluster.name);
 			expect(name).toBe("engram-cluster");
 		});

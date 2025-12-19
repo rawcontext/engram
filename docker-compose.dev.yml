@@ -80,7 +80,54 @@ services:
   #       condition: service_healthy
   #   restart: unless-stopped
 
+  # PostgreSQL for Optuna study persistence
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: optuna
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Tuner service - hyperparameter optimization with Optuna
+  tuner:
+    build:
+      context: ./apps/tuner
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/optuna
+      - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8080"]
+      - DEBUG=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/tuner/src:/app/src:ro
+    restart: unless-stopped
+
+  # Optuna Dashboard for visualization
+  tuner-dashboard:
+    image: ghcr.io/optuna/optuna-dashboard:latest
+    ports:
+      - "8080:8080"
+    command: ["postgresql://postgres:postgres@postgres:5432/optuna"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   redpanda-data:
   falkor-data:
   qdrant-data:
+  postgres-data:

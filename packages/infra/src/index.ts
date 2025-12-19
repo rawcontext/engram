@@ -16,18 +16,29 @@
  *   - tuner.ts: Hyperparameter optimization stack
  */
 
+// Re-export Cloud Run resources
+export {
+	// Benchmark Job
+	benchmarkConfig,
+	benchmarkDataAccess,
+	benchmarkDataBucket,
+	benchmarkDataBucketName,
+	benchmarkJob,
+	benchmarkJobLocation,
+	benchmarkJobName,
+	benchmarkResultsAccess,
+	benchmarkResultsBucket,
+	benchmarkResultsBucketName,
+	benchmarkSecretAccess,
+	benchmarkServiceAccount,
+	executeCommand,
+	geminiApiKeySecret,
+	logsCommand,
+} from "./cloudrun";
 // Re-export configuration for reference
 export { commonLabels, environment, gcpProject, gcpRegion } from "./config";
-
 // Re-export GKE resources
 export { cluster, kubeconfig } from "./gke";
-
-// Re-export network resources
-export { nat, network, router, subnet } from "./network";
-
-// Re-export secrets
-export { anthropicApiKeySecret, openaiApiKeySecret, xaiApiKeySecret } from "./secrets";
-
 // Re-export Kubernetes workloads
 export {
 	// Dashboard
@@ -64,3 +75,7 @@ export {
 	tunerSecret,
 	tunerService,
 } from "./k8s";
+// Re-export network resources
+export { nat, network, router, subnet } from "./network";
+// Re-export secrets
+export { anthropicApiKeySecret, openaiApiKeySecret, xaiApiKeySecret } from "./secrets";

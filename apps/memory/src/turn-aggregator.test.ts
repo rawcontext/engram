@@ -1208,7 +1208,7 @@ describe("TurnAggregator", () => {
 
 			// Instance 2 should NOT have this turn
 			// If we create same session in agg2, it should start fresh at sequence 0
-			const mockGraphClient2 = agg2["graphClient"];
+			const mockGraphClient2 = agg2.graphClient;
 			await agg2.processEvent(
 				createTestEvent({ type: "content", role: "user", content: "Turn in agg2" }),
 				sessionId,

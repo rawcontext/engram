@@ -8,9 +8,9 @@
  * @module @engram/benchmark/core
  */
 
-// Main API
-export { runBenchmark, type BenchmarkCallbacks } from "./runner.js";
 export { buildBenchmarkConfig, DEFAULT_BENCHMARK_CONFIG } from "./config.js";
+// Main API
+export { type BenchmarkCallbacks, runBenchmark } from "./runner.js";
 
 // Types
 export type {

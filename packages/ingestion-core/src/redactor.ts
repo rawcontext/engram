@@ -33,22 +33,23 @@ export class Redactor {
 		redacted = redacted.replace(Redactor.PATTERNS.OPENAI_KEY, "[OPENAI_KEY_REDACTED]");
 		redacted = redacted.replace(Redactor.PATTERNS.ANTHROPIC_KEY, "[ANTHROPIC_KEY_REDACTED]");
 
-		// Phones (using library for better accuracy)
-		// Note: Parsing every string for phones is expensive.
-		// Optimization: check if string contains at least 7 digits.
+		// Phones (using a ReDoS-safe pattern)
+		// Note: The original regex had nested optional groups causing catastrophic backtracking.
+		// This pattern is simpler and avoids ReDoS while still catching most phone formats.
+		// For production use with untrusted input, consider using libphonenumber-js library.
 		if ((redacted.match(/\d/g) || []).length >= 7) {
-			// Ideally we iterator over potential matches, but libphonenumber is complex to use
-			// for "find all in text". We will use a fallback regex for speed in V1
-			// or assume the caller handles phone numbers specifically.
-			// For strict PII, we'll use a broad phone regex:
-			redacted = redacted.replace(
-				/\b\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}\b/g,
-				(match) => {
-					// Basic heuristic to avoid year numbers like 2024 or simple ints
-					if (match.replace(/\D/g, "").length < 7) return match;
+			// ReDoS-safe phone pattern:
+			// - Matches optional + prefix
+			// - Matches 7-15 digits with optional separators
+			// - No nested quantifiers or optional groups
+			redacted = redacted.replace(/\+?\d[\d\s().-]{6,18}\d/g, (match) => {
+				// Only redact if the match contains 7-15 digits (valid phone number range)
+				const digitCount = (match.match(/\d/g) || []).length;
+				if (digitCount >= 7 && digitCount <= 15) {
 					return "[PHONE]";
-				},
-			);
+				}
+				return match;
+			});
 		}
 
 		return redacted;

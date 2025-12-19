@@ -1,5 +1,5 @@
-import { describe, expect, it, beforeEach } from "vitest";
-import { TemporalQueryParser, buildTemporalFilter, applyRecencyBoost } from "./temporal-parser";
+import { beforeEach, describe, expect, it } from "vitest";
+import { applyRecencyBoost, buildTemporalFilter, TemporalQueryParser } from "./temporal-parser";
 
 describe("TemporalQueryParser", () => {
 	let parser: TemporalQueryParser;

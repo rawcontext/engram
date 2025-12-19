@@ -108,7 +108,6 @@ export class EngramRetriever {
 	private sessionRetriever: SessionRetrieverInterface | null = null;
 	private llmProvider: LLMProviderInterface | null = null;
 	private temporalParser: TemporalParserInterface | null = null;
-	private queryFeatureExtractor: QueryFeatureExtractorInterface | null = null;
 	private learnedFusion: LearnedFusionInterface | null = null;
 	private embeddingDimensions: number = 384; // Default for e5-small
 
@@ -601,7 +600,7 @@ Return ONLY a JSON array of query strings. No explanations.`;
 				}));
 
 				try {
-					return await this.sessionSummarizer!.summarize(turns);
+					return await this.sessionSummarizer?.summarize(turns);
 				} catch (error) {
 					console.warn(`  [Session-Aware] Failed to summarize session ${sessionId}:`, error);
 					return null;

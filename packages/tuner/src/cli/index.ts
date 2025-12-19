@@ -6,10 +6,10 @@
  */
 
 import { Command } from "commander";
-import { optimizeCommand } from "./commands/optimize.js";
-import { statusCommand } from "./commands/status.js";
 import { bestCommand } from "./commands/best.js";
 import { listCommand } from "./commands/list.js";
+import { optimizeCommand } from "./commands/optimize.js";
+import { statusCommand } from "./commands/status.js";
 
 const program = new Command();
 

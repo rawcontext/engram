@@ -279,10 +279,31 @@ export class RateLimiter {
 
 	/**
 	 * Remove requests outside the sliding window.
+	 * Also subtracts the cost of expired requests from totalCost.
 	 */
 	private pruneExpiredRequests(state: UserLimitState, now: number): void {
 		const cutoff = now - this.config.windowMs;
-		state.requests = state.requests.filter((req) => req.timestamp > cutoff);
+		const expiredRequests = state.requests.filter((req) => req.timestamp <= cutoff);
+		const activeRequests = state.requests.filter((req) => req.timestamp > cutoff);
+
+		// Subtract cost of expired requests from totalCost
+		if (this.config.trackCosts && expiredRequests.length > 0) {
+			const expiredCost = expiredRequests.reduce((sum, req) => sum + (req.cost || 0), 0);
+			state.totalCost = Math.max(0, state.totalCost - expiredCost);
+
+			// Reset budget exceeded flag if cost drops below limit
+			if (state.budgetExceeded && state.totalCost < this.config.budgetLimit) {
+				state.budgetExceeded = false;
+				this.logger.info({
+					msg: "User budget reset after cost expiration",
+					userId: "unknown", // We don't have userId here, but log the reset
+					newTotalCost: state.totalCost,
+					budgetLimit: this.config.budgetLimit,
+				});
+			}
+		}
+
+		state.requests = activeRequests;
 	}
 
 	/**

@@ -128,7 +128,7 @@ export class TurnAggregator {
 		if (this.onNodeCreated) {
 			// Handle both sync and async callbacks with proper error catching
 			Promise.resolve()
-				.then(() => this.onNodeCreated!(sessionId, node))
+				.then(() => this.onNodeCreated?.(sessionId, node))
 				.catch((e) => {
 					this.logger.error({ err: e }, "Failed to emit node created event");
 				});
