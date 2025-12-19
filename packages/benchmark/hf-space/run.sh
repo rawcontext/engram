@@ -17,10 +17,10 @@ echo "Starting at $(date)"
 echo "Starting FalkorDB..."
 mkdir -p /app/falkordb-data
 
-# Find the FalkorDB module
-FALKORDB_MODULE=$(find /opt/falkordb -name "falkordb.so" 2>/dev/null | head -1)
-if [ -z "$FALKORDB_MODULE" ]; then
-  echo "ERROR: FalkorDB module not found"
+# FalkorDB module path
+FALKORDB_MODULE="/opt/falkordb/falkordb.so"
+if [ ! -f "$FALKORDB_MODULE" ]; then
+  echo "ERROR: FalkorDB module not found at $FALKORDB_MODULE"
   exit 1
 fi
 

@@ -88,14 +88,12 @@ RUN wget -q https://github.com/qdrant/qdrant/releases/download/v1.16.2/qdrant-x8
 RUN apt-get update && apt-get install -y \
     redis-server \
     libgomp1 \
-    unzip \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /app/falkordb-data
 
-# Download FalkorDB module
-RUN wget -q https://github.com/FalkorDB/FalkorDB/releases/download/v4.4.1/falkordb.Linux-ubuntu22.04-x86_64.v4.4.1.zip \
-    && unzip falkordb.Linux-ubuntu22.04-x86_64.v4.4.1.zip -d /opt/falkordb \
-    && rm falkordb.Linux-ubuntu22.04-x86_64.v4.4.1.zip
+# Download FalkorDB module (v4.14.10 - latest)
+RUN mkdir -p /opt/falkordb \
+    && wget -q https://github.com/FalkorDB/FalkorDB/releases/download/v4.14.10/falkordb-x64.so -O /opt/falkordb/falkordb.so
 
 # Copy HF Space runner script
 COPY packages/benchmark/hf-space/run.sh /app/run.sh
