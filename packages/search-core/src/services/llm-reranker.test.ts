@@ -4,21 +4,26 @@ import type { DocumentCandidate } from "./batched-reranker";
 // Mock XAIClient - must be defined before vi.mock for hoisting
 const mockXAIClient = {
 	chatJSON: vi.fn(),
-	getTotalCost: vi.fn().mockReturnValue(5.0),
-	getTotalTokens: vi.fn().mockReturnValue(1000),
+	getTotalCost: vi.fn(),
+	getTotalTokens: vi.fn(),
 	resetCounters: vi.fn(),
 };
 
-// Mock rate limiter
+// Mock XAIClient constructor
+const MockXAIClientClass = vi.fn(() => mockXAIClient);
+
+// Mock rate limiter - defined before vi.mock for hoisting
+const mockRateLimiter = {
+	checkLimit: vi.fn(),
+	recordRequest: vi.fn(),
+};
+
+// Mock RateLimiter constructor
+const MockRateLimiterClass = vi.fn(() => mockRateLimiter);
+
+// Mock rate limiter module
 vi.mock("./rate-limiter", () => ({
-	RateLimiter: vi.fn().mockImplementation(() => ({
-		checkLimit: vi.fn().mockReturnValue({
-			allowed: true,
-			remaining: 95,
-			resetAt: new Date(Date.now() + 3600000),
-		}),
-		recordRequest: vi.fn(),
-	})),
+	RateLimiter: MockRateLimiterClass,
 }));
 
 // Mock logger
@@ -36,19 +41,16 @@ vi.mock("./reranker-metrics", () => ({
 	recordRerankMetrics: vi.fn(),
 }));
 
-// Mock XAI Client - create an actual fake module file
-vi.mock("../clients/xai-client", () => {
-	return {
-		XAIClient: vi.fn().mockImplementation(() => mockXAIClient),
-	};
-});
+// Mock XAI Client
+vi.mock("../clients/xai-client", () => ({
+	XAIClient: MockXAIClientClass,
+}));
 
 // Import after mocking
 const { LLMListwiseReranker } = await import("./llm-reranker");
 
 describe("LLMListwiseReranker", () => {
 	let reranker: LLMListwiseReranker;
-	let mockClient: any;
 
 	const mockCandidates: DocumentCandidate[] = [
 		{ id: "1", content: "First document about OAuth2 authentication flow" },
@@ -61,15 +63,24 @@ describe("LLMListwiseReranker", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 
+		// Reset mock constructor implementations
+		MockXAIClientClass.mockImplementation(() => mockXAIClient);
+		MockRateLimiterClass.mockImplementation(() => mockRateLimiter);
+
+		// Reset mock return values after clearing
+		mockXAIClient.getTotalCost.mockReturnValue(5.0);
+		mockXAIClient.getTotalTokens.mockReturnValue(1000);
+		mockRateLimiter.checkLimit.mockReturnValue({
+			allowed: true,
+			remaining: 95,
+			resetAt: new Date(Date.now() + 3600000),
+		});
+
 		reranker = new LLMListwiseReranker({
 			apiKey: "test-key",
 			model: "grok-4-1-fast-reasoning",
 			maxCandidates: 10,
 		});
-
-		// Get mock client instance
-		const { XAIClient } = require("../clients/xai-client");
-		mockClient = XAIClient.mock.results[XAIClient.mock.results.length - 1].value;
 	});
 
 	afterEach(() => {
@@ -114,7 +125,7 @@ describe("LLMListwiseReranker", () => {
 
 		it("should successfully rerank documents", async () => {
 			// Mock LLM response with ranking
-			mockClient.chatJSON.mockResolvedValueOnce([3, 0, 2, 1, 4]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([3, 0, 2, 1, 4]);
 
 			const results = await reranker.rerank("How to implement OAuth2?", mockCandidates, 5);
 
@@ -135,12 +146,12 @@ describe("LLMListwiseReranker", () => {
 			}));
 
 			// Mock LLM response
-			mockClient.chatJSON.mockResolvedValueOnce([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
 			await reranker.rerank("test query", manyCandidates, 5);
 
 			// Should only send maxCandidates (10) to LLM
-			expect(mockClient.chatJSON).toHaveBeenCalledWith(
+			expect(mockXAIClient.chatJSON).toHaveBeenCalledWith(
 				expect.arrayContaining([
 					expect.objectContaining({ role: "system" }),
 					expect.objectContaining({
@@ -152,13 +163,13 @@ describe("LLMListwiseReranker", () => {
 			);
 
 			// Should NOT contain [10] or higher
-			const callArgs = mockClient.chatJSON.mock.calls[0][0];
+			const callArgs = mockXAIClient.chatJSON.mock.calls[0][0];
 			const userMessage = callArgs.find((msg: any) => msg.role === "user");
 			expect(userMessage.content).not.toContain("[10]");
 		});
 
 		it("should respect topK parameter", async () => {
-			mockClient.chatJSON.mockResolvedValueOnce([3, 0, 2, 1, 4]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([3, 0, 2, 1, 4]);
 
 			const results = await reranker.rerank(
 				"test query",
@@ -178,7 +189,7 @@ describe("LLMListwiseReranker", () => {
 				{ id: "3", content: "Third", score: 0.75 },
 			];
 
-			mockClient.chatJSON.mockResolvedValueOnce([2, 0, 1]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([2, 0, 1]);
 
 			const results = await reranker.rerank("test", candidatesWithScores, 3);
 
@@ -188,7 +199,7 @@ describe("LLMListwiseReranker", () => {
 		});
 
 		it("should assign scores based on rank position", async () => {
-			mockClient.chatJSON.mockResolvedValueOnce([3, 0, 2, 1, 4]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([3, 0, 2, 1, 4]);
 
 			const results = await reranker.rerank("test", mockCandidates, 5);
 
@@ -205,23 +216,17 @@ describe("LLMListwiseReranker", () => {
 		});
 
 		it("should check rate limits", async () => {
-			mockClient.chatJSON.mockResolvedValueOnce([0, 1, 2]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([0, 1, 2]);
 
 			await reranker.rerank("test", mockCandidates, 3, "user-123");
-
-			const { RateLimiter } = require("./rate-limiter");
-			const mockRateLimiter = RateLimiter.mock.results[RateLimiter.mock.results.length - 1].value;
 
 			expect(mockRateLimiter.checkLimit).toHaveBeenCalledWith("user-123", "llm");
 		});
 
 		it("should record request after successful rerank", async () => {
-			mockClient.chatJSON.mockResolvedValueOnce([0, 1, 2]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([0, 1, 2]);
 
 			await reranker.rerank("test", mockCandidates, 3, "user-123");
-
-			const { RateLimiter } = require("./rate-limiter");
-			const mockRateLimiter = RateLimiter.mock.results[RateLimiter.mock.results.length - 1].value;
 
 			expect(mockRateLimiter.recordRequest).toHaveBeenCalledWith(
 				"user-123",
@@ -231,9 +236,6 @@ describe("LLMListwiseReranker", () => {
 		});
 
 		it("should fail if rate limit exceeded", async () => {
-			const { RateLimiter } = require("./rate-limiter");
-			const mockRateLimiter = RateLimiter.mock.results[RateLimiter.mock.results.length - 1].value;
-
 			mockRateLimiter.checkLimit.mockReturnValueOnce({
 				allowed: false,
 				remaining: 0,
@@ -248,7 +250,7 @@ describe("LLMListwiseReranker", () => {
 
 		it("should validate ranking indices", async () => {
 			// Return invalid index
-			mockClient.chatJSON.mockResolvedValueOnce([0, 99, 1]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([0, 99, 1]);
 
 			await expect(reranker.rerank("test", mockCandidates, 3)).rejects.toThrow(
 				"Invalid ranking index",
@@ -256,7 +258,7 @@ describe("LLMListwiseReranker", () => {
 		});
 
 		it("should handle LLM errors gracefully", async () => {
-			mockClient.chatJSON.mockRejectedValueOnce(new Error("LLM API error"));
+			mockXAIClient.chatJSON.mockRejectedValueOnce(new Error("LLM API error"));
 
 			await expect(reranker.rerank("test", mockCandidates, 3)).rejects.toThrow("LLM API error");
 		});
@@ -277,29 +279,29 @@ describe("LLMListwiseReranker", () => {
 		it("should reset usage counters", () => {
 			reranker.resetUsage();
 
-			expect(mockClient.resetCounters).toHaveBeenCalled();
+			expect(mockXAIClient.resetCounters).toHaveBeenCalled();
 		});
 	});
 
 	describe("prompt generation", () => {
 		it("should include query in prompt", async () => {
-			mockClient.chatJSON.mockResolvedValueOnce([0, 1]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([0, 1]);
 
 			const query = "How to implement OAuth2?";
 			await reranker.rerank(query, mockCandidates.slice(0, 2), 2);
 
-			const callArgs = mockClient.chatJSON.mock.calls[0][0];
+			const callArgs = mockXAIClient.chatJSON.mock.calls[0][0];
 			const userMessage = callArgs.find((msg: any) => msg.role === "user");
 
 			expect(userMessage.content).toContain(query);
 		});
 
 		it("should include candidates in prompt", async () => {
-			mockClient.chatJSON.mockResolvedValueOnce([0, 1]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([0, 1]);
 
 			await reranker.rerank("test", mockCandidates.slice(0, 2), 2);
 
-			const callArgs = mockClient.chatJSON.mock.calls[0][0];
+			const callArgs = mockXAIClient.chatJSON.mock.calls[0][0];
 			const userMessage = callArgs.find((msg: any) => msg.role === "user");
 
 			expect(userMessage.content).toContain("[0]");
@@ -314,11 +316,11 @@ describe("LLMListwiseReranker", () => {
 				content: "a".repeat(1000),
 			};
 
-			mockClient.chatJSON.mockResolvedValueOnce([0]);
+			mockXAIClient.chatJSON.mockResolvedValueOnce([0]);
 
 			await reranker.rerank("test", [longDoc], 1);
 
-			const callArgs = mockClient.chatJSON.mock.calls[0][0];
+			const callArgs = mockXAIClient.chatJSON.mock.calls[0][0];
 			const userMessage = callArgs.find((msg: any) => msg.role === "user");
 
 			// Should be truncated to ~500 chars

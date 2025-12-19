@@ -9,9 +9,10 @@ describe("NodeFileSystem", () => {
 	let testDir: string;
 
 	beforeEach(() => {
-		nodeFs = new NodeFileSystem();
 		// Create a unique temporary directory for each test
 		testDir = fs.mkdtempSync(path.join(os.tmpdir(), "node-fs-test-"));
+		// Pass testDir as baseDir so all operations are within allowed directory
+		nodeFs = new NodeFileSystem(testDir);
 	});
 
 	afterEach(() => {

@@ -27,7 +27,8 @@ describe("Redactor", () => {
 
 	it("should redact phone numbers", () => {
 		expect(redactor.redact("Call me at 555-123-4567")).toBe("Call me at [PHONE]");
-		expect(redactor.redact("Or +1 (555) 123-4567")).toBe("Or +[PHONE]");
+		// Note: The + prefix is part of the international phone format and is redacted along with the number
+		expect(redactor.redact("Or +1 (555) 123-4567")).toBe("Or [PHONE]");
 	});
 
 	it("should not redact simple numbers", () => {

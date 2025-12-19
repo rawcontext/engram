@@ -10,11 +10,16 @@
  *
  * REQUIREMENTS:
  * - Qdrant running on localhost:6333 (use `bun infra:up`)
- * - Run with: cd packages/search-core && bun test reranker-integration.test.ts
+ * - Run with: RUN_INTEGRATION_TESTS=1 npm test reranker-integration.test.ts
+ *
+ * These tests are skipped by default because they require infrastructure.
+ * Set RUN_INTEGRATION_TESTS=1 to enable them.
  */
 
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+const RUN_INTEGRATION_TESTS = process.env.RUN_INTEGRATION_TESTS === "1";
 import { BatchedReranker, type DocumentCandidate } from "./batched-reranker";
 import { RerankerRouter } from "./reranker-router";
 import { SearchRetriever } from "./retriever";
@@ -66,7 +71,7 @@ const TEST_DOCUMENTS = [
 	},
 ];
 
-describe("Reranker Pipeline Integration", () => {
+describe.skipIf(!RUN_INTEGRATION_TESTS)("Reranker Pipeline Integration", () => {
 	let client: QdrantClient;
 	let retriever: SearchRetriever;
 	let textEmbedder: TextEmbedder;

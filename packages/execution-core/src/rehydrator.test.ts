@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock @engram/storage before importing the unit under test
-const mockBlobStoreRead = vi.fn(async () => "{}");
+const mockBlobStoreLoad = vi.fn(async () => "{}");
 vi.mock("@engram/storage", () => ({
 	createBlobStore: () => ({
-		read: mockBlobStoreRead,
-		write: vi.fn(async () => {}),
+		load: mockBlobStoreLoad,
+		save: vi.fn(async () => "blob://ref"),
+	}),
+	createFalkorClient: () => ({
+		query: vi.fn(async () => []),
 	}),
 }));
 
@@ -23,7 +26,7 @@ describe("Rehydrator", () => {
 			query: mockFalkorQuery,
 		} as unknown as FalkorClient;
 		rehydrator = new Rehydrator(mockFalkor);
-		mockBlobStoreRead.mockClear();
+		mockBlobStoreLoad.mockClear();
 	});
 
 	it("should return empty VFS if no snapshots found", async () => {
@@ -62,14 +65,14 @@ describe("Rehydrator", () => {
 		const mockSnapshot = ["blob-ref-123", 1000];
 		// First call: snapshot found, second call: no diffs
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
-		mockBlobStoreRead.mockResolvedValueOnce(
+		mockBlobStoreLoad.mockResolvedValueOnce(
 			JSON.stringify({ root: { name: "", type: "directory", children: {} } }),
 		);
 
 		await rehydrator.rehydrate("session-1");
 
 		expect(mockFalkorQuery).toHaveBeenCalled();
-		expect(mockBlobStoreRead).toHaveBeenCalledWith("blob-ref-123");
+		expect(mockBlobStoreLoad).toHaveBeenCalledWith("blob-ref-123");
 	});
 
 	it("should apply diffs in order after snapshot", async () => {
@@ -100,7 +103,7 @@ describe("Rehydrator", () => {
 	it("should pass lastSnapshotTime to diff query", async () => {
 		const mockSnapshot = ["blob-ref-123", 5000];
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
-		mockBlobStoreRead.mockResolvedValueOnce(
+		mockBlobStoreLoad.mockResolvedValueOnce(
 			JSON.stringify({ root: { name: "", type: "directory", children: {} } }),
 		);
 

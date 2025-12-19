@@ -24,7 +24,7 @@ const { mockExtractor, mockPipeline } = vi.hoisted(() => {
 	);
 
 	const mockPipeline = vi.fn(async (task: string, model: string, _options?: unknown) => {
-		if (task === "feature-extraction" && model === "jinaai/jina-colbert-v2") {
+		if (task === "feature-extraction" && model === "Xenova/colbertv2.0") {
 			return mockExtractor;
 		}
 		throw new Error(`Unknown task or model: ${task}, ${model}`);
@@ -51,7 +51,7 @@ describe("ColBERTEmbedder", () => {
 
 			expect(instance1).toBe(instance2);
 			expect(mockPipeline).toHaveBeenCalledTimes(1);
-			expect(mockPipeline).toHaveBeenCalledWith("feature-extraction", "jinaai/jina-colbert-v2", {
+			expect(mockPipeline).toHaveBeenCalledWith("feature-extraction", "Xenova/colbertv2.0", {
 				dtype: "q8",
 			});
 		});
@@ -59,7 +59,7 @@ describe("ColBERTEmbedder", () => {
 		it("should load model with quantization", async () => {
 			await ColBERTEmbedder.getInstance();
 
-			expect(mockPipeline).toHaveBeenCalledWith("feature-extraction", "jinaai/jina-colbert-v2", {
+			expect(mockPipeline).toHaveBeenCalledWith("feature-extraction", "Xenova/colbertv2.0", {
 				dtype: "q8",
 			});
 		});
@@ -84,7 +84,7 @@ describe("ColBERTEmbedder", () => {
 			const embedder = new ColBERTEmbedder();
 			await embedder.encodeDocument("test document");
 
-			expect(mockExtractor).toHaveBeenCalledWith("passage: test document", {
+			expect(mockExtractor).toHaveBeenCalledWith("[D] test document", {
 				pooling: "none",
 				normalize: true,
 			});
@@ -139,7 +139,7 @@ describe("ColBERTEmbedder", () => {
 			const embedder = new ColBERTEmbedder();
 			await embedder.encodeQuery("search term");
 
-			expect(mockExtractor).toHaveBeenCalledWith("query: search term", {
+			expect(mockExtractor).toHaveBeenCalledWith("[Q] search term", {
 				pooling: "none",
 				normalize: true,
 			});
@@ -161,7 +161,7 @@ describe("ColBERTEmbedder", () => {
 			await embedder.preload();
 
 			expect(mockPipeline).toHaveBeenCalledTimes(1);
-			expect(mockPipeline).toHaveBeenCalledWith("feature-extraction", "jinaai/jina-colbert-v2", {
+			expect(mockPipeline).toHaveBeenCalledWith("feature-extraction", "Xenova/colbertv2.0", {
 				dtype: "q8",
 			});
 		});

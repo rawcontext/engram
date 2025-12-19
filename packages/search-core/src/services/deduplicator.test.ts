@@ -15,12 +15,12 @@ vi.mock("./text-embedder", () => {
 vi.mock("@qdrant/js-client-rest", () => {
 	return {
 		QdrantClient: class {
-			async search(_collection: string, params: any) {
+			async query(_collection: string, params: any) {
 				if (params.score_threshold && params.score_threshold > 0.9) {
 					// Simulate finding a duplicate if thresholds match logic
-					return [{ id: "existing-uuid", score: 0.96 }];
+					return { points: [{ id: "existing-uuid", score: 0.96 }] };
 				}
-				return [];
+				return { points: [] };
 			}
 		},
 	};

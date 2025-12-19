@@ -1,6 +1,26 @@
 import * as fs from "node:fs/promises";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBlobStore, FileSystemBlobStore, GCSBlobStore } from "./blob";
+
+// Mock functions for GCS operations
+const mockSave = vi.fn();
+const mockDownload = vi.fn();
+const mockExists = vi.fn();
+const mockFile = vi.fn(() => ({
+	save: mockSave,
+	download: mockDownload,
+	exists: mockExists,
+}));
+const mockBucket = vi.fn(() => ({
+	file: mockFile,
+}));
+
+// Mock the @google-cloud/storage module
+vi.mock("@google-cloud/storage", () => ({
+	Storage: vi.fn(() => ({
+		bucket: mockBucket,
+	})),
+}));
 
 describe("Blob Storage", () => {
 	const testDir = `/tmp/engram-blob-test-${Date.now()}`;
@@ -115,26 +135,21 @@ describe("Blob Storage", () => {
 	});
 
 	describe("GCSBlobStore", () => {
-		let originalWarn: any;
-		let mockWarn: ReturnType<typeof spyOn>;
-
 		beforeEach(() => {
-			originalWarn = console.warn;
-			mockWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		});
-
-		afterEach(() => {
-			mockWarn.mockRestore();
-			console.warn = originalWarn;
+			vi.clearAllMocks();
+			// Reset default mock implementations
+			mockSave.mockResolvedValue(undefined);
+			mockExists.mockResolvedValue([true]);
+			mockDownload.mockResolvedValue([Buffer.from("test content")]);
 		});
 
 		it("should generate GCS URI on save", async () => {
 			const store = new GCSBlobStore("test-bucket");
 
-			// This will fail due to no GCS credentials, but should return a stub URI
 			const uri = await store.save("test content");
 
 			expect(uri).toMatch(/^gs:\/\/test-bucket\/[a-f0-9]+$/);
+			expect(mockSave).toHaveBeenCalledWith("test content", { contentType: "application/json" });
 		});
 
 		it("should generate deterministic hash-based filenames", async () => {
@@ -158,12 +173,37 @@ describe("Blob Storage", () => {
 			await expect(store.read("gs://bucket-only")).rejects.toThrow("Invalid GCS URI format");
 		});
 
-		it("should warn and fallback on GCS read failure", async () => {
+		it("should throw StorageError on GCS read failure", async () => {
 			const store = new GCSBlobStore("test-bucket");
+			mockExists.mockRejectedValueOnce(new Error("Network error"));
 
-			const result = await store.read("gs://test-bucket/somefile");
-			expect(result).toBe("");
-			expect(mockWarn).toHaveBeenCalled();
+			await expect(store.read("gs://test-bucket/somefile")).rejects.toThrow(
+				"Failed to read blob from GCS",
+			);
+		});
+
+		it("should throw StorageError on GCS save failure", async () => {
+			const store = new GCSBlobStore("test-bucket");
+			mockSave.mockRejectedValueOnce(new Error("Network error"));
+
+			await expect(store.save("test content")).rejects.toThrow("Failed to upload blob to GCS");
+		});
+
+		it("should throw StorageError when blob not found", async () => {
+			const store = new GCSBlobStore("test-bucket");
+			mockExists.mockResolvedValueOnce([false]);
+
+			await expect(store.read("gs://test-bucket/somefile")).rejects.toThrow("Blob not found");
+		});
+
+		it("should read content successfully", async () => {
+			const store = new GCSBlobStore("test-bucket");
+			mockExists.mockResolvedValueOnce([true]);
+			mockDownload.mockResolvedValueOnce([Buffer.from("loaded content")]);
+
+			const content = await store.read("gs://test-bucket/somefile");
+
+			expect(content).toBe("loaded content");
 		});
 	});
 

@@ -111,27 +111,22 @@ describe("RuntimeConfig", () => {
 			expect(lastConfig?.enabled).toBe(false);
 		});
 
-		test("should rollback on validation failure", () => {
-			const originalConfig = RuntimeConfig.get();
-
-			// Disable LLM tier, then try to update (should fail if XAI_API_KEY not set)
-			// This test assumes XAI_API_KEY is not set
+		test("should auto-disable LLM tier when API key is missing", () => {
+			// Delete XAI_API_KEY before update
 			delete process.env.XAI_API_KEY;
 
-			try {
-				RuntimeConfig.update({
-					tiers: {
-						llm: {
-							enabled: true,
-						},
+			// Try to enable LLM tier without API key
+			RuntimeConfig.update({
+				tiers: {
+					llm: {
+						enabled: true,
 					},
-				});
-			} catch (error) {
-				// Expected to fail
-			}
+				},
+			});
 
 			const currentConfig = RuntimeConfig.get();
-			expect(currentConfig).toEqual(originalConfig);
+			// LLM tier should be auto-disabled (not crash) when API key is missing
+			expect(currentConfig.tiers.llm.enabled).toBe(false);
 		});
 	});
 

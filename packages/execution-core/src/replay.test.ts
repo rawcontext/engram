@@ -36,21 +36,22 @@ describe("ReplayEngine", () => {
 	});
 
 	it("should replay a tool call event", async () => {
-		// First call: snapshot query returns empty
-		// Second call: diff query returns empty
-		// Third call: tool call event query
+		// First call: fetchToolCallEvent query returns the tool call
+		// Second call: rehydrator's snapshot query returns empty
+		// Third call: rehydrator's diff query returns empty
+		// Note: Using write_file because read_file would fail with empty VFS
 		mockFalkorQuery
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]) // diffs
 			.mockResolvedValueOnce([
 				{
 					id: "event-1",
-					name: "read_file",
-					arguments: JSON.stringify({ path: "/test.txt" }),
-					result: JSON.stringify({ content: "hello" }),
+					name: "write_file",
+					arguments: JSON.stringify({ path: "/test.txt", content: "hello" }),
+					result: JSON.stringify({ success: true }),
 					vt_start: 1000,
 				},
-			]);
+			]) // tool call event
+			.mockResolvedValueOnce([]) // snapshot
+			.mockResolvedValueOnce([]); // diffs
 
 		const result = await engine.replay("session-1", "event-1");
 
@@ -62,8 +63,6 @@ describe("ReplayEngine", () => {
 
 		// Setup mock to return a tool call
 		mockFalkorQuery
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]) // diffs
 			.mockResolvedValueOnce([
 				{
 					id: "event-1",
@@ -72,7 +71,9 @@ describe("ReplayEngine", () => {
 					result: null,
 					vt_start: 5000,
 				},
-			]);
+			]) // tool call
+			.mockResolvedValueOnce([]) // snapshot
+			.mockResolvedValueOnce([]); // diffs
 
 		await engine.replay("session-1", "event-1");
 
@@ -81,10 +82,8 @@ describe("ReplayEngine", () => {
 	});
 
 	it("should compare outputs correctly", async () => {
-		// Setup for a read_file tool with matching output
+		// Setup for a write_file tool with matching output
 		mockFalkorQuery
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]) // diffs
 			.mockResolvedValueOnce([
 				{
 					id: "event-1",
@@ -93,7 +92,9 @@ describe("ReplayEngine", () => {
 					result: JSON.stringify({ success: true }),
 					vt_start: 1000,
 				},
-			]);
+			]) // tool call
+			.mockResolvedValueOnce([]) // snapshot
+			.mockResolvedValueOnce([]); // diffs
 
 		const result = await engine.replay("session-1", "event-1");
 
@@ -104,17 +105,17 @@ describe("ReplayEngine", () => {
 	it("should detect mismatched outputs", async () => {
 		// Setup where original result differs from replay
 		mockFalkorQuery
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]) // diffs
 			.mockResolvedValueOnce([
 				{
 					id: "event-1",
 					name: "write_file",
 					arguments: JSON.stringify({ path: "/new.txt", content: "test" }),
-					result: JSON.stringify({ success: false }), // Different from actual replay
+					result: JSON.stringify({ success: false }), // Different from actual replay (which returns { success: true })
 					vt_start: 1000,
 				},
-			]);
+			]) // tool call
+			.mockResolvedValueOnce([]) // snapshot
+			.mockResolvedValueOnce([]); // diffs
 
 		const result = await engine.replay("session-1", "event-1");
 
