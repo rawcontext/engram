@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { evaluateCommand } from "./commands/evaluate.js";
+import { ingestCommand } from "./commands/ingest.js";
 import { runCommand } from "./commands/run.js";
 import {
 	DEFAULT_DENSE_STEPS,
@@ -118,6 +119,18 @@ program
 	.description("Validate a benchmark dataset file")
 	.argument("<path>", "Path to dataset file")
 	.action(validateCommand);
+
+// Ingest dataset into FalkorDB + Qdrant
+program
+	.command("ingest")
+	.description("Ingest dataset into FalkorDB (graph) and Qdrant (vectors)")
+	.requiredOption("-d, --dataset <path>", "Path to dataset file")
+	.option("--falkor-url <url>", "FalkorDB (Redis) URL", "redis://localhost:6379")
+	.option("--qdrant-url <url>", "Qdrant server URL", "http://localhost:6333")
+	.option("--embedding-model <model>", "Embedding model: e5-small, e5-base, e5-large", "e5-large")
+	.option("--clear", "Clear existing data before ingesting", false)
+	.option("--verbose", "Show detailed progress", false)
+	.action(ingestCommand);
 
 // Train fusion weights command
 program

@@ -8,9 +8,9 @@
 		"engram-benchmark": "./src/cli/index.ts"
 	},
 	"devDependencies": {
-		"typescript": "^5.9.3",
+		"@engram/tsconfig": "*",
 		"@types/node": "^24.10.1",
-		"@engram/tsconfig": "*"
+		"typescript": "^5.9.3"
 	},
 	"dependencies": {
 		"@ai-sdk/google": "^1.2.18",
@@ -20,6 +20,7 @@
 		"@qdrant/js-client-rest": "^1.16.2",
 		"ai": "^4.3.16",
 		"commander": "^14.0.0",
+		"falkordb": "^6.4.1",
 		"zod": "^4.1.13"
 	},
 	"optionalDependencies": {

@@ -203,7 +203,6 @@ const server = http.createServer((req, res) => {
       "--chain-of-note",
       "--time-aware",
       "--embedding-model", "e5-large",
-      "--use-falkor",
       "--verbose",
       "--output", "/results/benchmark-results.jsonl"
     ];
