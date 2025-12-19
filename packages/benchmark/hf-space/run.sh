@@ -2,7 +2,8 @@
 # =============================================================================
 # Engram Benchmark Runner for HF Spaces
 # =============================================================================
-# Starts Qdrant and runs the benchmark, serving status on port 7860
+# Starts FalkorDB, Qdrant and runs the benchmark, serving status on port 7860
+# Full Engram stack: FalkorDB (graph) + Qdrant (vectors)
 # =============================================================================
 
 set -euo pipefail
@@ -10,7 +11,42 @@ set -euo pipefail
 echo "=== Engram Benchmark Runner ==="
 echo "Starting at $(date)"
 
-# Create Qdrant config
+# -----------------------------------------------------------------------------
+# Start FalkorDB (Redis + FalkorDB module)
+# -----------------------------------------------------------------------------
+echo "Starting FalkorDB..."
+mkdir -p /app/falkordb-data
+
+# Find the FalkorDB module
+FALKORDB_MODULE=$(find /opt/falkordb -name "falkordb.so" 2>/dev/null | head -1)
+if [ -z "$FALKORDB_MODULE" ]; then
+  echo "ERROR: FalkorDB module not found"
+  exit 1
+fi
+
+# Start Redis with FalkorDB module
+redis-server --daemonize yes \
+  --port 6379 \
+  --dir /app/falkordb-data \
+  --loadmodule "$FALKORDB_MODULE" \
+  --save 60 1 \
+  --appendonly yes
+
+# Wait for FalkorDB to be ready
+echo "Waiting for FalkorDB..."
+for i in {1..30}; do
+  if redis-cli ping > /dev/null 2>&1; then
+    echo "FalkorDB is ready!"
+    redis-cli MODULE LIST | grep -i falkor && echo "FalkorDB module loaded!"
+    break
+  fi
+  sleep 1
+done
+
+# -----------------------------------------------------------------------------
+# Start Qdrant
+# -----------------------------------------------------------------------------
+echo "Starting Qdrant..."
 mkdir -p /app/qdrant-storage
 cat > /app/qdrant-config.yaml << 'EOF'
 storage:
@@ -21,12 +57,9 @@ service:
 telemetry_disabled: true
 EOF
 
-# Start Qdrant in background
-echo "Starting Qdrant..."
 /usr/local/bin/qdrant --config-path /app/qdrant-config.yaml &
 QDRANT_PID=$!
 
-# Wait for Qdrant to be ready
 echo "Waiting for Qdrant..."
 for i in {1..30}; do
   if curl -s http://localhost:6333/readyz > /dev/null 2>&1; then
@@ -36,37 +69,108 @@ for i in {1..30}; do
   sleep 2
 done
 
-# Check if benchmark dataset exists, if not download from HF
+# -----------------------------------------------------------------------------
+# Check/Download Dataset
+# -----------------------------------------------------------------------------
 if [ ! -f /data/longmemeval_oracle.json ]; then
-  echo "Downloading benchmark dataset..."
-  # Dataset should be uploaded to HF Datasets: engram/longmemeval
-  # For now, check if mounted or provided
-  if [ -f /app/data/longmemeval_oracle.json ]; then
-    cp /app/data/longmemeval_oracle.json /data/
+  echo "Checking for benchmark dataset..."
+  if [ -f /app/packages/benchmark/data/longmemeval_oracle.json ]; then
+    cp /app/packages/benchmark/data/longmemeval_oracle.json /data/
+    echo "Dataset copied from app bundle"
   else
-    echo "WARNING: No dataset found. Upload longmemeval_oracle.json to /data"
+    echo "WARNING: No dataset found at /data/longmemeval_oracle.json"
+    echo "Upload dataset or include in packages/benchmark/data/"
   fi
 fi
 
-# Create a simple status server using Node.js
+# -----------------------------------------------------------------------------
+# Create Server with Ingest + Benchmark APIs
+# -----------------------------------------------------------------------------
 cat > /app/server.js << 'SERVEREOF'
 const http = require("http");
 const { spawn } = require("child_process");
 const fs = require("fs");
 
 let status = "idle";
+let ingestStatus = "not_started";
 let output = [];
-let benchmarkProcess = null;
+let currentProcess = null;
 
 const server = http.createServer((req, res) => {
   res.setHeader("Content-Type", "application/json");
+  res.setHeader("Access-Control-Allow-Origin", "*");
 
+  // Health check
   if (req.url === "/health" || req.url === "/") {
-    res.end(JSON.stringify({ status: "ok", benchmark: status }));
-  } else if (req.url === "/start" && req.method === "POST") {
+    res.end(JSON.stringify({
+      status: "ok",
+      benchmark: status,
+      ingest: ingestStatus,
+      falkordb: "redis://localhost:6379",
+      qdrant: "http://localhost:6333"
+    }));
+    return;
+  }
+
+  // Ingest data into FalkorDB
+  if (req.url === "/ingest" && req.method === "POST") {
+    if (ingestStatus === "running") {
+      res.statusCode = 400;
+      res.end(JSON.stringify({ error: "Ingest already running" }));
+      return;
+    }
+
+    ingestStatus = "running";
+    output = [];
+
+    // Run ingest script
+    const args = [
+      "tsx", "packages/benchmark/src/cli/index.ts",
+      "ingest",
+      "--dataset", "/data/longmemeval_oracle.json",
+      "--falkor-url", "redis://localhost:6379",
+      "--qdrant-url", "http://localhost:6333",
+      "--verbose"
+    ];
+
+    currentProcess = spawn("npx", args, { cwd: "/app" });
+
+    currentProcess.stdout.on("data", (data) => {
+      const line = data.toString();
+      output.push(line);
+      console.log("[ingest]", line);
+    });
+
+    currentProcess.stderr.on("data", (data) => {
+      const line = data.toString();
+      output.push(line);
+      console.error("[ingest]", line);
+    });
+
+    currentProcess.on("close", (code) => {
+      ingestStatus = code === 0 ? "completed" : "failed";
+      console.log(`Ingest finished with code ${code}`);
+      currentProcess = null;
+    });
+
+    res.end(JSON.stringify({ status: "ingest_started" }));
+    return;
+  }
+
+  // Start benchmark
+  if (req.url === "/start" && req.method === "POST") {
     if (status === "running") {
       res.statusCode = 400;
       res.end(JSON.stringify({ error: "Benchmark already running" }));
+      return;
+    }
+
+    if (ingestStatus !== "completed") {
+      res.statusCode = 400;
+      res.end(JSON.stringify({
+        error: "Data not ingested. POST /ingest first.",
+        ingestStatus
+      }));
       return;
     }
 
@@ -81,6 +185,8 @@ const server = http.createServer((req, res) => {
       "--embeddings", "engram",
       "--llm", "gemini",
       "--gemini-model", "gemini-2.5-flash-preview-05-20",
+      "--falkor-url", "redis://localhost:6379",
+      "--qdrant-url", "http://localhost:6333",
       "--top-k", "10",
       "--hybrid-search",
       "--rerank",
@@ -97,57 +203,77 @@ const server = http.createServer((req, res) => {
       "--chain-of-note",
       "--time-aware",
       "--embedding-model", "e5-large",
+      "--use-falkor",
       "--verbose",
       "--output", "/results/benchmark-results.jsonl"
     ];
 
-    benchmarkProcess = spawn("npx", args, { cwd: "/app" });
+    currentProcess = spawn("npx", args, { cwd: "/app" });
 
-    benchmarkProcess.stdout.on("data", (data) => {
+    currentProcess.stdout.on("data", (data) => {
       const line = data.toString();
       output.push(line);
-      console.log(line);
+      console.log("[benchmark]", line);
     });
 
-    benchmarkProcess.stderr.on("data", (data) => {
+    currentProcess.stderr.on("data", (data) => {
       const line = data.toString();
       output.push(line);
-      console.error(line);
+      console.error("[benchmark]", line);
     });
 
-    benchmarkProcess.on("close", (code) => {
+    currentProcess.on("close", (code) => {
       status = code === 0 ? "completed" : "failed";
       console.log(`Benchmark finished with code ${code}`);
+      currentProcess = null;
     });
 
     res.end(JSON.stringify({ status: "started" }));
-  } else if (req.url === "/status") {
+    return;
+  }
+
+  // Get status
+  if (req.url === "/status") {
     res.end(JSON.stringify({
-      status,
+      benchmark: status,
+      ingest: ingestStatus,
       output: output.slice(-100).join(""),
       resultsExist: fs.existsSync("/results/benchmark-results.jsonl")
     }));
-  } else if (req.url === "/results" && status === "completed") {
+    return;
+  }
+
+  // Download results
+  if (req.url === "/results" && status === "completed") {
     if (fs.existsSync("/results/benchmark-results.jsonl")) {
       res.setHeader("Content-Type", "application/jsonl");
       fs.createReadStream("/results/benchmark-results.jsonl").pipe(res);
-    } else {
-      res.statusCode = 404;
-      res.end(JSON.stringify({ error: "Results not found" }));
+      return;
     }
-  } else {
     res.statusCode = 404;
-    res.end(JSON.stringify({ error: "Not found" }));
+    res.end(JSON.stringify({ error: "Results not found" }));
+    return;
   }
+
+  // 404
+  res.statusCode = 404;
+  res.end(JSON.stringify({ error: "Not found" }));
 });
 
 server.listen(7860, "0.0.0.0", () => {
-  console.log("Benchmark server running on http://0.0.0.0:7860");
-  console.log("Endpoints:");
-  console.log("  GET  /        - Health check");
-  console.log("  POST /start   - Start benchmark");
-  console.log("  GET  /status  - Get benchmark status");
-  console.log("  GET  /results - Download results (when complete)");
+  console.log("Engram Benchmark Server running on http://0.0.0.0:7860");
+  console.log("");
+  console.log("API Endpoints:");
+  console.log("  GET  /         - Health check");
+  console.log("  POST /ingest   - Ingest dataset into FalkorDB + Qdrant");
+  console.log("  POST /start    - Start benchmark (requires ingest first)");
+  console.log("  GET  /status   - Get current status");
+  console.log("  GET  /results  - Download results (when complete)");
+  console.log("");
+  console.log("Workflow:");
+  console.log("  1. POST /ingest  - Load data into graph + vectors");
+  console.log("  2. POST /start   - Run benchmark with full Engram pipeline");
+  console.log("  3. GET /results  - Download results");
 });
 SERVEREOF
 

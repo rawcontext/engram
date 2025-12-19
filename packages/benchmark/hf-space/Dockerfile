@@ -90,6 +90,19 @@ RUN wget -q https://github.com/qdrant/qdrant/releases/download/v1.16.2/qdrant-x8
     && rm qdrant-x86_64-unknown-linux-gnu.tar.gz \
     && mkdir -p /app/qdrant-storage
 
+# Install Redis 7.4+ for FalkorDB
+RUN apt-get update && apt-get install -y \
+    redis-server \
+    libgomp1 \
+    unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app/falkordb-data
+
+# Download FalkorDB module
+RUN wget -q https://github.com/FalkorDB/FalkorDB/releases/download/v4.4.1/falkordb.Linux-ubuntu22.04-x86_64.v4.4.1.zip \
+    && unzip falkordb.Linux-ubuntu22.04-x86_64.v4.4.1.zip -d /opt/falkordb \
+    && rm falkordb.Linux-ubuntu22.04-x86_64.v4.4.1.zip
+
 # Copy HF Space runner script
 COPY packages/benchmark/hf-space/run.sh /app/run.sh
 RUN chmod +x /app/run.sh
@@ -106,6 +119,7 @@ ENV NODE_OPTIONS="--max-old-space-size=24576"
 ENV EMBEDDER_DEVICE=cuda
 ENV EMBEDDER_DTYPE=fp16
 ENV QDRANT_URL=http://localhost:6333
+ENV FALKORDB_URL=redis://localhost:6379
 
 # HF Spaces requires port 7860
 EXPOSE 7860

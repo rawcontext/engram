@@ -13,6 +13,8 @@ suggested_storage: small
 
 GPU-accelerated benchmark runner for evaluating the Engram memory retrieval system on LongMemEval dataset.
 
+**Full Engram Stack:** FalkorDB (bitemporal graph) + Qdrant (vectors) running in-container.
+
 ## Hardware
 
 This Space requires **L4 GPU** ($0.80/hr) for optimal performance:
@@ -23,8 +25,9 @@ This Space requires **L4 GPU** ($0.80/hr) for optimal performance:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | Health check |
-| `/start` | POST | Start benchmark run |
+| `/` | GET | Health check (shows FalkorDB + Qdrant status) |
+| `/ingest` | POST | Ingest dataset into FalkorDB + Qdrant |
+| `/start` | POST | Start benchmark (requires ingest first) |
 | `/status` | GET | Get current status and output |
 | `/results` | GET | Download results (when complete) |
 
@@ -34,14 +37,46 @@ This Space requires **L4 GPU** ($0.80/hr) for optimal performance:
 # Check health
 curl https://engram-benchmark.hf.space/
 
-# Start benchmark
+# Step 1: Ingest data into FalkorDB (graph) + Qdrant (vectors)
+curl -X POST https://engram-benchmark.hf.space/ingest
+
+# Wait for ingest to complete...
+curl https://engram-benchmark.hf.space/status
+
+# Step 2: Run benchmark with full Engram pipeline
 curl -X POST https://engram-benchmark.hf.space/start
 
 # Check status
 curl https://engram-benchmark.hf.space/status
 
-# Download results
+# Step 3: Download results
 curl https://engram-benchmark.hf.space/results > results.jsonl
+```
+
+## Architecture
+
+The benchmark runs the **full Engram stack**:
+
+```
+LongMemEval Dataset
+       ↓
+  FalkorDB (bitemporal graph)
+  - Session nodes with timestamps
+  - Turn nodes with content
+  - Memory nodes for retrieval
+       ↓
+  Qdrant (vector index)
+  - E5-large embeddings (fp16)
+  - Hybrid search (dense + sparse)
+       ↓
+  Engram Retrieval Pipeline
+  - Graph traversal + vector search
+  - Session-aware hierarchical retrieval
+  - Temporal query parsing
+       ↓
+  Gemini (answer generation)
+       ↓
+  Results
 ```
 
 ## Configuration
