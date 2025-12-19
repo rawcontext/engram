@@ -71,6 +71,10 @@ program
 		Number.parseFloat,
 		0.7,
 	)
+	// Session-aware retrieval options
+	.option("--session-aware", "Enable session-aware hierarchical retrieval", false)
+	.option("--top-sessions <n>", "Number of sessions to retrieve in stage 1", Number.parseInt, 5)
+	.option("--turns-per-session <n>", "Number of turns per session in stage 2", Number.parseInt, 3)
 	.action(runCommand);
 
 // Evaluate results command

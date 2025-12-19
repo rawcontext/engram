@@ -49,6 +49,10 @@ interface RunOptions {
 	abstentionHedging: boolean;
 	abstentionNli: boolean;
 	abstentionNliThreshold: number;
+	// Session-aware retrieval options
+	sessionAware: boolean;
+	topSessions: number;
+	turnsPerSession: number;
 }
 
 export async function runCommand(benchmark: string, options: RunOptions): Promise<void> {
@@ -90,6 +94,11 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 			if (options.abstentionNli) {
 				console.log(`  Abstention NLI Threshold: ${options.abstentionNliThreshold}`);
 			}
+		}
+		console.log(`  Session-Aware Retrieval: ${options.sessionAware}`);
+		if (options.sessionAware) {
+			console.log(`  Top Sessions (Stage 1): ${options.topSessions}`);
+			console.log(`  Turns Per Session (Stage 2): ${options.turnsPerSession}`);
 		}
 	}
 	if (options.limit) {
@@ -219,6 +228,9 @@ function createCustomRetriever(options: RunOptions): CustomRetriever | undefined
 		multiQueryVariations: options.multiQueryVariations,
 		abstention: options.abstention,
 		abstentionThreshold: options.abstentionThreshold,
+		sessionAware: options.sessionAware,
+		topSessions: options.topSessions,
+		turnsPerSession: options.turnsPerSession,
 	});
 }
 

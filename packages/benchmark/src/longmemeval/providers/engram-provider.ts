@@ -27,6 +27,12 @@ export interface EngramProviderConfig {
 	abstention: boolean;
 	/** Minimum retrieval score to proceed (0-1) */
 	abstentionThreshold: number;
+	/** Enable session-aware hierarchical retrieval */
+	sessionAware: boolean;
+	/** Number of sessions to retrieve in stage 1 */
+	topSessions: number;
+	/** Number of turns per session in stage 2 */
+	turnsPerSession: number;
 }
 
 const DEFAULT_CONFIG: EngramProviderConfig = {
@@ -41,6 +47,9 @@ const DEFAULT_CONFIG: EngramProviderConfig = {
 	multiQueryVariations: 3,
 	abstention: false,
 	abstentionThreshold: 0.3,
+	sessionAware: false,
+	topSessions: 5,
+	turnsPerSession: 3,
 };
 
 /**
@@ -65,6 +74,9 @@ export class EngramRetriever {
 	private documentEmbeddings: Map<string, Float32Array[]> = new Map(); // ColBERT embeddings cache
 	private xaiClient: XAIClientInterface | null = null; // For multi-query expansion
 	private abstentionDetector: AbstentionDetectorInterface | null = null;
+	private sessionSummarizer: SessionSummarizerInterface | null = null;
+	private sessionRetriever: SessionRetrieverInterface | null = null;
+	private llmProvider: LLMProviderInterface | null = null;
 
 	constructor(config: Partial<EngramProviderConfig> = {}) {
 		this.config = { ...DEFAULT_CONFIG, ...config };
@@ -121,6 +133,47 @@ export class EngramRetriever {
 					minRetrievalScore: this.config.abstentionThreshold,
 				}) as unknown as AbstentionDetectorInterface;
 			}
+
+			// Initialize session-aware components
+			if (this.config.sessionAware) {
+				// Create a simple LLM provider for summarization
+				const { XAIClient, SessionSummarizer, SessionAwareRetriever } = await import(
+					"@engram/search-core"
+				);
+
+				// Use XAI client as LLM provider for summarization
+				const xaiForSummary = new XAIClient({
+					model: "grok-4-1-fast-reasoning",
+				});
+
+				this.llmProvider = {
+					complete: async (prompt: string) => {
+						const response = await xaiForSummary.chat([{ role: "user", content: prompt }]);
+						return { text: response };
+					},
+				};
+
+				this.sessionSummarizer = new SessionSummarizer(
+					this.llmProvider,
+				) as unknown as SessionSummarizerInterface;
+
+				// Session retriever will be initialized after collection setup
+				// Cast client to the expected type for SessionAwareRetriever
+				const sessionRetrieverInstance = new SessionAwareRetriever(
+					this.client as never,
+					{
+						topSessions: this.config.topSessions,
+						turnsPerSession: this.config.turnsPerSession,
+						finalTopK: this.config.topK,
+						sessionCollection: `${this.config.collectionName}_sessions`,
+						turnCollection: this.config.collectionName,
+					},
+					this.reranker as never,
+				);
+				this.sessionRetriever = sessionRetrieverInstance as unknown as SessionRetrieverInterface;
+
+				console.log("  [Session-Aware] Initialized session summarizer and retriever");
+			}
 		} catch (error) {
 			console.error("Failed to initialize Engram provider:", error);
 			throw new Error("@engram/search-core not available. Install it or use a different provider.");
@@ -163,6 +216,28 @@ export class EngramRetriever {
 			vectors: vectorsConfig,
 			sparse_vectors: Object.keys(sparseVectorsConfig).length > 0 ? sparseVectorsConfig : undefined,
 		});
+
+		// Create sessions collection for session-aware retrieval
+		if (this.config.sessionAware) {
+			const sessionsCollection = `${this.config.collectionName}_sessions`;
+			try {
+				await this.client.getCollection(sessionsCollection);
+				await this.client.deleteCollection(sessionsCollection);
+			} catch {
+				// Collection doesn't exist, that's fine
+			}
+
+			// Sessions collection uses text_dense vector for summary embeddings
+			await this.client.createCollection(sessionsCollection, {
+				vectors: {
+					text_dense: {
+						size: 384,
+						distance: "Cosine",
+					},
+				},
+			});
+			console.log(`  [Session-Aware] Created sessions collection: ${sessionsCollection}`);
+		}
 	}
 
 	/**
@@ -174,13 +249,61 @@ export class EngramRetriever {
 
 	/**
 	 * Retrieve relevant documents for a question (Retriever interface)
-	 * Uses multi-query expansion and RRF fusion when enabled.
+	 * Uses session-aware retrieval, multi-query expansion, or standard search.
 	 */
 	async retrieve(question: string, _questionDate?: Date): Promise<RetrievalResult> {
+		// Session-aware two-stage retrieval
+		if (this.config.sessionAware && this.sessionRetriever) {
+			return this.sessionAwareSearch(question);
+		}
+		// Multi-query expansion with RRF fusion
 		if (this.config.multiQuery && this.xaiClient) {
 			return this.multiQuerySearch(question, this.config.topK);
 		}
 		return this.search(question, this.config.topK);
+	}
+
+	/**
+	 * Session-aware two-stage retrieval.
+	 * Stage 1: Retrieve relevant sessions
+	 * Stage 2: Retrieve turns within each session
+	 */
+	private async sessionAwareSearch(query: string): Promise<RetrievalResult> {
+		if (!this.sessionRetriever) {
+			return this.search(query, this.config.topK);
+		}
+
+		try {
+			const results = await this.sessionRetriever.retrieve(query);
+
+			// Convert SessionAwareSearchResult to EngramDocument
+			const documents: EngramDocument[] = results.map((r) => {
+				const payload = r.payload;
+				return {
+					id: payload?.node_id ?? String(r.id),
+					instanceId: payload?.session_id ?? "",
+					sessionId: r.sessionId,
+					content: payload?.content ?? "",
+					validTime: new Date(payload?.timestamp ?? Date.now()),
+					metadata: {
+						questionId: payload?.session_id ?? "",
+						hasAnswer: false,
+						role: "combined" as const,
+						turnIndex: undefined,
+						sessionIndex: 0,
+					},
+				};
+			});
+
+			return {
+				documents,
+				scores: results.map((r) => r.score),
+				retrievedIds: documents.map((d) => d.id),
+			};
+		} catch (error) {
+			console.warn("[Session-Aware] Retrieval failed, falling back to standard search:", error);
+			return this.search(query, this.config.topK);
+		}
 	}
 
 	/**
@@ -378,7 +501,101 @@ Return ONLY a JSON array of query strings. No explanations.`;
 			);
 		}
 
+		// Index session summaries if session-aware is enabled
+		if (this.config.sessionAware && this.sessionSummarizer) {
+			await this.indexSessionSummaries(documents);
+		}
+
 		this.indexed = true;
+	}
+
+	/**
+	 * Group documents by session and index session summaries
+	 */
+	private async indexSessionSummaries(documents: EngramDocument[]): Promise<void> {
+		if (!this.client || !this.sessionSummarizer) return;
+
+		// Group documents by session
+		const sessionGroups = this.groupBySession(documents);
+		const sessionIds = Object.keys(sessionGroups);
+
+		console.log(`  [Session-Aware] Generating summaries for ${sessionIds.length} sessions...`);
+
+		// Generate summaries for each session
+		const summaries = await Promise.all(
+			sessionIds.map(async (sessionId) => {
+				const docs = sessionGroups[sessionId];
+				// Convert EngramDocument to Turn format for SessionSummarizer
+				const turns = docs.map((doc) => ({
+					id: doc.id,
+					sessionId: doc.sessionId,
+					role: doc.metadata.role as "user" | "assistant" | "system",
+					content: doc.content,
+					timestamp: doc.validTime,
+				}));
+
+				try {
+					return await this.sessionSummarizer!.summarize(turns);
+				} catch (error) {
+					console.warn(`  [Session-Aware] Failed to summarize session ${sessionId}:`, error);
+					return null;
+				}
+			}),
+		);
+
+		// Filter out failed summaries
+		const validSummaries = summaries.filter((s) => s !== null);
+		console.log(`  [Session-Aware] Generated ${validSummaries.length} session summaries`);
+
+		// Index summaries in sessions collection
+		const sessionsCollection = `${this.config.collectionName}_sessions`;
+		const sessionPoints = validSummaries.map((summary) => ({
+			id: this.hashId(summary.sessionId),
+			vector: {
+				text_dense: summary.embedding,
+			},
+			payload: {
+				session_id: summary.sessionId,
+				summary: summary.summary,
+				topics: summary.topics,
+				entities: summary.entities,
+				start_time: summary.startTime.toISOString(),
+				end_time: summary.endTime.toISOString(),
+				turn_count: summary.turnCount,
+			},
+		}));
+
+		// Batch upsert sessions
+		const client = this.client;
+		for (let i = 0; i < sessionPoints.length; i += 50) {
+			const batch = sessionPoints.slice(i, i + 50);
+			await this.retryOperation(() =>
+				client.upsert(sessionsCollection, {
+					wait: true,
+					points: batch,
+				}),
+			);
+		}
+
+		console.log(`  [Session-Aware] Indexed ${sessionPoints.length} session summaries`);
+	}
+
+	/**
+	 * Group documents by session ID
+	 */
+	private groupBySession(docs: EngramDocument[]): Record<string, EngramDocument[]> {
+		const groups: Record<string, EngramDocument[]> = {};
+		for (const doc of docs) {
+			if (!groups[doc.sessionId]) {
+				groups[doc.sessionId] = [];
+			}
+			groups[doc.sessionId].push(doc);
+		}
+		// Sort each group by validTime
+		for (const sessionId of Object.keys(groups)) {
+			groups[sessionId].sort((a, b) => a.validTime.getTime() - b.validTime.getTime());
+		}
+		return groups;
 	}
 
 	/**
@@ -756,4 +973,47 @@ interface AbstentionDetectorInterface {
 		confidence: number;
 		details?: string;
 	};
+}
+
+interface SessionSummarizerInterface {
+	summarize(
+		turns: Array<{
+			id: string;
+			sessionId: string;
+			role: "user" | "assistant" | "system";
+			content: string;
+			timestamp: Date;
+		}>,
+	): Promise<{
+		sessionId: string;
+		summary: string;
+		topics: string[];
+		entities: string[];
+		startTime: Date;
+		endTime: Date;
+		turnCount: number;
+		embedding: number[];
+	}>;
+}
+
+interface SessionRetrieverInterface {
+	retrieve(query: string): Promise<
+		Array<{
+			id: string | number;
+			score: number;
+			sessionId: string;
+			sessionSummary?: string;
+			sessionScore?: number;
+			payload?: {
+				content?: string;
+				node_id?: string;
+				session_id?: string;
+				timestamp?: number;
+			};
+		}>
+	>;
+}
+
+interface LLMProviderInterface {
+	complete(prompt: string): Promise<{ text: string }>;
 }
