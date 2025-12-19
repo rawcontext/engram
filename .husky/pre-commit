@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 # Get staged files (only ts, tsx, js, jsx, json files)
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx|js|jsx|json)$')
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx|js|jsx|json)$' || true)
 
 if [ -n "$STAGED_FILES" ]; then
   # Format only the staged files
