@@ -20,8 +20,8 @@ import type { Logger } from "@engram/logger";
 /** Supported dtype options for model loading */
 export type EmbedderDtype = "fp32" | "fp16" | "q8" | "q4";
 
-/** Supported device options */
-export type EmbedderDevice = "cpu" | "cuda";
+/** Supported device options (matches transformers.js devices) */
+export type EmbedderDevice = "cpu" | "cuda" | "webgpu";
 
 /**
  * Base configuration for all embedders.
@@ -37,49 +37,72 @@ export interface EmbedderConfig {
 	batchSize?: number;
 	/** Model precision (default: fp32 on CPU, fp16 on GPU) */
 	dtype?: EmbedderDtype;
-	/** Device to run on (default: auto-detect) */
+	/** Device to run on (default: auto-detect CUDA on Linux x64 with GPU) */
 	device?: EmbedderDevice;
 }
 
 /**
- * Detect if running in GPU environment.
- * Checks for NVIDIA GPU indicators commonly found in cloud GPU instances.
+ * Detect if running in NVIDIA GPU environment.
+ * Checks for CUDA indicators commonly found in GPU instances.
+ *
+ * CUDA support in onnxruntime-node requires:
+ * - Linux x64 platform
+ * - CUDA 12.x installed
+ * - NVIDIA GPU with drivers
+ *
+ * @see https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html
  */
-function detectGpuEnvironment(): boolean {
+function detectCudaEnvironment(): boolean {
 	// Explicit env var override
 	if (process.env.EMBEDDER_DEVICE === "cuda") return true;
 	if (process.env.EMBEDDER_DEVICE === "cpu") return false;
 
-	// Check for NVIDIA CUDA environment variables (set by CUDA toolkit/drivers)
+	// Must be Linux x64 for CUDA support in onnxruntime-node
+	if (process.platform !== "linux" || process.arch !== "x64") {
+		return false;
+	}
+
+	// Check for NVIDIA CUDA environment variables
 	if (process.env.CUDA_VISIBLE_DEVICES !== undefined) return true;
 	if (process.env.NVIDIA_VISIBLE_DEVICES !== undefined) return true;
 
 	// Check for Cloud Run GPU environment
 	if (process.env.CLOUD_RUN_JOB && process.env.NVIDIA_DRIVER_CAPABILITIES) return true;
 
+	// Check for common NVIDIA driver indicators
+	if (process.env.NVIDIA_DRIVER_CAPABILITIES) return true;
+
 	return false;
 }
 
 /**
  * Get default device based on environment.
- * Override with EMBEDDER_DEVICE env var (cpu or cuda).
+ * Override with EMBEDDER_DEVICE env var (cpu, cuda, or webgpu).
+ *
+ * Auto-detection:
+ * - Linux x64 with NVIDIA GPU -> cuda
+ * - Otherwise -> cpu
  */
 export function getDefaultDevice(): EmbedderDevice {
-	return detectGpuEnvironment() ? "cuda" : "cpu";
+	const envDevice = process.env.EMBEDDER_DEVICE as EmbedderDevice | undefined;
+	if (envDevice && ["cpu", "cuda", "webgpu"].includes(envDevice)) {
+		return envDevice;
+	}
+	return detectCudaEnvironment() ? "cuda" : "cpu";
 }
 
 /**
  * Get default dtype based on environment.
  * Override with EMBEDDER_DTYPE env var.
- * Defaults to fp16 on GPU, fp32 on CPU.
+ * Defaults to fp16 on CUDA (faster), fp32 on CPU (most compatible).
  */
 export function getDefaultDtype(): EmbedderDtype {
 	const envDtype = process.env.EMBEDDER_DTYPE as EmbedderDtype | undefined;
 	if (envDtype && ["fp32", "fp16", "q8", "q4"].includes(envDtype)) {
 		return envDtype;
 	}
-	// Use fp16 on GPU for speed, fp32 on CPU for compatibility
-	return detectGpuEnvironment() ? "fp16" : "fp32";
+	// Use fp16 on CUDA for speed, fp32 on CPU for compatibility
+	return detectCudaEnvironment() ? "fp16" : "fp32";
 }
 
 /**
