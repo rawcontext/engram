@@ -84,10 +84,12 @@ Agent types → Ingestion → Kafka → Memory → Redis → WebSocket → Brows
 
 Search isn't just keyword matching. Engram uses a sophisticated multi-stage retrieval pipeline:
 
-1. **Dense vectors** (e5-small) for semantic similarity
-2. **Sparse vectors** (BM25/SPLADE) for keyword matching
-3. **RRF fusion** combines both strategies
-4. **Cross-encoder reranking** with 4 model tiers:
+1. **Temporal parsing** extracts time references ("yesterday", "last week")
+2. **Multi-query expansion** improves recall with query variants
+3. **Dense vectors** (e5-small) for semantic similarity
+4. **Sparse vectors** (SPLADE) for keyword matching
+5. **Learned RRF fusion** with MLP-predicted weights
+6. **Cross-encoder reranking** with 4 model tiers:
 
 | Tier | Model | Latency | Use Case |
 |------|-------|---------|----------|
@@ -95,6 +97,8 @@ Search isn't just keyword matching. Engram uses a sophisticated multi-stage retr
 | `accurate` | BGE-reranker-base | ~150ms | Complex queries |
 | `code` | Jina-reranker-v2 | ~150ms | Code-specific |
 | `llm` | Grok-4 (listwise) | ~2s | Premium tier |
+
+7. **Abstention detection** knows when not to answer (low confidence)
 
 ### Bitemporal Graph Storage
 
@@ -104,6 +108,15 @@ Every node in Engram's knowledge graph has two time dimensions:
 - **Transaction Time (TT)**: When we recorded it
 
 This enables powerful temporal queries: "What did the AI think at 2pm?" or "Show me the file state before that edit."
+
+### MCP Integration
+
+Engram exposes its capabilities through the Model Context Protocol (MCP), enabling AI agents to:
+
+- **Remember** important context for future sessions
+- **Recall** relevant memories based on semantic queries
+- **Query** the knowledge graph directly with Cypher
+- **Time travel** to reconstruct file states at any point
 
 ### Multi-Provider Support
 
@@ -147,9 +160,10 @@ npm run dev
 
 ### Verify It's Working
 
-1. **Neural Observatory**: http://localhost:5000
-2. **Redpanda Console**: http://localhost:8080
+1. **Neural Observatory**: http://localhost:3000
+2. **Redpanda Console**: http://localhost:18081
 3. **Qdrant Dashboard**: http://localhost:6333/dashboard
+4. **Optuna Dashboard**: http://localhost:8080
 
 ### Simulate Traffic
 
@@ -165,23 +179,30 @@ npx tsx scripts/traffic-gen.ts
 ```
 engram/
 ├── apps/
+│   ├── control/            # Session orchestration & agent coordination
+│   ├── execution/          # MCP server for VFS & time travel
 │   ├── ingestion/          # Event parsing & normalization
+│   ├── interface/          # Neural Observatory (Next.js)
+│   ├── mcp/                # Engram MCP server (remember/recall/query)
 │   ├── memory/             # Graph persistence & pub/sub
 │   ├── search/             # Vector search & reranking
-│   ├── control/            # Session orchestration
-│   ├── execution/          # VFS & time travel
-│   └── interface/          # Neural Observatory (Next.js)
+│   └── tuner/              # Python/FastAPI hyperparameter optimization
 ├── packages/
+│   ├── benchmark/          # LongMemEval evaluation suite
+│   ├── common/             # Shared utilities & error types
 │   ├── events/             # Event schemas (Zod)
-│   ├── ingestion-core/     # Provider parsers & extractors
-│   ├── memory-core/        # Graph models & pruning
-│   ├── search-core/        # Embedders & rerankers
-│   ├── execution-core/     # Replay & rehydration
+│   ├── graph/              # Graph models, repositories & pruning
+│   ├── infra/              # Pulumi infrastructure (GCP/K8s)
+│   ├── logger/             # Pino-based structured logging
+│   ├── parser/             # Provider parsers & extractors
+│   ├── search/             # Embedders, rerankers & fusion
 │   ├── storage/            # DB clients (Kafka, Redis, FalkorDB, Qdrant)
-│   ├── vfs/                # Virtual file system
-│   └── logger/             # Pino-based structured logging
+│   ├── temporal/           # Time-travel service & rehydration
+│   ├── tuner/              # Tuner client package
+│   └── vfs/                # Virtual file system
 ├── scripts/
 │   └── traffic-gen.ts      # Traffic simulation for testing
+├── ARCHITECTURE.md         # Detailed system architecture
 └── docker-compose.dev.yml  # Local infrastructure
 ```
 
@@ -191,7 +212,8 @@ engram/
 
 | Document | Description |
 |----------|-------------|
-| [Tech Stack](./docs/TECH_STACK.md) | Detailed architecture, data flow, and technology choices |
+| [Architecture](./ARCHITECTURE.md) | System architecture, data models, and service communication |
+| [Tech Stack](./docs/TECH_STACK.md) | Detailed technology choices and rationale |
 | [Neural Observatory](./apps/interface/README.md) | Frontend documentation |
 
 ---
@@ -230,7 +252,19 @@ Manages active sessions, assembles context from history and search results, and 
 
 Provides virtual file system operations, time travel to any point in session history, and deterministic replay of tool executions.
 
-### Neural Observatory (Port 5000)
+### Engram MCP Server (stdio)
+
+Model Context Protocol server for AI agent integration. Provides tools for storing and retrieving memories, executing Cypher queries, and getting comprehensive context.
+
+**Tools:** `remember`, `recall`, `query`, `context`
+**Resources:** `memory://`, `session://`, `file-history://`
+**Prompts:** `e-prime`, `e-recap`, `e-why`
+
+### Tuner Service (Port 8000)
+
+Python/FastAPI service for hyperparameter optimization using Optuna. Tunes RRF fusion weights, reranker thresholds, and abstention parameters based on LongMemEval benchmark results.
+
+### Neural Observatory (Port 3000)
 
 Real-time web interface for visualizing agent sessions. Features session browser, interactive knowledge graph, thought stream timeline, and semantic search.
 
@@ -274,13 +308,17 @@ Each service publishes heartbeats to Redis every 10 seconds. The Neural Observat
 
 ## Infrastructure
 
-Engram runs on three databases, all containerized for local development:
+Engram runs on multiple services, all containerized for local development:
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| **Redpanda** | 19092 | Kafka-compatible event streaming |
+| **Redpanda** | 9092, 19092 | Kafka-compatible event streaming |
+| **Redpanda Console** | 18081 | Kafka topic management UI |
 | **FalkorDB** | 6379 | Graph database (Redis-compatible) + Redis pub/sub |
 | **Qdrant** | 6333 | Vector database for semantic search |
+| **PostgreSQL** | 5432 | Optuna study persistence |
+| **Tuner** | 8000 | FastAPI hyperparameter optimization service |
+| **Optuna Dashboard** | 8080 | Optimization visualization |
 
 ```bash
 # Start infrastructure
