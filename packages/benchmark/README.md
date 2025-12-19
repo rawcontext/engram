@@ -200,6 +200,30 @@ Based on [LongMemEval paper](https://arxiv.org/abs/2410.10813) findings:
 | Key Expansion | +9.4% recall | `--key-expansion` |
 | Time-Aware Queries | +7-11% on TR | `--temporal-analysis` |
 
+## GPU Deployment (Hugging Face Spaces)
+
+For GPU-accelerated benchmark runs, deploy to Hugging Face Spaces with L4 GPU ($0.80/hr):
+
+```bash
+# Install HF CLI
+pip install huggingface_hub
+
+# Login
+huggingface-cli login
+
+# Deploy
+cd packages/benchmark/hf-space
+./deploy.sh ccheney/engram-benchmark
+```
+
+Then:
+1. Set `GOOGLE_GENERATIVE_AI_API_KEY` secret in Space settings
+2. Select L4 GPU hardware
+3. Wait for build
+4. `POST /start` to run benchmark
+
+See `hf-space/README.md` for API documentation.
+
 ## CI/CD
 
 The benchmark runs automatically:

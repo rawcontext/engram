@@ -8,31 +8,16 @@
  * - network.ts: VPC, subnets, NAT configuration
  * - gke.ts: GKE Autopilot cluster
  * - secrets.ts: Secret Manager secrets
- * - gce/: GPU-accelerated Compute Engine VMs
- *   - benchmark-vm.ts: L4 GPU VM for benchmarks
  * - k8s/: Kubernetes workloads deployed to GKE
  *   - namespace.ts: Engram namespace and K8s provider
  *   - falkordb.ts: Graph database (Redis protocol)
  *   - qdrant.ts: Vector database (Helm)
  *   - redpanda.ts: Kafka-compatible streaming (Helm)
  *   - tuner.ts: Hyperparameter optimization stack
+ *
+ * Note: Benchmarks now run on Hugging Face Spaces (see packages/benchmark/)
  */
 
-// Re-export GCE resources (Benchmark VM)
-export {
-	benchmarkVm,
-	benchmarkVmAddress,
-	benchmarkVmConfig,
-	benchmarkVmDataAccess,
-	benchmarkVmExternalIp,
-	benchmarkVmFirewall,
-	benchmarkVmResultsAccess,
-	benchmarkVmRunCommand,
-	benchmarkVmSecretAccess,
-	benchmarkVmServiceAccount,
-	benchmarkVmSshCommand,
-	benchmarkVmStatusCommand,
-} from "./gce";
 // Re-export configuration for reference
 export { commonLabels, environment, gcpProject, gcpRegion } from "./config";
 // Re-export GKE resources
@@ -77,10 +62,3 @@ export {
 export { nat, network, router, subnet } from "./network";
 // Re-export secrets
 export { googleGenerativeAiApiKeySecret } from "./secrets";
-// Re-export storage (GCS buckets for benchmark data/results)
-export {
-	benchmarkDataBucket,
-	benchmarkDataBucketName,
-	benchmarkResultsBucket,
-	benchmarkResultsBucketName,
-} from "./storage";
