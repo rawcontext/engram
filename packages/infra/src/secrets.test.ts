@@ -17,79 +17,6 @@ interface SecretLabels {
 }
 
 describe("Secret Management", () => {
-	describe("OpenAI API Key Secret", () => {
-		it("should create an OpenAI API key secret", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "openai-api-key");
-			expect(secretResource).toBeDefined();
-		});
-
-		it("should have the correct secret ID", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "openai-api-key");
-			expect(secretResource?.inputs.secretId).toBe("openai-api-key");
-		});
-
-		it("should use automatic replication", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "openai-api-key");
-			expect(secretResource?.inputs.replication).toEqual({ auto: {} });
-		});
-
-		it("should have common labels", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "openai-api-key");
-			const labels = secretResource?.inputs.labels as SecretLabels;
-			expect(labels).toBeDefined();
-			expect(labels.project).toBe("engram");
-			expect(labels.managedBy).toBe("pulumi");
-		});
-	});
-
-	describe("Anthropic API Key Secret", () => {
-		it("should create an Anthropic API key secret", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "anthropic-api-key");
-			expect(secretResource).toBeDefined();
-		});
-
-		it("should have the correct secret ID", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "anthropic-api-key");
-			expect(secretResource?.inputs.secretId).toBe("anthropic-api-key");
-		});
-
-		it("should use automatic replication", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "anthropic-api-key");
-			expect(secretResource?.inputs.replication).toEqual({ auto: {} });
-		});
-
-		it("should have common labels", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "anthropic-api-key");
-			const labels = secretResource?.inputs.labels as SecretLabels;
-			expect(labels).toBeDefined();
-			expect(labels.project).toBe("engram");
-		});
-	});
-
-	describe("xAI API Key Secret", () => {
-		it("should create an xAI API key secret", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "xai-api-key");
-			expect(secretResource).toBeDefined();
-		});
-
-		it("should have the correct secret ID", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "xai-api-key");
-			expect(secretResource?.inputs.secretId).toBe("xai-api-key");
-		});
-
-		it("should use automatic replication", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "xai-api-key");
-			expect(secretResource?.inputs.replication).toEqual({ auto: {} });
-		});
-
-		it("should have common labels", () => {
-			const secretResource = getResource("gcp:secretmanager/secret:Secret", "xai-api-key");
-			const labels = secretResource?.inputs.labels as SecretLabels;
-			expect(labels).toBeDefined();
-			expect(labels.project).toBe("engram");
-		});
-	});
-
 	describe("Google Generative AI API Key Secret", () => {
 		it("should create a Google Generative AI API key secret", () => {
 			const secretResource = getResource(
@@ -123,22 +50,20 @@ describe("Secret Management", () => {
 			const labels = secretResource?.inputs.labels as SecretLabels;
 			expect(labels).toBeDefined();
 			expect(labels.project).toBe("engram");
+			expect(labels.managedBy).toBe("pulumi");
 		});
 	});
 
 	describe("Resource Count", () => {
-		it("should create exactly 4 secrets", () => {
+		it("should create exactly 1 secret", () => {
 			const secrets = getResourcesByType("gcp:secretmanager/secret:Secret");
-			expect(secrets).toHaveLength(4);
+			expect(secrets).toHaveLength(1);
 		});
 
-		it("should create secrets for all required API keys", () => {
+		it("should create the Google Generative AI API key secret", () => {
 			const secrets = getResourcesByType("gcp:secretmanager/secret:Secret");
 			const secretIds = secrets.map((s) => s.inputs.secretId);
 
-			expect(secretIds).toContain("openai-api-key");
-			expect(secretIds).toContain("anthropic-api-key");
-			expect(secretIds).toContain("xai-api-key");
 			expect(secretIds).toContain("google-generative-ai-api-key");
 		});
 	});
@@ -158,18 +83,6 @@ describe("Secret Management", () => {
 	});
 
 	describe("Exports", () => {
-		it("should export openaiApiKeySecret", () => {
-			expect(infra.openaiApiKeySecret).toBeDefined();
-		});
-
-		it("should export anthropicApiKeySecret", () => {
-			expect(infra.anthropicApiKeySecret).toBeDefined();
-		});
-
-		it("should export xaiApiKeySecret", () => {
-			expect(infra.xaiApiKeySecret).toBeDefined();
-		});
-
 		it("should export googleGenerativeAiApiKeySecret", () => {
 			expect(infra.googleGenerativeAiApiKeySecret).toBeDefined();
 		});
