@@ -8,11 +8,13 @@ docker-compose.override.yml
 .DS_Store
 coverage
 bun.lockb
-docs/_/
 *.tsbuildinfo
 
-# Beads local files
-.beads/.local_version
+# Beads (local issue tracker)
+.beads/
+
+# Documentation (generated/local)
+docs/
 
 # Benchmark artifacts
 packages/benchmark/results/
