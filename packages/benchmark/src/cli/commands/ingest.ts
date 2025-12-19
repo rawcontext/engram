@@ -76,10 +76,23 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 			if (processedSessions.has(sessionId)) continue;
 			processedSessions.add(sessionId);
 
-			// Create Session node - use double quotes for string values
+			// Create Session node using parameterized query
 			const sessionEpoch = new Date(sessionDate).getTime();
-			const sessionQuery = `MERGE (s:Session {id: "${sessionId}"}) ON CREATE SET s.vt_start = "${sessionDate}", s.vt_end = "9999-12-31T23:59:59.999Z", s.tt_start = "${now}", s.tt_end = "9999-12-31T23:59:59.999Z", s.started_at = ${sessionEpoch}, s.user_id = "longmemeval", s.agent_type = "unknown"`;
-			await graph.query(sessionQuery);
+			await graph.query(
+				`MERGE (s:Session {id: $id}) ON CREATE SET s.vt_start = $vtStart, s.vt_end = $vtEnd, s.tt_start = $ttStart, s.tt_end = $ttEnd, s.started_at = $startedAt, s.user_id = $userId, s.agent_type = $agentType`,
+				{
+					params: {
+						id: sessionId,
+						vtStart: sessionDate,
+						vtEnd: "9999-12-31T23:59:59.999Z",
+						ttStart: now,
+						ttEnd: "9999-12-31T23:59:59.999Z",
+						startedAt: sessionEpoch,
+						userId: "longmemeval",
+						agentType: "unknown",
+					},
+				},
+			);
 			sessionsCreated++;
 
 			// Process turns (pairs of user + assistant messages)
@@ -89,36 +102,64 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 
 				if (!userTurn || userTurn.role !== "user") continue;
 
-				// Escape content for Cypher - use double quotes, escape internal quotes
-				const escapeForCypher = (s: string) =>
-					s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, " ").replace(/\r/g, "");
-
-				const userContent = escapeForCypher(userTurn.content).slice(0, 500);
-				const assistantContent = escapeForCypher(assistantTurn?.content ?? "").slice(0, 500);
+				const userContent = userTurn.content.slice(0, 500);
+				const assistantContent = (assistantTurn?.content ?? "").slice(0, 500);
 				const turnId = `turn_${sessionId}_${turnIdx}`;
 
-				// Create Turn node - use double quotes for string values
-				const turnQuery = `MERGE (t:Turn {id: "${turnId}"}) ON CREATE SET t.vt_start = "${sessionDate}", t.vt_end = "9999-12-31T23:59:59.999Z", t.tt_start = "${now}", t.tt_end = "9999-12-31T23:59:59.999Z", t.user_content = "${userContent}", t.assistant_preview = "${assistantContent}", t.sequence_index = ${Math.floor(turnIdx / 2)}`;
-				await graph.query(turnQuery);
+				// Create Turn node using parameterized query
+				await graph.query(
+					`MERGE (t:Turn {id: $id}) ON CREATE SET t.vt_start = $vtStart, t.vt_end = $vtEnd, t.tt_start = $ttStart, t.tt_end = $ttEnd, t.user_content = $userContent, t.assistant_preview = $assistantPreview, t.sequence_index = $seqIdx`,
+					{
+						params: {
+							id: turnId,
+							vtStart: sessionDate,
+							vtEnd: "9999-12-31T23:59:59.999Z",
+							ttStart: now,
+							ttEnd: "9999-12-31T23:59:59.999Z",
+							userContent,
+							assistantPreview: assistantContent,
+							seqIdx: Math.floor(turnIdx / 2),
+						},
+					},
+				);
 
 				// Link Turn to Session
 				await graph.query(
-					`MATCH (s:Session {id: "${sessionId}"}), (t:Turn {id: "${turnId}"}) MERGE (s)-[:HAS_TURN]->(t)`,
+					`MATCH (s:Session {id: $sid}), (t:Turn {id: $tid}) MERGE (s)-[:HAS_TURN]->(t)`,
+					{
+						params: { sid: sessionId, tid: turnId },
+					},
 				);
 				turnsCreated++;
 
 				// Create Memory node
-				const memoryContent = escapeForCypher(
-					`User: ${userTurn.content.slice(0, 200)} Assistant: ${(assistantTurn?.content ?? "").slice(0, 200)}`,
-				);
+				const memoryContent = `User: ${userTurn.content.slice(0, 200)} Assistant: ${(assistantTurn?.content ?? "").slice(0, 200)}`;
 				const memoryId = `mem_${sessionId}_${turnIdx}`;
 
-				const memoryQuery = `MERGE (m:Memory {id: "${memoryId}"}) ON CREATE SET m.vt_start = "${sessionDate}", m.vt_end = "9999-12-31T23:59:59.999Z", m.tt_start = "${now}", m.tt_end = "9999-12-31T23:59:59.999Z", m.content = "${memoryContent}", m.type = "turn", m.source_session_id = "${sessionId}", m.source_turn_id = "${turnId}", m.source = "import"`;
-				await graph.query(memoryQuery);
+				await graph.query(
+					`MERGE (m:Memory {id: $id}) ON CREATE SET m.vt_start = $vtStart, m.vt_end = $vtEnd, m.tt_start = $ttStart, m.tt_end = $ttEnd, m.content = $content, m.type = $type, m.source_session_id = $srcSession, m.source_turn_id = $srcTurn, m.source = $source`,
+					{
+						params: {
+							id: memoryId,
+							vtStart: sessionDate,
+							vtEnd: "9999-12-31T23:59:59.999Z",
+							ttStart: now,
+							ttEnd: "9999-12-31T23:59:59.999Z",
+							content: memoryContent,
+							type: "turn",
+							srcSession: sessionId,
+							srcTurn: turnId,
+							source: "import",
+						},
+					},
+				);
 
 				// Link Memory to Turn
 				await graph.query(
-					`MATCH (t:Turn {id: "${turnId}"}), (m:Memory {id: "${memoryId}"}) MERGE (t)-[:PRODUCES]->(m)`,
+					`MATCH (t:Turn {id: $tid}), (m:Memory {id: $mid}) MERGE (t)-[:PRODUCES]->(m)`,
+					{
+						params: { tid: turnId, mid: memoryId },
+					},
 				);
 				memoriesCreated++;
 			}
