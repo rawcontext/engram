@@ -8,12 +8,7 @@
 		"tooling/*"
 	],
 	"overrides": {
-		"@ai-sdk/xai": {
-			"zod": "$zod"
-		},
-		"ai": {
-			"zod": "$zod"
-		}
+		"zod": "$zod"
 	},
 	"scripts": {
 		"build": "turbo run build",

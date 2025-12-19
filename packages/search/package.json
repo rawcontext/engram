@@ -10,7 +10,7 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"@ai-sdk/xai": "^1.2.16",
+		"@ai-sdk/google": "^1.2.18",
 		"@engram/common": "*",
 		"@engram/logger": "*",
 		"@huggingface/transformers": "^3.8.1",

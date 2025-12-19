@@ -184,15 +184,15 @@ export class EngramRetriever {
 			const { QdrantClient } = await import("@qdrant/js-client-rest");
 			this.client = new QdrantClient({ url: this.config.qdrantUrl }) as QdrantClientInterface;
 
-			// Initialize XAI client for multi-query expansion
+			// Initialize Google AI client for multi-query expansion
 			if (this.config.multiQuery) {
-				const { createXai } = await import("@ai-sdk/xai");
+				const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
 				const { generateText } = await import("ai");
-				const xaiProvider = createXai();
+				const googleProvider = createGoogleGenerativeAI();
 				this.xaiClient = {
 					chat: async (messages: Array<{ role: string; content: string }>) => {
 						const result = await generateText({
-							model: xaiProvider("grok-3-fast"),
+							model: googleProvider("gemini-3-flash"),
 							system: messages.find((m) => m.role === "system")?.content,
 							prompt: messages.find((m) => m.role === "user")?.content ?? "",
 						});
@@ -213,16 +213,16 @@ export class EngramRetriever {
 			if (this.config.sessionAware) {
 				// Create a simple LLM provider for summarization
 				const { SessionSummarizer, SessionAwareRetriever } = await import("@engram/search");
-				const { createXai } = await import("@ai-sdk/xai");
+				const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
 				const { generateText } = await import("ai");
 
-				// Use xAI via AI SDK as LLM provider for summarization
-				const xaiProvider = createXai();
+				// Use Google AI via AI SDK as LLM provider for summarization
+				const googleProvider = createGoogleGenerativeAI();
 
 				this.llmProvider = {
 					complete: async (prompt: string) => {
 						const result = await generateText({
-							model: xaiProvider("grok-3-fast"),
+							model: googleProvider("gemini-3-flash"),
 							prompt,
 						});
 						return { text: result.text };

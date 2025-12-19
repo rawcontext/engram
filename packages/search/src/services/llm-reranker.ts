@@ -1,4 +1,4 @@
-import { createXai } from "@ai-sdk/xai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createLogger } from "@engram/logger";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -52,13 +52,13 @@ const RankingSchema = z.object({
 });
 
 export interface LLMRerankerOptions {
-	/** Model to use - defaults to grok-3-fast */
+	/** Model to use - defaults to gemini-3-flash */
 	model?: string;
 	/** Maximum candidates to send to LLM (context efficiency) - defaults to 10 */
 	maxCandidates?: number;
 	/** Custom system prompt for ranking instructions */
 	systemPrompt?: string;
-	/** xAI API key - defaults to XAI_API_KEY env var */
+	/** Google AI API key - defaults to GOOGLE_GENERATIVE_AI_API_KEY env var */
 	apiKey?: string;
 	/** Enable rate limiting - defaults to true */
 	enableRateLimiting?: boolean;
@@ -67,7 +67,7 @@ export interface LLMRerankerOptions {
 }
 
 /**
- * LLM-based listwise reranker using Grok for premium queries.
+ * LLM-based listwise reranker using Gemini for premium queries.
  *
  * Advantages over pointwise rerankers:
  * - Sees all candidates in context
@@ -87,7 +87,7 @@ export interface LLMRerankerOptions {
  * ```
  */
 export class LLMListwiseReranker {
-	private xai: ReturnType<typeof createXai>;
+	private google: ReturnType<typeof createGoogleGenerativeAI>;
 	private model: string;
 	private maxCandidates: number;
 	private systemPrompt: string;
@@ -98,12 +98,12 @@ export class LLMListwiseReranker {
 	private totalTokens = 0;
 
 	constructor(options: LLMRerankerOptions = {}) {
-		this.model = options.model ?? "grok-3-fast";
+		this.model = options.model ?? "gemini-3-flash";
 		this.maxCandidates = options.maxCandidates ?? 10;
 		this.systemPrompt = options.systemPrompt ?? RERANK_SYSTEM_PROMPT;
 		this.enableRateLimiting = options.enableRateLimiting ?? true;
 
-		this.xai = createXai({
+		this.google = createGoogleGenerativeAI({
 			apiKey: options.apiKey,
 		});
 
@@ -190,23 +190,26 @@ export class LLMListwiseReranker {
 			const userPrompt = buildUserPrompt(query, limitedCandidates);
 
 			// Call LLM to get ranking using AI SDK
-			const { object, usage } = await generateObject({
-				model: this.xai(this.model),
+			const result = await generateObject({
+				model: this.google(this.model),
 				schema: RankingSchema,
 				system: this.systemPrompt,
 				prompt: userPrompt,
 			});
 
-			const ranking = object.ranking;
+			const ranking = (result.object as { ranking: number[] }).ranking;
 
 			// Track usage and cost
+			const usage = result.usage as
+				| { totalTokens?: number; inputTokens?: number; outputTokens?: number }
+				| undefined;
 			if (usage) {
 				this.totalTokens += usage.totalTokens ?? 0;
-				// Cost estimation for grok-3-fast (example rates)
-				// Input: $5/1M tokens, Output: $15/1M tokens
+				// Cost estimation for gemini-3-flash
+				// Input: $0.50/1M tokens, Output: $3.00/1M tokens
 				const inputTokens = usage.inputTokens ?? 0;
 				const outputTokens = usage.outputTokens ?? 0;
-				const costCents = (inputTokens / 1_000_000) * 500 + (outputTokens / 1_000_000) * 1500;
+				const costCents = (inputTokens / 1_000_000) * 50 + (outputTokens / 1_000_000) * 300;
 				this.totalCostCents += costCents;
 			}
 

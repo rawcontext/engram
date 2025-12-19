@@ -18,9 +18,9 @@ vi.mock("ai", () => ({
 	generateObject: mockGenerateObject,
 }));
 
-// Mock xAI provider
-vi.mock("@ai-sdk/xai", () => ({
-	createXai: vi.fn(() => vi.fn((model: string) => ({ modelId: model }))),
+// Mock Google provider
+vi.mock("@ai-sdk/google", () => ({
+	createGoogleGenerativeAI: vi.fn(() => vi.fn((model: string) => ({ modelId: model }))),
 }));
 
 // Import after mocking

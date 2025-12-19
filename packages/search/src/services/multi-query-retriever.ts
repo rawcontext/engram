@@ -1,4 +1,4 @@
-import { createXai } from "@ai-sdk/xai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createLogger } from "@engram/logger";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -76,9 +76,9 @@ export interface MultiQueryRetrieverOptions {
 	baseRetriever: SearchRetriever;
 	/** Multi-query configuration */
 	config?: Partial<MultiQueryConfig>;
-	/** Model to use for expansion - defaults to grok-3-fast */
+	/** Model to use for expansion - defaults to gemini-3-flash */
 	model?: string;
-	/** xAI API key - defaults to XAI_API_KEY env var */
+	/** Google AI API key - defaults to GOOGLE_GENERATIVE_AI_API_KEY env var */
 	apiKey?: string;
 }
 
@@ -110,7 +110,7 @@ export interface MultiQueryRetrieverOptions {
  */
 export class MultiQueryRetriever {
 	private baseRetriever: SearchRetriever;
-	private xai: ReturnType<typeof createXai>;
+	private google: ReturnType<typeof createGoogleGenerativeAI>;
 	private model: string;
 	private config: MultiQueryConfig;
 	private logger = createLogger({ component: "MultiQueryRetriever" });
@@ -120,9 +120,9 @@ export class MultiQueryRetriever {
 	constructor(options: MultiQueryRetrieverOptions) {
 		this.baseRetriever = options.baseRetriever;
 		this.config = { ...DEFAULT_CONFIG, ...options.config };
-		this.model = options.model ?? "grok-3-fast";
+		this.model = options.model ?? "gemini-3-flash";
 
-		this.xai = createXai({
+		this.google = createGoogleGenerativeAI({
 			apiKey: options.apiKey,
 		});
 	}
@@ -229,26 +229,31 @@ export class MultiQueryRetriever {
 		const prompt = this.buildExpansionPrompt(query);
 
 		try {
-			const { object, usage } = await generateObject({
-				model: this.xai(this.model),
+			const result = await generateObject({
+				model: this.google(this.model),
 				schema: QueryExpansionSchema,
 				system: EXPANSION_SYSTEM_PROMPT,
 				prompt,
 			});
 
 			// Track LLM usage
+			const usage = result.usage as
+				| { totalTokens?: number; inputTokens?: number; outputTokens?: number }
+				| undefined;
 			if (usage) {
 				this.totalTokens += usage.totalTokens ?? 0;
-				// Cost estimation for grok-3-fast
+				// Cost estimation for gemini-3-flash
+				// Input: $0.50/1M tokens, Output: $3.00/1M tokens
 				const inputTokens = usage.inputTokens ?? 0;
 				const outputTokens = usage.outputTokens ?? 0;
-				const costCents = (inputTokens / 1_000_000) * 500 + (outputTokens / 1_000_000) * 1500;
+				const costCents = (inputTokens / 1_000_000) * 50 + (outputTokens / 1_000_000) * 300;
 				this.totalCostCents += costCents;
 			}
 
 			// Filter and limit variations
-			const validVariations = object.queries
-				.filter((v) => v.trim().length > 0 && v !== query)
+			const queries = (result.object as { queries: string[] }).queries;
+			const validVariations = queries
+				.filter((v: string) => v.trim().length > 0 && v !== query)
 				.slice(0, this.config.numVariations);
 
 			variations.push(...validVariations);
