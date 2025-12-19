@@ -165,11 +165,11 @@ export async function handleListFilesAtTime(
 // Using @ts-expect-error to suppress these known SDK type inference issues while
 // maintaining runtime type safety through Zod validation at the SDK boundary.
 
-// @ts-expect-error MCP SDK TS2589 - deep type instantiation with Zod schemas
 server.tool(
 	"read_file",
 	"Read a file from the Virtual File System",
 	{ path: z.string() },
+	// @ts-expect-error MCP SDK TS2589 - deep type instantiation with Zod schemas
 	async (args: ReadFileArgs) => {
 		return handleReadFile(args);
 	},

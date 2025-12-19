@@ -9,6 +9,13 @@ import { describe, expect, it } from "vitest";
 import * as infra from "./secrets";
 import { getResource, getResourcesByType } from "./testing";
 
+/** Type for secret labels in GCP Secret Manager */
+interface SecretLabels {
+	project?: string;
+	environment?: string;
+	managedBy?: string;
+}
+
 describe("Secret Management", () => {
 	describe("OpenAI API Key Secret", () => {
 		it("should create an OpenAI API key secret", () => {
@@ -28,9 +35,10 @@ describe("Secret Management", () => {
 
 		it("should have common labels", () => {
 			const secretResource = getResource("gcp:secretmanager/secret:Secret", "openai-api-key");
-			expect(secretResource?.inputs.labels).toBeDefined();
-			expect(secretResource?.inputs.labels.project).toBe("engram");
-			expect(secretResource?.inputs.labels.managedBy).toBe("pulumi");
+			const labels = secretResource?.inputs.labels as SecretLabels;
+			expect(labels).toBeDefined();
+			expect(labels.project).toBe("engram");
+			expect(labels.managedBy).toBe("pulumi");
 		});
 	});
 
@@ -52,8 +60,9 @@ describe("Secret Management", () => {
 
 		it("should have common labels", () => {
 			const secretResource = getResource("gcp:secretmanager/secret:Secret", "anthropic-api-key");
-			expect(secretResource?.inputs.labels).toBeDefined();
-			expect(secretResource?.inputs.labels.project).toBe("engram");
+			const labels = secretResource?.inputs.labels as SecretLabels;
+			expect(labels).toBeDefined();
+			expect(labels.project).toBe("engram");
 		});
 	});
 
@@ -75,8 +84,9 @@ describe("Secret Management", () => {
 
 		it("should have common labels", () => {
 			const secretResource = getResource("gcp:secretmanager/secret:Secret", "xai-api-key");
-			expect(secretResource?.inputs.labels).toBeDefined();
-			expect(secretResource?.inputs.labels.project).toBe("engram");
+			const labels = secretResource?.inputs.labels as SecretLabels;
+			expect(labels).toBeDefined();
+			expect(labels.project).toBe("engram");
 		});
 	});
 
@@ -101,10 +111,11 @@ describe("Secret Management", () => {
 			const secrets = getResourcesByType("gcp:secretmanager/secret:Secret");
 
 			for (const secret of secrets) {
-				expect(secret.inputs.labels).toBeDefined();
-				expect(secret.inputs.labels.project).toBe("engram");
-				expect(secret.inputs.labels.environment).toBe("test"); // Test stack
-				expect(secret.inputs.labels.managedBy).toBe("pulumi");
+				const labels = secret.inputs.labels as SecretLabels;
+				expect(labels).toBeDefined();
+				expect(labels.project).toBe("engram");
+				expect(labels.environment).toBe("test"); // Test stack
+				expect(labels.managedBy).toBe("pulumi");
 			}
 		});
 	});
