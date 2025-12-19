@@ -48,12 +48,28 @@ program
 		3,
 	)
 	// Abstention detection options
-	.option("--abstention", "Enable retrieval confidence abstention detection", false)
+	.option("--abstention", "Enable retrieval confidence abstention detection (Layer 1)", false)
 	.option(
 		"--abstention-threshold <n>",
 		"Minimum retrieval score to proceed (0-1)",
 		Number.parseFloat,
 		0.3,
+	)
+	.option(
+		"--abstention-hedging",
+		"Enable hedging pattern detection (Layer 3) - requires --abstention",
+		false,
+	)
+	.option(
+		"--abstention-nli",
+		"Enable NLI answer grounding check (Layer 2) - requires --abstention",
+		false,
+	)
+	.option(
+		"--abstention-nli-threshold <n>",
+		"NLI entailment threshold for abstention (0-1)",
+		Number.parseFloat,
+		0.7,
 	)
 	.action(runCommand);
 

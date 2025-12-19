@@ -18,6 +18,12 @@ export interface ReaderConfig {
 	calibratedConfidence: boolean;
 	/** Whether to request JSON-structured output from LLM */
 	jsonOutput: boolean;
+	/** Enable three-layer abstention detection (Layer 2 + 3) */
+	abstentionDetection: boolean;
+	/** Enable NLI-based answer grounding check (Layer 2) - requires abstentionDetection */
+	abstentionNLI: boolean;
+	/** NLI entailment threshold for abstention (0-1) */
+	abstentionNLIThreshold: number;
 }
 
 /**
@@ -31,6 +37,9 @@ export const DEFAULT_READER_CONFIG: ReaderConfig = {
 	abstentionThreshold: 0.3,
 	calibratedConfidence: true,
 	jsonOutput: true,
+	abstentionDetection: false,
+	abstentionNLI: false,
+	abstentionNLIThreshold: 0.7,
 };
 
 /**
@@ -49,6 +58,10 @@ export interface ReadResult {
 	confidenceSignals?: ConfidenceSignals;
 	/** Whether the model chose to abstain */
 	abstained: boolean;
+	/** Reason for abstention from AbstentionDetector */
+	abstentionReason?: "low_retrieval_score" | "no_score_gap" | "not_grounded" | "hedging_detected";
+	/** Original answer before abstention (if abstained) */
+	originalAnswer?: string;
 }
 
 /**
@@ -92,20 +105,68 @@ export interface LLMResponse {
 }
 
 /**
+ * Interface for AbstentionDetector from @engram/search-core
+ */
+interface AbstentionDetectorInterface {
+	checkHedgingPatterns(answer: string): {
+		shouldAbstain: boolean;
+		reason?: string;
+		confidence: number;
+		details?: string;
+	};
+	checkAnswerGrounding(
+		answer: string,
+		context: string,
+	): Promise<{
+		shouldAbstain: boolean;
+		reason?: string;
+		confidence: number;
+		details?: string;
+	}>;
+}
+
+/**
  * Reader class that generates answers from retrieved context
  *
  * Implements Milestone 3 optimizations:
  * - Enhanced Chain-of-Note with multi-step reasoning
  * - JSON-structured prompts for better parsing
  * - Calibrated abstention confidence scoring
+ * - Three-layer abstention detection (Layer 2: NLI, Layer 3: Hedging)
  */
 export class Reader {
 	private config: ReaderConfig;
 	private llm: LLMProvider;
+	private abstentionDetector: AbstentionDetectorInterface | null = null;
+	private abstentionDetectorInitPromise: Promise<void> | null = null;
 
 	constructor(llm: LLMProvider, config?: Partial<ReaderConfig>) {
 		this.config = { ...DEFAULT_READER_CONFIG, ...config };
 		this.llm = llm;
+
+		// Initialize abstention detector if enabled
+		if (this.config.abstentionDetection) {
+			this.abstentionDetectorInitPromise = this.initAbstentionDetector();
+		}
+	}
+
+	/**
+	 * Initialize the AbstentionDetector from @engram/search-core
+	 */
+	private async initAbstentionDetector(): Promise<void> {
+		try {
+			const { AbstentionDetector } = await import("@engram/search-core");
+			this.abstentionDetector = new AbstentionDetector({
+				useNLI: this.config.abstentionNLI,
+				nliThreshold: this.config.abstentionNLIThreshold,
+			}) as unknown as AbstentionDetectorInterface;
+		} catch (error) {
+			console.warn(
+				"[Reader] AbstentionDetector not available, disabling abstention detection:",
+				error,
+			);
+			this.abstentionDetector = null;
+		}
 	}
 
 	/**
@@ -117,6 +178,11 @@ export class Reader {
 		questionDate?: Date,
 		retrievalScores?: number[],
 	): Promise<ReadResult> {
+		// Wait for abstention detector initialization if in progress
+		if (this.abstentionDetectorInitPromise) {
+			await this.abstentionDetectorInitPromise;
+		}
+
 		const prompt = this.buildPrompt(question, documents, questionDate);
 
 		const response = await this.llm.complete(prompt, {
@@ -124,7 +190,57 @@ export class Reader {
 			maxTokens: 1024,
 		});
 
-		return this.parseResponse(response.text, documents, retrievalScores);
+		const result = this.parseResponse(response.text, documents, retrievalScores);
+
+		// Apply abstention detection (Layers 2 & 3) if enabled and detector available
+		if (this.abstentionDetector && !result.abstained) {
+			const abstentionResult = await this.applyAbstentionDetection(
+				result.hypothesis,
+				documents.map((d) => d.content).join("\n\n"),
+			);
+
+			if (abstentionResult.shouldAbstain) {
+				return {
+					...result,
+					hypothesis: "I don't have enough information to answer this question.",
+					abstained: true,
+					abstentionReason: abstentionResult.reason as ReadResult["abstentionReason"],
+					originalAnswer: result.hypothesis,
+				};
+			}
+		}
+
+		return result;
+	}
+
+	/**
+	 * Apply Layer 2 (NLI) and Layer 3 (Hedging) abstention detection
+	 */
+	private async applyAbstentionDetection(
+		answer: string,
+		context: string,
+	): Promise<{ shouldAbstain: boolean; reason?: string; details?: string }> {
+		if (!this.abstentionDetector) {
+			return { shouldAbstain: false };
+		}
+
+		// Layer 3: Hedging pattern detection (sync, fast)
+		const hedgingResult = this.abstentionDetector.checkHedgingPatterns(answer);
+		if (hedgingResult.shouldAbstain) {
+			console.log(`  [Abstention:Hedging] ${hedgingResult.details}`);
+			return hedgingResult;
+		}
+
+		// Layer 2: NLI answer grounding check (async, slower - only if NLI enabled)
+		if (this.config.abstentionNLI) {
+			const nliResult = await this.abstentionDetector.checkAnswerGrounding(answer, context);
+			if (nliResult.shouldAbstain) {
+				console.log(`  [Abstention:NLI] ${nliResult.details}`);
+				return nliResult;
+			}
+		}
+
+		return { shouldAbstain: false };
 	}
 
 	/**

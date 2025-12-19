@@ -46,6 +46,9 @@ interface RunOptions {
 	// Abstention detection options
 	abstention: boolean;
 	abstentionThreshold: number;
+	abstentionHedging: boolean;
+	abstentionNli: boolean;
+	abstentionNliThreshold: number;
 }
 
 export async function runCommand(benchmark: string, options: RunOptions): Promise<void> {
@@ -82,6 +85,11 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 		console.log(`  Abstention Detection: ${options.abstention}`);
 		if (options.abstention) {
 			console.log(`  Abstention Threshold: ${options.abstentionThreshold}`);
+			console.log(`  Abstention Hedging (Layer 3): ${options.abstentionHedging}`);
+			console.log(`  Abstention NLI (Layer 2): ${options.abstentionNli}`);
+			if (options.abstentionNli) {
+				console.log(`  Abstention NLI Threshold: ${options.abstentionNliThreshold}`);
+			}
 		}
 	}
 	if (options.limit) {
@@ -107,6 +115,11 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 		},
 		reader: {
 			chainOfNote: options.chainOfNote,
+			// Enable abstention detection in Reader if --abstention-hedging or --abstention-nli
+			abstentionDetection:
+				options.abstention && (options.abstentionHedging || options.abstentionNli),
+			abstentionNLI: options.abstentionNli,
+			abstentionNLIThreshold: options.abstentionNliThreshold,
 		},
 		// Milestone 2 optimizations
 		keyExpansion: {
