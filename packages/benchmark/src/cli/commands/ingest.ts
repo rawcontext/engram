@@ -28,19 +28,18 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 	const data = LongMemEvalDatasetSchema.parse(JSON.parse(raw));
 	console.log(`Loaded ${data.length} instances\n`);
 
-	// Dynamic import of falkordb to avoid issues if not installed
+	// Dynamic import of falkordb
 	const { FalkorDB } = await import("falkordb");
 
 	// Connect to FalkorDB
 	console.log("Connecting to FalkorDB...");
-	// Parse redis URL: redis://localhost:6379
 	const url = new URL(falkorUrl);
 	const db = await FalkorDB.connect({
 		socket: { host: url.hostname, port: Number.parseInt(url.port) || 6379 },
 	});
 	const graph = db.selectGraph("engram_benchmark");
 
-	// Create indexes (FalkorDB syntax - no IF NOT EXISTS, use try/catch)
+	// Create indexes (FalkorDB syntax)
 	console.log("Creating indexes...");
 	try {
 		await graph.query("CREATE INDEX FOR (s:Session) ON (s.id)");
@@ -67,6 +66,7 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 	const now = new Date().toISOString();
 
 	// Process each instance
+	console.log("Processing instances...");
 	for (const instance of data) {
 		for (let i = 0; i < instance.haystack_sessions.length; i++) {
 			const sessionId = instance.haystack_session_ids[i];
@@ -76,19 +76,10 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 			if (processedSessions.has(sessionId)) continue;
 			processedSessions.add(sessionId);
 
-			// Create Session node
+			// Create Session node - single line query
 			const sessionEpoch = new Date(sessionDate).getTime();
-			await graph.query(`
-				MERGE (s:Session {id: '${sessionId}'})
-				ON CREATE SET
-					s.vt_start = '${sessionDate}',
-					s.vt_end = '9999-12-31T23:59:59.999Z',
-					s.tt_start = '${now}',
-					s.tt_end = '9999-12-31T23:59:59.999Z',
-					s.started_at = ${sessionEpoch},
-					s.user_id = 'longmemeval',
-					s.agent_type = 'unknown'
-			`);
+			const sessionQuery = `MERGE (s:Session {id: '${sessionId}'}) ON CREATE SET s.vt_start = '${sessionDate}', s.vt_end = '9999-12-31T23:59:59.999Z', s.tt_start = '${now}', s.tt_end = '9999-12-31T23:59:59.999Z', s.started_at = ${sessionEpoch}, s.user_id = 'longmemeval', s.agent_type = 'unknown'`;
+			await graph.query(sessionQuery);
 			sessionsCreated++;
 
 			// Process turns (pairs of user + assistant messages)
@@ -98,61 +89,41 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 
 				if (!userTurn || userTurn.role !== "user") continue;
 
-				const userContent = userTurn.content.replace(/'/g, "\\'").replace(/\n/g, "\\n");
-				const assistantContent = (assistantTurn?.content ?? "")
-					.replace(/'/g, "\\'")
-					.replace(/\n/g, "\\n");
+				// Escape content for Cypher - replace backslash first, then quotes
+				const escapeForCypher = (s: string) =>
+					s.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, " ").replace(/\r/g, "");
+
+				const userContent = escapeForCypher(userTurn.content).slice(0, 500);
+				const assistantContent = escapeForCypher(assistantTurn?.content ?? "").slice(0, 500);
 				const turnId = `turn_${sessionId}_${turnIdx}`;
 
 				// Create Turn node
-				await graph.query(`
-					MERGE (t:Turn {id: '${turnId}'})
-					ON CREATE SET
-						t.vt_start = '${sessionDate}',
-						t.vt_end = '9999-12-31T23:59:59.999Z',
-						t.tt_start = '${now}',
-						t.tt_end = '9999-12-31T23:59:59.999Z',
-						t.user_content = '${userContent.slice(0, 2000)}',
-						t.assistant_preview = '${assistantContent.slice(0, 2000)}',
-						t.sequence_index = ${Math.floor(turnIdx / 2)}
-				`);
+				const turnQuery = `MERGE (t:Turn {id: '${turnId}'}) ON CREATE SET t.vt_start = '${sessionDate}', t.vt_end = '9999-12-31T23:59:59.999Z', t.tt_start = '${now}', t.tt_end = '9999-12-31T23:59:59.999Z', t.user_content = '${userContent}', t.assistant_preview = '${assistantContent}', t.sequence_index = ${Math.floor(turnIdx / 2)}`;
+				await graph.query(turnQuery);
 
 				// Link Turn to Session
-				await graph.query(`
-					MATCH (s:Session {id: '${sessionId}'})
-					MATCH (t:Turn {id: '${turnId}'})
-					MERGE (s)-[:HAS_TURN]->(t)
-				`);
+				await graph.query(
+					`MATCH (s:Session {id: '${sessionId}'}), (t:Turn {id: '${turnId}'}) MERGE (s)-[:HAS_TURN]->(t)`,
+				);
 				turnsCreated++;
 
 				// Create Memory node
-				const memoryContent = `User: ${userContent.slice(0, 1000)}\\nAssistant: ${assistantContent.slice(0, 1000)}`;
+				const memoryContent = escapeForCypher(
+					`User: ${userTurn.content.slice(0, 200)} Assistant: ${(assistantTurn?.content ?? "").slice(0, 200)}`,
+				);
 				const memoryId = `mem_${sessionId}_${turnIdx}`;
 
-				await graph.query(`
-					MERGE (m:Memory {id: '${memoryId}'})
-					ON CREATE SET
-						m.vt_start = '${sessionDate}',
-						m.vt_end = '9999-12-31T23:59:59.999Z',
-						m.tt_start = '${now}',
-						m.tt_end = '9999-12-31T23:59:59.999Z',
-						m.content = '${memoryContent}',
-						m.type = 'turn',
-						m.source_session_id = '${sessionId}',
-						m.source_turn_id = '${turnId}',
-						m.source = 'import'
-				`);
+				const memoryQuery = `MERGE (m:Memory {id: '${memoryId}'}) ON CREATE SET m.vt_start = '${sessionDate}', m.vt_end = '9999-12-31T23:59:59.999Z', m.tt_start = '${now}', m.tt_end = '9999-12-31T23:59:59.999Z', m.content = '${memoryContent}', m.type = 'turn', m.source_session_id = '${sessionId}', m.source_turn_id = '${turnId}', m.source = 'import'`;
+				await graph.query(memoryQuery);
 
 				// Link Memory to Turn
-				await graph.query(`
-					MATCH (t:Turn {id: '${turnId}'})
-					MATCH (m:Memory {id: '${memoryId}'})
-					MERGE (t)-[:PRODUCES]->(m)
-				`);
+				await graph.query(
+					`MATCH (t:Turn {id: '${turnId}'}), (m:Memory {id: '${memoryId}'}) MERGE (t)-[:PRODUCES]->(m)`,
+				);
 				memoriesCreated++;
 			}
 
-			if (verbose && sessionsCreated % 10 === 0) {
+			if (verbose && sessionsCreated % 50 === 0) {
 				console.log(`  Processed ${sessionsCreated} sessions...`);
 			}
 		}
