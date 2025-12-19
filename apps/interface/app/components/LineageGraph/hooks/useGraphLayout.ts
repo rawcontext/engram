@@ -113,7 +113,8 @@ export function useHighlightChain(
 		// Walk up the parent chain (direct ancestors only)
 		let current = highlightedNodeId;
 		while (parentMap.has(current)) {
-			const parent = parentMap.get(current)!;
+			const parent = parentMap.get(current);
+			if (!parent) break;
 			ids.add(parent);
 			current = parent;
 		}

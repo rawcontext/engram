@@ -133,11 +133,11 @@ export function useSessionStream({
 					sendRef.current({ type: "refresh" });
 				} else if (message.lineage) {
 					// Legacy combined update format
-					setState((prev) => ({ ...prev, lineage: message.lineage! }));
+					setState((prev) => ({ ...prev, lineage: message.lineage }));
 					onLineageUpdateRef.current?.(message.lineage);
 				}
 				if (message.replay) {
-					setState((prev) => ({ ...prev, replay: message.replay! }));
+					setState((prev) => ({ ...prev, replay: message.replay }));
 					onReplayUpdateRef.current?.(message.replay);
 				}
 				break;

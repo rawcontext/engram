@@ -107,7 +107,8 @@ export class TurnAggregator {
 		} else {
 			// Legacy constructor support
 			this.graphClient = depsOrFalkor;
-			this.logger = loggerArg!;
+			if (!loggerArg) throw new Error("logger required for legacy constructor");
+			this.logger = loggerArg;
 			this.onNodeCreated = onNodeCreatedArg;
 			this.handlerRegistry = createDefaultHandlerRegistry();
 		}

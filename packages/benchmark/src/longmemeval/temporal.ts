@@ -340,6 +340,7 @@ If no time constraint is implied, return: {"noTimeConstraint": true}
 JSON response:`;
 
 		const response = await this.config.llm?.complete(prompt, { maxTokens: 100 });
+		if (!response) return undefined;
 
 		try {
 			const jsonMatch = response.text.match(/\{[\s\S]*\}/);

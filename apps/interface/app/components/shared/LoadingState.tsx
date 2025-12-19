@@ -332,7 +332,8 @@ function SkeletonLoader({ count = 6 }: { count?: number }) {
 			}}
 		>
 			{Array.from({ length: count }, (_, i) => (
-				<SkeletonCard key={`skeleton-${i}`} index={i} />
+				// biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton list with fixed count
+				<SkeletonCard key={i} index={i} />
 			))}
 		</div>
 	);

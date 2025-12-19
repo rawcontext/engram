@@ -55,8 +55,7 @@ export function clearTrackedResources(): void {
  * This uses the internal promise() method available in test mode.
  */
 export function getOutputValue<T>(output: pulumi.Output<T>): Promise<T | undefined> {
-	// biome-ignore lint/suspicious/noExplicitAny: Pulumi internal API for testing
-	return (output as any).promise() as Promise<T | undefined>;
+	return (output as unknown as { promise(): Promise<T | undefined> }).promise();
 }
 
 /**

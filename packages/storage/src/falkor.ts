@@ -124,8 +124,8 @@ export class FalkorClient implements GraphClient {
 	): Promise<FalkorResult<T>> {
 		if (!this.graph) await this.connect();
 		// After connect(), graph is guaranteed to be set
-		// Use non-null assertion since we just ensured connection
-		const result = await this.graph?.query(cypher, { params });
+		if (!this.graph) throw new Error("Graph connection failed");
+		const result = await this.graph.query(cypher, { params });
 		return result.data as FalkorResult<T>;
 	}
 

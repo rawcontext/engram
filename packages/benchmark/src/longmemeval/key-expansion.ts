@@ -197,7 +197,7 @@ ${content}
 Summary (one sentence):`;
 
 		const response = await this.config.llm?.complete(prompt, { maxTokens: 100 });
-		return response.text.trim();
+		return response?.text.trim() ?? "";
 	}
 
 	private async llmExtractKeyphrases(content: string): Promise<string[]> {
@@ -209,6 +209,7 @@ ${content}
 Key phrases:`;
 
 		const response = await this.config.llm?.complete(prompt, { maxTokens: 100 });
+		if (!response) return [];
 		return response.text
 			.split("\n")
 			.map((line) => line.trim().replace(/^[-•*]\s*/, ""))
@@ -224,6 +225,7 @@ ${content}
 User facts (if any):`;
 
 		const response = await this.config.llm?.complete(prompt, { maxTokens: 150 });
+		if (!response) return [];
 		return response.text
 			.split("\n")
 			.map((line) => line.trim().replace(/^[-•*]\s*/, ""))
@@ -246,6 +248,7 @@ Base date for relative references: ${baseDate.toISOString().split("T")[0]}
 Return JSON array of objects with "description" and optional "dateText" fields:`;
 
 		const response = await this.config.llm?.complete(prompt, { maxTokens: 200 });
+		if (!response) return [];
 
 		try {
 			const jsonMatch = response.text.match(/\[[\s\S]*\]/);

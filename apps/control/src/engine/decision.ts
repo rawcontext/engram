@@ -111,7 +111,8 @@ export class DecisionEngine {
 		} else {
 			// Legacy constructor
 			this.contextAssembler = depsOrAssembler as ContextAssembler;
-			this.mcpAdapter = mcpAdapterArg!;
+			if (!mcpAdapterArg) throw new Error("mcpAdapter required for legacy constructor");
+			this.mcpAdapter = mcpAdapterArg;
 			this.logger = createNodeLogger({
 				service: "control-service",
 				base: { component: "decision-engine" },

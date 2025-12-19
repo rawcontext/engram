@@ -53,9 +53,9 @@ export class ToolCallEventHandler implements EventHandler {
 			const existing = turn.filesTouched.get(filePath);
 			if (existing) {
 				existing.count++;
-			} else {
+			} else if (fileAction) {
 				turn.filesTouched.set(filePath, {
-					action: fileAction!,
+					action: fileAction,
 					count: 1,
 					toolCallId: toolCallState.id,
 				});

@@ -59,7 +59,7 @@ export function createNodeLogger(
 				},
 				bindings(bindings) {
 					// Remove default pid/hostname, add our base context
-					const { pid, hostname, ...rest } = bindings;
+					const { pid: _pid, hostname: _hostname, ...rest } = bindings;
 					return {
 						service,
 						environment,

@@ -343,11 +343,13 @@ export function EngramLogo({ size = 160 }: EngramLogoProps) {
 		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
 		// Create shaders
-		const vs = gl.createShader(gl.VERTEX_SHADER)!;
+		const vs = gl.createShader(gl.VERTEX_SHADER);
+		if (!vs) return;
 		gl.shaderSource(vs, vertexShader);
 		gl.compileShader(vs);
 
-		const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+		const fs = gl.createShader(gl.FRAGMENT_SHADER);
+		if (!fs) return;
 		gl.shaderSource(fs, fragmentShader);
 		gl.compileShader(fs);
 
@@ -357,7 +359,8 @@ export function EngramLogo({ size = 160 }: EngramLogoProps) {
 		}
 
 		// Create program
-		const program = gl.createProgram()!;
+		const program = gl.createProgram();
+		if (!program) return;
 		gl.attachShader(program, vs);
 		gl.attachShader(program, fs);
 		gl.linkProgram(program);

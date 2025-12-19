@@ -73,9 +73,12 @@ export class SearchService {
 		) {
 			// Legacy constructor: positional args
 			this.retriever = depsOrRetriever as SearchRetriever;
-			this.indexer = indexerArg!;
-			this.schemaManager = schemaManagerArg!;
-			this.kafkaClient = kafkaClientArg!;
+			if (!indexerArg) throw new Error("indexer required for legacy constructor");
+			if (!schemaManagerArg) throw new Error("schemaManager required for legacy constructor");
+			if (!kafkaClientArg) throw new Error("kafkaClient required for legacy constructor");
+			this.indexer = indexerArg;
+			this.schemaManager = schemaManagerArg;
+			this.kafkaClient = kafkaClientArg;
 			this.logger = createNodeLogger({
 				service: "search-service",
 				base: { component: "main" },

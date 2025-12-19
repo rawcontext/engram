@@ -272,7 +272,9 @@ export class RateLimiter {
 				budgetExceeded: false,
 			});
 		}
-		return this.limits.get(userId)!;
+		const state = this.limits.get(userId);
+		if (!state) throw new Error("Failed to create user limit state");
+		return state;
 	}
 
 	/**

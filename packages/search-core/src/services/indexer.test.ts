@@ -11,30 +11,20 @@ const mockEmbedder = {
 };
 
 vi.mock("@qdrant/js-client-rest", () => ({
-	QdrantClient: class {
-		constructor() {
-			return mockQdrantClient;
-		}
-	},
+	QdrantClient: vi.fn().mockImplementation(() => mockQdrantClient),
 }));
 
 vi.mock("./text-embedder", () => ({
-	TextEmbedder: class {
-		constructor() {
-			return mockEmbedder;
-		}
-		embed = mockEmbedder.embed;
-		embedSparse = mockEmbedder.embedSparse;
-	},
+	TextEmbedder: vi.fn().mockImplementation(() => ({
+		embed: mockEmbedder.embed,
+		embedSparse: mockEmbedder.embedSparse,
+	})),
 }));
 
 vi.mock("./code-embedder", () => ({
-	CodeEmbedder: class {
-		constructor() {
-			return mockEmbedder;
-		}
-		embed = mockEmbedder.embed;
-	},
+	CodeEmbedder: vi.fn().mockImplementation(() => ({
+		embed: mockEmbedder.embed,
+	})),
 }));
 
 describe("SearchIndexer", () => {

@@ -248,7 +248,7 @@ function SessionCard({
 				>
 					{activity.map((level, i) => (
 						<div
-							key={i}
+							key={`bar-${i}-${level}`}
 							style={{
 								width: "4px",
 								height: `${6 + i * 2}px`,

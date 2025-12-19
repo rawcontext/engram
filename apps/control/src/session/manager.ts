@@ -62,8 +62,10 @@ export class SessionManager {
 		} else {
 			// Legacy constructor: (contextAssembler, mcpAdapter, falkor)
 			this.contextAssembler = depsOrAssembler as ContextAssembler;
-			this.mcpAdapter = mcpAdapterArg!;
-			this.initializer = new SessionInitializer(falkorArg!);
+			if (!mcpAdapterArg) throw new Error("mcpAdapter required for legacy constructor");
+			if (!falkorArg) throw new Error("falkor required for legacy constructor");
+			this.mcpAdapter = mcpAdapterArg;
+			this.initializer = new SessionInitializer(falkorArg);
 			this.logger = createNodeLogger({
 				service: "control-service",
 				base: { component: "session-manager" },

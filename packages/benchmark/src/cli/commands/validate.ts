@@ -16,7 +16,7 @@ export async function validateCommand(path: string): Promise<void> {
 		console.log(`  Abstention questions: ${result.stats?.abstentionCount}`);
 		console.log("");
 		console.log("By Memory Ability:");
-		for (const [ability, count] of Object.entries(result.stats?.byAbility)) {
+		for (const [ability, count] of Object.entries(result.stats?.byAbility ?? {})) {
 			console.log(`  ${ability}: ${count}`);
 		}
 	} else {

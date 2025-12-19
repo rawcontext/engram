@@ -46,7 +46,8 @@ export function createRedisPublisher() {
 			while (connecting) {
 				await new Promise((r) => setTimeout(r, 50));
 			}
-			return client!;
+			if (!client) throw new Error("Redis client failed to initialize");
+			return client;
 		}
 
 		connecting = true;

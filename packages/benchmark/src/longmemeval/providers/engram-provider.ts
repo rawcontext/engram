@@ -297,12 +297,19 @@ Return ONLY a JSON array of query strings. No explanations.`;
 
 		// Generate dense embeddings
 		const texts = documents.map((d) => d.content);
-		const denseEmbeddings = await Promise.all(texts.map((text) => this.textEmbedder?.embed(text)));
+		const denseEmbeddings = await Promise.all(
+			texts.map((text) => this.textEmbedder?.embed(text) ?? Promise.resolve(new Float32Array(384))),
+		);
 
 		// Generate sparse embeddings if hybrid search enabled
 		let sparseEmbeddings: SparseVector[] | null = null;
 		if (this.config.hybridSearch && this.spladeEmbedder) {
-			sparseEmbeddings = await Promise.all(texts.map((text) => this.spladeEmbedder?.embed(text)));
+			sparseEmbeddings = await Promise.all(
+				texts.map(
+					(text) =>
+						this.spladeEmbedder?.embed(text) ?? Promise.resolve({ indices: [], values: [] }),
+				),
+			);
 		}
 
 		// Generate ColBERT embeddings if using ColBERT reranking
@@ -315,10 +322,11 @@ Return ONLY a JSON array of query strings. No explanations.`;
 
 		// Prepare points for Qdrant
 		const points = documents.map((doc, i) => {
+			const embedding = denseEmbeddings[i] ?? new Float32Array(384);
 			const point: QdrantPoint = {
 				id: this.hashId(doc.id),
 				vector: {
-					dense: Array.from(denseEmbeddings[i]),
+					dense: Array.from(embedding),
 				},
 				payload: {
 					doc_id: doc.id,
@@ -345,8 +353,10 @@ Return ONLY a JSON array of query strings. No explanations.`;
 		const batchSize = 50; // Smaller batches to reduce memory pressure
 		for (let i = 0; i < points.length; i += batchSize) {
 			const batch = points.slice(i, i + batchSize);
+			if (!this.client) throw new Error("Client not initialized");
+			const client = this.client;
 			await this.retryOperation(() =>
-				this.client?.upsert(this.config.collectionName, {
+				client.upsert(this.config.collectionName, {
 					wait: true,
 					points: batch,
 				}),
@@ -464,13 +474,14 @@ Return ONLY a JSON array of query strings. No explanations.`;
 	): Promise<QdrantSearchResult[]> {
 		if (!this.client) return [];
 
+		const client = this.client;
 		return this.retryOperation(async () => {
-			const results = await this.client?.search(this.config.collectionName, {
+			const results = await client.search(this.config.collectionName, {
 				vector: { name: "dense", vector: Array.from(queryVector) },
 				limit,
 				with_payload: true,
 			});
-			return results;
+			return results ?? [];
 		});
 	}
 
@@ -546,8 +557,9 @@ Return ONLY a JSON array of query strings. No explanations.`;
 					const original = results.find(
 						(r) => (r.payload as Record<string, unknown>).doc_id === item.id,
 					);
+					if (!original) throw new Error(`Original result not found for ${item.id}`);
 					return {
-						...original!,
+						...original,
 						score: item.score,
 					};
 				});
@@ -569,8 +581,9 @@ Return ONLY a JSON array of query strings. No explanations.`;
 					const original = results.find(
 						(r) => (r.payload as Record<string, unknown>).doc_id === item.id,
 					);
+					if (!original) throw new Error(`Original result not found for ${item.id}`);
 					return {
-						...original!,
+						...original,
 						score: item.score,
 					};
 				});

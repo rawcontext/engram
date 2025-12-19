@@ -138,7 +138,7 @@ describe("Reader", () => {
 			// Low retrieval score
 			const lowScoreResult = await reader.read("Test?", docs, new Date(), [0.3, 0.2]);
 
-			expect(highScoreResult.confidence).toBeGreaterThan(lowScoreResult.confidence!);
+			expect(highScoreResult.confidence).toBeGreaterThan(lowScoreResult.confidence ?? 0);
 		});
 
 		it("should have confidence signals in result", async () => {

@@ -97,7 +97,8 @@ export class BatchedReranker {
 				model: this.model,
 				quantization: this.quantization,
 			});
-			return BatchedReranker.instances.get(key)!;
+			const cached = BatchedReranker.instances.get(key);
+			if (cached) return cached;
 		}
 
 		// Return existing loading promise to avoid duplicate loads
@@ -107,7 +108,8 @@ export class BatchedReranker {
 				model: this.model,
 				quantization: this.quantization,
 			});
-			return BatchedReranker.loadingPromises.get(key)!;
+			const loading = BatchedReranker.loadingPromises.get(key);
+			if (loading) return loading;
 		}
 
 		// Create new loading promise (lazy loading)
