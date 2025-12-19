@@ -179,8 +179,7 @@ npx tsx scripts/traffic-gen.ts
 ```
 engram/
 ├── apps/
-│   ├── control/            # Session orchestration & agent coordination
-│   ├── execution/          # Internal MCP server for VFS & time travel (used by Control)
+│   ├── control/            # Session orchestration, VFS & time-travel
 │   ├── ingestion/          # Event parsing & normalization
 │   ├── interface/          # Neural Observatory (Next.js)
 │   ├── mcp/                # Engram MCP server for AI agents (remember/recall/query)
@@ -210,8 +209,7 @@ engram/
 
 | App | Description | Docs |
 |:----|:------------|:-----|
-| [control](./apps/control/) | Session orchestration & agent coordination | [README](./apps/control/README.md) |
-| [execution](./apps/execution/) | Internal VFS & time-travel MCP server (used by Control) | [README](./apps/execution/README.md) |
+| [control](./apps/control/) | Session orchestration, VFS & time-travel | [README](./apps/control/README.md) |
 | [ingestion](./apps/ingestion/) | Event parsing & normalization pipeline | [README](./apps/ingestion/README.md) |
 | [interface](./apps/interface/) | Neural Observatory web UI | [README](./apps/interface/README.md) |
 | [mcp](./apps/mcp/) | MCP server for AI agent integration | [README](./apps/mcp/README.md) |
@@ -273,14 +271,10 @@ Indexes graph nodes into Qdrant vectors, provides hybrid dense+sparse search wit
 
 ### Control Service
 
-Manages active sessions, assembles context from history and search results, and orchestrates MCP tool calls to execution services.
+Manages active sessions, assembles context from history and search results, provides VFS operations, and enables time-travel to any point in session history.
 
 **Kafka Group:** `control-group`
 **Topics:** `parsed_events`
-
-### Execution Service (MCP stdio)
-
-Provides virtual file system operations, time travel to any point in session history, and deterministic replay of tool executions.
 
 ### Engram MCP Server (stdio)
 

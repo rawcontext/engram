@@ -1,20 +1,17 @@
 import { createNodeLogger, type Logger } from "@engram/logger";
-import { createFalkorClient, type FalkorClient, type GraphClient } from "@engram/storage";
+import { createFalkorClient, type GraphClient } from "@engram/storage";
 import type { ContextAssembler } from "../context/assembler";
 import { createContextAssembler } from "../context/assembler";
 import { DecisionEngine, type ToolAdapter } from "../engine/decision";
-import type { MultiMcpAdapter } from "../tools/mcp_client";
-import type { ToolRouter } from "../tools/router";
 import { createSessionInitializer, SessionInitializer } from "./initializer";
 
 /**
  * Dependencies for SessionManager construction.
- * Supports dependency injection for testability.
  */
 export interface SessionManagerDeps {
 	/** Context assembler for building agent context. */
 	contextAssembler?: ContextAssembler;
-	/** Tool adapter for tool access. Can be ToolRouter or MultiMcpAdapter. Required. */
+	/** Tool adapter for tool access (ToolRouter). */
 	toolAdapter: ToolAdapter;
 	/** Graph client for session persistence. Defaults to FalkorClient. */
 	graphClient?: GraphClient;
@@ -22,8 +19,6 @@ export interface SessionManagerDeps {
 	sessionInitializer?: SessionInitializer;
 	/** Logger instance. Defaults to createNodeLogger. */
 	logger?: Logger;
-	/** @deprecated Use toolAdapter instead */
-	mcpAdapter?: MultiMcpAdapter | ToolRouter;
 }
 
 // Session engine TTL: 1 hour of inactivity
@@ -42,56 +37,18 @@ export class SessionManager {
 	private logger: Logger;
 	private cleanupInterval: NodeJS.Timeout | null = null;
 
-	/**
-	 * Create a SessionManager with injectable dependencies.
-	 * @param deps - Dependencies including required toolAdapter.
-	 */
-	constructor(deps: SessionManagerDeps);
-	/** @deprecated Use SessionManagerDeps object instead */
-	constructor(
-		contextAssembler: ContextAssembler,
-		mcpAdapter: MultiMcpAdapter,
-		falkor: FalkorClient,
-	);
-	constructor(
-		depsOrAssembler: SessionManagerDeps | ContextAssembler,
-		mcpAdapterArg?: MultiMcpAdapter,
-		falkorArg?: FalkorClient,
-	) {
-		if (
-			("toolAdapter" in depsOrAssembler || "mcpAdapter" in depsOrAssembler) &&
-			mcpAdapterArg === undefined
-		) {
-			// New deps object constructor
-			const deps = depsOrAssembler as SessionManagerDeps;
-			const graphClient = deps.graphClient ?? createFalkorClient();
-			this.contextAssembler = deps.contextAssembler ?? createContextAssembler({ graphClient });
-			// Support both toolAdapter (new) and mcpAdapter (deprecated)
-			this.toolAdapter = deps.toolAdapter ?? (deps.mcpAdapter as ToolAdapter);
-			this.initializer = deps.sessionInitializer ?? createSessionInitializer({ graphClient });
-			this.logger =
-				deps.logger ??
-				createNodeLogger({
-					service: "control-service",
-					base: { component: "session-manager" },
-				});
-
-			// Start periodic cleanup for stale sessions
-			this.startCleanupJob();
-		} else {
-			// Legacy constructor: (contextAssembler, mcpAdapter, falkor)
-			this.contextAssembler = depsOrAssembler as ContextAssembler;
-			if (!mcpAdapterArg) throw new Error("mcpAdapter required for legacy constructor");
-			if (!falkorArg) throw new Error("falkor required for legacy constructor");
-			this.toolAdapter = mcpAdapterArg as ToolAdapter;
-			this.initializer = new SessionInitializer(falkorArg);
-			this.logger = createNodeLogger({
+	constructor(deps: SessionManagerDeps) {
+		const graphClient = deps.graphClient ?? createFalkorClient();
+		this.contextAssembler = deps.contextAssembler ?? createContextAssembler({ graphClient });
+		this.toolAdapter = deps.toolAdapter;
+		this.initializer = deps.sessionInitializer ?? createSessionInitializer({ graphClient });
+		this.logger =
+			deps.logger ??
+			createNodeLogger({
 				service: "control-service",
 				base: { component: "session-manager" },
 			});
-		}
 
-		// Start periodic cleanup for stale sessions
 		this.startCleanupJob();
 	}
 
@@ -158,20 +115,10 @@ export class SessionManager {
 
 /**
  * Factory function for creating SessionManager instances.
- * Supports dependency injection for testability.
  *
  * @example
- * // Production usage
  * const manager = createSessionManager({
- *   mcpAdapter: multiAdapter,
- * });
- *
- * @example
- * // Test usage (inject mocks)
- * const manager = createSessionManager({
- *   mcpAdapter: mockMcpAdapter,
- *   graphClient: mockGraphClient,
- *   contextAssembler: mockContextAssembler,
+ *   toolAdapter: toolRouter,
  * });
  */
 export function createSessionManager(deps: SessionManagerDeps): SessionManager {

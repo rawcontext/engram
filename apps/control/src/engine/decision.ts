@@ -5,8 +5,6 @@ import { createActor, fromPromise } from "xstate";
 import { z } from "zod";
 import type { ContextAssembler } from "../context/assembler";
 import { type AgentContext, agentMachine, type ToolCall } from "../state/machine";
-import type { MultiMcpAdapter } from "../tools/mcp_client";
-import type { ToolRouter } from "../tools/router";
 
 const model = xai("grok-4-1-fast-reasoning");
 
@@ -14,7 +12,7 @@ const model = xai("grok-4-1-fast-reasoning");
 type AiToolSet = Record<string, any>;
 
 /**
- * Common interface for tool adapters (MultiMcpAdapter or ToolRouter).
+ * Interface for tool adapters (ToolRouter).
  */
 export interface ToolAdapter {
 	listTools(): Promise<Array<{ name: string; description?: string; inputSchema?: unknown }>>;
@@ -23,17 +21,14 @@ export interface ToolAdapter {
 
 /**
  * Dependencies for DecisionEngine construction.
- * Supports dependency injection for testability.
  */
 export interface DecisionEngineDeps {
-	/** Context assembler for building agent context. Required. */
+	/** Context assembler for building agent context. */
 	contextAssembler: ContextAssembler;
-	/** Tool adapter for tool access. Can be ToolRouter or MultiMcpAdapter. Required. */
+	/** Tool adapter for tool access (ToolRouter). */
 	toolAdapter: ToolAdapter;
 	/** Logger instance. Defaults to createNodeLogger. */
 	logger?: Logger;
-	/** @deprecated Use toolAdapter instead */
-	mcpAdapter?: MultiMcpAdapter | ToolRouter;
 }
 
 /**
@@ -96,42 +91,15 @@ export class DecisionEngine {
 	private toolAdapter: ToolAdapter;
 	private logger: Logger;
 
-	/**
-	 * Create a DecisionEngine with injectable dependencies.
-	 * @param deps - Dependencies object.
-	 */
-	constructor(deps: DecisionEngineDeps);
-	/** @deprecated Use DecisionEngineDeps object instead */
-	constructor(contextAssembler: ContextAssembler, mcpAdapter: MultiMcpAdapter);
-	constructor(
-		depsOrAssembler: DecisionEngineDeps | ContextAssembler,
-		mcpAdapterArg?: MultiMcpAdapter,
-	) {
-		if (
-			"contextAssembler" in depsOrAssembler &&
-			("toolAdapter" in depsOrAssembler || "mcpAdapter" in depsOrAssembler)
-		) {
-			// New deps object constructor
-			const deps = depsOrAssembler as DecisionEngineDeps;
-			this.contextAssembler = deps.contextAssembler;
-			// Support both toolAdapter (new) and mcpAdapter (deprecated)
-			this.toolAdapter = deps.toolAdapter ?? (deps.mcpAdapter as ToolAdapter);
-			this.logger =
-				deps.logger ??
-				createNodeLogger({
-					service: "control-service",
-					base: { component: "decision-engine" },
-				});
-		} else {
-			// Legacy constructor
-			this.contextAssembler = depsOrAssembler as ContextAssembler;
-			if (!mcpAdapterArg) throw new Error("mcpAdapter required for legacy constructor");
-			this.toolAdapter = mcpAdapterArg as ToolAdapter;
-			this.logger = createNodeLogger({
+	constructor(deps: DecisionEngineDeps) {
+		this.contextAssembler = deps.contextAssembler;
+		this.toolAdapter = deps.toolAdapter;
+		this.logger =
+			deps.logger ??
+			createNodeLogger({
 				service: "control-service",
 				base: { component: "decision-engine" },
 			});
-		}
 
 		this.actor = createActor(
 			agentMachine.provide({
@@ -251,21 +219,11 @@ export class DecisionEngine {
 
 /**
  * Factory function for creating DecisionEngine instances.
- * Supports dependency injection for testability.
  *
  * @example
- * // Production usage
  * const engine = createDecisionEngine({
  *   contextAssembler: assembler,
- *   mcpAdapter: multiAdapter,
- * });
- *
- * @example
- * // Test usage (inject mocks)
- * const engine = createDecisionEngine({
- *   contextAssembler: mockAssembler,
- *   mcpAdapter: mockAdapter,
- *   logger: mockLogger,
+ *   toolAdapter: toolRouter,
  * });
  */
 export function createDecisionEngine(deps: DecisionEngineDeps): DecisionEngine {

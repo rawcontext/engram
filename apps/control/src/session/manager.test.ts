@@ -1,19 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { SessionManager } from "./manager";
 
-// Mocks
-const mockFalkor = {
-	connect: vi.fn(async () => {}),
-};
-
-const mockAssembler = {
-	assembleContext: vi.fn(async () => "context"),
-};
-
-const mockMcp = {
-	listTools: vi.fn(async () => []),
-};
-
 // Mock DecisionEngine
 const mockHandleInput = vi.fn(async () => {});
 vi.mock("../engine/decision", () => ({
@@ -29,11 +16,45 @@ vi.mock("./initializer", () => ({
 	SessionInitializer: class {
 		ensureSession = mockEnsureSession;
 	},
+	createSessionInitializer: () => ({
+		ensureSession: mockEnsureSession,
+	}),
+}));
+
+// Mock context assembler
+vi.mock("../context/assembler", () => ({
+	createContextAssembler: () => ({
+		assembleContext: vi.fn(async () => "context"),
+	}),
+}));
+
+// Mock storage
+vi.mock("@engram/storage", () => ({
+	createFalkorClient: () => ({
+		connect: vi.fn(async () => {}),
+	}),
+}));
+
+// Mock logger
+vi.mock("@engram/logger", () => ({
+	createNodeLogger: () => ({
+		info: vi.fn(),
+		error: vi.fn(),
+		warn: vi.fn(),
+		debug: vi.fn(),
+	}),
 }));
 
 describe("SessionManager", () => {
 	it("should spawn engine and dispatch input", async () => {
-		const manager = new SessionManager(mockAssembler as any, mockMcp as any, mockFalkor as any);
+		const mockToolAdapter = {
+			listTools: vi.fn(async () => []),
+			callTool: vi.fn(async () => ({})),
+		};
+
+		const manager = new SessionManager({
+			toolAdapter: mockToolAdapter,
+		});
 		const sessionId = "sess-1";
 		const input = "Hello";
 
