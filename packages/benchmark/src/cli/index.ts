@@ -2,6 +2,11 @@
 import { Command } from "commander";
 import { evaluateCommand } from "./commands/evaluate.js";
 import { runCommand } from "./commands/run.js";
+import {
+	DEFAULT_DENSE_STEPS,
+	DEFAULT_SPARSE_STEPS,
+	trainFusionCommand,
+} from "./commands/train-fusion.js";
 import { validateCommand } from "./commands/validate.js";
 
 const program = new Command();
@@ -39,6 +44,9 @@ program
 	.option("--rerank-tier <tier>", "Reranker tier: fast, accurate, code, colbert", "fast")
 	.option("--rerank-depth <n>", "Candidates to fetch before reranking", Number.parseInt, 30)
 	.option("--hybrid-search", "Enable hybrid search with RRF (requires --embeddings engram)", true)
+	// Learned fusion options
+	.option("--learned-fusion", "Use learned fusion weights instead of fixed RRF", false)
+	.option("--fusion-model <path>", "Path to fusion MLP ONNX model", "models/fusion_mlp.onnx")
 	// Multi-query retrieval options
 	.option("--multi-query", "Enable multi-query expansion with RRF fusion", false)
 	.option(
@@ -107,5 +115,29 @@ program
 	.description("Validate a benchmark dataset file")
 	.argument("<path>", "Path to dataset file")
 	.action(validateCommand);
+
+// Train fusion weights command
+program
+	.command("train-fusion")
+	.description("Generate training data for learned fusion weights via grid search")
+	.requiredOption("-d, --dataset <path>", "Path to dataset file or directory")
+	.requiredOption("-o, --output <path>", "Output file for training data (JSONL)")
+	.option("-v, --variant <variant>", "Dataset variant (s, m, oracle)", "s")
+	.option("-l, --limit <n>", "Limit number of instances", Number.parseInt)
+	.option("--qdrant-url <url>", "Qdrant server URL", "http://localhost:6333")
+	.option("--verbose", "Show detailed progress", false)
+	.option(
+		"--dense-steps <values>",
+		"Comma-separated dense weight values to try",
+		(v) => v.split(",").map(Number),
+		DEFAULT_DENSE_STEPS,
+	)
+	.option(
+		"--sparse-steps <values>",
+		"Comma-separated sparse weight values to try",
+		(v) => v.split(",").map(Number),
+		DEFAULT_SPARSE_STEPS,
+	)
+	.action(trainFusionCommand);
 
 program.parse();

@@ -24,6 +24,10 @@ export interface EngramProviderConfig {
 	collectionName: string;
 	/** Enable hybrid search (dense + sparse with RRF) */
 	hybridSearch: boolean;
+	/** Use learned fusion weights instead of fixed RRF */
+	learnedFusion: boolean;
+	/** Path to fusion MLP ONNX model */
+	fusionModel: string;
 	/** Enable reranking */
 	rerank: boolean;
 	/** Reranker tier: fast, accurate, code, or colbert */
@@ -60,6 +64,8 @@ const DEFAULT_CONFIG: EngramProviderConfig = {
 	qdrantUrl: "http://localhost:6333",
 	collectionName: "longmemeval_engram",
 	hybridSearch: true,
+	learnedFusion: false,
+	fusionModel: "models/fusion_mlp.onnx",
 	rerank: true,
 	rerankTier: "fast",
 	rerankDepth: 30,
@@ -103,6 +109,7 @@ export class EngramRetriever {
 	private llmProvider: LLMProviderInterface | null = null;
 	private temporalParser: TemporalParserInterface | null = null;
 	private queryFeatureExtractor: QueryFeatureExtractorInterface | null = null;
+	private learnedFusion: LearnedFusionInterface | null = null;
 	private embeddingDimensions: number = 384; // Default for e5-small
 
 	constructor(config: Partial<EngramProviderConfig> = {}) {
@@ -148,6 +155,14 @@ export class EngramRetriever {
 
 			if (this.config.hybridSearch) {
 				this.spladeEmbedder = new searchCore.SpladeEmbedder() as unknown as SpladeEmbedderInterface;
+			}
+
+			// Initialize learned fusion if enabled
+			if (this.config.learnedFusion) {
+				this.learnedFusion = new searchCore.LearnedFusion({
+					modelPath: this.config.fusionModel,
+				}) as unknown as LearnedFusionInterface;
+				console.log(`  [Learned Fusion] Using model: ${this.config.fusionModel}`);
 			}
 
 			if (this.config.rerank && this.config.rerankTier === "colbert") {
@@ -716,8 +731,19 @@ Return ONLY a JSON array of query strings. No explanations.`;
 			let results: QdrantSearchResult[];
 
 			if (this.config.hybridSearch && sparseQuery) {
-				// Hybrid search with RRF fusion
-				results = await this.hybridSearch(denseQuery, sparseQuery, fetchLimit, temporalFilter);
+				if (this.config.learnedFusion && this.learnedFusion) {
+					// Learned fusion: fetch dense and sparse separately, then fuse with predicted weights
+					results = await this.learnedFusionSearch(
+						query,
+						denseQuery,
+						sparseQuery,
+						fetchLimit,
+						temporalFilter,
+					);
+				} else {
+					// Standard hybrid search with fixed RRF fusion
+					results = await this.hybridSearch(denseQuery, sparseQuery, fetchLimit, temporalFilter);
+				}
 			} else {
 				// Dense-only search
 				results = await this.denseSearch(denseQuery, fetchLimit, temporalFilter);
@@ -870,6 +896,104 @@ Return ONLY a JSON array of query strings. No explanations.`;
 			// Fall back to dense-only if hybrid fails
 			console.warn("Hybrid search failed, falling back to dense-only");
 			return this.denseSearch(denseQuery, limit, temporalFilter);
+		}
+	}
+
+	/**
+	 * Learned fusion search: fetch dense and sparse separately, then use MLP-predicted weights
+	 */
+	private async learnedFusionSearch(
+		query: string,
+		denseQuery: number[] | Float32Array,
+		sparseQuery: SparseVector,
+		limit: number,
+		temporalFilter?: TemporalFilterType | null,
+	): Promise<QdrantSearchResult[]> {
+		if (!this.client || !this.learnedFusion) {
+			return this.hybridSearch(denseQuery, sparseQuery, limit, temporalFilter);
+		}
+
+		try {
+			// Fetch dense and sparse results separately
+			const denseResults = await this.denseSearch(denseQuery, limit * 2, temporalFilter);
+			const sparseResults = await this.sparseSearch(sparseQuery, limit * 2, temporalFilter);
+
+			// Convert to SearchResult format for LearnedFusion
+			const denseSearchResults = denseResults.map((r) => {
+				const payload = r.payload as Record<string, unknown>;
+				return {
+					id: payload.doc_id as string,
+					content: payload.content as string,
+					score: r.score,
+				};
+			});
+
+			const sparseSearchResults = sparseResults.map((r) => {
+				const payload = r.payload as Record<string, unknown>;
+				return {
+					id: payload.doc_id as string,
+					content: payload.content as string,
+					score: r.score,
+				};
+			});
+
+			// Use learned fusion to combine results
+			const fusedResults = await this.learnedFusion.fuse(
+				query,
+				denseSearchResults,
+				sparseSearchResults,
+			);
+
+			// Map back to QdrantSearchResult format
+			const resultMap = new Map<string, QdrantSearchResult>();
+			for (const r of denseResults) {
+				const payload = r.payload as Record<string, unknown>;
+				resultMap.set(payload.doc_id as string, r);
+			}
+			for (const r of sparseResults) {
+				const payload = r.payload as Record<string, unknown>;
+				if (!resultMap.has(payload.doc_id as string)) {
+					resultMap.set(payload.doc_id as string, r);
+				}
+			}
+
+			return fusedResults.slice(0, limit).map((f) => {
+				const original = resultMap.get(f.id);
+				if (!original) throw new Error(`Missing result for ${f.id}`);
+				return { ...original, score: f.score };
+			});
+		} catch (error) {
+			console.warn("Learned fusion failed, falling back to RRF:", error);
+			return this.hybridSearch(denseQuery, sparseQuery, limit, temporalFilter);
+		}
+	}
+
+	/**
+	 * Sparse-only search
+	 */
+	private async sparseSearch(
+		sparseQuery: SparseVector,
+		limit: number,
+		temporalFilter?: TemporalFilterType | null,
+	): Promise<QdrantSearchResult[]> {
+		if (!this.client) return [];
+
+		const qdrantFilter = temporalFilter ? this.buildQdrantFilter(temporalFilter) : undefined;
+
+		try {
+			const results = await this.client.query(this.config.collectionName, {
+				query: {
+					indices: sparseQuery.indices,
+					values: sparseQuery.values,
+				},
+				using: "sparse",
+				limit,
+				with_payload: true,
+				filter: qdrantFilter,
+			});
+			return results.points || [];
+		} catch {
+			return [];
 		}
 	}
 
@@ -1146,4 +1270,13 @@ interface QueryFeatureExtractorInterface {
 		hasSpecificTerms: boolean;
 		complexity: number;
 	};
+}
+
+interface LearnedFusionInterface {
+	fuse(
+		query: string,
+		denseResults: Array<{ id: string; content: string; score: number }>,
+		sparseResults: Array<{ id: string; content: string; score: number }>,
+		rerankResults?: Array<{ id: string; content: string; score: number }>,
+	): Promise<Array<{ id: string; content: string; score: number }>>;
 }

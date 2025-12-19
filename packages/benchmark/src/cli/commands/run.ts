@@ -40,6 +40,9 @@ interface RunOptions {
 	rerankTier: string;
 	rerankDepth: number;
 	hybridSearch: boolean;
+	// Learned fusion options
+	learnedFusion: boolean;
+	fusionModel: string;
 	// Multi-query retrieval options
 	multiQuery: boolean;
 	multiQueryVariations: number;
@@ -82,6 +85,10 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
 	console.log(`  Temporal Analysis: ${options.temporalAnalysis}`);
 	if (options.embeddings === "engram") {
 		console.log(`  Hybrid Search: ${options.hybridSearch}`);
+		console.log(`  Learned Fusion: ${options.learnedFusion}`);
+		if (options.learnedFusion) {
+			console.log(`  Fusion Model: ${options.fusionModel}`);
+		}
 		console.log(`  Rerank: ${options.rerank}`);
 		if (options.rerank) {
 			console.log(`  Rerank Tier: ${options.rerankTier}`);
@@ -230,6 +237,8 @@ function createCustomRetriever(options: RunOptions): CustomRetriever | undefined
 	return new EngramRetriever({
 		qdrantUrl: options.qdrantUrl ?? "http://localhost:6333",
 		hybridSearch: options.hybridSearch,
+		learnedFusion: options.learnedFusion,
+		fusionModel: options.fusionModel,
 		rerank: options.rerank,
 		rerankTier: options.rerankTier as "fast" | "accurate" | "code" | "colbert",
 		rerankDepth: options.rerankDepth,
