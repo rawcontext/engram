@@ -153,7 +153,7 @@ YOU MUST NOT:
 3. Modify Kafka topics without updating consumers
 4. Skip the parser registry when adding providers
 5. Assume library APIs from training data—verify with Context7 + web search
-6. Include self-referencing meta commentary in code or docs (e.g., "AI-generated", "Claude wrote this", "as an AI assistant", reasoning explanations about your own process)
+6. Include meta commentary about development process in code or docs (e.g., "Phase 1 of migration", "implements the plan from...", "this is a temporary solution until..."). Code should describe what it does, not its place in a roadmap.
 
 ## Key Files
 
