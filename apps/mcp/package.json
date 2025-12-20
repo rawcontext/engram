@@ -1,5 +1,5 @@
 {
-	"name": "@engram/mcp",
+	"name": "engram-mcp",
 	"version": "0.1.0",
 	"description": "Engram MCP server - intelligent memory for AI agents",
 	"type": "module",
