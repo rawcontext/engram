@@ -12,19 +12,25 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Stage 1: Build dependencies
+# Single stage build with CUDA support (needed for onnxruntime-node-gpu)
 # -----------------------------------------------------------------------------
-FROM node:22-bookworm-slim AS builder
+FROM nvidia/cuda:12.3.2-cudnn9-devel-ubuntu22.04
 
-WORKDIR /app
-
-# Install build essentials for native modules
+# Install Node.js 22 LTS and build dependencies
 RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    wget \
+    jq \
     python3 \
     make \
     g++ \
     git \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
 
 # Copy monorepo package files
 COPY package*.json ./
@@ -36,37 +42,12 @@ COPY packages/logger/package.json packages/logger/
 COPY packages/common/package.json packages/common/
 COPY packages/temporal/package.json packages/temporal/
 
-# Install all dependencies
+# Install all dependencies with GPU support
 RUN npm install --include=dev
 
 # Copy source code
 COPY packages/ packages/
 COPY biome.json ./
-
-# -----------------------------------------------------------------------------
-# Stage 2: Runtime image with CUDA support
-# -----------------------------------------------------------------------------
-FROM nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04
-
-# Install Node.js 22 LTS and system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    ca-certificates \
-    wget \
-    jq \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# Copy built application from builder
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/package*.json ./
-
-# Reinstall native modules for the runtime platform
-RUN npm install --os=linux --cpu=x64 sharp
 
 # Model cache directory
 ENV HF_HOME=/app/.cache
