@@ -23,10 +23,6 @@ steps:
     args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/memory:$SHORT_SHA', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/memory:latest', '-f', 'apps/memory/Dockerfile', '.']
     waitFor: ['test']
 
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-search'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/search:$SHORT_SHA', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/search:latest', '-f', 'apps/search/Dockerfile', '.']
-    waitFor: ['test']
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-execution'
@@ -54,10 +50,6 @@ steps:
     args: ['push', '--all-tags', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/memory']
     waitFor: ['build-memory']
 
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-search'
-    args: ['push', '--all-tags', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/search']
-    waitFor: ['build-search']
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'push-execution'
@@ -87,11 +79,6 @@ steps:
     args: ['run', 'deploy', 'memory', '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/memory:$SHORT_SHA', '--region', 'us-central1', '--platform', 'managed']
     waitFor: ['push-memory']
 
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'deploy-search'
-    entrypoint: gcloud
-    args: ['run', 'deploy', 'search', '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/search:$SHORT_SHA', '--region', 'us-central1', '--platform', 'managed']
-    waitFor: ['push-search']
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-execution'
@@ -118,7 +105,6 @@ options:
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/ingestion:$SHORT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/memory:$SHORT_SHA'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/search:$SHORT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/execution:$SHORT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/control:$SHORT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/interface:$SHORT_SHA'
