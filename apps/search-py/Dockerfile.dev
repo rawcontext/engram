@@ -1,0 +1,28 @@
+# Development Dockerfile for Engram Search Service with hot reload
+FROM python:3.12-slim
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+# Install libgomp for ONNX runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency files
+COPY pyproject.toml uv.lock* ./
+
+# Install all dependencies including dev dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen
+
+# Add venv to path
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app/src"
+
+# Source will be mounted as volume in docker-compose
+EXPOSE 5002
+
+CMD ["uvicorn", "search.main:app", "--host", "0.0.0.0", "--port", "5002", "--reload"]
