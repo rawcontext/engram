@@ -1,9 +1,17 @@
 /**
  * Evaluation adapter bridging tuner config to benchmark execution
  *
- * TODO: Migrate to use Python benchmark service (packages/benchmark)
- * This module previously used the deprecated TypeScript @engram/benchmark package.
- * It needs to be updated to call the Python benchmark service HTTP API instead.
+ * The Python benchmark package (packages/benchmark) provides the LongMemEval
+ * evaluation suite. This adapter maps tuner trial configurations to benchmark
+ * parameters.
+ *
+ * Integration options:
+ * 1. CLI execution: Run `engram-benchmark run` via subprocess
+ * 2. HTTP API: Requires adding FastAPI server to benchmark package
+ * 3. Direct Python: Requires tuner to be Python-based
+ *
+ * Currently, the evaluateWithBenchmark function is a placeholder that throws.
+ * Implement by calling the benchmark CLI or adding an HTTP API endpoint.
  *
  * @module @engram/tuner/executor
  */
@@ -11,7 +19,6 @@
 import type { TrialConfig } from "./config-mapper.js";
 import type { TrialMetrics } from "./trial-runner.js";
 
-// TODO: Define types based on Python benchmark API
 type DatasetVariant = "s" | "m" | "oracle";
 type LLMProviderType = "stub" | "anthropic" | "openai" | "gemini" | "ollama";
 type RunBenchmarkConfig = Record<string, unknown>;
@@ -48,7 +55,8 @@ export interface EvaluationAdapterOptions {
 /**
  * Map tuner TrialConfig to benchmark RunBenchmarkConfig
  *
- * TODO: Update to call Python benchmark service HTTP API
+ * Creates a configuration object compatible with the engram-benchmark CLI.
+ * The config maps to the --rerank, --top-k, and other CLI arguments.
  *
  * @param trialConfig - Configuration from tuner trial
  * @param options - Adapter options
@@ -58,7 +66,6 @@ export function mapTrialToBenchmarkConfig(
 	trialConfig: TrialConfig,
 	options: EvaluationAdapterOptions,
 ): RunBenchmarkConfig {
-	// TODO: Replace with Python benchmark API payload format
 	return {
 		dataset: options.dataset,
 		variant: options.variant ?? "oracle",
@@ -79,7 +86,10 @@ export function mapTrialToBenchmarkConfig(
 	};
 }
 
-// TODO: Define based on Python benchmark API response
+/**
+ * Metrics returned from benchmark evaluation.
+ * These map to the metrics computed by engram-benchmark.
+ */
 type BenchmarkMetrics = {
 	accuracy: number;
 	recallAt1: number;
@@ -98,8 +108,6 @@ type BenchmarkMetrics = {
 
 /**
  * Map benchmark metrics to tuner TrialMetrics format
- *
- * TODO: Update to match Python benchmark API response format
  *
  * @param benchmarkMetrics - Metrics from benchmark run
  * @returns Metrics in tuner format
@@ -128,9 +136,9 @@ export function mapBenchmarkToTrialMetrics(benchmarkMetrics: BenchmarkMetrics): 
 /**
  * Evaluate a trial configuration using the benchmark pipeline
  *
- * TODO: Implement HTTP client to call Python benchmark service
- * This function previously called the deprecated TypeScript @engram/benchmark.
- * It needs to make HTTP requests to the Python benchmark service API instead.
+ * This function is a placeholder. To implement, choose one of:
+ * 1. CLI subprocess: Run `engram-benchmark run` with spawned process
+ * 2. HTTP API: Add FastAPI server to packages/benchmark, call via fetch
  *
  * @param trialConfig - Configuration from tuner trial
  * @param options - Adapter options including dataset path
@@ -155,14 +163,10 @@ export async function evaluateWithBenchmark(
 	// Map trial config to benchmark config
 	const _benchmarkConfig = mapTrialToBenchmarkConfig(trialConfig, options);
 
-	// TODO: Replace with HTTP call to Python benchmark service
-	// Example: POST http://localhost:8001/api/benchmark
-	// Body: benchmarkConfig
-	// Response: { metrics: BenchmarkMetrics }
+	// Implementation options:
+	// 1. CLI: spawn('engram-benchmark', ['run', '--dataset', options.dataset, ...])
+	// 2. HTTP: fetch('http://localhost:8001/api/benchmark', { method: 'POST', body: ... })
 	throw new Error(
-		"evaluateWithBenchmark not implemented: needs migration to Python benchmark service API",
+		"evaluateWithBenchmark not implemented: integrate with engram-benchmark CLI or HTTP API",
 	);
-
-	// // Map benchmark metrics to trial metrics format
-	// return mapBenchmarkToTrialMetrics(result.metrics);
 }

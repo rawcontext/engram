@@ -1,12 +1,12 @@
 import { GraphOperationError, SearchError } from "@engram/common";
-
-// TODO: Replace with HTTP client to search service (port 5002)
-// import type { SearchRetriever } from "@engram/search";
-type SearchRetriever = any; // TODO: Replace with HTTP client type
-
 import type { GraphClient, ThoughtNode } from "@engram/storage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ContextAssembler, type ContextAssemblerDeps, createContextAssembler } from "./assembler";
+import type { SearchClient, SearchResponse } from "../clients/search.js";
+import {
+	ContextAssembler,
+	type ContextAssemblerDeps,
+	createContextAssembler,
+} from "./assembler.js";
 
 // =============================================================================
 // Mock Factories
@@ -26,13 +26,17 @@ function createMockGraphClient(overrides?: Partial<GraphClient>): GraphClient {
 }
 
 /**
- * Create a mock SearchRetriever
+ * Create a mock SearchClient
  */
-function createMockSearchRetriever(overrides?: Partial<SearchRetriever>): SearchRetriever {
+function createMockSearchClient(
+	overrides?: Partial<{ search: ReturnType<typeof vi.fn> }>,
+): SearchClient {
+	const defaultResponse: SearchResponse = { results: [], total: 0, took_ms: 1 };
 	return {
-		search: vi.fn(async () => []),
+		search: vi.fn(async () => defaultResponse),
+		health: vi.fn(async () => ({ status: "healthy", qdrant_connected: true })),
 		...overrides,
-	} as SearchRetriever;
+	} as unknown as SearchClient;
 }
 
 /**
@@ -62,12 +66,12 @@ function createMockThoughtNode(overrides?: Partial<ThoughtNode>): ThoughtNode {
 
 describe("ContextAssembler", () => {
 	let mockGraphClient: GraphClient;
-	let mockSearchRetriever: SearchRetriever;
+	let mockSearchClient: SearchClient;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockGraphClient = createMockGraphClient();
-		mockSearchRetriever = createMockSearchRetriever();
+		mockSearchClient = createMockSearchClient();
 	});
 
 	// =========================================================================
@@ -87,7 +91,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const deps: ContextAssemblerDeps = {
 				graphClient: mockGraphClient,
-				searchRetriever: mockSearchRetriever,
+				searchClient: mockSearchClient,
 			};
 
 			// Act
@@ -101,7 +105,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const deps: ContextAssemblerDeps = {
 				graphClient: mockGraphClient,
-				searchRetriever: null,
+				searchClient: null,
 			};
 
 			// Act
@@ -126,21 +130,27 @@ describe("ContextAssembler", () => {
 	});
 
 	// =========================================================================
-	// Constructor Tests (Legacy Support)
+	// Constructor Tests
 	// =========================================================================
 
-	describe("constructor (legacy support)", () => {
-		it("should support legacy constructor with null search", () => {
+	describe("constructor", () => {
+		it("should create instance with deps object", () => {
 			// Arrange & Act
-			const assembler = new ContextAssembler(null, mockGraphClient as any);
+			const assembler = new ContextAssembler({
+				searchClient: mockSearchClient,
+				graphClient: mockGraphClient,
+			});
 
 			// Assert
 			expect(assembler).toBeInstanceOf(ContextAssembler);
 		});
 
-		it("should support legacy constructor with search and memory", () => {
+		it("should create instance with null search client", () => {
 			// Arrange & Act
-			const assembler = new ContextAssembler(mockSearchRetriever, mockGraphClient as any);
+			const assembler = new ContextAssembler({
+				searchClient: null,
+				graphClient: mockGraphClient,
+			});
 
 			// Assert
 			expect(assembler).toBeInstanceOf(ContextAssembler);
@@ -156,7 +166,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act
@@ -171,7 +181,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 			const query = "What is the weather today?";
 
@@ -217,7 +227,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act
@@ -235,28 +245,36 @@ describe("ContextAssembler", () => {
 				{
 					id: "point-1",
 					score: 0.9,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
 					payload: {
 						session_id: "other-session",
 						content: "Relevant memory 1",
 					},
+					degraded: false,
 				},
 				{
 					id: "point-2",
 					score: 0.8,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
 					payload: {
 						session_id: "other-session",
 						content: "Relevant memory 2",
 					},
+					degraded: false,
 				},
 			];
 
-			const searchRetriever = createMockSearchRetriever({
-				search: vi.fn(async () => mockSearchResults),
+			const searchClient = createMockSearchClient({
+				search: vi.fn(async () => ({ results: mockSearchResults, total: 2, took_ms: 10 })),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act
@@ -275,28 +293,36 @@ describe("ContextAssembler", () => {
 				{
 					id: "point-1",
 					score: 0.9,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
 					payload: {
 						session_id: currentSessionId, // Same session - should be filtered
 						content: "Content from current session",
 					},
+					degraded: false,
 				},
 				{
 					id: "point-2",
 					score: 0.8,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
 					payload: {
 						session_id: "other-session",
 						content: "Content from other session",
 					},
+					degraded: false,
 				},
 			];
 
-			const searchRetriever = createMockSearchRetriever({
-				search: vi.fn(async () => mockSearchResults),
+			const searchClient = createMockSearchClient({
+				search: vi.fn(async () => ({ results: mockSearchResults, total: 2, took_ms: 10 })),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act
@@ -309,13 +335,13 @@ describe("ContextAssembler", () => {
 
 		it("should handle empty search results", async () => {
 			// Arrange
-			const searchRetriever = createMockSearchRetriever({
-				search: vi.fn(async () => []),
+			const searchClient = createMockSearchClient({
+				search: vi.fn(async () => ({ results: [], total: 0, took_ms: 1 })),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act
@@ -327,13 +353,13 @@ describe("ContextAssembler", () => {
 
 		it("should handle null search results", async () => {
 			// Arrange
-			const searchRetriever = createMockSearchRetriever({
-				search: vi.fn(async () => null as any),
+			const searchClient = createMockSearchClient({
+				search: vi.fn(async () => ({ results: null, total: 0, took_ms: 1 }) as any),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act
@@ -349,28 +375,36 @@ describe("ContextAssembler", () => {
 				{
 					id: "point-1",
 					score: 0.9,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
 					payload: {
 						session_id: "other-session",
 						// Missing content
 					},
+					degraded: false,
 				},
 				{
 					id: "point-2",
 					score: 0.8,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
 					payload: {
 						session_id: "other-session",
 						content: "Has content",
 					},
+					degraded: false,
 				},
 			];
 
-			const searchRetriever = createMockSearchRetriever({
-				search: vi.fn(async () => mockSearchResults),
+			const searchClient = createMockSearchClient({
+				search: vi.fn(async () => ({ results: mockSearchResults, total: 2, took_ms: 10 })),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act
@@ -383,20 +417,60 @@ describe("ContextAssembler", () => {
 		it("should limit search results to top 3", async () => {
 			// Arrange
 			const mockSearchResults = [
-				{ id: "1", score: 0.95, payload: { session_id: "other", content: "Memory 1" } },
-				{ id: "2", score: 0.9, payload: { session_id: "other", content: "Memory 2" } },
-				{ id: "3", score: 0.85, payload: { session_id: "other", content: "Memory 3" } },
-				{ id: "4", score: 0.8, payload: { session_id: "other", content: "Memory 4" } },
-				{ id: "5", score: 0.75, payload: { session_id: "other", content: "Memory 5" } },
+				{
+					id: "1",
+					score: 0.95,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
+					payload: { session_id: "other", content: "Memory 1" },
+					degraded: false,
+				},
+				{
+					id: "2",
+					score: 0.9,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
+					payload: { session_id: "other", content: "Memory 2" },
+					degraded: false,
+				},
+				{
+					id: "3",
+					score: 0.85,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
+					payload: { session_id: "other", content: "Memory 3" },
+					degraded: false,
+				},
+				{
+					id: "4",
+					score: 0.8,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
+					payload: { session_id: "other", content: "Memory 4" },
+					degraded: false,
+				},
+				{
+					id: "5",
+					score: 0.75,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
+					payload: { session_id: "other", content: "Memory 5" },
+					degraded: false,
+				},
 			];
 
-			const searchRetriever = createMockSearchRetriever({
-				search: vi.fn(async () => mockSearchResults),
+			const searchClient = createMockSearchClient({
+				search: vi.fn(async () => ({ results: mockSearchResults, total: 5, took_ms: 10 })),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act
@@ -425,7 +499,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act
@@ -444,7 +518,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 			const sessionId = "test-session-123";
 
@@ -483,7 +557,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act
@@ -541,7 +615,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act
@@ -568,7 +642,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act & Assert
@@ -585,7 +659,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 			const sessionId = "error-session-123";
 
@@ -602,13 +676,13 @@ describe("ContextAssembler", () => {
 		it("should throw SearchError when search fails", async () => {
 			// Arrange
 			const searchError = new Error("Search unavailable");
-			const searchRetriever = createMockSearchRetriever({
+			const searchClient = createMockSearchClient({
 				search: vi.fn().mockRejectedValue(searchError),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act & Assert
@@ -624,7 +698,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act & Assert
@@ -640,13 +714,13 @@ describe("ContextAssembler", () => {
 		it("should preserve original error as cause in SearchError", async () => {
 			// Arrange
 			const originalError = new Error("Original search error");
-			const searchRetriever = createMockSearchRetriever({
+			const searchClient = createMockSearchClient({
 				search: vi.fn().mockRejectedValue(originalError),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act & Assert
@@ -662,13 +736,13 @@ describe("ContextAssembler", () => {
 		it("should truncate long queries in SearchError", async () => {
 			// Arrange
 			const longQuery = "A".repeat(200);
-			const searchRetriever = createMockSearchRetriever({
+			const searchClient = createMockSearchClient({
 				search: vi.fn().mockRejectedValue(new Error("Search failed")),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act & Assert
@@ -711,7 +785,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act
@@ -726,7 +800,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act - very low token limit
@@ -759,7 +833,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act - moderate token limit
@@ -790,10 +864,14 @@ describe("ContextAssembler", () => {
 				{
 					id: "point-1",
 					score: 0.9,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
 					payload: {
 						session_id: "other",
 						content: "Relevant memory content",
 					},
+					degraded: false,
 				},
 			];
 
@@ -801,13 +879,13 @@ describe("ContextAssembler", () => {
 				query: vi.fn(async () => mockHistory.map((h) => ({ thought: h }))),
 			});
 
-			const searchRetriever = createMockSearchRetriever({
-				search: vi.fn(async () => mockSearchResults),
+			const searchClient = createMockSearchClient({
+				search: vi.fn(async () => ({ results: mockSearchResults, total: 1, took_ms: 10 })),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act - limit that fits system prompt and history but not memories
@@ -823,7 +901,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act - no token limit parameter
@@ -842,14 +920,14 @@ describe("ContextAssembler", () => {
 	describe("search integration", () => {
 		it("should call search with correct parameters", async () => {
 			// Arrange
-			const searchMock = vi.fn(async () => []);
-			const searchRetriever = createMockSearchRetriever({
+			const searchMock = vi.fn(async () => ({ results: [], total: 0, took_ms: 1 }));
+			const searchClient = createMockSearchClient({
 				search: searchMock,
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 			const query = "Find information about testing";
 
@@ -861,6 +939,8 @@ describe("ContextAssembler", () => {
 				text: query,
 				limit: 5,
 				strategy: "hybrid",
+				rerank: true,
+				rerank_tier: "fast",
 			});
 		});
 
@@ -868,7 +948,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act
@@ -881,17 +961,32 @@ describe("ContextAssembler", () => {
 		it("should handle search results without payload", async () => {
 			// Arrange
 			const mockSearchResults = [
-				{ id: "1", score: 0.9 }, // No payload
-				{ id: "2", score: 0.8, payload: null },
+				{
+					id: "1",
+					score: 0.9,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
+					degraded: false,
+				}, // No payload
+				{
+					id: "2",
+					score: 0.8,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
+					payload: null,
+					degraded: false,
+				},
 			];
 
-			const searchRetriever = createMockSearchRetriever({
-				search: vi.fn(async () => mockSearchResults as any),
+			const searchClient = createMockSearchClient({
+				search: vi.fn(async () => ({ results: mockSearchResults, total: 2, took_ms: 1 }) as any),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act
@@ -911,7 +1006,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act
@@ -926,7 +1021,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 			const query = "What is the answer?";
 
@@ -961,7 +1056,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act
@@ -977,17 +1072,21 @@ describe("ContextAssembler", () => {
 				{
 					id: "1",
 					score: 0.9,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
 					payload: { session_id: "other", content: "Memory content" },
+					degraded: false,
 				},
 			];
 
-			const searchRetriever = createMockSearchRetriever({
-				search: vi.fn(async () => mockSearchResults),
+			const searchClient = createMockSearchClient({
+				search: vi.fn(async () => ({ results: mockSearchResults, total: 1, took_ms: 1 })),
 			});
 
 			const assembler = createContextAssembler({
 				graphClient: mockGraphClient,
-				searchRetriever,
+				searchClient,
 			});
 
 			// Act
@@ -1021,7 +1120,7 @@ describe("ContextAssembler", () => {
 
 			const assembler = createContextAssembler({
 				graphClient,
-				searchRetriever: null,
+				searchClient: null,
 			});
 
 			// Act

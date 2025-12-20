@@ -1,11 +1,12 @@
 import { createNodeLogger } from "@engram/logger";
 import { createFalkorClient, createKafkaClient } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";
-import { ContextAssembler } from "./context/assembler";
-import { ExecutionService } from "./execution";
-import { SessionManager } from "./session/manager";
-import { McpToolAdapter, MultiMcpAdapter } from "./tools/mcp_client";
-import { ToolRouter } from "./tools/router";
+import { createSearchClient } from "./clients/search.js";
+import { ContextAssembler } from "./context/assembler.js";
+import { ExecutionService } from "./execution/index.js";
+import { SessionManager } from "./session/manager.js";
+import { McpToolAdapter, MultiMcpAdapter } from "./tools/mcp_client.js";
+import { ToolRouter } from "./tools/router.js";
 
 const logger = createNodeLogger({ service: "control-service", base: { component: "main" } });
 
@@ -27,10 +28,11 @@ multiAdapter.addAdapter(wassetteAdapter);
 // Create unified ToolRouter that combines ExecutionService + MCP tools
 const toolRouter = new ToolRouter(executionService, multiAdapter);
 
-// Initialize Core Logic
-// TODO: Replace with Python search service HTTP client when integrated
-// Previously used @engram/search SearchRetriever (migrated to Python)
-const contextAssembler = new ContextAssembler({ searchRetriever: null, graphClient: falkor });
+// Initialize Search Client for Python search service
+const searchClient = createSearchClient(process.env.SEARCH_URL);
+
+// Initialize Core Logic with search integration
+const contextAssembler = new ContextAssembler({ searchClient, graphClient: falkor });
 
 const sessionManager = new SessionManager({
 	contextAssembler,

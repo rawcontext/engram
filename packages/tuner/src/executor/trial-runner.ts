@@ -1,26 +1,18 @@
 /**
  * Trial execution for optimization loop
  *
- * TODO: Update to work with Python search service API
- * Previously used @engram/search RuntimeConfig which has been migrated to Python.
+ * The Python search service (apps/search) accepts reranker settings per-request
+ * via the SearchRequest body. There is no global RuntimeConfig - each search
+ * request includes its own rerank, rerank_tier, and rerank_depth parameters.
+ *
+ * The evaluation function receives the full trial config and should construct
+ * search requests with the appropriate settings.
+ *
+ * @module @engram/tuner/executor
  */
 
 import type { TunerClient } from "../client/tuner-client.js";
 import { mapParamsToConfig, type TrialConfig } from "./config-mapper.js";
-
-// TODO: Replace with HTTP calls to Python search service configuration API
-const RuntimeConfig = {
-	update: (_config: unknown) => {
-		throw new Error(
-			"RuntimeConfig.update not implemented: needs migration to Python search service API",
-		);
-	},
-	reset: () => {
-		throw new Error(
-			"RuntimeConfig.reset not implemented: needs migration to Python search service API",
-		);
-	},
-};
 
 export interface TrialMetrics {
 	// Quality metrics
@@ -138,10 +130,13 @@ export function computeObjectiveValues(
  * Run a single optimization trial
  *
  * 1. Gets next parameters from tuner service
- * 2. Applies reranker parameters to RuntimeConfig
- * 3. Runs evaluation function with full config (search/abstention passed directly)
- * 4. Reports results back to tuner service
- * 5. Resets RuntimeConfig
+ * 2. Maps parameters to trial configuration
+ * 3. Runs evaluation function with full config (includes reranker, search, abstention settings)
+ * 4. Computes objective value from metrics
+ * 5. Reports results back to tuner service
+ *
+ * The evaluation function is responsible for passing the config settings
+ * to the search service per-request.
  */
 export async function runTrial(options: TrialRunnerOptions): Promise<void> {
 	const { client, studyName, evaluationFn, objectives, onProgress } = options;
@@ -163,21 +158,15 @@ export async function runTrial(options: TrialRunnerOptions): Promise<void> {
 			config,
 		});
 
-		// 3. Apply reranker settings to RuntimeConfig
-		// (search and abstention settings are passed to evaluationFn)
-		// Cast is safe because RuntimeConfig.update does deep merge
-		if (Object.keys(config.reranker).length > 0) {
-			RuntimeConfig.update(config.reranker as Parameters<typeof RuntimeConfig.update>[0]);
-		}
-
-		// 4. Run evaluation with full config
+		// 3. Run evaluation with full config
+		// The evaluation function should pass reranker settings to search requests
 		onProgress?.({ type: "evaluate", trialId });
 		const metrics = await evaluationFn(config);
 
-		// 5. Compute objective value(s)
+		// 4. Compute objective value(s)
 		const objectiveValue = computeObjectiveValues(metrics, objectives);
 
-		// 6. Report results
+		// 5. Report results
 		await client.completeTrial(studyName, trialId, {
 			values: objectiveValue,
 			user_attrs: metrics as Record<string, unknown>,
@@ -196,9 +185,6 @@ export async function runTrial(options: TrialRunnerOptions): Promise<void> {
 			error: error instanceof Error ? error : new Error(String(error)),
 		});
 		throw error;
-	} finally {
-		// 7. Reset RuntimeConfig to defaults
-		RuntimeConfig.reset();
 	}
 }
 

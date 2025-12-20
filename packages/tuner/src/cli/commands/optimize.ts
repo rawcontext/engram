@@ -1,7 +1,11 @@
 /**
  * Optimize command - Start or continue an optimization study
  *
- * TODO: Update to use Python benchmark service API
+ * This command runs hyperparameter optimization trials using Optuna.
+ * It evaluates configurations using the engram-benchmark package,
+ * which provides the LongMemEval evaluation suite.
+ *
+ * @module @engram/tuner/cli/commands
  */
 
 import { TunerClient } from "../../client/tuner-client.js";
@@ -12,7 +16,6 @@ import { evaluateWithBenchmark } from "../../executor/evaluation-adapter.js";
 import { type ObjectiveConfig, runTrial } from "../../executor/trial-runner.js";
 import { type SearchSpacePresetName, SearchSpacePresets } from "../../spaces/engram.js";
 
-// TODO: Define based on Python benchmark API
 type LLMProviderType = "stub" | "anthropic" | "openai" | "gemini" | "ollama";
 
 interface OptimizeOptions {
@@ -112,7 +115,7 @@ export async function optimizeCommand(options: OptimizeOptions): Promise<void> {
 		console.log(`Cache enabled: ${stats.entries} existing entries\n`);
 	}
 
-	// Real evaluation using @engram/benchmark (with caching)
+	// Evaluation using engram-benchmark package (with caching)
 	const evaluationFn = async (config: import("../../executor/config-mapper.js").TrialConfig) => {
 		// Check cache first
 		const params = flattenConfig(config);

@@ -1,15 +1,19 @@
 /**
  * Maps flat parameter names to configuration structures
  *
- * TODO: Update to work with Python search service API
- * Previously used @engram/search RuntimeConfig which has been migrated to Python.
+ * The Python search service (apps/search) accepts reranker settings per-request
+ * via the SearchRequest body (rerank, rerank_tier, rerank_depth). There is no
+ * global RuntimeConfig to update. Instead, these settings are passed directly
+ * to each search request.
+ *
+ * @module @engram/tuner/executor
  */
 
-// TODO: Define based on Python search service API
 type RerankerTier = "fast" | "accurate" | "code";
 
 /**
- * Partial RerankerConfig structure for RuntimeConfig.update()
+ * Reranker configuration for search requests.
+ * These settings are passed to the search service per-request.
  */
 export interface PartialRerankerConfig {
 	enabled?: boolean;

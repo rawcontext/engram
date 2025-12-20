@@ -1,15 +1,11 @@
 import { GraphOperationError, SearchError } from "@engram/common";
-
-// TODO: Replace with HTTP client to search service (port 5002)
-// import type { SearchRetriever } from "@engram/search";
-type SearchRetriever = any; // TODO: Replace with HTTP client type
-
 import {
 	createFalkorClient,
 	type FalkorClient,
 	type GraphClient,
 	type ThoughtNode,
 } from "@engram/storage";
+import type { SearchClient, SearchOptions } from "../clients/search.js";
 
 const SYSTEM_PROMPT = `You are Engram, an intelligent assistant with access to a knowledge graph and semantic memory.
 You can recall past conversations, search for relevant information, and use tools to help accomplish tasks.
@@ -29,52 +25,23 @@ interface ContextSection {
  * Supports dependency injection for testability.
  */
 export interface ContextAssemblerDeps {
-	/** Optional search retriever for semantic memory search. Null disables search. */
-	searchRetriever?: SearchRetriever | null;
+	/** Optional search client for semantic memory search. Null disables search. */
+	searchClient?: SearchClient | null;
 	/** Graph client for fetching session history. Defaults to FalkorClient. */
 	graphClient?: GraphClient;
 }
 
 export class ContextAssembler {
-	private search: SearchRetriever | null;
+	private search: SearchClient | null;
 	private memory: GraphClient;
 
 	/**
 	 * Create a ContextAssembler with injectable dependencies.
 	 * @param deps - Optional dependencies. Defaults are used when not provided.
 	 */
-	constructor(deps?: ContextAssemblerDeps);
-	/** @deprecated Use ContextAssemblerDeps object instead */
-	constructor(search: SearchRetriever | null, memory: FalkorClient);
-	constructor(
-		depsOrSearch?: ContextAssemblerDeps | SearchRetriever | null,
-		memoryArg?: FalkorClient,
-	) {
-		// Support both new deps object and legacy positional arguments
-		if (
-			depsOrSearch === undefined ||
-			depsOrSearch === null ||
-			("search" in depsOrSearch === false &&
-				"searchRetriever" in (depsOrSearch as object) === false &&
-				memoryArg !== undefined)
-		) {
-			// Legacy constructor: (search, memory)
-			this.search = depsOrSearch as SearchRetriever | null;
-			this.memory = memoryArg ?? createFalkorClient();
-		} else if (
-			typeof depsOrSearch === "object" &&
-			depsOrSearch !== null &&
-			("searchRetriever" in depsOrSearch || "graphClient" in depsOrSearch)
-		) {
-			// New deps object constructor
-			const deps = depsOrSearch as ContextAssemblerDeps;
-			this.search = deps.searchRetriever ?? null;
-			this.memory = deps.graphClient ?? createFalkorClient();
-		} else {
-			// Fallback: treat as SearchRetriever (legacy)
-			this.search = depsOrSearch as SearchRetriever | null;
-			this.memory = memoryArg ?? createFalkorClient();
-		}
+	constructor(deps?: ContextAssemblerDeps) {
+		this.search = deps?.searchClient ?? null;
+		this.memory = deps?.graphClient ?? createFalkorClient();
 	}
 
 	/**
@@ -187,22 +154,23 @@ export class ContextAssembler {
 		}
 
 		try {
-			const results = await this.search.search({
+			const searchOptions: SearchOptions = {
 				text: query,
 				limit: 5,
 				strategy: "hybrid",
-				// Optionally exclude current session to avoid repetition
-				// filters: { session_id: { $ne: currentSessionId } }
-			});
+				rerank: true,
+				rerank_tier: "fast",
+			};
 
-			if (!results || !Array.isArray(results)) {
+			const response = await this.search.search(searchOptions);
+
+			if (!response || !response.results || response.results.length === 0) {
 				return [];
 			}
 
 			// Extract content from search results, excluding current session's content
-			// Type assertion: search results have a payload with session_id and content
 			type SearchPayload = { session_id?: string; content?: string };
-			return results
+			return response.results
 				.filter((r) => (r.payload as SearchPayload)?.session_id !== currentSessionId)
 				.map((r) => (r.payload as SearchPayload)?.content)
 				.filter((content): content is string => Boolean(content))
