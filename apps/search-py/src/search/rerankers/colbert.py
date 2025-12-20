@@ -7,11 +7,11 @@ between speed and accuracy.
 Expected latency: ~30ms per query.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import Any
-
-from ragatouille import RAGPretrainedModel
 
 from search.rerankers.base import BaseReranker, RankedResult
 
@@ -45,8 +45,12 @@ class ColBERTReranker(BaseReranker):
         self.model_name = model_name
         self.device = device
         self.n_gpu = n_gpu
+        self.model: Any = None
 
         logger.info(f"Initializing ColBERT reranker with model: {model_name}")
+
+        # Lazy import to avoid langchain compatibility issues at module load
+        from ragatouille import RAGPretrainedModel  # type: ignore
 
         # Initialize RAGatouille model
         self.model = RAGPretrainedModel.from_pretrained(

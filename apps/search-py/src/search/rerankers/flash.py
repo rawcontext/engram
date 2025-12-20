@@ -8,7 +8,6 @@ Ideal for the 'fast' reranking tier.
 
 import asyncio
 import logging
-from typing import Any
 
 from flashrank import Ranker, RerankRequest
 
@@ -23,13 +22,13 @@ class FlashRankReranker(BaseReranker):
     Uses ONNX runtime for CPU inference with minimal overhead.
 
     Attributes:
-        model_name: FlashRank model name (default: ms-marco-MiniLM-L-6-v2).
+        model_name: FlashRank model name (default: ms-marco-TinyBERT-L-2-v2).
         ranker: FlashRank Ranker instance.
     """
 
     def __init__(
         self,
-        model_name: str = "ms-marco-MiniLM-L-6-v2",
+        model_name: str = "ms-marco-TinyBERT-L-2-v2",
         cache_dir: str | None = None,
     ) -> None:
         """Initialize FlashRank reranker.
@@ -43,8 +42,11 @@ class FlashRankReranker(BaseReranker):
 
         logger.info(f"Initializing FlashRank reranker with model: {model_name}")
 
-        # Initialize ranker
-        self.ranker = Ranker(model_name=model_name, cache_dir=cache_dir)
+        # Initialize ranker - only pass cache_dir if explicitly set
+        if cache_dir is not None:
+            self.ranker = Ranker(model_name=model_name, cache_dir=cache_dir)
+        else:
+            self.ranker = Ranker(model_name=model_name)
 
         logger.info("FlashRank reranker initialized successfully")
 

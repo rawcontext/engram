@@ -153,9 +153,7 @@ class CrossEncoderReranker(BaseReranker):
         all_pairs = []
         pair_metadata = []  # (query_idx, doc_idx)
 
-        for query_idx, (query, documents) in enumerate(
-            zip(queries, documents_batch, strict=True)
-        ):
+        for query_idx, (query, documents) in enumerate(zip(queries, documents_batch, strict=True)):
             for doc_idx, doc in enumerate(documents):
                 all_pairs.append([query, doc])
                 pair_metadata.append((query_idx, doc_idx))
@@ -204,6 +202,4 @@ class CrossEncoderReranker(BaseReranker):
             List of ranked results lists (one per query).
         """
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None, self.rerank_batch, queries, documents_batch, top_k
-        )
+        return await loop.run_in_executor(None, self.rerank_batch, queries, documents_batch, top_k)

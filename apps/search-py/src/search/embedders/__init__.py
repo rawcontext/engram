@@ -8,11 +8,11 @@ from search.embedders.sparse import SparseEmbedder
 from search.embedders.text import TextEmbedder
 
 __all__ = [
-	"BaseEmbedder",
-	"TextEmbedder",
-	"CodeEmbedder",
-	"SparseEmbedder",
-	"ColBERTEmbedder",
-	"EmbedderFactory",
-	"EmbedderType",
+    "BaseEmbedder",
+    "TextEmbedder",
+    "CodeEmbedder",
+    "SparseEmbedder",
+    "ColBERTEmbedder",
+    "EmbedderFactory",
+    "EmbedderType",
 ]

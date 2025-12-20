@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from search.api import router
 from search.clients import QdrantClientWrapper
 from search.config import get_settings
+from search.embedders import EmbedderFactory
 
 # Configure logging
 logging.basicConfig(
@@ -36,12 +37,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     settings = get_settings()
 
-    # Startup: Initialize Qdrant client
+    # Startup: Initialize Qdrant client and embedders
     logger.info("Starting Engram Search Service...")
     logger.info(f"Qdrant URL: {settings.qdrant_url}")
     logger.info(f"Qdrant Collection: {settings.qdrant_collection}")
+    logger.info(f"Embedder Device: {settings.embedder_device}")
+    logger.info(f"Embedder Preload: {settings.embedder_preload}")
 
     qdrant_client = QdrantClientWrapper(settings)
+    embedder_factory = EmbedderFactory(settings)
 
     try:
         await qdrant_client.connect()
@@ -66,6 +70,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning("Service starting in degraded mode without Qdrant")
         app.state.qdrant = None
 
+    # Initialize embedder factory
+    app.state.embedder_factory = embedder_factory
+
+    # Preload models if configured
+    if settings.embedder_preload:
+        try:
+            logger.info("Preloading embedder models...")
+            await embedder_factory.preload_all()
+            logger.info("All embedder models preloaded successfully")
+        except Exception as e:
+            logger.error(f"Failed to preload embedder models: {e}")
+            logger.warning("Service starting without preloaded models")
+
     logger.info("Engram Search Service startup complete")
 
     yield
@@ -73,6 +90,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Shutdown: Cleanup resources
     logger.info("Shutting down Engram Search Service...")
 
+    # Unload embedder models
+    if hasattr(app.state, "embedder_factory") and app.state.embedder_factory is not None:
+        try:
+            await app.state.embedder_factory.unload_all()
+            logger.info("Embedder models unloaded successfully")
+        except Exception as e:
+            logger.error(f"Error unloading embedder models: {e}")
+
+    # Close Qdrant client
     if hasattr(app.state, "qdrant") and app.state.qdrant is not None:
         try:
             await app.state.qdrant.close()

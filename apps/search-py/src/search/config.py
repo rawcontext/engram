@@ -74,7 +74,7 @@ class Settings(BaseSettings):
 
     # Reranker settings (Phase 2b)
     reranker_fast_model: str = Field(
-        default="ms-marco-MiniLM-L-6-v2", description="FlashRank fast tier model"
+        default="ms-marco-TinyBERT-L-2-v2", description="FlashRank fast tier model"
     )
     reranker_accurate_model: str = Field(
         default="BAAI/bge-reranker-v2-m3", description="Accurate tier cross-encoder model"
