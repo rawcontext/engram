@@ -12,25 +12,19 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Single stage build with CUDA support (needed for onnxruntime-node-gpu)
+# Stage 1: Build dependencies
 # -----------------------------------------------------------------------------
-FROM nvidia/cuda:12.3.2-cudnn9-devel-ubuntu22.04
+FROM node:22-bookworm-slim AS builder
 
-# Install Node.js 22 LTS and build dependencies
+WORKDIR /app
+
+# Install build essentials for native modules
 RUN apt-get update && apt-get install -y \
-    curl \
-    ca-certificates \
-    wget \
-    jq \
     python3 \
     make \
     g++ \
     git \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
 
 # Copy monorepo package files
 COPY package*.json ./
@@ -42,12 +36,34 @@ COPY packages/logger/package.json packages/logger/
 COPY packages/common/package.json packages/common/
 COPY packages/temporal/package.json packages/temporal/
 
-# Install all dependencies with GPU support
+# Install all dependencies
 RUN npm install --include=dev
 
 # Copy source code
 COPY packages/ packages/
 COPY biome.json ./
+
+# -----------------------------------------------------------------------------
+# Stage 2: Runtime image with CUDA support
+# -----------------------------------------------------------------------------
+FROM nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04
+
+# Install Node.js 22 LTS and system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    wget \
+    jq \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy built application from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/package*.json ./
 
 # Model cache directory
 ENV HF_HOME=/app/.cache
@@ -55,8 +71,6 @@ ENV TRANSFORMERS_CACHE=/app/.cache
 ENV XDG_CACHE_HOME=/app/.cache
 
 # Create cache directory for models (downloaded on first run)
-# Skipping model preload during Docker build to avoid build failures
-# Models will be cached after first run
 RUN mkdir -p /app/.cache
 
 # Install Qdrant for local vector search
@@ -93,7 +107,7 @@ ENV NODE_ENV=production
 ENV BENCHMARK_VERBOSE=true
 ENV NODE_OPTIONS="--max-old-space-size=24576"
 
-# GPU mode with FP16 for L4
+# GPU mode with FP16 for L4 (onnxruntime-node auto-detects CUDA)
 ENV EMBEDDER_DEVICE=cuda
 ENV EMBEDDER_DTYPE=fp16
 ENV QDRANT_URL=http://localhost:6333
