@@ -18,6 +18,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SpladeEmbedder } from "./splade-embedder";
 import { TextEmbedder } from "./text-embedder";
 
+// Skip integration tests in CI (no Qdrant running)
+const SKIP_INTEGRATION = process.env.CI === "true";
+
 const TEST_COLLECTION = "hybrid_search_test";
 
 // Test documents designed to verify synonym and vocabulary mismatch handling
@@ -73,7 +76,7 @@ const TEST_QUERIES = [
 	},
 ];
 
-describe("Hybrid Search Integration", () => {
+describe.skipIf(SKIP_INTEGRATION)("Hybrid Search Integration", () => {
 	let client: QdrantClient;
 	let spladeEmbedder: SpladeEmbedder;
 	let textEmbedder: TextEmbedder;
