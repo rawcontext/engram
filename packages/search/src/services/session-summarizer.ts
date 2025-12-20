@@ -14,6 +14,15 @@ import { pipeline } from "@huggingface/transformers";
 import { TextEmbedder } from "./text-embedder";
 
 /**
+ * Interface for embedders used by SessionSummarizer.
+ * Compatible with TextEmbedder, ConfigurableTextEmbedder, etc.
+ */
+export interface SummarizerEmbedder {
+	embed(text: string): Promise<number[]>;
+	preload?(): Promise<void>;
+}
+
+/**
  * A turn in a conversation session
  */
 export interface Turn {
@@ -142,16 +151,20 @@ type FeatureExtractionPipeline = (
 export class SessionSummarizer {
 	private config: SessionSummarizerConfig;
 	private llm: LLMProvider;
-	private embedder: TextEmbedder;
+	private embedder: SummarizerEmbedder;
 	private nerPipeline: NERPipeline | null = null;
 	private nerLoadingPromise: Promise<NERPipeline> | null = null;
 	private keywordPipeline: FeatureExtractionPipeline | null = null;
 	private keywordLoadingPromise: Promise<FeatureExtractionPipeline> | null = null;
 
-	constructor(llm: LLMProvider, config: Partial<SessionSummarizerConfig> = {}) {
+	constructor(
+		llm: LLMProvider,
+		config: Partial<SessionSummarizerConfig> = {},
+		embedder?: SummarizerEmbedder,
+	) {
 		this.config = { ...DEFAULT_SESSION_SUMMARIZER_CONFIG, ...config };
 		this.llm = llm;
-		this.embedder = new TextEmbedder();
+		this.embedder = embedder ?? new TextEmbedder();
 	}
 
 	/**
@@ -474,8 +487,16 @@ Summary:`;
 	 * Initialize the NER pipeline.
 	 */
 	private async initNERPipeline(): Promise<NERPipeline> {
-		const pipelineFn = pipeline as (task: string, model: string) => Promise<NERPipeline>;
-		return pipelineFn("token-classification", this.config.nerModel);
+		const device = process.env.EMBEDDER_DEVICE || "cuda";
+		console.log(
+			`[SessionSummarizer] Loading NER model ${this.config.nerModel} on device=${device}`,
+		);
+		const pipelineFn = pipeline as (
+			task: string,
+			model: string,
+			options: { device: string },
+		) => Promise<NERPipeline>;
+		return pipelineFn("token-classification", this.config.nerModel, { device });
 	}
 
 	/**
@@ -504,11 +525,16 @@ Summary:`;
 	 * Initialize the keyword extraction pipeline.
 	 */
 	private async initKeywordPipeline(): Promise<FeatureExtractionPipeline> {
+		const device = process.env.EMBEDDER_DEVICE || "cuda";
+		console.log(
+			`[SessionSummarizer] Loading keyword model ${this.config.keywordModel} on device=${device}`,
+		);
 		const pipelineFn = pipeline as (
 			task: string,
 			model: string,
+			options: { device: string },
 		) => Promise<FeatureExtractionPipeline>;
-		return pipelineFn("feature-extraction", this.config.keywordModel);
+		return pipelineFn("feature-extraction", this.config.keywordModel, { device });
 	}
 
 	/**
@@ -518,7 +544,7 @@ Summary:`;
 		await Promise.all([
 			this.loadNERPipeline(),
 			this.loadKeywordPipeline(),
-			this.embedder.preload(),
+			this.embedder.preload?.(),
 		]);
 	}
 

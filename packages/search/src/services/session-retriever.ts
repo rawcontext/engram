@@ -24,6 +24,15 @@ import type { Reranker } from "./reranker";
 import { TextEmbedder } from "./text-embedder";
 
 /**
+ * Interface for embedders compatible with SessionAwareRetriever.
+ * Allows injection of ConfigurableTextEmbedder or other embedders.
+ */
+export interface RetrieverEmbedder {
+	embedQuery(text: string): Promise<number[]>;
+	preload?(): Promise<void>;
+}
+
+/**
  * Configuration for SessionAwareRetriever
  */
 export interface SessionRetrieverConfig {
@@ -119,7 +128,7 @@ export interface SessionAwareSearchResult extends SearchResult {
  */
 export class SessionAwareRetriever {
 	private client: QdrantClient;
-	private embedder: TextEmbedder;
+	private embedder: RetrieverEmbedder;
 	private config: SessionRetrieverConfig;
 	private reranker?: Reranker;
 	private logger = createLogger({ component: "SessionAwareRetriever" });
@@ -128,11 +137,12 @@ export class SessionAwareRetriever {
 		client: QdrantClient,
 		config: Partial<SessionRetrieverConfig> = {},
 		reranker?: Reranker,
+		embedder?: RetrieverEmbedder,
 	) {
 		this.client = client;
 		this.config = { ...DEFAULT_SESSION_RETRIEVER_CONFIG, ...config };
 		this.reranker = reranker;
-		this.embedder = new TextEmbedder();
+		this.embedder = embedder ?? new TextEmbedder();
 	}
 
 	/**
@@ -377,6 +387,6 @@ export class SessionAwareRetriever {
 	 * Preload the text embedder for faster first retrieval.
 	 */
 	async preload(): Promise<void> {
-		await this.embedder.preload();
+		await this.embedder.preload?.();
 	}
 }

@@ -50,7 +50,9 @@ export const DEFAULT_ABSTENTION_CONFIG: AbstentionConfig = {
 	gapDetectionThreshold: 0.5,
 	useNLI: false,
 	nliThreshold: 0.7,
-	nliModel: "Xenova/mobilebert-uncased-mnli",
+	// DeBERTa-v3 is SOTA for NLI, much better than MobileBERT
+	// @see https://huggingface.co/Xenova/nli-deberta-v3-base
+	nliModel: "Xenova/nli-deberta-v3-base",
 	hedgingPatterns: DEFAULT_HEDGING_PATTERNS,
 };
 
@@ -270,7 +272,11 @@ export class AbstentionDetector {
 
 		// NLI format: "premise. hypothesis" for zero-shot classification
 		// The model classifies whether the hypothesis is entailed by the premise
-		const inputText = `${context} ${answer}`;
+		// MobileBERT has max 512 tokens, so truncate context to ~1500 chars to leave room for answer
+		const maxContextChars = 1500;
+		const truncatedContext =
+			context.length > maxContextChars ? context.slice(0, maxContextChars) + "..." : context;
+		const inputText = `${truncatedContext} ${answer}`;
 
 		const result = await pipeline(inputText, ["entailment", "neutral", "contradiction"]);
 
@@ -365,12 +371,17 @@ export class AbstentionDetector {
 	 * Initialize the NLI pipeline from @huggingface/transformers.
 	 */
 	private async initNLIPipeline(): Promise<NLIPipeline> {
+		const device = process.env.EMBEDDER_DEVICE || "cuda";
+		console.log(
+			`[AbstentionDetector] Loading NLI model ${this.config.nliModel} on device=${device}`,
+		);
 		const transformers = await import("@huggingface/transformers");
 		const pipelineFn = transformers.pipeline as (
 			task: string,
 			model: string,
+			options: { device: string },
 		) => Promise<NLIPipeline>;
-		return pipelineFn("zero-shot-classification", this.config.nliModel);
+		return pipelineFn("zero-shot-classification", this.config.nliModel, { device });
 	}
 
 	/**

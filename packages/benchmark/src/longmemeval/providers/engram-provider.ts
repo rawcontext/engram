@@ -253,6 +253,8 @@ export class EngramRetriever {
 
 				this.sessionSummarizer = new SessionSummarizer(
 					this.llmProvider,
+					{}, // Use default config
+					this.textEmbedder as unknown as { embed(text: string): Promise<number[]> },
 				) as unknown as SessionSummarizerInterface;
 
 				// Session retriever will be initialized after collection setup
@@ -265,8 +267,11 @@ export class EngramRetriever {
 						finalTopK: this.config.topK,
 						sessionCollection: `${this.config.collectionName}_sessions`,
 						turnCollection: this.config.collectionName,
+						sessionVectorName: "text_dense", // Sessions collection uses text_dense
+						turnVectorName: "dense", // Main collection uses dense
 					},
 					this.reranker as never,
+					this.textEmbedder as unknown as { embedQuery(text: string): Promise<number[]> },
 				);
 				this.sessionRetriever = sessionRetrieverInstance as unknown as SessionRetrieverInterface;
 
@@ -294,9 +299,11 @@ export class EngramRetriever {
 		}
 
 		// Create collection with multi-vector support
+		// Use dynamic dimensions from the embedding model (e5-small=384, e5-large=1024)
+		const vectorDimensions = this.embeddingDimensions || 384;
 		const vectorsConfig: Record<string, unknown> = {
 			dense: {
-				size: 384,
+				size: vectorDimensions,
 				distance: "Cosine",
 			},
 		};
@@ -329,7 +336,7 @@ export class EngramRetriever {
 			await this.client.createCollection(sessionsCollection, {
 				vectors: {
 					text_dense: {
-						size: 384,
+						size: vectorDimensions,
 						distance: "Cosine",
 					},
 				},
