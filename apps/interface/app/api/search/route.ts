@@ -1,15 +1,7 @@
-// TODO: Replace with type from search-py OpenAPI spec or shared types
-// import type { RerankerTier } from "@engram/search";
-type RerankerTier = "fast" | "accurate" | "code" | "llm";
-
-// TODO: Replace with HTTP client to search-py service (port 5002)
-// import { SearchRetriever } from "@engram/search";
 import { apiError, apiSuccess } from "@lib/api-response";
+import { type RerankerTier, searchPy } from "@lib/search-py-client";
 import { validate } from "@lib/validate";
 import { z } from "zod";
-
-// TODO: Replace with HTTP client to search-py service at http://localhost:5002
-const SEARCH_PY_URL = process.env.SEARCH_PY_URL || "http://localhost:5002";
 
 const SearchRequestSchema = z.object({
 	query: z.string(),
@@ -81,26 +73,32 @@ export const POST = async (req: Request) => {
 		const effectiveRerankDepth = settings?.rerankDepth ?? rerankDepth;
 
 		try {
-			const rerankStartTime = performance.now();
-			// TODO: Replace with HTTP call to search-py /search endpoint
-			// Example: POST http://localhost:5002/search
-			// const results = await retriever.search({
-			// 	text: query,
-			// 	limit,
-			// 	filters,
-			// 	strategy: "hybrid",
-			// 	rerank: effectiveRerank,
-			// 	rerankTier: effectiveRerankTier as RerankerTier | undefined,
-			// 	rerankDepth: effectiveRerankDepth,
-			// });
-			const results: any[] = []; // TODO: Implement HTTP call
-			const rerankLatency = performance.now() - rerankStartTime;
+			const response = await searchPy({
+				text: query,
+				limit,
+				filters,
+				strategy: "hybrid",
+				rerank: effectiveRerank,
+				rerank_tier: effectiveRerankTier as RerankerTier | undefined,
+				rerank_depth: effectiveRerankDepth,
+			});
 
 			const totalLatency = performance.now() - startTime;
 
-			// Check if reranking was applied (results have rerankerScore)
+			// Check if reranking was applied (results have reranker_score)
 			const wasReranked =
-				effectiveRerank !== false && results.length > 0 && "rerankerScore" in results[0];
+				effectiveRerank !== false &&
+				response.results.length > 0 &&
+				response.results[0].reranker_score !== null;
+
+			// Transform results to match expected format
+			const results = response.results.map((result) => ({
+				id: result.id,
+				score: result.score,
+				rrfScore: result.rrf_score,
+				rerankerScore: result.reranker_score,
+				payload: result.payload,
+			}));
 
 			return apiSuccess({
 				results,
@@ -109,9 +107,12 @@ export const POST = async (req: Request) => {
 					strategy: "hybrid",
 					reranker: wasReranked
 						? {
-								tier: (effectiveRerankTier as RerankerTier) ?? ("accurate" as const),
+								tier:
+									response.results[0].rerank_tier ??
+									(effectiveRerankTier as RerankerTier) ??
+									("accurate" as const),
 								model: RERANKER_MODEL,
-								latencyMs: Math.round(rerankLatency),
+								latencyMs: Math.round(response.took_ms),
 							}
 						: undefined,
 					totalLatencyMs: Math.round(totalLatency),

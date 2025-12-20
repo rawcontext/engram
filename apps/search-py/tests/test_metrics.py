@@ -7,10 +7,8 @@ import pytest
 from search.utils.metrics import (
     EMBEDDING_CACHE_HITS,
     EMBEDDING_CACHE_MISSES,
-    EMBEDDING_LATENCY,
     RERANKER_COST_CENTS,
     RERANKER_DEGRADED,
-    RERANKER_LATENCY,
     RERANKER_REQUESTS,
     SEARCH_REQUESTS,
     get_content_type,

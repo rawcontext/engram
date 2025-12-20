@@ -40,7 +40,9 @@ async def main() -> None:
     # Check dataset exists
     if not dataset_path.exists():
         print(f"\nError: Dataset not found at {dataset_path}")
-        print("Please download from: https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned")
+        print(
+            "Please download from: https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned"
+        )
         return
 
     # Check API keys
@@ -155,9 +157,9 @@ async def main() -> None:
         print("=" * 80)
         print(f"\nReports saved to: {output_dir}")
         print("\nGenerated files:")
-        print(f"  - report_*.md   (Markdown report)")
-        print(f"  - report_*.json (JSON report)")
-        print(f"  - results_*.jsonl (Per-instance results)")
+        print("  - report_*.md   (Markdown report)")
+        print("  - report_*.json (JSON report)")
+        print("  - results_*.jsonl (Per-instance results)")
 
     except Exception as e:
         print(f"\n\n✗ Error during benchmark: {e}")

@@ -242,9 +242,7 @@ class BEIRBenchmark:
         self._model = self._load_model()
 
         # Initialize retrieval model
-        retrieval_model = DenseRetrievalExactSearch(
-            self._model, batch_size=self.config.batch_size
-        )
+        retrieval_model = DenseRetrievalExactSearch(self._model, batch_size=self.config.batch_size)
 
         # Results storage
         all_scores: dict[str, dict[str, float]] = {}

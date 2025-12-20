@@ -135,6 +135,7 @@ ignore = [
 	"E501",  # line too long (handled by formatter)
 	"B008",  # do not perform function calls in argument defaults
 	"B006",  # do not use mutable data structures for argument defaults
+	"TC001", # move import into type-checking block (runtime usage in examples)
 ]
 
 [tool.ruff.lint.isort]

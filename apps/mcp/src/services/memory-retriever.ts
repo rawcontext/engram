@@ -1,8 +1,7 @@
 import type { MemoryNode, MemoryType } from "@engram/graph";
 import { createLogger, type Logger } from "@engram/logger";
-// TODO: Replace with HTTP client to search-py service (port 5002)
-// import { SearchRetriever } from "@engram/search";
 import { createFalkorClient, type GraphClient } from "@engram/storage";
+import { SearchPyClient } from "../clients/search-py";
 
 export interface RecallFilters {
 	type?: MemoryType | "turn";
@@ -23,9 +22,9 @@ export interface RecallResult {
 
 export interface MemoryRetrieverOptions {
 	graphClient?: GraphClient;
-	searchRetriever?: any; // TODO: Replace with HTTP client type
+	searchPyClient?: SearchPyClient;
 	logger?: Logger;
-	searchPyUrl?: string; // TODO: URL for search-py service (default: http://localhost:5002)
+	searchPyUrl?: string;
 }
 
 /**
@@ -45,13 +44,18 @@ function mapMemoryTypeToSearchType(
 
 export class MemoryRetriever {
 	private graphClient: GraphClient;
-	private searchRetriever: any; // TODO: Replace with HTTP client type
+	private searchPyClient: SearchPyClient | null;
 	private logger: Logger;
 
 	constructor(options?: MemoryRetrieverOptions) {
 		this.graphClient = options?.graphClient ?? createFalkorClient();
-		// TODO: Replace with HTTP client to search-py service
-		this.searchRetriever = options?.searchRetriever ?? null;
+		const searchPyUrl = options?.searchPyUrl ?? "http://localhost:5002";
+		this.searchPyClient =
+			options?.searchPyClient ??
+			new SearchPyClient(
+				searchPyUrl,
+				options?.logger ?? createLogger({ component: "SearchPyClient" }),
+			);
 		this.logger = options?.logger ?? createLogger({ component: "MemoryRetriever" });
 	}
 
@@ -65,18 +69,21 @@ export class MemoryRetriever {
 		// Map memory type to search type for Qdrant
 		const searchType = mapMemoryTypeToSearchType(filters?.type);
 
-		// TODO: Replace with HTTP call to search-py service at /search endpoint
-		// Search in Qdrant for semantic matches
-		const searchResults = this.searchRetriever
-			? await this.searchRetriever.search({
-					text: query,
-					limit: limit * 2, // Oversample for better recall
-					rerank: true,
-					filters: {
-						session_id: filters?.sessionId,
-						type: searchType,
-					},
-				})
+		// Search in Qdrant for semantic matches using search-py service
+		const searchResults = this.searchPyClient
+			? (
+					await this.searchPyClient.search({
+						text: query,
+						limit: limit * 2, // Oversample for better recall
+						rerank: true,
+						rerank_tier: "fast",
+						strategy: "hybrid",
+						filters: {
+							session_id: filters?.sessionId,
+							type: searchType,
+						},
+					})
+				).results
 			: [];
 
 		this.logger.debug({ count: searchResults.length }, "Search returned");

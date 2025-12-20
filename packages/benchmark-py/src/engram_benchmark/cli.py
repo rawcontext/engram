@@ -357,16 +357,16 @@ def mteb(
             console.print(f"\n[bold cyan]Total Available Tasks:[/bold cyan] {len(available_tasks)}")
             console.print("\nUse --tasks to specify tasks (comma-separated)")
             raise typer.Exit(0)
-        except ImportError:
+        except ImportError as e:
             console.print(
                 "[bold red]✗ Error:[/bold red] mteb is not installed.\n"
                 "Install with: pip install 'engram-benchmark[mteb]'"
             )
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
     # Parse tasks and languages
     task_list = [t.strip() for t in tasks.split(",")]
-    lang_list = [l.strip() for l in languages.split(",")]
+    lang_list = [lang.strip() for lang in languages.split(",")]
 
     console.print(
         Panel.fit(
@@ -399,7 +399,7 @@ def mteb(
         # Print results
         console.print("\n[bold green]✓ MTEB Evaluation Complete![/bold green]")
         console.print(f"\n[bold]Average Score:[/bold] {results.get_average_score():.4f}")
-        console.print(f"\n[bold]Results by Task:[/bold]")
+        console.print("\n[bold]Results by Task:[/bold]")
         for task, scores in results.scores.items():
             main_score = scores.get("main_score", 0.0)
             console.print(f"  {task}: {main_score:.4f}")
@@ -407,12 +407,12 @@ def mteb(
         console.print(f"\nDetailed results saved to: {output_dir}")
         raise typer.Exit(0)
 
-    except ImportError:
+    except ImportError as e:
         console.print(
             "[bold red]✗ Error:[/bold red] mteb is not installed.\n"
             "Install with: pip install 'engram-benchmark[mteb]'"
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
     except Exception as e:
         console.print(f"\n[bold red]✗ Error:[/bold red] {e}")
         raise typer.Exit(1) from e
@@ -541,7 +541,7 @@ def beir(
         console.print("\n[bold green]✓ BEIR Evaluation Complete![/bold green]")
         console.print(f"\n[bold]Average NDCG@10:[/bold] {results.get_average_ndcg(10):.4f}")
         console.print(f"[bold]Average Recall@100:[/bold] {results.get_average_recall(100):.4f}")
-        console.print(f"\n[bold]Results by Dataset:[/bold]")
+        console.print("\n[bold]Results by Dataset:[/bold]")
         for dataset, scores in results.scores.items():
             ndcg = scores.get("NDCG@10", 0.0)
             recall = scores.get("Recall@100", 0.0)
@@ -550,12 +550,12 @@ def beir(
         console.print(f"\nDetailed results saved to: {output_dir}")
         raise typer.Exit(0)
 
-    except ImportError:
+    except ImportError as e:
         console.print(
             "[bold red]✗ Error:[/bold red] beir is not installed.\n"
             "Install with: pip install 'engram-benchmark[mteb]'"
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
     except Exception as e:
         console.print(f"\n[bold red]✗ Error:[/bold red] {e}")
         raise typer.Exit(1) from e

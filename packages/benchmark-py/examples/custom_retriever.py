@@ -75,17 +75,17 @@ class SimpleKeywordRetriever(BaseRetriever):
 
         # Extract keywords from question (simple tokenization)
         question_lower = instance.question.lower()
-        question_keywords = set(
+        question_keywords = {
             word.strip(".,!?;:") for word in question_lower.split() if len(word) > 3
-        )
+        }
 
         # Score documents by keyword overlap
         scored_docs: list[tuple[float, dict[str, Any]]] = []
         for doc in self.documents:
             content_lower = doc["content"].lower()
-            content_keywords = set(
+            content_keywords = {
                 word.strip(".,!?;:") for word in content_lower.split() if len(word) > 3
-            )
+            }
 
             # Calculate overlap score (Jaccard similarity)
             intersection = len(question_keywords & content_keywords)
@@ -203,7 +203,9 @@ async def main() -> None:
 
     if not dataset_path.exists():
         print(f"\nError: Dataset not found at {dataset_path}")
-        print("Please download from: https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned")
+        print(
+            "Please download from: https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned"
+        )
         return
 
     print("\nUsing SimpleKeywordRetriever (basic keyword matching)")
@@ -262,7 +264,7 @@ async def main() -> None:
         print(f"Total Instances: {report.total_instances}")
 
         if report.metrics.retrieval:
-            print(f"\nRetrieval Metrics:")
+            print("\nRetrieval Metrics:")
             print(f"  MRR@5: {report.metrics.retrieval.mrr_at_5:.4f}")
             print(f"  Average Retrieval Time: {report.metrics.retrieval.mean_latency_ms:.1f}ms")
 

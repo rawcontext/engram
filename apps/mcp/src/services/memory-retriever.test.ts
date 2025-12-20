@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { SearchPyClient } from "../clients/search-py";
 import { MemoryRetriever } from "./memory-retriever";
 
 // Mock the graph client
@@ -8,10 +9,10 @@ const mockGraphClient = {
 	query: vi.fn(),
 };
 
-// Mock the search retriever
-const mockSearchRetriever = {
+// Mock the search-py client
+const mockSearchPyClient: SearchPyClient = {
 	search: vi.fn(),
-};
+} as unknown as SearchPyClient;
 
 // Mock the logger
 const mockLogger = {
@@ -28,7 +29,7 @@ describe("MemoryRetriever", () => {
 		vi.clearAllMocks();
 		retriever = new MemoryRetriever({
 			graphClient: mockGraphClient as any,
-			searchRetriever: mockSearchRetriever as any,
+			searchPyClient: mockSearchPyClient,
 			logger: mockLogger as any,
 		});
 	});
@@ -39,27 +40,41 @@ describe("MemoryRetriever", () => {
 
 	describe("recall", () => {
 		it("should combine results from Qdrant and graph search", async () => {
-			// Qdrant results
-			mockSearchRetriever.search.mockResolvedValueOnce([
-				{
-					score: 0.9,
-					payload: {
-						node_id: "qdrant-1",
-						content: "Qdrant result 1",
-						type: "decision",
-						timestamp: Date.now(),
+			// Search-py results
+			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+				results: [
+					{
+						id: "qdrant-1",
+						score: 0.9,
+						rrf_score: null,
+						reranker_score: null,
+						rerank_tier: null,
+						degraded: false,
+						payload: {
+							node_id: "qdrant-1",
+							content: "Qdrant result 1",
+							type: "decision",
+							timestamp: Date.now(),
+						},
 					},
-				},
-				{
-					score: 0.8,
-					payload: {
-						node_id: "qdrant-2",
-						content: "Qdrant result 2",
-						type: "context",
-						timestamp: Date.now(),
+					{
+						id: "qdrant-2",
+						score: 0.8,
+						rrf_score: null,
+						reranker_score: null,
+						rerank_tier: null,
+						degraded: false,
+						payload: {
+							node_id: "qdrant-2",
+							content: "Qdrant result 2",
+							type: "context",
+							timestamp: Date.now(),
+						},
 					},
-				},
-			]);
+				],
+				total: 2,
+				took_ms: 50,
+			});
 
 			// Graph results
 			mockGraphClient.query.mockResolvedValueOnce([
@@ -93,17 +108,26 @@ describe("MemoryRetriever", () => {
 			const sharedId = "shared-memory";
 
 			// Same memory in both Qdrant and graph
-			mockSearchRetriever.search.mockResolvedValueOnce([
-				{
-					score: 0.9,
-					payload: {
-						node_id: sharedId,
-						content: "Shared memory content",
-						type: "decision",
-						timestamp: Date.now(),
+			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+				results: [
+					{
+						id: sharedId,
+						score: 0.9,
+						rrf_score: null,
+						reranker_score: null,
+						rerank_tier: null,
+						degraded: false,
+						payload: {
+							node_id: sharedId,
+							content: "Shared memory content",
+							type: "decision",
+							timestamp: Date.now(),
+						},
 					},
-				},
-			]);
+				],
+				total: 1,
+				took_ms: 50,
+			});
 
 			mockGraphClient.query.mockResolvedValueOnce([
 				{
@@ -128,13 +152,17 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should apply type filter to search", async () => {
-			mockSearchRetriever.search.mockResolvedValueOnce([]);
+			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+				results: [],
+				total: 0,
+				took_ms: 10,
+			});
 			mockGraphClient.query.mockResolvedValueOnce([]);
 
 			await retriever.recall("test query", 5, { type: "decision" });
 
 			// Search should be called with type filter mapped to search type
-			expect(mockSearchRetriever.search).toHaveBeenCalledWith(
+			expect(mockSearchPyClient.search).toHaveBeenCalledWith(
 				expect.objectContaining({
 					filters: expect.objectContaining({ type: "doc" }),
 				}),
@@ -148,7 +176,11 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should apply project filter to graph query", async () => {
-			mockSearchRetriever.search.mockResolvedValueOnce([]);
+			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+				results: [],
+				total: 0,
+				took_ms: 10,
+			});
 			mockGraphClient.query.mockResolvedValueOnce([]);
 
 			await retriever.recall("test query", 5, { project: "my-project" });
@@ -161,9 +193,14 @@ describe("MemoryRetriever", () => {
 
 		it("should respect limit parameter", async () => {
 			// Return more results than limit
-			mockSearchRetriever.search.mockResolvedValueOnce(
-				Array.from({ length: 10 }, (_, i) => ({
+			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+				results: Array.from({ length: 10 }, (_, i) => ({
+					id: `result-${i}`,
 					score: 0.9 - i * 0.05,
+					rrf_score: null,
+					reranker_score: null,
+					rerank_tier: null,
+					degraded: false,
 					payload: {
 						node_id: `result-${i}`,
 						content: `Result ${i}`,
@@ -171,7 +208,9 @@ describe("MemoryRetriever", () => {
 						timestamp: Date.now(),
 					},
 				})),
-			);
+				total: 10,
+				took_ms: 50,
+			});
 			mockGraphClient.query.mockResolvedValueOnce([]);
 
 			const results = await retriever.recall("test query", 3);
@@ -180,11 +219,39 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should sort results by score descending", async () => {
-			mockSearchRetriever.search.mockResolvedValueOnce([
-				{ score: 0.5, payload: { node_id: "low", content: "Low", type: "context" } },
-				{ score: 0.9, payload: { node_id: "high", content: "High", type: "context" } },
-				{ score: 0.7, payload: { node_id: "mid", content: "Mid", type: "context" } },
-			]);
+			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+				results: [
+					{
+						id: "low",
+						score: 0.5,
+						rrf_score: null,
+						reranker_score: null,
+						rerank_tier: null,
+						degraded: false,
+						payload: { node_id: "low", content: "Low", type: "context" },
+					},
+					{
+						id: "high",
+						score: 0.9,
+						rrf_score: null,
+						reranker_score: null,
+						rerank_tier: null,
+						degraded: false,
+						payload: { node_id: "high", content: "High", type: "context" },
+					},
+					{
+						id: "mid",
+						score: 0.7,
+						rrf_score: null,
+						reranker_score: null,
+						rerank_tier: null,
+						degraded: false,
+						payload: { node_id: "mid", content: "Mid", type: "context" },
+					},
+				],
+				total: 3,
+				took_ms: 50,
+			});
 			mockGraphClient.query.mockResolvedValueOnce([]);
 
 			const results = await retriever.recall("test query", 5);
@@ -195,12 +262,16 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should handle turn type mapping to thought search type", async () => {
-			mockSearchRetriever.search.mockResolvedValueOnce([]);
+			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+				results: [],
+				total: 0,
+				took_ms: 10,
+			});
 			mockGraphClient.query.mockResolvedValueOnce([]);
 
 			await retriever.recall("test query", 5, { type: "turn" });
 
-			expect(mockSearchRetriever.search).toHaveBeenCalledWith(
+			expect(mockSearchPyClient.search).toHaveBeenCalledWith(
 				expect.objectContaining({
 					filters: expect.objectContaining({ type: "thought" }),
 				}),
