@@ -1,83 +1,192 @@
-# MCP Server
+# @engram/mcp
 
-Model Context Protocol gateway exposing Engram capabilities to AI models.
+Engram MCP server - intelligent memory for AI agents.
 
-## Overview
+## Quick Start
 
-The MCP Server is the primary integration point for Claude and other AI models. It provides memory management, semantic search, and capability-aware tool registration through the Model Context Protocol.
+```bash
+npx -y @engram/mcp
+```
+
+## Configuration
+
+### Cloud Mode (Recommended)
+
+Connect to Engram Cloud for managed memory storage:
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "npx",
+      "args": ["-y", "@engram/mcp"],
+      "env": {
+        "ENGRAM_API_KEY": "engram_live_xxxx",
+        "ENGRAM_API_URL": "https://api.engram.sh"
+      }
+    }
+  }
+}
+```
+
+### Local Mode (Development)
+
+Run with local infrastructure (FalkorDB, Qdrant):
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "npx",
+      "args": ["-y", "@engram/mcp"],
+      "env": {
+        "ENGRAM_MODE": "local",
+        "FALKORDB_URL": "redis://localhost:6379",
+        "QDRANT_URL": "http://localhost:6333"
+      }
+    }
+  }
+}
+```
+
+Start local infrastructure:
+
+```bash
+npm run infra:up
+```
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ENGRAM_API_KEY` | API key for cloud mode | - |
+| `ENGRAM_API_URL` | Cloud API URL | - |
+| `ENGRAM_MODE` | Force mode: `cloud` or `local` | Auto-detected |
+| `FALKORDB_URL` | FalkorDB connection (local mode) | `redis://localhost:6379` |
+| `QDRANT_URL` | Qdrant connection (local mode) | `http://localhost:6333` |
+| `LOG_LEVEL` | Logging level | `info` |
 
 ## MCP Tools
 
-| Tool | Description |
-|:-----|:------------|
-| `remember` | Persist information to memory |
-| `recall` | Retrieve relevant memories |
-| `query` | Execute semantic search queries |
-| `context` | Get contextual information |
+### `engram_remember`
 
-## MCP Resources
+Store information in long-term memory.
 
-- Session memory
-- File history
-- Session details
+```json
+{
+  "content": "User prefers dark mode for all applications",
+  "type": "preference",
+  "tags": ["ui", "settings"]
+}
+```
 
-## MCP Prompts
+### `engram_recall`
+
+Search memories using natural language.
+
+```json
+{
+  "query": "user preferences for UI",
+  "limit": 5
+}
+```
+
+### `engram_query` (Local Mode Only)
+
+Execute read-only Cypher queries on the graph.
+
+```json
+{
+  "cypher": "MATCH (m:Memory) RETURN m.content LIMIT 10"
+}
+```
+
+### `engram_context` (Local Mode Only)
+
+Get comprehensive context for a task.
+
+```json
+{
+  "task": "implement authentication",
+  "depth": "medium"
+}
+```
+
+## MCP Resources (Local Mode Only)
+
+| Resource | Description |
+|----------|-------------|
+| `memory://{id}` | Access individual memories |
+| `session://{id}/transcript` | Full session history |
+| `session://{id}/summary` | Session summary |
+| `file-history://{path}` | File change history |
+
+## MCP Prompts (Local Mode Only)
 
 | Prompt | Description |
-|:-------|:------------|
-| `e-prime` | E-Prime reasoning frame |
-| `e-recap` | Recap reasoning frame |
-| `e-why` | Why reasoning frame |
+|--------|-------------|
+| `/e prime` | Load context for a new task |
+| `/e recap` | Summarize a past session |
+| `/e why` | Understand past decisions |
 
 ## Capabilities
 
-- Sampling service
-- Elicitation service
-- Roots detection
+The server auto-detects client capabilities and enables:
 
-## Dependencies
-
-- `@engram/graph` - FalkorDB client
-- `@engram/search` - Semantic search
-- `@engram/storage` - Data access
-- `@modelcontextprotocol/sdk` - MCP framework
-- `hono` - HTTP framework (for HTTP transport)
+- **Sampling service** - Request LLM completions from the client
+- **Elicitation service** - Request user input mid-operation
+- **Roots detection** - Project-scoped queries
 
 ## Transport Options
 
 | Transport | Command | Use Case |
-|:----------|:--------|:---------|
+|-----------|---------|----------|
 | Stdio | `npm run dev` | Claude integration (default) |
 | HTTP | `npm run dev:http` | Web clients |
 
 ## Development
 
 ```bash
-# Stdio transport (for Claude)
+# Install dependencies
+npm install
+
+# Run in development mode (stdio)
 npm run dev
 
-# HTTP transport
+# Run HTTP transport
 npm run dev:http
+
+# Build for production
+npm run build
+
+# Type check
+npm run typecheck
 ```
 
-## Configuration
+## Publishing
 
-| Variable | Description | Default |
-|:---------|:------------|:--------|
-| `FALKORDB_URL` | FalkorDB connection URL | `redis://localhost:6379` |
-| `QDRANT_URL` | Qdrant connection URL | `http://localhost:6333` |
+The package is automatically published to npm when a tag matching `mcp@*` is pushed:
 
-## Integration with Claude Code
-
-Add to your Claude Code MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "engram": {
-      "command": "node",
-      "args": ["path/to/apps/mcp/dist/index.js"]
-    }
-  }
-}
+```bash
+git tag mcp@0.1.0
+git push --tags
 ```
+
+Or publish manually:
+
+```bash
+npm run build
+npm publish --access public
+```
+
+## Dependencies
+
+- `@engram/graph` - Graph models and schemas
+- `@engram/search` - Semantic search (local mode)
+- `@engram/storage` - FalkorDB client (local mode)
+- `@modelcontextprotocol/sdk` - MCP framework
+- `hono` - HTTP framework
+
+## License
+
+AGPL-3.0 - See [LICENSE](../../LICENSE) in the project root.
