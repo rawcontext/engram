@@ -25,8 +25,8 @@ program
 	.requiredOption("-d, --dataset <path>", "Path to dataset file or directory")
 	.option("-v, --variant <variant>", "Dataset variant (s, m, oracle)", "s")
 	.option("-o, --output <path>", "Output file for results (JSONL)")
-	.option("-l, --limit <n>", "Limit number of instances", Number.parseInt)
-	.option("-k, --top-k <n>", "Number of documents to retrieve", Number.parseInt, 10)
+	.option("-l, --limit <n>", "Limit number of instances", (v) => parseInt(v, 10))
+	.option("-k, --top-k <n>", "Number of documents to retrieve", (v) => parseInt(v, 10), 10)
 	.option("--retriever <method>", "Retrieval method (dense, bm25, hybrid)", "dense")
 	.option("--chain-of-note", "Enable Chain-of-Note reading", false)
 	.option("--time-aware", "Enable time-aware query expansion", false)
@@ -45,7 +45,7 @@ program
 	// Engram full pipeline options (when --embeddings engram)
 	.option("--rerank", "Enable reranking (requires --embeddings engram)", true)
 	.option("--rerank-tier <tier>", "Reranker tier: fast, accurate, code, colbert", "fast")
-	.option("--rerank-depth <n>", "Candidates to fetch before reranking", Number.parseInt, 30)
+	.option("--rerank-depth <n>", "Candidates to fetch before reranking", (v) => parseInt(v, 10), 30)
 	.option("--hybrid-search", "Enable hybrid search with RRF (requires --embeddings engram)", true)
 	// Learned fusion options
 	.option("--learned-fusion", "Use learned fusion weights instead of fixed RRF", false)
@@ -55,7 +55,7 @@ program
 	.option(
 		"--multi-query-variations <n>",
 		"Number of query variations to generate",
-		Number.parseInt,
+		(v) => parseInt(v, 10),
 		3,
 	)
 	// Abstention detection options
@@ -63,7 +63,7 @@ program
 	.option(
 		"--abstention-threshold <n>",
 		"Minimum retrieval score to proceed (0-1)",
-		Number.parseFloat,
+		(v) => parseFloat(v),
 		0.3,
 	)
 	.option(
@@ -79,19 +79,29 @@ program
 	.option(
 		"--abstention-nli-threshold <n>",
 		"NLI entailment threshold for abstention (0-1)",
-		Number.parseFloat,
+		(v) => parseFloat(v),
 		0.7,
 	)
 	// Session-aware retrieval options
 	.option("--session-aware", "Enable session-aware hierarchical retrieval", false)
-	.option("--top-sessions <n>", "Number of sessions to retrieve in stage 1", Number.parseInt, 5)
-	.option("--turns-per-session <n>", "Number of turns per session in stage 2", Number.parseInt, 3)
+	.option(
+		"--top-sessions <n>",
+		"Number of sessions to retrieve in stage 1",
+		(v) => parseInt(v, 10),
+		5,
+	)
+	.option(
+		"--turns-per-session <n>",
+		"Number of turns per session in stage 2",
+		(v) => parseInt(v, 10),
+		3,
+	)
 	// Temporal query parsing options
 	.option("--temporal-aware", "Enable temporal query parsing with chrono-node", false)
 	.option(
 		"--temporal-confidence-threshold <n>",
 		"Minimum confidence to apply temporal filter (0-1)",
-		Number.parseFloat,
+		(v) => parseFloat(v),
 		0.5,
 	)
 	// Embedding model options
@@ -140,7 +150,7 @@ program
 	.requiredOption("-d, --dataset <path>", "Path to dataset file or directory")
 	.requiredOption("-o, --output <path>", "Output file for training data (JSONL)")
 	.option("-v, --variant <variant>", "Dataset variant (s, m, oracle)", "s")
-	.option("-l, --limit <n>", "Limit number of instances", Number.parseInt)
+	.option("-l, --limit <n>", "Limit number of instances", (v) => parseInt(v, 10))
 	.option("--qdrant-url <url>", "Qdrant server URL", "http://localhost:6333")
 	.option("--verbose", "Show detailed progress", false)
 	.option(
