@@ -176,13 +176,18 @@ export class ConfigurableTextEmbedder extends BasePipelineEmbedder<EmbedderConfi
 	protected async getInstance(): Promise<ExtractorFn> {
 		const key = this.modelConfig.hfModel;
 		if (!ConfigurableTextEmbedder.instances.has(key)) {
+			const device = this.config.device ?? getDefaultDevice();
+			const dtype = this.config.dtype ?? getDefaultDtype();
+			console.log(`[ConfigurableEmbedder] Loading ${key} on device=${device} dtype=${dtype}`);
+			const start = Date.now();
 			ConfigurableTextEmbedder.instances.set(
 				key,
 				await pipeline("feature-extraction", this.modelConfig.hfModel, {
-					dtype: this.config.dtype ?? getDefaultDtype(),
-					device: this.config.device ?? getDefaultDevice(),
+					dtype,
+					device,
 				}),
 			);
+			console.log(`[ConfigurableEmbedder] Loaded in ${Date.now() - start}ms`);
 		}
 		return ConfigurableTextEmbedder.instances.get(key) as ExtractorFn;
 	}
