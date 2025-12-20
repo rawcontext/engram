@@ -140,3 +140,46 @@ def _compute_session_recall(
         return 0.0
 
     return len(retrieved_sessions) / len(total_sessions)
+
+
+def compute_retrieval_metrics(
+    retrieval_results: list,
+) -> RetrievalMetrics:
+    """
+    Compute aggregate retrieval metrics from a list of RetrievalResult objects.
+
+    Args:
+            retrieval_results: List of RetrievalResult objects from pipeline
+
+    Returns:
+            Aggregated RetrievalMetrics
+
+    Example:
+            ```python
+            results = [result1, result2, result3]
+            metrics = compute_retrieval_metrics(results)
+            print(f"Average turn recall: {metrics.turn_recall:.2f}")
+            ```
+    """
+    if not retrieval_results:
+        return RetrievalMetrics(
+            turn_recall=0.0,
+            session_recall=0.0,
+            recall_at_k={1: 0.0, 5: 0.0, 10: 0.0},
+            ndcg_at_k={1: 0.0, 5: 0.0, 10: 0.0},
+            mrr=0.0,
+        )
+
+    # Aggregate metrics by averaging
+    total_turn_recall = sum(r.turn_recall for r in retrieval_results)
+    total_session_recall = sum(r.session_recall for r in retrieval_results)
+
+    num_results = len(retrieval_results)
+
+    return RetrievalMetrics(
+        turn_recall=total_turn_recall / num_results,
+        session_recall=total_session_recall / num_results,
+        recall_at_k={1: 0.0, 5: 0.0, 10: 0.0},  # Would need per-K tracking
+        ndcg_at_k={1: 0.0, 5: 0.0, 10: 0.0},  # Would need per-K tracking
+        mrr=0.0,  # Would need position tracking
+    )

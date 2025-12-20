@@ -165,3 +165,64 @@ def add_abstention_phrase(phrase: str) -> None:
             ```
     """
     ABSTENTION_PHRASES.add(phrase.lower().strip())
+
+
+def compute_abstention_metrics(
+    predictions: list[bool],
+    ground_truth: list[bool],
+) -> AbstentionMetrics:
+    """
+    Compute abstention metrics from boolean predictions and ground truth.
+
+    Args:
+            predictions: Whether each response is an abstention
+            ground_truth: Whether each question requires abstention
+
+    Returns:
+            AbstentionMetrics with precision, recall, F1
+
+    Example:
+            ```python
+            predictions = [True, False, True, False]
+            ground_truth = [True, False, False, True]
+            metrics = compute_abstention_metrics(predictions, ground_truth)
+            print(f"F1: {metrics.f1:.2f}")
+            ```
+    """
+    if len(predictions) != len(ground_truth):
+        raise ValueError("predictions and ground_truth must have same length")
+
+    # Confusion matrix
+    true_positives = sum(
+        1 for pred, truth in zip(predictions, ground_truth, strict=True) if pred and truth
+    )
+    false_positives = sum(
+        1 for pred, truth in zip(predictions, ground_truth, strict=True) if pred and not truth
+    )
+    false_negatives = sum(
+        1 for pred, truth in zip(predictions, ground_truth, strict=True) if not pred and truth
+    )
+    true_negatives = sum(
+        1 for pred, truth in zip(predictions, ground_truth, strict=True) if not pred and not truth
+    )
+
+    # Precision: correct abstentions / total abstentions
+    total_abstentions = true_positives + false_positives
+    precision = true_positives / total_abstentions if total_abstentions > 0 else 0.0
+
+    # Recall: correct abstentions / questions requiring abstention
+    total_requiring_abstention = true_positives + false_negatives
+    recall = true_positives / total_requiring_abstention if total_requiring_abstention > 0 else 0.0
+
+    # F1: harmonic mean
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+
+    return AbstentionMetrics(
+        true_positives=true_positives,
+        false_positives=false_positives,
+        false_negatives=false_negatives,
+        true_negatives=true_negatives,
+        precision=precision,
+        recall=recall,
+        f1=f1,
+    )

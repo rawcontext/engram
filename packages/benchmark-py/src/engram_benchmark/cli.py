@@ -87,41 +87,132 @@ def run(
             min=1,
         ),
     ] = None,
-    output: Annotated[
-        Path | None,
+    output_dir: Annotated[
+        Path,
         typer.Option(
-            "--output",
+            "--output-dir",
             "-o",
-            help="Output file for results (JSONL format)",
+            help="Output directory for results",
         ),
-    ] = None,
+    ] = Path("./results"),
+    model: Annotated[
+        str,
+        typer.Option(
+            "--model",
+            "-m",
+            help="LLM model for answer generation",
+        ),
+    ] = "openai/gpt-4o-mini",
+    embedding_model: Annotated[
+        str,
+        typer.Option(
+            "--embedding-model",
+            "-e",
+            help="Embedding model for retrieval",
+        ),
+    ] = "BAAI/bge-base-en-v1.5",
+    top_k: Annotated[
+        int,
+        typer.Option(
+            "--top-k",
+            "-k",
+            help="Number of contexts to retrieve",
+            min=1,
+            max=100,
+        ),
+    ] = 10,
+    concurrency: Annotated[
+        int,
+        typer.Option(
+            "--concurrency",
+            "-c",
+            help="Number of concurrent operations",
+            min=1,
+            max=50,
+        ),
+    ] = 5,
+    llm_eval: Annotated[
+        bool,
+        typer.Option(
+            "--llm-eval",
+            help="Use LLM-based evaluation instead of exact match",
+        ),
+    ] = False,
 ) -> None:
     """
-    Run the LongMemEval benchmark (placeholder).
+    Run the LongMemEval benchmark.
 
-    This command will execute the full benchmark pipeline including:
+    This command executes the full benchmark pipeline including:
     - Loading the dataset
-    - Ingesting into vector store
-    - Running retrieval
+    - Parsing and mapping instances to documents
+    - Indexing into ChromaDB vector store
+    - Retrieving relevant contexts
     - Generating answers with LLM
-    - Computing metrics
+    - Computing metrics and generating reports
     """
+    import asyncio
+
+    from engram_benchmark.longmemeval.pipeline import BenchmarkPipeline, PipelineConfig
+    from engram_benchmark.longmemeval.reader import LongMemEvalReader
+    from engram_benchmark.longmemeval.retriever import ChromaRetriever
+    from engram_benchmark.providers.embeddings import EmbeddingProvider
+    from engram_benchmark.providers.llm import LiteLLMProvider
+    from engram_benchmark.utils.reporting import print_summary
+
     console.print(
         Panel.fit(
-            "[bold yellow]⚠ Not yet implemented[/bold yellow]\n\n"
-            "This command will be implemented in Phase 5 (Pipeline).\n"
+            f"[bold]Running LongMemEval Benchmark[/bold]\n\n"
             f"Dataset: {dataset}\n"
             f"Limit: {limit or 'all'}\n"
-            f"Output: {output or 'default'}",
-            border_style="yellow",
-            title="Run Benchmark",
+            f"Model: {model}\n"
+            f"Embedding: {embedding_model}\n"
+            f"Top-K: {top_k}\n"
+            f"Output: {output_dir}",
+            border_style="blue",
         )
     )
 
-    console.print(
-        "\n[dim]For now, use 'validate' to check your dataset:[/dim]\n"
-        f"  engram-benchmark validate {dataset}"
-    )
+    async def run_pipeline() -> None:
+        # Initialize components
+        console.print("\n[bold cyan]Initializing components...[/bold cyan]")
+
+        embedder = EmbeddingProvider(model_name=embedding_model)
+        await embedder.load()
+
+        retriever = ChromaRetriever(embedder=embedder)
+        await retriever.load()
+
+        llm = LiteLLMProvider(model=model)
+        reader = LongMemEvalReader(llm_provider=llm)
+
+        # Create pipeline config
+        config = PipelineConfig(
+            dataset_path=str(dataset),
+            output_dir=str(output_dir),
+            limit=limit,
+            concurrency=concurrency,
+            top_k=top_k,
+            use_llm_eval=llm_eval,
+        )
+
+        # Run pipeline
+        pipeline = BenchmarkPipeline(config, retriever, reader)
+        report = await pipeline.run()
+
+        # Print summary
+        print_summary(report)
+
+        console.print(
+            f"\n[bold green]✓ Benchmark complete![/bold green]\nReports saved to: {output_dir}"
+        )
+
+    # Run async pipeline
+    try:
+        asyncio.run(run_pipeline())
+        raise typer.Exit(0)
+    except Exception as e:
+        console.print(f"\n[bold red]✗ Error:[/bold red] {e}")
+        raise typer.Exit(1) from e
 
 
 @app.command()
