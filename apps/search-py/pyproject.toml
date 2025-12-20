@@ -10,27 +10,20 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",
-    # ML inference (Phase 2)
+    # ML inference
     "sentence-transformers>=3.3.0",
     "torch>=2.5.0",
     "transformers>=4.48.0",
-    # Reranking (Phase 2b)
+    "einops>=0.8.1",
+    # Reranking
     "rerankers[transformers]>=0.6.0",
     "flashrank>=0.2.0",
-    "ragatouille>=0.0.9",
+    "pylate>=1.1.0",
+    "litellm>=1.55.0",
     # Vector DB
     "qdrant-client>=1.12.0",
-    # "fastembed>=0.4.0",  # Will be added in Phase 2
-    # Kafka (will be added in Phase 5)
-    # "aiokafka>=0.11.0",
-    # Redis (will be added in Phase 5)
-    # "redis>=5.2.0",
-    # Utilities
+    # HTTP
     "httpx>=0.28.0",
-    "litellm>=1.55.0", # For LLM reranker (Phase 2b)
-    # "structlog>=24.4.0",  # Will be added in Phase 6
-    # "prometheus-client>=0.21.0",  # Will be added in Phase 6
-    "einops>=0.8.1",
 ]
 
 [project.optional-dependencies]

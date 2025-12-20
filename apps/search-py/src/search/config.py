@@ -23,9 +23,7 @@ class Settings(BaseSettings):
 
     # Qdrant
     qdrant_url: str = Field(default="http://localhost:6333", description="Qdrant server URL")
-    qdrant_collection: str = Field(
-        default="engram_memory", description="Qdrant collection name"
-    )
+    qdrant_collection: str = Field(default="engram_memory", description="Qdrant collection name")
     qdrant_timeout: int = Field(default=30, description="Qdrant request timeout in seconds")
     qdrant_grpc_port: int | None = Field(default=None, description="Qdrant gRPC port (optional)")
     qdrant_prefer_grpc: bool = Field(
@@ -65,12 +63,8 @@ class Settings(BaseSettings):
     )
     embedder_batch_size: int = Field(default=32, description="Batch size for embedding")
     embedder_cache_size: int = Field(default=10000, description="Embedding cache size (LRU)")
-    embedder_cache_ttl: int = Field(
-        default=3600, description="Embedding cache TTL in seconds"
-    )
-    embedder_preload: bool = Field(
-        default=True, description="Preload models during startup"
-    )
+    embedder_cache_ttl: int = Field(default=3600, description="Embedding cache TTL in seconds")
+    embedder_preload: bool = Field(default=True, description="Preload models during startup")
 
     # Reranker settings (Phase 2b)
     reranker_fast_model: str = Field(

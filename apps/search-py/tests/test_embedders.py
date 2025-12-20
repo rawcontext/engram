@@ -188,9 +188,7 @@ class TestSparseEmbedder:
         assert all(isinstance(r, dict) for r in results)
 
 
-@pytest.mark.skip(
-    reason="ragatouille has langchain import compatibility issue with langchain>=1.0"
-)
+@pytest.mark.skip(reason="ragatouille has langchain import compatibility issue with langchain>=1.0")
 class TestColBERTEmbedder:
     """Tests for ColBERTEmbedder."""
 

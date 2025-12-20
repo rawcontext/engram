@@ -1,4 +1,4 @@
-"""ColBERT reranker using RAGatouille for late interaction MaxSim.
+"""ColBERT reranker using PyLate for late interaction MaxSim.
 
 ColBERT uses late interaction between query and document token embeddings,
 computing MaxSim scores for more nuanced relevance. Provides a good balance
@@ -19,43 +19,46 @@ logger = logging.getLogger(__name__)
 
 
 class ColBERTReranker(BaseReranker):
-    """ColBERT-based reranker using RAGatouille.
+    """ColBERT-based reranker using PyLate.
 
     Uses late interaction (MaxSim) between query and document tokens
     for efficient yet accurate reranking.
 
     Attributes:
-        model_name: ColBERT model name (default: colbert-ir/colbertv2.0).
-        model: RAGPretrainedModel instance.
+        model_name: ColBERT model name (default: answerdotai/answerai-colbert-small-v1).
+        model: PyLate ColBERT model instance.
     """
 
     def __init__(
         self,
-        model_name: str = "colbert-ir/colbertv2.0",
+        model_name: str = "answerdotai/answerai-colbert-small-v1",
         device: str = "cpu",
-        n_gpu: int = 0,
+        **kwargs: Any,
     ) -> None:
         """Initialize ColBERT reranker.
 
         Args:
             model_name: ColBERT model name from HuggingFace.
             device: Device for inference (cpu, cuda).
-            n_gpu: Number of GPUs to use (0 for CPU).
+            **kwargs: Additional PyLate arguments.
         """
         self.model_name = model_name
         self.device = device
-        self.n_gpu = n_gpu
+        self._kwargs = kwargs
         self.model: Any = None
 
         logger.info(f"Initializing ColBERT reranker with model: {model_name}")
 
-        # Lazy import to avoid langchain compatibility issues at module load
-        from ragatouille import RAGPretrainedModel  # type: ignore
+        # Lazy import to avoid issues at module load
+        from pylate import models, rank  # type: ignore
 
-        # Initialize RAGatouille model
-        self.model = RAGPretrainedModel.from_pretrained(
-            model_name,
-            n_gpu=n_gpu,
+        self._rank_module = rank
+
+        # Initialize PyLate ColBERT model
+        self.model = models.ColBERT(
+            model_name_or_path=model_name,
+            device=device,
+            **kwargs,
         )
 
         logger.info("ColBERT reranker initialized successfully")
@@ -79,23 +82,36 @@ class ColBERTReranker(BaseReranker):
         if not documents:
             return []
 
-        # Use RAGatouille's rerank method
-        # Returns list of dicts with 'content', 'score', 'rank'
-        reranked = self.model.rerank(
-            query=query,
+        # Use PyLate's rerank function
+        # It computes MaxSim between query and document embeddings
+        reranked = self._rank_module.rerank(
             documents=documents,
-            k=top_k if top_k is not None else len(documents),
+            queries=[query],
+            model=self.model,
+            batch_size=min(len(documents), 32),
         )
 
+        # reranked is a list (one per query) of list of tuples (doc_index, score)
+        query_results = reranked[0] if reranked else []
+
         # Convert to RankedResult
-        results = [
-            RankedResult(
-                text=result["content"],
-                score=float(result["score"]),
-                original_index=None,  # RAGatouille doesn't preserve original index
-            )
-            for result in reranked
-        ]
+        results = []
+        for doc_idx, score in query_results:
+            if doc_idx < len(documents):
+                results.append(
+                    RankedResult(
+                        text=documents[doc_idx],
+                        score=float(score),
+                        original_index=doc_idx,
+                    )
+                )
+
+        # Sort by score descending (should already be sorted, but ensure it)
+        results.sort(key=lambda x: x.score, reverse=True)
+
+        # Apply top_k if specified
+        if top_k is not None:
+            results = results[:top_k]
 
         return results
 
@@ -128,8 +144,6 @@ class ColBERTReranker(BaseReranker):
     ) -> list[list[RankedResult]]:
         """Rerank multiple query-document pairs.
 
-        RAGatouille doesn't have native batch support, so we process sequentially.
-
         Args:
             queries: List of search queries.
             documents_batch: List of document lists (one per query).
@@ -138,6 +152,9 @@ class ColBERTReranker(BaseReranker):
         Returns:
             List of ranked results lists (one per query).
         """
+        # Process each query-documents pair
+        # PyLate rerank expects aligned queries and documents for batch processing
+        # For now, process sequentially (could be optimized)
         return [
             self.rerank(query, documents, top_k)
             for query, documents in zip(queries, documents_batch, strict=True)

@@ -1,9 +1,11 @@
-"""ColBERT embedder using RAGatouille."""
+"""ColBERT embedder using PyLate for late interaction multi-vector embeddings."""
 
 from __future__ import annotations
 
 import logging
 from typing import Any
+
+import numpy as np
 
 from search.embedders.base import BaseEmbedder
 
@@ -11,55 +13,56 @@ logger = logging.getLogger(__name__)
 
 
 class ColBERTEmbedder(BaseEmbedder):
-    """ColBERT late interaction embedder using RAGatouille.
+    """ColBERT late interaction embedder using PyLate.
 
     ColBERT produces multiple vectors per document (one per token),
     enabling late interaction matching via MaxSim scoring.
 
-    Uses colbert-ir/colbertv2.0 by default.
+    Uses colbert-ir/colbertv2.0 or answerai-colbert-small-v1 by default.
     """
 
     def __init__(
         self,
-        model_name: str = "colbert-ir/colbertv2.0",
+        model_name: str = "answerdotai/answerai-colbert-small-v1",
         device: str = "cpu",
         batch_size: int = 32,
         cache_size: int = 10000,
-        n_gpu: int = -1,  # -1 for auto-detect
         **kwargs: Any,
     ) -> None:
         """Initialize ColBERT embedder.
 
         Args:
-                model_name: ColBERT model identifier.
-                device: Device for inference (cpu, cuda, mps).
-                batch_size: Batch size for batch operations.
-                cache_size: LRU cache size.
-                n_gpu: Number of GPUs to use (-1 for auto-detect).
-                **kwargs: Additional RAGatouille arguments.
+            model_name: ColBERT model identifier from HuggingFace.
+            device: Device for inference (cpu, cuda, mps).
+            batch_size: Batch size for batch operations.
+            cache_size: LRU cache size.
+            **kwargs: Additional PyLate arguments.
         """
         super().__init__(model_name, device, batch_size, cache_size)
-        self.n_gpu = n_gpu
         self._model_kwargs = kwargs
+        self._embedding_dim = 128  # Default ColBERT dimension
 
     def _load_model(self) -> None:
-        """Load RAGatouille ColBERT model."""
-        logger.info(f"Loading ColBERT model via RAGatouille: {self.model_name}")
-
-        # RAGatouille uses different device naming
-        rag_device = "cpu" if self.device == "cpu" else "cuda"
+        """Load PyLate ColBERT model."""
+        logger.info(f"Loading ColBERT model via PyLate: {self.model_name}")
 
         try:
-            # Lazy import to avoid langchain compatibility issues at module load
-            from ragatouille import RAGPretrainedModel  # type: ignore
+            from pylate import models  # type: ignore
 
-            self._model = RAGPretrainedModel.from_pretrained(
-                self.model_name,
-                n_gpu=self.n_gpu if rag_device == "cuda" else 0,
-                verbose=1,
+            self._model = models.ColBERT(
+                model_name_or_path=self.model_name,
+                device=self.device,
+                **self._model_kwargs,
             )
 
-            logger.info(f"Loaded ColBERT model {self.model_name} on device {self.device}")
+            # Get embedding dimension from model config if available
+            if hasattr(self._model, "config") and hasattr(self._model.config, "embedding_size"):
+                self._embedding_dim = self._model.config.embedding_size
+
+            logger.info(
+                f"Loaded ColBERT model {self.model_name} "
+                f"({self._embedding_dim}d) on device {self.device}"
+            )
         except Exception as e:
             logger.error(f"Failed to load ColBERT model: {e}")
             raise
@@ -73,75 +76,56 @@ class ColBERTEmbedder(BaseEmbedder):
         use embed_document() or embed_query().
 
         Args:
-                text: Text to embed.
-                is_query: Whether this is a query.
+            text: Text to embed.
+            is_query: Whether this is a query.
 
         Returns:
-                Averaged embedding vector.
+            Averaged embedding vector.
         """
         if not self._model:
             raise RuntimeError("Model not loaded. Call load() first.")
 
-        # Get multi-vector representation
-        import numpy as np
-
+        # Encode with PyLate - returns tensor of shape [1, num_tokens, dim]
         if is_query:
-            # RAGatouille's encode_queries returns list of embeddings per query
-            embeddings = self._model.encode_queries([text])
-            if embeddings and len(embeddings) > 0:
-                # Average across token vectors
-                avg_embedding = np.mean(embeddings[0], axis=0)
-                result: list[float] = avg_embedding.tolist()
-                return result
+            embeddings = self._model.encode([text], is_query=True)
         else:
-            # For documents, RAGatouille's encode_documents returns dict
-            # We'll use a simpler approach - treat as query for embedding
-            embeddings = self._model.encode_queries([text])
-            if embeddings and len(embeddings) > 0:
-                # Average across token vectors
-                avg_embedding = np.mean(embeddings[0], axis=0)
-                doc_result: list[float] = avg_embedding.tolist()
-                return doc_result
+            embeddings = self._model.encode([text], is_query=False)
+
+        if embeddings is not None and len(embeddings) > 0:
+            # Average across token vectors
+            # embeddings[0] has shape [num_tokens, dim]
+            emb_array = np.array(embeddings[0])
+            avg_embedding = np.mean(emb_array, axis=0)
+            result: list[float] = avg_embedding.tolist()
+            return result
 
         # Fallback: return zero vector
-        return [0.0] * 128
+        return [0.0] * self._embedding_dim
 
     def _embed_batch_sync(self, texts: list[str], is_query: bool = True) -> list[list[float]]:
         """Synchronous batch embedding.
 
         Args:
-                texts: List of texts to embed.
-                is_query: Whether these are queries.
+            texts: List of texts to embed.
+            is_query: Whether these are queries.
 
         Returns:
-                List of averaged embedding vectors.
+            List of averaged embedding vectors.
         """
         if not self._model:
             raise RuntimeError("Model not loaded. Call load() first.")
 
+        # Encode batch with PyLate
+        embeddings = self._model.encode(texts, is_query=is_query)
+
         embeddings_list = []
-
-        if is_query:
-            embeddings = self._model.encode_queries(texts)
-            import numpy as np
-
-            for emb in embeddings:
-                if len(emb) > 0:
-                    avg_emb = np.mean(emb, axis=0)
-                    embeddings_list.append(avg_emb.tolist())
-                else:
-                    embeddings_list.append([0.0] * 128)
-        else:
-            # Treat documents as queries for batch embedding
-            embeddings = self._model.encode_queries(texts)
-            import numpy as np
-
-            for emb in embeddings:
-                if len(emb) > 0:
-                    avg_emb = np.mean(emb, axis=0)
-                    embeddings_list.append(avg_emb.tolist())
-                else:
-                    embeddings_list.append([0.0] * 128)
+        for emb in embeddings:
+            if len(emb) > 0:
+                emb_array = np.array(emb)
+                avg_emb = np.mean(emb_array, axis=0)
+                embeddings_list.append(avg_emb.tolist())
+            else:
+                embeddings_list.append([0.0] * self._embedding_dim)
 
         return embeddings_list
 
@@ -149,60 +133,77 @@ class ColBERTEmbedder(BaseEmbedder):
         """Embed query as multi-vector (true ColBERT representation).
 
         Args:
-                query: Query text.
+            query: Query text.
 
         Returns:
-                List of token-level embedding vectors.
+            List of token-level embedding vectors.
         """
         if not self._model_loaded:
             raise RuntimeError("Model not loaded. Call load() first.")
 
-        embeddings = self._model.encode_queries([query])
-        if embeddings and len(embeddings) > 0:
-            return [vec.tolist() for vec in embeddings[0]]
+        embeddings = self._model.encode([query], is_query=True)
+        if embeddings is not None and len(embeddings) > 0:
+            return [vec.tolist() if hasattr(vec, "tolist") else list(vec) for vec in embeddings[0]]
         return []
 
     def embed_document(self, document: str) -> list[list[float]]:
         """Embed document as multi-vector (true ColBERT representation).
 
         Args:
-                document: Document text.
+            document: Document text.
 
         Returns:
-                List of token-level embedding vectors.
+            List of token-level embedding vectors.
         """
         if not self._model_loaded:
             raise RuntimeError("Model not loaded. Call load() first.")
 
-        # For documents, we use the same encoding as queries
-        # RAGatouille handles indexing separately
-        embeddings = self._model.encode_queries([document])
-        if embeddings and len(embeddings) > 0:
-            return [vec.tolist() for vec in embeddings[0]]
+        embeddings = self._model.encode([document], is_query=False)
+        if embeddings is not None and len(embeddings) > 0:
+            return [vec.tolist() if hasattr(vec, "tolist") else list(vec) for vec in embeddings[0]]
         return []
 
     def embed_query_batch(self, queries: list[str]) -> list[list[list[float]]]:
         """Batch embed queries as multi-vectors.
 
         Args:
-                queries: List of query texts.
+            queries: List of query texts.
 
         Returns:
-                List of multi-vector embeddings (one per query).
+            List of multi-vector embeddings (one per query).
         """
         if not self._model_loaded:
             raise RuntimeError("Model not loaded. Call load() first.")
 
-        embeddings = self._model.encode_queries(queries)
-        return [[vec.tolist() for vec in emb] for emb in embeddings]
+        embeddings = self._model.encode(queries, is_query=True)
+        return [
+            [vec.tolist() if hasattr(vec, "tolist") else list(vec) for vec in emb]
+            for emb in embeddings
+        ]
+
+    def embed_document_batch(self, documents: list[str]) -> list[list[list[float]]]:
+        """Batch embed documents as multi-vectors.
+
+        Args:
+            documents: List of document texts.
+
+        Returns:
+            List of multi-vector embeddings (one per document).
+        """
+        if not self._model_loaded:
+            raise RuntimeError("Model not loaded. Call load() first.")
+
+        embeddings = self._model.encode(documents, is_query=False)
+        return [
+            [vec.tolist() if hasattr(vec, "tolist") else list(vec) for vec in emb]
+            for emb in embeddings
+        ]
 
     @property
     def dimensions(self) -> int:
         """Get embedding dimensions per token.
 
-        ColBERT uses 128 dimensions per token vector.
-
         Returns:
-                Number of dimensions per token vector.
+            Number of dimensions per token vector.
         """
-        return 128
+        return self._embedding_dim
