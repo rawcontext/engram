@@ -107,6 +107,14 @@ if [ ! -f /data/longmemeval_oracle.json ]; then
 fi
 
 # -----------------------------------------------------------------------------
+# Clear model cache to avoid corrupted files
+# -----------------------------------------------------------------------------
+echo "Clearing transformers model cache..."
+rm -rf /app/.cache/huggingface/transformers/*
+rm -rf /app/node_modules/@huggingface/transformers/.cache/*
+mkdir -p /app/.cache
+
+# -----------------------------------------------------------------------------
 # Create Server with Ingest + Benchmark APIs
 # -----------------------------------------------------------------------------
 cat > /app/server.js << 'SERVEREOF'
