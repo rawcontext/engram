@@ -3,10 +3,11 @@
 import logging
 import time
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from search.api.schemas import HealthResponse, SearchRequest, SearchResponse, SearchResult
 from search.retrieval.types import SearchFilters, SearchQuery, TimeRange
+from search.utils.metrics import get_content_type, get_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,16 @@ async def readiness_check(request: Request) -> dict[str, str]:
         return {"status": "not_ready", "reason": "qdrant health check failed"}
     except Exception as e:
         return {"status": "not_ready", "reason": str(e)}
+
+
+@router.get("/metrics")
+async def metrics() -> Response:
+    """Prometheus metrics endpoint.
+
+    Returns:
+        Metrics in Prometheus text exposition format.
+    """
+    return Response(content=get_metrics(), media_type=get_content_type())
 
 
 @router.post("/search", response_model=SearchResponse)

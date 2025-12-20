@@ -1,6 +1,5 @@
 """Engram Search Service - FastAPI application entry point."""
 
-import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -14,13 +13,20 @@ from search.config import get_settings
 from search.embedders import EmbedderFactory
 from search.rerankers import RerankerRouter
 from search.retrieval import SearchRetriever
+from search.utils.logging import configure_logging, get_logger
+from search.utils.metrics import SERVICE_INFO
+from search.utils.tracing import TracingMiddleware
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+# Configure structured logging
+settings = get_settings()
+configure_logging(
+    level="DEBUG" if settings.debug else "INFO",
+    json_format=not settings.debug,  # Human-readable in debug mode
 )
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+# Set service info metrics
+SERVICE_INFO.info({"version": "0.1.0", "service": "search-py"})
 
 
 @asynccontextmanager
@@ -136,7 +142,7 @@ def create_app() -> FastAPI:
     Returns:
         Configured FastAPI application instance.
     """
-    settings = get_settings()
+    app_settings = get_settings()
 
     app = FastAPI(
         title="Engram Search Service",
@@ -146,13 +152,16 @@ def create_app() -> FastAPI:
         ),
         version="0.1.0",
         lifespan=lifespan,
-        debug=settings.debug,
+        debug=app_settings.debug,
     )
+
+    # Request tracing middleware (must be added first for correlation IDs)
+    app.add_middleware(TracingMiddleware)
 
     # CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=app_settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

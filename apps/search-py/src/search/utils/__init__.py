@@ -1,6 +1,24 @@
 """Utility modules for the search service."""
 
-# Utilities will be added in later phases:
-# - cache.py (Phase 2: Embedding cache)
-# - metrics.py (Phase 6: Prometheus metrics)
-# - rate_limiter.py (Phase 3: LLM reranker rate limiting)
+from search.utils.logging import bind_context, clear_context, configure_logging, get_logger
+from search.utils.tracing import (
+    CORRELATION_ID_HEADER,
+    REQUEST_ID_HEADER,
+    TracingMiddleware,
+    get_correlation_id,
+    set_correlation_id,
+)
+
+__all__ = [
+    # Logging
+    "configure_logging",
+    "get_logger",
+    "bind_context",
+    "clear_context",
+    # Tracing
+    "TracingMiddleware",
+    "get_correlation_id",
+    "set_correlation_id",
+    "CORRELATION_ID_HEADER",
+    "REQUEST_ID_HEADER",
+]
