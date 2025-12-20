@@ -51,4 +51,4 @@ EXPOSE 5002
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')" || exit 1
 
-CMD ["uvicorn", "search.main:app", "--host", "0.0.0.0", "--port", "5002"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5002"]

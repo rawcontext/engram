@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from search.config import Settings
-from search.retrieval import (
+from src.config import Settings
+from src.retrieval import (
     SearchQuery,
     SearchRetriever,
     SearchStrategy,
@@ -247,7 +247,7 @@ class TestSearchRetriever:
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test search with session_id and type filters."""
-        from search.retrieval.types import SearchFilters
+        from src.retrieval.types import SearchFilters
 
         mock_response = MagicMock()
         mock_response.points = []

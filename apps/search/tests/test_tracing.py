@@ -6,7 +6,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.testclient import TestClient
 
-from search.utils.tracing import (
+from src.utils.tracing import (
     CORRELATION_ID_HEADER,
     REQUEST_ID_HEADER,
     TracingMiddleware,

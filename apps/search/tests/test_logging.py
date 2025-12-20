@@ -7,7 +7,7 @@ import logging
 import pytest
 import structlog
 
-from search.utils.logging import bind_context, clear_context, configure_logging, get_logger
+from src.utils.logging import bind_context, clear_context, configure_logging, get_logger
 
 
 @pytest.fixture(autouse=True)

@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from search.config import Settings
-from search.retrieval import (
+from src.config import Settings
+from src.retrieval import (
     SessionAwareRetriever,
     SessionRetrieverConfig,
 )
@@ -192,7 +192,7 @@ class TestSessionAwareRetriever:
         )
 
         # Mock reranker to return top 5
-        from search.rerankers.base import RankedResult
+        from src.rerankers.base import RankedResult
 
         mock_reranked = [
             RankedResult(text=f"Turn content {i}", score=0.95 - i * 0.05, original_index=i)

@@ -2,14 +2,14 @@
 
 import pytest
 
-from search.rerankers import (
+from src.rerankers import (
     CrossEncoderReranker,
     FlashRankReranker,
     LLMReranker,
     RankedResult,
     RerankerRouter,
 )
-from search.utils.rate_limiter import RateLimitError, SlidingWindowRateLimiter
+from src.utils.rate_limiter import RateLimitError, SlidingWindowRateLimiter
 
 # Test data
 SAMPLE_QUERY = "What is the capital of France?"

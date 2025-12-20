@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from search.config import Settings
-from search.embedders import (
+from src.config import Settings
+from src.embedders import (
     CodeEmbedder,
     ColBERTEmbedder,
     EmbedderFactory,

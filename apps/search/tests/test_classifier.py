@@ -2,12 +2,12 @@
 
 import pytest
 
-from search.retrieval.classifier import (
+from src.retrieval.classifier import (
     ClassificationResult,
     QueryClassifier,
     QueryFeatures,
 )
-from search.retrieval.types import QueryComplexity, SearchStrategy
+from src.retrieval.types import QueryComplexity, SearchStrategy
 
 
 @pytest.fixture

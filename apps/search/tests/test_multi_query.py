@@ -2,11 +2,11 @@
 
 import pytest
 
-from search.retrieval.multi_query import (
+from src.retrieval.multi_query import (
     MultiQueryConfig,
     MultiQueryRetriever,
 )
-from search.retrieval.types import SearchQuery, SearchResultItem
+from src.retrieval.types import SearchQuery, SearchResultItem
 
 
 class MockRetriever:

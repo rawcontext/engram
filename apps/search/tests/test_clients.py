@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from search.clients import (
+from src.clients import (
     ConsumerConfig,
     ConsumerStatusUpdate,
     KafkaClient,
@@ -20,7 +20,7 @@ class TestKafkaClient:
     @pytest.mark.asyncio
     async def test_get_producer(self) -> None:
         """Test getting producer creates it on first call."""
-        with patch("search.clients.kafka.AIOKafkaProducer") as mock_producer_class:
+        with patch("src.clients.kafka.AIOKafkaProducer") as mock_producer_class:
             mock_producer = AsyncMock()
             mock_producer_class.return_value = mock_producer
 
@@ -42,7 +42,7 @@ class TestKafkaClient:
     @pytest.mark.asyncio
     async def test_create_consumer(self) -> None:
         """Test consumer creation."""
-        with patch("search.clients.kafka.AIOKafkaConsumer") as mock_consumer_class:
+        with patch("src.clients.kafka.AIOKafkaConsumer") as mock_consumer_class:
             mock_consumer = AsyncMock()
             mock_consumer_class.return_value = mock_consumer
 
@@ -58,7 +58,7 @@ class TestKafkaClient:
     @pytest.mark.asyncio
     async def test_send_event(self) -> None:
         """Test sending events."""
-        with patch("search.clients.kafka.AIOKafkaProducer") as mock_producer_class:
+        with patch("src.clients.kafka.AIOKafkaProducer") as mock_producer_class:
             mock_producer = AsyncMock()
             mock_producer_class.return_value = mock_producer
 
@@ -75,7 +75,7 @@ class TestKafkaClient:
     @pytest.mark.asyncio
     async def test_context_manager(self) -> None:
         """Test async context manager protocol."""
-        with patch("search.clients.kafka.AIOKafkaProducer") as mock_producer_class:
+        with patch("src.clients.kafka.AIOKafkaProducer") as mock_producer_class:
             mock_producer = AsyncMock()
             mock_producer_class.return_value = mock_producer
 
@@ -101,7 +101,7 @@ class TestRedisPublisher:
     @pytest.mark.asyncio
     async def test_connect(self) -> None:
         """Test Redis connection."""
-        with patch("search.clients.redis.redis.from_url") as mock_from_url:
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
             mock_client = AsyncMock()
             mock_from_url.return_value = mock_client
 
@@ -117,7 +117,7 @@ class TestRedisPublisher:
     @pytest.mark.asyncio
     async def test_publish_session_update(self) -> None:
         """Test publishing session update."""
-        with patch("search.clients.redis.redis.from_url") as mock_from_url:
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
             mock_client = AsyncMock()
             mock_from_url.return_value = mock_client
 
@@ -145,7 +145,7 @@ class TestRedisPublisher:
     @pytest.mark.asyncio
     async def test_publish_consumer_status(self) -> None:
         """Test publishing consumer status."""
-        with patch("search.clients.redis.redis.from_url") as mock_from_url:
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
             mock_client = AsyncMock()
             mock_from_url.return_value = mock_client
 
@@ -172,7 +172,7 @@ class TestRedisPublisher:
     @pytest.mark.asyncio
     async def test_context_manager(self) -> None:
         """Test async context manager protocol."""
-        with patch("search.clients.redis.redis.from_url") as mock_from_url:
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
             mock_client = AsyncMock()
             mock_from_url.return_value = mock_client
 
@@ -188,7 +188,7 @@ class TestRedisSubscriber:
     @pytest.mark.asyncio
     async def test_connect(self) -> None:
         """Test Redis subscriber connection."""
-        with patch("search.clients.redis.redis.from_url") as mock_from_url:
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
             mock_client = MagicMock()
             mock_client.ping = AsyncMock()
             mock_client.aclose = AsyncMock()
@@ -211,7 +211,7 @@ class TestRedisSubscriber:
     @pytest.mark.asyncio
     async def test_subscribe_builds_session_channel(self) -> None:
         """Test subscribing with session ID builds correct channel."""
-        with patch("search.clients.redis.redis.from_url") as mock_from_url:
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
             mock_client = MagicMock()
             mock_client.ping = AsyncMock()
             mock_client.aclose = AsyncMock()
@@ -239,7 +239,7 @@ class TestRedisSubscriber:
     @pytest.mark.asyncio
     async def test_subscribe_uses_full_channel_name(self) -> None:
         """Test subscribing with full channel name uses it as-is."""
-        with patch("search.clients.redis.redis.from_url") as mock_from_url:
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
             mock_client = MagicMock()
             mock_client.ping = AsyncMock()
             mock_client.aclose = AsyncMock()

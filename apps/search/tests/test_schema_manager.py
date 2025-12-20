@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from qdrant_client.http import models
 
-from search.clients.qdrant import QdrantClientWrapper
-from search.config import Settings
-from search.services.schema_manager import CollectionSchema, SchemaManager
+from src.clients.qdrant import QdrantClientWrapper
+from src.config import Settings
+from src.services.schema_manager import CollectionSchema, SchemaManager
 
 
 class TestSchemaManager:

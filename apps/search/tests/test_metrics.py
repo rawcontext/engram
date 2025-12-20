@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from search.utils.metrics import (
+from src.utils.metrics import (
     EMBEDDING_CACHE_HITS,
     EMBEDDING_CACHE_MISSES,
     RERANKER_COST_CENTS,
