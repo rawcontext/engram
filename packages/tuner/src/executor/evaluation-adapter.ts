@@ -15,7 +15,6 @@ import type { TrialMetrics } from "./trial-runner.js";
 type DatasetVariant = "s" | "m" | "oracle";
 type LLMProviderType = "stub" | "anthropic" | "openai" | "gemini" | "ollama";
 type RunBenchmarkConfig = Record<string, unknown>;
-type BenchmarkProgress = { stage: string; current: number; total: number };
 
 /**
  * Options for the evaluation adapter
@@ -154,7 +153,7 @@ export async function evaluateWithBenchmark(
 	options: EvaluationAdapterOptions,
 ): Promise<TrialMetrics> {
 	// Map trial config to benchmark config
-	const benchmarkConfig = mapTrialToBenchmarkConfig(trialConfig, options);
+	const _benchmarkConfig = mapTrialToBenchmarkConfig(trialConfig, options);
 
 	// TODO: Replace with HTTP call to Python benchmark service
 	// Example: POST http://localhost:8001/api/benchmark
