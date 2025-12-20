@@ -11,6 +11,7 @@
  */
 
 import { pipeline } from "@huggingface/transformers";
+import { getDefaultDevice } from "./base-embedder";
 import { TextEmbedder } from "./text-embedder";
 
 /**
@@ -487,7 +488,7 @@ Summary:`;
 	 * Initialize the NER pipeline.
 	 */
 	private async initNERPipeline(): Promise<NERPipeline> {
-		const device = process.env.EMBEDDER_DEVICE || "cuda";
+		const device = getDefaultDevice();
 		console.log(
 			`[SessionSummarizer] Loading NER model ${this.config.nerModel} on device=${device}`,
 		);
@@ -525,7 +526,7 @@ Summary:`;
 	 * Initialize the keyword extraction pipeline.
 	 */
 	private async initKeywordPipeline(): Promise<FeatureExtractionPipeline> {
-		const device = process.env.EMBEDDER_DEVICE || "cuda";
+		const device = getDefaultDevice();
 		console.log(
 			`[SessionSummarizer] Loading keyword model ${this.config.keywordModel} on device=${device}`,
 		);

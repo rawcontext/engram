@@ -1,4 +1,5 @@
 import type { SearchResult } from "../models/schema";
+import { getDefaultDevice } from "./base-embedder";
 
 /**
  * Configuration for abstention detection
@@ -371,7 +372,7 @@ export class AbstentionDetector {
 	 * Initialize the NLI pipeline from @huggingface/transformers.
 	 */
 	private async initNLIPipeline(): Promise<NLIPipeline> {
-		const device = process.env.EMBEDDER_DEVICE || "cuda";
+		const device = getDefaultDevice();
 		console.log(
 			`[AbstentionDetector] Loading NLI model ${this.config.nliModel} on device=${device}`,
 		);
