@@ -35,6 +35,7 @@ program
 	.option("--embeddings <provider>", "Embedding provider (stub, qdrant, e5, engram)", "stub")
 	.option("--llm <provider>", "LLM provider (stub, anthropic, openai, ollama, gemini)", "stub")
 	.option("--qdrant-url <url>", "Qdrant server URL", "http://localhost:6333")
+	.option("--falkor-url <url>", "FalkorDB (Redis) URL", "redis://localhost:6379")
 	.option("--ollama-url <url>", "Ollama server URL", "http://localhost:11434")
 	.option("--ollama-model <model>", "Ollama model name")
 	.option("--gemini-model <model>", "Gemini model name", "gemini-3-flash-preview")

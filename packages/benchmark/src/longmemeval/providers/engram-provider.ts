@@ -20,6 +20,8 @@ export type EmbeddingModelOption =
 export interface EngramProviderConfig {
 	/** Qdrant server URL */
 	qdrantUrl: string;
+	/** FalkorDB (Redis) URL for graph storage */
+	falkorUrl: string;
 	/** Collection name for benchmark data */
 	collectionName: string;
 	/** Enable hybrid search (dense + sparse with RRF) */
@@ -62,6 +64,7 @@ export interface EngramProviderConfig {
 
 const DEFAULT_CONFIG: EngramProviderConfig = {
 	qdrantUrl: "http://localhost:6333",
+	falkorUrl: "redis://localhost:6379",
 	collectionName: "longmemeval_engram",
 	hybridSearch: true,
 	learnedFusion: false,
@@ -92,6 +95,19 @@ const DEFAULT_CONFIG: EngramProviderConfig = {
  * - ColBERT late interaction reranking
  * - Cross-encoder reranking (fast/accurate/code tiers)
  */
+// FalkorDB graph client interface
+interface FalkorGraphInterface {
+	query(
+		cypher: string,
+		params?: { params: Record<string, unknown> },
+	): Promise<{ data: unknown[][] }>;
+}
+
+interface FalkorDBInterface {
+	selectGraph(name: string): FalkorGraphInterface;
+	close(): Promise<void>;
+}
+
 export class EngramRetriever {
 	private config: EngramProviderConfig;
 	private textEmbedder: TextEmbedderInterface | null = null;
@@ -100,6 +116,8 @@ export class EngramRetriever {
 	private reranker: RerankerInterface | null = null;
 	private colbertReranker: ColBERTRerankerInterface | null = null;
 	private client: QdrantClientInterface | null = null;
+	private falkorDb: FalkorDBInterface | null = null;
+	private falkorGraph: FalkorGraphInterface | null = null;
 	private indexed: boolean = false;
 	private documentEmbeddings: Map<string, Float32Array[]> = new Map(); // ColBERT embeddings cache
 	private xaiClient: XAIClientInterface | null = null; // For multi-query expansion
@@ -178,6 +196,15 @@ export class EngramRetriever {
 			// Initialize Qdrant client
 			const { QdrantClient } = await import("@qdrant/js-client-rest");
 			this.client = new QdrantClient({ url: this.config.qdrantUrl }) as QdrantClientInterface;
+
+			// Initialize FalkorDB client
+			const { FalkorDB } = await import("falkordb");
+			const falkorUrl = new URL(this.config.falkorUrl);
+			this.falkorDb = (await FalkorDB.connect({
+				socket: { host: falkorUrl.hostname, port: Number.parseInt(falkorUrl.port) || 6379 },
+			})) as unknown as FalkorDBInterface;
+			this.falkorGraph = this.falkorDb.selectGraph("engram_benchmark");
+			console.log(`  [FalkorDB] Connected to ${this.config.falkorUrl}`);
 
 			// Initialize Google AI client for multi-query expansion
 			if (this.config.multiQuery) {
@@ -313,9 +340,80 @@ export class EngramRetriever {
 
 	/**
 	 * Index a mapped instance for retrieval (Retriever interface)
+	 * If FalkorDB is connected, loads memories from graph; otherwise uses mapped documents.
 	 */
 	async indexInstance(mapped: MappedInstance): Promise<void> {
+		await this.initialize();
+
+		// If FalkorDB is connected, load memories from graph instead of mapped documents
+		if (this.falkorGraph) {
+			const documents = await this.loadDocumentsFromFalkor(mapped);
+			if (documents.length > 0) {
+				console.log(`  [FalkorDB] Loaded ${documents.length} memories from graph`);
+				await this.index(documents);
+				return;
+			}
+			// Fall back to mapped documents if no memories found in graph
+			console.log("  [FalkorDB] No memories found in graph, using mapped documents");
+		}
+
 		await this.index(mapped.documents);
+	}
+
+	/**
+	 * Load documents from FalkorDB for a given instance.
+	 * Queries Memory nodes linked to the instance's sessions.
+	 */
+	private async loadDocumentsFromFalkor(mapped: MappedInstance): Promise<EngramDocument[]> {
+		if (!this.falkorGraph) return [];
+
+		const documents: EngramDocument[] = [];
+
+		// Get all session IDs from the mapped instance
+		const sessionIds = mapped.instance.sessions.map(
+			(s, idx) => `session_${mapped.instance.questionId}_${idx}`,
+		);
+
+		for (let sessionIndex = 0; sessionIndex < sessionIds.length; sessionIndex++) {
+			const sessionId = sessionIds[sessionIndex];
+
+			// Query memories for this session
+			const result = await this.falkorGraph.query(
+				`MATCH (s:Session {id: $sid})-[:HAS_TURN]->(t:Turn)-[:PRODUCES]->(m:Memory)
+				 RETURN m.id as id, m.content as content, m.vt_start as validTime,
+				        t.user_content as userContent, t.assistant_preview as assistantContent,
+				        t.sequence_index as turnIndex`,
+				{ params: { sid: sessionId } },
+			);
+
+			for (const row of result.data) {
+				const [id, content, validTime, userContent, assistantContent, turnIndex] = row as [
+					string,
+					string,
+					string,
+					string,
+					string,
+					number,
+				];
+
+				documents.push({
+					id: id as string,
+					instanceId: mapped.instance.questionId,
+					sessionId: sessionId,
+					content: (content as string) || `${userContent || ""} ${assistantContent || ""}`.trim(),
+					validTime: new Date(validTime as string),
+					metadata: {
+						questionId: mapped.instance.questionId,
+						hasAnswer: false, // Will be updated during evaluation
+						role: "combined" as const,
+						turnIndex: turnIndex as number,
+						sessionIndex,
+					},
+				});
+			}
+		}
+
+		return documents;
 	}
 
 	/**

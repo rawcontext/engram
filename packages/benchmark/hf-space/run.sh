@@ -208,6 +208,7 @@ const server = http.createServer((req, res) => {
       "--embeddings", "engram",
       "--llm", "gemini",
       "--gemini-model", "gemini-2.5-flash-preview-05-20",
+      "--falkor-url", "redis://localhost:6379",
       "--qdrant-url", "http://localhost:6333",
       "--top-k", "10",
       "--hybrid-search",

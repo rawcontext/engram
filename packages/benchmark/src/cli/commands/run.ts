@@ -32,6 +32,7 @@ interface RunOptions {
 	embeddings: string;
 	llm: string;
 	qdrantUrl?: string;
+	falkorUrl?: string;
 	ollamaUrl?: string;
 	ollamaModel?: string;
 	// Gemini options
@@ -253,6 +254,7 @@ function createCustomRetriever(options: RunOptions): CustomRetriever | undefined
 
 	return new EngramRetriever({
 		qdrantUrl: options.qdrantUrl ?? "http://localhost:6333",
+		falkorUrl: options.falkorUrl ?? "redis://localhost:6379",
 		hybridSearch: options.hybridSearch,
 		learnedFusion: options.learnedFusion,
 		fusionModel: options.fusionModel,
