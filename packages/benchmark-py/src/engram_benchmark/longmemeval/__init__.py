@@ -9,6 +9,13 @@ Based on the LongMemEval benchmark (ICLR 2025):
 from engram_benchmark.longmemeval.abstention import AbstentionDetector, AbstentionResult
 from engram_benchmark.longmemeval.loader import load_dataset, validate_dataset
 from engram_benchmark.longmemeval.reader import LongMemEvalReader, LongMemEvalReaderOutput
+from engram_benchmark.longmemeval.retriever import (
+    BaseRetriever,
+    ChromaRetriever,
+    EngramRetriever,
+    RetrievalResult,
+    RetrievedContext,
+)
 from engram_benchmark.longmemeval.types import (
     LongMemEvalDataset,
     LongMemEvalInstance,
@@ -22,12 +29,17 @@ from engram_benchmark.longmemeval.types import (
 __all__ = [
     "AbstentionDetector",
     "AbstentionResult",
+    "BaseRetriever",
+    "ChromaRetriever",
+    "EngramRetriever",
     "LongMemEvalDataset",
     "LongMemEvalInstance",
     "LongMemEvalReader",
     "LongMemEvalReaderOutput",
     "MemoryAbility",
     "QuestionType",
+    "RetrievalResult",
+    "RetrievedContext",
     "Session",
     "Turn",
     "get_memory_ability",

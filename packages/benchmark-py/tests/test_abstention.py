@@ -107,14 +107,11 @@ class TestKeywordAbstentionDetection:
             assert result.is_abstention, f"Failed for: {response}"
 
     def test_multiple_patterns_increase_confidence(
-        self,
-        detector_no_llm: AbstentionDetector
+        self, detector_no_llm: AbstentionDetector
     ) -> None:
         """Test that multiple matched patterns increase confidence."""
         # Single pattern
-        single_result = detector_no_llm.detect_keyword_abstention(
-            "I don't know the answer."
-        )
+        single_result = detector_no_llm.detect_keyword_abstention("I don't know the answer.")
 
         # Multiple patterns
         multi_result = detector_no_llm.detect_keyword_abstention(
@@ -133,14 +130,13 @@ class TestLLMAbstentionDetection:
         mock_score = LLMAbstentionScore(
             is_abstention=True,
             confidence=0.9,
-            reasoning="Response explicitly states lack of information"
+            reasoning="Response explicitly states lack of information",
         )
 
         detector.llm.generate_structured = AsyncMock(return_value=mock_score)
 
         result = await detector.detect_llm_abstention(
-            question="What is X?",
-            response="I don't have enough information to answer."
+            question="What is X?", response="I don't have enough information to answer."
         )
 
         assert result.is_abstention
@@ -152,16 +148,13 @@ class TestLLMAbstentionDetection:
     async def test_llm_detects_non_abstention(self, detector: AbstentionDetector) -> None:
         """Test LLM correctly identifies non-abstentions."""
         mock_score = LLMAbstentionScore(
-            is_abstention=False,
-            confidence=0.1,
-            reasoning="Response provides a clear answer"
+            is_abstention=False, confidence=0.1, reasoning="Response provides a clear answer"
         )
 
         detector.llm.generate_structured = AsyncMock(return_value=mock_score)
 
         result = await detector.detect_llm_abstention(
-            question="What is X?",
-            response="The answer is 42."
+            question="What is X?", response="The answer is 42."
         )
 
         assert not result.is_abstention
@@ -175,14 +168,13 @@ class TestLLMAbstentionDetection:
         mock_score = LLMAbstentionScore(
             is_abstention=True,
             confidence=0.5,  # Below default threshold of 0.7
-            reasoning="Somewhat uncertain"
+            reasoning="Somewhat uncertain",
         )
 
         detector.llm.generate_structured = AsyncMock(return_value=mock_score)
 
         result = await detector.detect_llm_abstention(
-            question="What is X?",
-            response="Maybe I don't know."
+            question="What is X?", response="Maybe I don't know."
         )
 
         assert not result.is_abstention  # Below threshold
@@ -193,8 +185,7 @@ class TestLLMAbstentionDetection:
         """Test that LLM detection raises error when no provider."""
         with pytest.raises(ValueError, match="LLM-based detection requires llm_provider"):
             await detector_no_llm.detect_llm_abstention(
-                question="What is X?",
-                response="I don't know."
+                question="What is X?", response="I don't know."
             )
 
 
@@ -202,16 +193,11 @@ class TestEnsembleAbstentionDetection:
     """Tests for ensemble abstention detection."""
 
     @pytest.mark.asyncio
-    async def test_ensemble_high_confidence_keyword(
-        self,
-        detector: AbstentionDetector
-    ) -> None:
+    async def test_ensemble_high_confidence_keyword(self, detector: AbstentionDetector) -> None:
         """Test ensemble uses keyword result when confidence is high."""
         # Keyword will have high confidence for this
         result = await detector.detect(
-            response="I don't know",
-            question="What is X?",
-            method="ensemble"
+            response="I don't know", question="What is X?", method="ensemble"
         )
 
         # Should use keyword detection (no LLM call)
@@ -224,9 +210,7 @@ class TestEnsembleAbstentionDetection:
     async def test_ensemble_falls_back_to_llm(self, detector: AbstentionDetector) -> None:
         """Test ensemble falls back to LLM for uncertain cases."""
         mock_score = LLMAbstentionScore(
-            is_abstention=True,
-            confidence=0.8,
-            reasoning="Implicit abstention detected"
+            is_abstention=True, confidence=0.8, reasoning="Implicit abstention detected"
         )
 
         detector.llm.generate_structured = AsyncMock(return_value=mock_score)
@@ -235,7 +219,7 @@ class TestEnsembleAbstentionDetection:
         await detector.detect(
             response="Well, that's a tricky question. I'm not entirely sure about that.",
             question="What is X?",
-            method="ensemble"
+            method="ensemble",
         )
 
         # Should have called LLM
@@ -245,9 +229,7 @@ class TestEnsembleAbstentionDetection:
     async def test_ensemble_averages_confidence(self, detector: AbstentionDetector) -> None:
         """Test ensemble averages keyword and LLM confidence."""
         mock_score = LLMAbstentionScore(
-            is_abstention=False,
-            confidence=0.2,
-            reasoning="Seems like a valid answer"
+            is_abstention=False, confidence=0.2, reasoning="Seems like a valid answer"
         )
 
         detector.llm.generate_structured = AsyncMock(return_value=mock_score)
@@ -256,7 +238,7 @@ class TestEnsembleAbstentionDetection:
         result = await detector.detect(
             response="Hmm, that's a tricky one. I'm not entirely confident.",
             question="What is X?",
-            method="ensemble"
+            method="ensemble",
         )
 
         # Should average keyword and LLM confidence
@@ -269,7 +251,7 @@ class TestEnsembleAbstentionDetection:
         result = await detector_no_llm.detect(
             response="I don't know",
             question=None,  # No question provided
-            method="ensemble"
+            method="ensemble",
         )
 
         assert result.is_abstention
@@ -282,10 +264,7 @@ class TestAbstentionDetectionMethods:
     @pytest.mark.asyncio
     async def test_keyword_method(self, detector: AbstentionDetector) -> None:
         """Test explicit keyword method selection."""
-        result = await detector.detect(
-            response="I don't know",
-            method="keyword"
-        )
+        result = await detector.detect(response="I don't know", method="keyword")
 
         assert result.method == AbstentionMethod.KEYWORD
         assert result.is_abstention
@@ -294,18 +273,12 @@ class TestAbstentionDetectionMethods:
     async def test_llm_method(self, detector: AbstentionDetector) -> None:
         """Test explicit LLM method selection."""
         mock_score = LLMAbstentionScore(
-            is_abstention=True,
-            confidence=0.9,
-            reasoning="Clear abstention"
+            is_abstention=True, confidence=0.9, reasoning="Clear abstention"
         )
 
         detector.llm.generate_structured = AsyncMock(return_value=mock_score)
 
-        result = await detector.detect(
-            response="I don't know",
-            question="What is X?",
-            method="llm"
-        )
+        result = await detector.detect(response="I don't know", question="What is X?", method="llm")
 
         assert result.method == AbstentionMethod.LLM
         assert result.is_abstention
@@ -316,18 +289,14 @@ class TestAbstentionDetectionMethods:
         with pytest.raises(ValueError, match="Invalid detection method"):
             await detector.detect(
                 response="I don't know",
-                method="invalid"  # type: ignore[arg-type]
+                method="invalid",  # type: ignore[arg-type]
             )
 
     @pytest.mark.asyncio
     async def test_llm_method_requires_question(self, detector: AbstentionDetector) -> None:
         """Test LLM method requires question parameter."""
         with pytest.raises(ValueError, match="requires llm_provider and question"):
-            await detector.detect(
-                response="I don't know",
-                question=None,
-                method="llm"
-            )
+            await detector.detect(response="I don't know", question=None, method="llm")
 
 
 class TestCustomThresholds:
@@ -338,13 +307,10 @@ class TestCustomThresholds:
         """Test custom keyword threshold."""
         detector = AbstentionDetector(
             llm_provider=mock_llm_provider,
-            keyword_threshold=0.5  # Lower threshold
+            keyword_threshold=0.5,  # Lower threshold
         )
 
-        await detector.detect(
-            response="I don't know",
-            method="ensemble"
-        )
+        await detector.detect(response="I don't know", method="ensemble")
 
         # Should use keyword result due to lower threshold
         mock_llm_provider.generate_structured.assert_not_called()
@@ -353,21 +319,18 @@ class TestCustomThresholds:
     async def test_custom_llm_threshold(self, mock_llm_provider: MagicMock) -> None:
         """Test custom LLM threshold."""
         mock_score = LLMAbstentionScore(
-            is_abstention=True,
-            confidence=0.5,
-            reasoning="Moderate confidence"
+            is_abstention=True, confidence=0.5, reasoning="Moderate confidence"
         )
 
         mock_llm_provider.generate_structured = AsyncMock(return_value=mock_score)
 
         detector = AbstentionDetector(
             llm_provider=mock_llm_provider,
-            llm_threshold=0.4  # Lower threshold
+            llm_threshold=0.4,  # Lower threshold
         )
 
         result = await detector.detect_llm_abstention(
-            question="What is X?",
-            response="Maybe I don't know"
+            question="What is X?", response="Maybe I don't know"
         )
 
         # Should be abstention due to lower threshold
@@ -377,22 +340,18 @@ class TestCustomThresholds:
     async def test_custom_ensemble_threshold(self, mock_llm_provider: MagicMock) -> None:
         """Test custom ensemble threshold."""
         mock_score = LLMAbstentionScore(
-            is_abstention=True,
-            confidence=0.4,
-            reasoning="Low confidence"
+            is_abstention=True, confidence=0.4, reasoning="Low confidence"
         )
 
         mock_llm_provider.generate_structured = AsyncMock(return_value=mock_score)
 
         detector = AbstentionDetector(
             llm_provider=mock_llm_provider,
-            ensemble_threshold=0.3  # Lower threshold
+            ensemble_threshold=0.3,  # Lower threshold
         )
 
         result = await detector.detect(
-            response="unclear response",
-            question="What is X?",
-            method="ensemble"
+            response="unclear response", question="What is X?", method="ensemble"
         )
 
         # Ensemble average might be below standard threshold but above custom

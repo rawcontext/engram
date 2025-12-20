@@ -50,9 +50,7 @@ class LongMemEvalReader:
         """
         self.llm = llm_provider
         self.reader = ChainOfNoteReader(llm_provider, use_chain_of_note)
-        self.abstention_detector = (
-            AbstentionDetector(llm_provider) if detect_abstention else None
-        )
+        self.abstention_detector = AbstentionDetector(llm_provider) if detect_abstention else None
 
     async def generate_answer(
         self,

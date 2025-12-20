@@ -97,7 +97,9 @@ class TestLiteLLMProvider:
     @pytest.mark.asyncio
     async def test_generate_basic(self, mock_model_response: MagicMock) -> None:
         """Test basic text generation."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             mock_completion.return_value = mock_model_response
 
             provider = LiteLLMProvider(model="anthropic/claude-sonnet-4-20250514")
@@ -122,13 +124,14 @@ class TestLiteLLMProvider:
     @pytest.mark.asyncio
     async def test_generate_with_system_prompt(self, mock_model_response: MagicMock) -> None:
         """Test generation with system prompt."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             mock_completion.return_value = mock_model_response
 
             provider = LiteLLMProvider(model="anthropic/claude-sonnet-4-20250514")
             response = await provider.generate(
-                "What is 6*7?",
-                system_prompt="You are a helpful math tutor."
+                "What is 6*7?", system_prompt="You are a helpful math tutor."
             )
 
             assert response.content == "The answer is 42."
@@ -144,13 +147,14 @@ class TestLiteLLMProvider:
     @pytest.mark.asyncio
     async def test_generate_structured(self, mock_structured_response: MagicMock) -> None:
         """Test structured output generation."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             mock_completion.return_value = mock_structured_response
 
             provider = LiteLLMProvider(model="anthropic/claude-sonnet-4-20250514")
             result = await provider.generate_structured(
-                "What is 6*7? Respond in JSON.",
-                schema=SampleSchema
+                "What is 6*7? Respond in JSON.", schema=SampleSchema
             )
 
             assert isinstance(result, SampleSchema)
@@ -159,18 +163,16 @@ class TestLiteLLMProvider:
 
     @pytest.mark.asyncio
     async def test_generate_structured_with_markdown(
-        self,
-        mock_json_with_markdown_response: MagicMock
+        self, mock_json_with_markdown_response: MagicMock
     ) -> None:
         """Test structured output with markdown code blocks."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             mock_completion.return_value = mock_json_with_markdown_response
 
             provider = LiteLLMProvider(model="anthropic/claude-sonnet-4-20250514")
-            result = await provider.generate_structured(
-                "What is 6*7?",
-                schema=SampleSchema
-            )
+            result = await provider.generate_structured("What is 6*7?", schema=SampleSchema)
 
             assert isinstance(result, SampleSchema)
             assert result.answer == 42
@@ -178,18 +180,16 @@ class TestLiteLLMProvider:
 
     @pytest.mark.asyncio
     async def test_generate_structured_enhances_prompt(
-        self,
-        mock_structured_response: MagicMock
+        self, mock_structured_response: MagicMock
     ) -> None:
         """Test that structured generation enhances prompt with schema."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             mock_completion.return_value = mock_structured_response
 
             provider = LiteLLMProvider(model="anthropic/claude-sonnet-4-20250514")
-            await provider.generate_structured(
-                "What is 6*7?",
-                schema=SampleSchema
-            )
+            await provider.generate_structured("What is 6*7?", schema=SampleSchema)
 
             # Verify prompt was enhanced with schema
             call_args = mock_completion.call_args
@@ -199,35 +199,33 @@ class TestLiteLLMProvider:
             assert "schema" in user_message.lower()
 
     @pytest.mark.asyncio
-    async def test_generate_structured_invalid_json(
-        self,
-        mock_model_response: MagicMock
-    ) -> None:
+    async def test_generate_structured_invalid_json(self, mock_model_response: MagicMock) -> None:
         """Test structured generation with invalid JSON."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             mock_completion.return_value = mock_model_response
 
             provider = LiteLLMProvider(model="anthropic/claude-sonnet-4-20250514")
 
             with pytest.raises(ValueError, match="Failed to parse JSON"):
-                await provider.generate_structured(
-                    "What is 6*7?",
-                    schema=SampleSchema
-                )
+                await provider.generate_structured("What is 6*7?", schema=SampleSchema)
 
     @pytest.mark.asyncio
     async def test_retry_on_rate_limit(self, mock_model_response: MagicMock) -> None:
         """Test retry logic on rate limit errors."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             # First call raises RateLimitError, second succeeds
             mock_completion.side_effect = [
                 RateLimitError("Rate limited", model="test", llm_provider="test"),
-                mock_model_response
+                mock_model_response,
             ]
 
             provider = LiteLLMProvider(
                 model="anthropic/claude-sonnet-4-20250514",
-                retry_delay=0.01  # Short delay for testing
+                retry_delay=0.01,  # Short delay for testing
             )
             response = await provider.generate("Test")
 
@@ -237,22 +235,21 @@ class TestLiteLLMProvider:
     @pytest.mark.asyncio
     async def test_retry_on_connection_error(self, mock_model_response: MagicMock) -> None:
         """Test retry logic on connection errors."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             # First call raises APIConnectionError, second succeeds
             mock_completion.side_effect = [
                 APIConnectionError(
                     message="Connection failed",
                     llm_provider="test",
                     model="test",
-                    request=MagicMock()
+                    request=MagicMock(),
                 ),
-                mock_model_response
+                mock_model_response,
             ]
 
-            provider = LiteLLMProvider(
-                model="anthropic/claude-sonnet-4-20250514",
-                retry_delay=0.01
-            )
+            provider = LiteLLMProvider(model="anthropic/claude-sonnet-4-20250514", retry_delay=0.01)
             response = await provider.generate("Test")
 
             assert response.content == "The answer is 42."
@@ -261,21 +258,16 @@ class TestLiteLLMProvider:
     @pytest.mark.asyncio
     async def test_retry_on_timeout(self, mock_model_response: MagicMock) -> None:
         """Test retry logic on timeout errors."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             # First call raises Timeout, second succeeds
             mock_completion.side_effect = [
-                Timeout(
-                    message="Request timeout",
-                    model="test",
-                    llm_provider="test"
-                ),
-                mock_model_response
+                Timeout(message="Request timeout", model="test", llm_provider="test"),
+                mock_model_response,
             ]
 
-            provider = LiteLLMProvider(
-                model="anthropic/claude-sonnet-4-20250514",
-                retry_delay=0.01
-            )
+            provider = LiteLLMProvider(model="anthropic/claude-sonnet-4-20250514", retry_delay=0.01)
             response = await provider.generate("Test")
 
             assert response.content == "The answer is 42."
@@ -284,18 +276,16 @@ class TestLiteLLMProvider:
     @pytest.mark.asyncio
     async def test_retry_exhausted(self) -> None:
         """Test that retries are exhausted after max attempts."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             # Always raise RateLimitError
             mock_completion.side_effect = RateLimitError(
-                "Rate limited",
-                model="test",
-                llm_provider="test"
+                "Rate limited", model="test", llm_provider="test"
             )
 
             provider = LiteLLMProvider(
-                model="anthropic/claude-sonnet-4-20250514",
-                max_retries=2,
-                retry_delay=0.01
+                model="anthropic/claude-sonnet-4-20250514", max_retries=2, retry_delay=0.01
             )
 
             with pytest.raises(RateLimitError):
@@ -306,13 +296,13 @@ class TestLiteLLMProvider:
     @pytest.mark.asyncio
     async def test_custom_parameters(self, mock_model_response: MagicMock) -> None:
         """Test custom generation parameters."""
-        with patch("engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock) as mock_completion:
+        with patch(
+            "engram_benchmark.providers.llm.acompletion", new_callable=AsyncMock
+        ) as mock_completion:
             mock_completion.return_value = mock_model_response
 
             provider = LiteLLMProvider(
-                model="anthropic/claude-sonnet-4-20250514",
-                max_tokens=2048,
-                temperature=0.7
+                model="anthropic/claude-sonnet-4-20250514", max_tokens=2048, temperature=0.7
             )
             await provider.generate("Test")
 
