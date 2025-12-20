@@ -9,6 +9,9 @@
 		"@types/node": "^24.10.1",
 		"typescript": "^5.9.3"
 	},
+	"optionalDependencies": {
+		"sharp": "^0.34.5"
+	},
 	"dependencies": {
 		"@ai-sdk/google": "^1.2.18",
 		"@engram/common": "*",

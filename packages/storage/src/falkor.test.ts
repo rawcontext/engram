@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createFalkorClient } from "./falkor";
 
-// Skip integration tests when infrastructure isn't running
-const SKIP_INTEGRATION = process.env.SKIP_INTEGRATION === "true" || !process.env.CI;
+// Skip integration tests when infrastructure isn't running (CI has no FalkorDB)
+const SKIP_INTEGRATION = process.env.SKIP_INTEGRATION === "true" || process.env.CI === "true";
 
 const client = createFalkorClient();
 
