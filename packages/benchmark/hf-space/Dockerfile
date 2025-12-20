@@ -65,6 +65,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/package*.json ./
 
+# Reinstall sharp for linux-x64 platform
+RUN npm install --os=linux --cpu=x64 sharp
+
 # Model cache directory
 ENV HF_HOME=/app/.cache
 ENV TRANSFORMERS_CACHE=/app/.cache
