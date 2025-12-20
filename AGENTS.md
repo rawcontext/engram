@@ -1,10 +1,11 @@
 # Engram
 
-Bitemporal, graph-backed intelligent agent memory system. TypeScript monorepo.
+Bitemporal, graph-backed intelligent agent memory system. Hybrid TypeScript/Python monorepo.
 
 ## Critical Commands
 
 ```bash
+# TypeScript (npm workspaces)
 npm install              # Install all workspaces
 npm run infra:up         # Start Redpanda, FalkorDB, Qdrant, Postgres
 npm run infra:down       # Stop infrastructure
@@ -14,16 +15,32 @@ npm test                 # Run vitest
 npm run typecheck        # TypeScript validation
 npm run lint             # Biome linting
 npm run format           # Biome formatting
+
+# Python apps (uv)
+cd apps/search-py && uv sync      # Install dependencies
+cd apps/search-py && uv run pytest  # Run tests
+cd apps/search-py && uv run ruff check src tests  # Lint
+cd apps/search-py && uv run ruff format src tests  # Format
+cd apps/search-py && uv run search  # Start service
 ```
 
 ## Code Standards
 
+### TypeScript
 - **Formatter/Linter**: Biome (tabs, double quotes, 100 char line width)
 - **Package Manager**: npm only (never yarn/pnpm)
 - **TypeScript**: Strict mode, ES2022 target, NodeNext modules
 - **Testing**: Vitest with globals enabled
 
 IMPORTANT: Run `npm run lint` and `npm run typecheck` before committing.
+
+### Python
+- **Formatter/Linter**: Ruff (88 char line width, Python 3.12+)
+- **Package Manager**: uv only (never pip/poetry/pdm)
+- **Type Hints**: Required for all function signatures
+- **Testing**: pytest with pytest-asyncio
+
+IMPORTANT: Run `uv run ruff check` and `uv run pytest` before committing.
 
 ## Monorepo Structure
 
@@ -34,7 +51,8 @@ apps/
 ├── interface/   # Next.js 16 frontend (port 3000/5000)
 ├── mcp/         # Model Context Protocol server (stdio)
 ├── memory/      # Graph persistence, real-time pub/sub
-├── search/      # Vector search & reranking (port 5002)
+├── search/      # Vector search & reranking [TypeScript] (port 5002) [DEPRECATED]
+├── search-py/   # Vector search & reranking [Python/FastAPI] (port 5002)
 └── tuner/       # Python/FastAPI hyperparameter tuning (port 8000)
 
 packages/
@@ -64,7 +82,8 @@ packages/
 **Key Patterns**:
 - See `packages/storage/src/falkor.ts:1` for graph client
 - See `packages/graph/src/writer.ts:1` for bitemporal node creation
-- See `packages/search/src/retriever.ts:1` for hybrid search pipeline
+- See `packages/search/src/retriever.ts:1` for hybrid search pipeline (TypeScript)
+- See `apps/search-py/src/search/retrieval/retriever.py:1` for hybrid search pipeline (Python)
 - See `apps/memory/src/aggregator.ts:1` for turn aggregation
 
 ## Provider Support
@@ -165,7 +184,11 @@ YOU MUST NOT:
 | Docker infra | `/docker-compose.dev.yml` |
 | Event schemas | `/packages/events/src/schemas.ts` |
 | Graph models | `/packages/graph/src/models/` |
-| Search config | `/packages/search/src/config.ts` |
+| Search config (TS) | `/packages/search/src/config.ts` |
+| Search config (Py) | `/apps/search-py/src/search/config.py` |
+| Search retriever (Py) | `/apps/search-py/src/search/retrieval/retriever.py` |
+| Search embedders (Py) | `/apps/search-py/src/search/embedders/` |
+| Search rerankers (Py) | `/apps/search-py/src/search/rerankers/` |
 
 ## Debugging
 
@@ -180,6 +203,12 @@ docker exec -it falkordb redis-cli
 
 # Check Qdrant collections
 curl http://localhost:6333/collections
+
+# Search-py health check
+curl http://localhost:5002/health
+
+# Search-py metrics
+curl http://localhost:5002/metrics
 ```
 
 ## Common Patterns
@@ -204,7 +233,7 @@ await producer.send({
 });
 ```
 
-**Hybrid search**:
+**Hybrid search (TypeScript)**:
 ```typescript
 // See packages/search/src/retriever.ts
 const results = await retriever.search({
@@ -213,6 +242,17 @@ const results = await retriever.search({
   rerank: true,
   rerankerTier: "accurate"
 });
+```
+
+**Hybrid search (Python)**:
+```python
+# See apps/search-py/src/search/retrieval/retriever.py
+results = await retriever.search(
+    query="user question",
+    strategy="hybrid",
+    rerank_tier="accurate",
+    limit=20
+)
 ```
 
 ---

@@ -126,6 +126,39 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Search service - Python vector search & reranking
+  search-py:
+    build:
+      context: ./apps/search-py
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5002:5002"
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_COLLECTION=engram
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - REDIS_URL=redis://falkordb:6379
+      - EMBEDDER_DEVICE=cpu
+      - EMBEDDER_PRELOAD=false
+      - DEBUG=true
+      - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    volumes:
+      - ./apps/search-py/src:/app/src:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:5002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   redpanda-data:
   falkor-data:
