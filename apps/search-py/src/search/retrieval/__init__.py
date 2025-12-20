@@ -7,6 +7,7 @@ including:
 - Multi-tier reranking (fast, accurate, code, ColBERT, LLM)
 - Graceful degradation and fallback handling
 - Query complexity analysis for automatic tier selection
+- Session-aware hierarchical retrieval
 
 Example usage:
     >>> from search.retrieval import SearchQuery, SearchStrategy, RerankerTier
@@ -35,7 +36,18 @@ from search.retrieval.constants import (
     SPARSE_FIELD,
     TEXT_DENSE_FIELD,
 )
+from search.retrieval.multi_query import (
+    MultiQueryConfig,
+    MultiQueryRetriever,
+    QueryExpansionStrategy,
+)
 from search.retrieval.retriever import SearchRetriever
+from search.retrieval.session import (
+    SessionAwareRetriever,
+    SessionAwareSearchResult,
+    SessionResult,
+    SessionRetrieverConfig,
+)
 from search.retrieval.types import (
     QueryComplexity,
     RerankerTier,
@@ -49,6 +61,12 @@ from search.retrieval.types import (
 __all__ = [
     # Retriever
     "SearchRetriever",
+    "MultiQueryRetriever",
+    # Session Retriever
+    "SessionAwareRetriever",
+    "SessionAwareSearchResult",
+    "SessionResult",
+    "SessionRetrieverConfig",
     # Classifier
     "QueryClassifier",
     "ClassificationResult",
@@ -61,6 +79,8 @@ __all__ = [
     "SearchResultItem",
     "SearchFilters",
     "TimeRange",
+    "QueryExpansionStrategy",
+    "MultiQueryConfig",
     # Constants
     "MIN_SCORE_DENSE",
     "MIN_SCORE_SPARSE",

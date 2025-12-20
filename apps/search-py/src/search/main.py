@@ -12,6 +12,8 @@ from search.api import router
 from search.clients import QdrantClientWrapper
 from search.config import get_settings
 from search.embedders import EmbedderFactory
+from search.rerankers import RerankerRouter
+from search.retrieval import SearchRetriever
 
 # Configure logging
 logging.basicConfig(
@@ -72,6 +74,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Initialize embedder factory
     app.state.embedder_factory = embedder_factory
+
+    # Initialize reranker router
+    reranker_router = RerankerRouter(settings)
+    app.state.reranker_router = reranker_router
+    logger.info("Reranker router initialized")
+
+    # Initialize search retriever (only if Qdrant is available)
+    if app.state.qdrant is not None:
+        search_retriever = SearchRetriever(
+            qdrant_client=app.state.qdrant,
+            embedder_factory=embedder_factory,
+            reranker_router=reranker_router,
+            settings=settings,
+        )
+        app.state.search_retriever = search_retriever
+        logger.info("Search retriever initialized")
+    else:
+        app.state.search_retriever = None
+        logger.warning("Search retriever not initialized (Qdrant unavailable)")
 
     # Preload models if configured
     if settings.embedder_preload:
