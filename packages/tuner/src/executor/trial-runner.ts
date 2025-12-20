@@ -1,10 +1,26 @@
 /**
  * Trial execution for optimization loop
+ *
+ * TODO: Update to work with Python search service API
+ * Previously used @engram/search RuntimeConfig which has been migrated to Python.
  */
 
-import { RuntimeConfig } from "@engram/search";
 import type { TunerClient } from "../client/tuner-client.js";
 import { mapParamsToConfig, type TrialConfig } from "./config-mapper.js";
+
+// TODO: Replace with HTTP calls to Python search service configuration API
+const RuntimeConfig = {
+	update: (_config: unknown) => {
+		throw new Error(
+			"RuntimeConfig.update not implemented: needs migration to Python search service API",
+		);
+	},
+	reset: () => {
+		throw new Error(
+			"RuntimeConfig.reset not implemented: needs migration to Python search service API",
+		);
+	},
+};
 
 export interface TrialMetrics {
 	// Quality metrics

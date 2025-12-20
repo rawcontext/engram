@@ -109,7 +109,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 			new MemoryRetriever({
 				graphClient,
 				logger,
-				qdrantUrl: config.qdrantUrl,
+				searchPyUrl: config.qdrantUrl, // TODO: Update to use search-py service URL
 			});
 
 		logger.info(

@@ -28,11 +28,9 @@ multiAdapter.addAdapter(wassetteAdapter);
 const toolRouter = new ToolRouter(executionService, multiAdapter);
 
 // Initialize Core Logic
-// TODO: Replace with real SearchRetriever when available or mocked properly
-const contextAssembler = new ContextAssembler(
-	{} as unknown as import("@engram/search").SearchRetriever,
-	falkor,
-);
+// TODO: Replace with Python search service HTTP client when integrated
+// Previously used @engram/search SearchRetriever (migrated to Python)
+const contextAssembler = new ContextAssembler({ searchRetriever: null, graphClient: falkor });
 
 const sessionManager = new SessionManager({
 	contextAssembler,

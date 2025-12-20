@@ -1,7 +1,0 @@
-# Download LongMemEval dataset from HuggingFace:
-# https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned
-#
-# Place the following files here:
-# - longmemeval_s_cleaned.json (~115k tokens, ~40 sessions)
-# - longmemeval_m_cleaned.json (~1.5M tokens, ~500 sessions)
-# - longmemeval_oracle.json (evidence-only sessions)

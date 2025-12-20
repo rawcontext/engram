@@ -41,7 +41,6 @@
 	"dependencies": {
 		"@engram/graph": "*",
 		"@engram/logger": "*",
-		"@engram/search": "*",
 		"@engram/storage": "*",
 		"@hono/node-server": "^1.14.1",
 		"@modelcontextprotocol/sdk": "^1.24.3",

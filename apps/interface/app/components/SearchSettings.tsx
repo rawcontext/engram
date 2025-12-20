@@ -1,6 +1,9 @@
 "use client";
 
-import type { RerankerTier } from "@engram/search";
+// TODO: Replace with type from search-py OpenAPI spec or shared types
+// import type { RerankerTier } from "@engram/search";
+type RerankerTier = "fast" | "accurate" | "code" | "llm";
+
 import { useEffect, useRef, useState } from "react";
 
 export interface SearchSettingsState {

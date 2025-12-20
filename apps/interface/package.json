@@ -7,7 +7,6 @@
 		"@engram/events": "*",
 		"@engram/logger": "*",
 		"@engram/graph": "*",
-		"@engram/search": "*",
 		"@engram/storage": "*",
 		"@huggingface/transformers": "^3.8.1",
 		"@react-three/drei": "^10.7.7",

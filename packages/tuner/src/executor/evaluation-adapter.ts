@@ -1,22 +1,21 @@
 /**
  * Evaluation adapter bridging tuner config to benchmark execution
  *
- * Maps TrialConfig (tuner format) to RunBenchmarkConfig (benchmark format)
- * and returns metrics in TrialMetrics format.
+ * TODO: Migrate to use Python benchmark service (packages/benchmark-py)
+ * This module previously used the deprecated TypeScript @engram/benchmark package.
+ * It needs to be updated to call the Python benchmark service HTTP API instead.
  *
  * @module @engram/tuner/executor
  */
 
-import type { DatasetVariant } from "@engram/benchmark";
-import {
-	type BenchmarkProgress,
-	buildBenchmarkConfig,
-	type LLMProviderType,
-	type RunBenchmarkConfig,
-	runBenchmark,
-} from "@engram/benchmark";
 import type { TrialConfig } from "./config-mapper.js";
 import type { TrialMetrics } from "./trial-runner.js";
+
+// TODO: Define types based on Python benchmark API
+type DatasetVariant = "s" | "m" | "oracle";
+type LLMProviderType = "stub" | "anthropic" | "openai" | "gemini" | "ollama";
+type RunBenchmarkConfig = Record<string, unknown>;
+type BenchmarkProgress = { stage: string; current: number; total: number };
 
 /**
  * Options for the evaluation adapter
@@ -50,6 +49,8 @@ export interface EvaluationAdapterOptions {
 /**
  * Map tuner TrialConfig to benchmark RunBenchmarkConfig
  *
+ * TODO: Update to call Python benchmark service HTTP API
+ *
  * @param trialConfig - Configuration from tuner trial
  * @param options - Adapter options
  * @returns Benchmark-compatible configuration
@@ -58,48 +59,53 @@ export function mapTrialToBenchmarkConfig(
 	trialConfig: TrialConfig,
 	options: EvaluationAdapterOptions,
 ): RunBenchmarkConfig {
-	return buildBenchmarkConfig({
-		// Dataset settings from adapter options
+	// TODO: Replace with Python benchmark API payload format
+	return {
 		dataset: options.dataset,
 		variant: options.variant ?? "oracle",
 		limit: options.limit,
-
-		// Infrastructure
 		qdrantUrl: options.qdrantUrl,
 		llm: options.llm ?? "stub",
 		ollamaUrl: options.ollamaUrl,
 		ollamaModel: options.ollamaModel,
-
-		// Embeddings (always use Engram full pipeline for tuning)
 		embeddings: "engram",
-
-		// Map reranker settings from trial
 		rerank: trialConfig.reranker.enabled ?? true,
 		rerankTier: trialConfig.reranker.defaultTier ?? "accurate",
 		rerankDepth: trialConfig.reranker.depth ?? 30,
-
-		// Hybrid search always enabled for Engram
 		hybridSearch: true,
-
-		// Abstention settings from trial
 		abstention: true,
 		abstentionThreshold: trialConfig.abstention.minRetrievalScore ?? 0.3,
-
-		// Session and temporal settings (defaults for now, could be tuned)
 		sessionAware: false,
 		temporalAware: false,
-	});
+	};
 }
+
+// TODO: Define based on Python benchmark API response
+type BenchmarkMetrics = {
+	accuracy: number;
+	recallAt1: number;
+	recallAt5: number;
+	recallAt10: number;
+	ndcgAt10: number;
+	mrr: number;
+	abstentionPrecision: number;
+	abstentionRecall: number;
+	abstentionF1: number;
+	p50Latency: number;
+	p95Latency: number;
+	p99Latency: number;
+	totalDurationMs: number;
+};
 
 /**
  * Map benchmark metrics to tuner TrialMetrics format
  *
+ * TODO: Update to match Python benchmark API response format
+ *
  * @param benchmarkMetrics - Metrics from benchmark run
  * @returns Metrics in tuner format
  */
-export function mapBenchmarkToTrialMetrics(
-	benchmarkMetrics: import("@engram/benchmark").BenchmarkMetrics,
-): TrialMetrics {
+export function mapBenchmarkToTrialMetrics(benchmarkMetrics: BenchmarkMetrics): TrialMetrics {
 	return {
 		// Quality metrics
 		ndcg: benchmarkMetrics.ndcgAt10,
@@ -123,9 +129,9 @@ export function mapBenchmarkToTrialMetrics(
 /**
  * Evaluate a trial configuration using the benchmark pipeline
  *
- * This is the main entry point for the tuner to evaluate a configuration.
- * It maps the trial config to benchmark format, runs the benchmark, and
- * returns metrics in tuner format.
+ * TODO: Implement HTTP client to call Python benchmark service
+ * This function previously called the deprecated TypeScript @engram/benchmark.
+ * It needs to make HTTP requests to the Python benchmark service API instead.
  *
  * @param trialConfig - Configuration from tuner trial
  * @param options - Adapter options including dataset path
@@ -150,13 +156,14 @@ export async function evaluateWithBenchmark(
 	// Map trial config to benchmark config
 	const benchmarkConfig = mapTrialToBenchmarkConfig(trialConfig, options);
 
-	// Run benchmark with progress callback
-	const result = await runBenchmark(benchmarkConfig, {
-		onProgress: options.onProgress
-			? (p: BenchmarkProgress) => options.onProgress?.(p.stage, (p.current / p.total) * 100)
-			: undefined,
-	});
+	// TODO: Replace with HTTP call to Python benchmark service
+	// Example: POST http://localhost:8001/api/benchmark
+	// Body: benchmarkConfig
+	// Response: { metrics: BenchmarkMetrics }
+	throw new Error(
+		"evaluateWithBenchmark not implemented: needs migration to Python benchmark service API",
+	);
 
-	// Map benchmark metrics to trial metrics format
-	return mapBenchmarkToTrialMetrics(result.metrics);
+	// // Map benchmark metrics to trial metrics format
+	// return mapBenchmarkToTrialMetrics(result.metrics);
 }

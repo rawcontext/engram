@@ -1,6 +1,7 @@
 import type { MemoryNode, MemoryType } from "@engram/graph";
 import { createLogger, type Logger } from "@engram/logger";
-import { SearchRetriever } from "@engram/search";
+// TODO: Replace with HTTP client to search-py service (port 5002)
+// import { SearchRetriever } from "@engram/search";
 import { createFalkorClient, type GraphClient } from "@engram/storage";
 
 export interface RecallFilters {
@@ -22,9 +23,9 @@ export interface RecallResult {
 
 export interface MemoryRetrieverOptions {
 	graphClient?: GraphClient;
-	searchRetriever?: SearchRetriever;
+	searchRetriever?: any; // TODO: Replace with HTTP client type
 	logger?: Logger;
-	qdrantUrl?: string;
+	searchPyUrl?: string; // TODO: URL for search-py service (default: http://localhost:5002)
 }
 
 /**
@@ -44,14 +45,13 @@ function mapMemoryTypeToSearchType(
 
 export class MemoryRetriever {
 	private graphClient: GraphClient;
-	private searchRetriever: SearchRetriever;
+	private searchRetriever: any; // TODO: Replace with HTTP client type
 	private logger: Logger;
 
 	constructor(options?: MemoryRetrieverOptions) {
 		this.graphClient = options?.graphClient ?? createFalkorClient();
-		this.searchRetriever =
-			options?.searchRetriever ??
-			new SearchRetriever(options?.qdrantUrl ?? "http://localhost:6333");
+		// TODO: Replace with HTTP client to search-py service
+		this.searchRetriever = options?.searchRetriever ?? null;
 		this.logger = options?.logger ?? createLogger({ component: "MemoryRetriever" });
 	}
 
@@ -65,18 +65,21 @@ export class MemoryRetriever {
 		// Map memory type to search type for Qdrant
 		const searchType = mapMemoryTypeToSearchType(filters?.type);
 
+		// TODO: Replace with HTTP call to search-py service at /search endpoint
 		// Search in Qdrant for semantic matches
-		const searchResults = await this.searchRetriever.search({
-			text: query,
-			limit: limit * 2, // Oversample for better recall
-			rerank: true,
-			filters: {
-				session_id: filters?.sessionId,
-				type: searchType,
-			},
-		});
+		const searchResults = this.searchRetriever
+			? await this.searchRetriever.search({
+					text: query,
+					limit: limit * 2, // Oversample for better recall
+					rerank: true,
+					filters: {
+						session_id: filters?.sessionId,
+						type: searchType,
+					},
+				})
+			: [];
 
-		this.logger.debug({ count: searchResults.length }, "Qdrant search returned");
+		this.logger.debug({ count: searchResults.length }, "Search returned");
 
 		// Also search Memory nodes in graph directly
 		await this.connect();

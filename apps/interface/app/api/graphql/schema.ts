@@ -1,8 +1,10 @@
-import { SearchRetriever } from "@engram/search";
+// TODO: Replace with HTTP client to search-py service (port 5002)
+// import { SearchRetriever } from "@engram/search";
 import { createFalkorClient } from "@engram/storage/falkor";
 
 const falkor = createFalkorClient();
-const searchRetriever = new SearchRetriever();
+// TODO: Replace with HTTP client to search-py service
+const SEARCH_PY_URL = process.env.SEARCH_PY_URL || "http://localhost:5002";
 
 export const typeDefs = `
   type Session {
@@ -96,13 +98,15 @@ export const resolvers = {
 			_: unknown,
 			{ query, limit = 10, type }: { query: string; limit?: number; type?: string },
 		) => {
-			const results = await searchRetriever.search({
-				text: query,
-				limit,
-				filters: type ? { type: type as "thought" | "code" | "doc" } : undefined,
-			});
+			// TODO: Replace with HTTP call to search-py /search endpoint
+			// const results = await searchRetriever.search({
+			// 	text: query,
+			// 	limit,
+			// 	filters: type ? { type: type as "thought" | "code" | "doc" } : undefined,
+			// });
+			const results: any[] = []; // TODO: Implement HTTP call
 
-			return (results || []).map((result) => {
+			return (results || []).map((result: any) => {
 				const payload = result.payload as SearchPayload;
 				return {
 					id: result.id,

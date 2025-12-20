@@ -14,10 +14,8 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"@engram/benchmark": "*",
 		"@engram/common": "*",
 		"@engram/logger": "*",
-		"@engram/search": "*",
 		"commander": "^14.0.0",
 		"zod": "^4.1.13"
 	},

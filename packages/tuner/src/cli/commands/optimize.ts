@@ -1,8 +1,9 @@
 /**
  * Optimize command - Start or continue an optimization study
+ *
+ * TODO: Update to use Python benchmark service API
  */
 
-import type { LLMProviderType } from "@engram/benchmark";
 import { TunerClient } from "../../client/tuner-client.js";
 import type { Direction, PrunerType, SamplerType } from "../../client/types.js";
 import { EvaluationCache } from "../../executor/cache.js";
@@ -10,6 +11,9 @@ import { flattenConfig } from "../../executor/config-mapper.js";
 import { evaluateWithBenchmark } from "../../executor/evaluation-adapter.js";
 import { type ObjectiveConfig, runTrial } from "../../executor/trial-runner.js";
 import { type SearchSpacePresetName, SearchSpacePresets } from "../../spaces/engram.js";
+
+// TODO: Define based on Python benchmark API
+type LLMProviderType = "stub" | "anthropic" | "openai" | "gemini" | "ollama";
 
 interface OptimizeOptions {
 	dataset: string;

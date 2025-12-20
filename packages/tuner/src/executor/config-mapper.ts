@@ -1,11 +1,12 @@
 /**
  * Maps flat parameter names to configuration structures
  *
- * Note: RuntimeConfig in @engram/search only manages RerankerConfig.
- * Search and abstention settings are passed directly to the benchmark evaluation.
+ * TODO: Update to work with Python search service API
+ * Previously used @engram/search RuntimeConfig which has been migrated to Python.
  */
 
-import type { RerankerTier } from "@engram/search";
+// TODO: Define based on Python search service API
+type RerankerTier = "fast" | "accurate" | "code";
 
 /**
  * Partial RerankerConfig structure for RuntimeConfig.update()

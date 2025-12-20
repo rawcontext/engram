@@ -1,5 +1,9 @@
 import { GraphOperationError, SearchError } from "@engram/common";
-import type { SearchRetriever } from "@engram/search";
+
+// TODO: Replace with HTTP client to search-py service (port 5002)
+// import type { SearchRetriever } from "@engram/search";
+type SearchRetriever = any; // TODO: Replace with HTTP client type
+
 import type { GraphClient, ThoughtNode } from "@engram/storage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ContextAssembler, type ContextAssemblerDeps, createContextAssembler } from "./assembler";

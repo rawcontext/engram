@@ -1,5 +1,9 @@
 import { GraphOperationError, SearchError } from "@engram/common";
-import type { SearchRetriever } from "@engram/search";
+
+// TODO: Replace with HTTP client to search-py service (port 5002)
+// import type { SearchRetriever } from "@engram/search";
+type SearchRetriever = any; // TODO: Replace with HTTP client type
+
 import {
 	createFalkorClient,
 	type FalkorClient,

@@ -1,11 +1,15 @@
-import type { RerankerTier } from "@engram/search";
-import { SearchRetriever } from "@engram/search";
+// TODO: Replace with type from search-py OpenAPI spec or shared types
+// import type { RerankerTier } from "@engram/search";
+type RerankerTier = "fast" | "accurate" | "code" | "llm";
+
+// TODO: Replace with HTTP client to search-py service (port 5002)
+// import { SearchRetriever } from "@engram/search";
 import { apiError, apiSuccess } from "@lib/api-response";
 import { validate } from "@lib/validate";
 import { z } from "zod";
 
-// Initialize retriever (singleton behavior handled internally or by module caching)
-const retriever = new SearchRetriever(process.env.QDRANT_URL || "http://localhost:6333");
+// TODO: Replace with HTTP client to search-py service at http://localhost:5002
+const SEARCH_PY_URL = process.env.SEARCH_PY_URL || "http://localhost:5002";
 
 const SearchRequestSchema = z.object({
 	query: z.string(),
@@ -78,15 +82,18 @@ export const POST = async (req: Request) => {
 
 		try {
 			const rerankStartTime = performance.now();
-			const results = await retriever.search({
-				text: query,
-				limit,
-				filters,
-				strategy: "hybrid",
-				rerank: effectiveRerank,
-				rerankTier: effectiveRerankTier as RerankerTier | undefined,
-				rerankDepth: effectiveRerankDepth,
-			});
+			// TODO: Replace with HTTP call to search-py /search endpoint
+			// Example: POST http://localhost:5002/search
+			// const results = await retriever.search({
+			// 	text: query,
+			// 	limit,
+			// 	filters,
+			// 	strategy: "hybrid",
+			// 	rerank: effectiveRerank,
+			// 	rerankTier: effectiveRerankTier as RerankerTier | undefined,
+			// 	rerankDepth: effectiveRerankDepth,
+			// });
+			const results: any[] = []; // TODO: Implement HTTP call
 			const rerankLatency = performance.now() - rerankStartTime;
 
 			const totalLatency = performance.now() - startTime;

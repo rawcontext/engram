@@ -1,10 +1,26 @@
-import type { BenchmarkMetrics } from "@engram/benchmark";
 import { describe, expect, it } from "vitest";
 import type { TrialConfig } from "../src/executor/config-mapper.js";
 import {
 	mapBenchmarkToTrialMetrics,
 	mapTrialToBenchmarkConfig,
 } from "../src/executor/evaluation-adapter.js";
+
+// TODO: Define based on Python benchmark API response
+type BenchmarkMetrics = {
+	accuracy: number;
+	recallAt1: number;
+	recallAt5: number;
+	recallAt10: number;
+	ndcgAt10: number;
+	mrr: number;
+	abstentionPrecision: number;
+	abstentionRecall: number;
+	abstentionF1: number;
+	p50Latency: number;
+	p95Latency: number;
+	p99Latency: number;
+	totalDurationMs: number;
+};
 
 describe("mapTrialToBenchmarkConfig", () => {
 	const baseTrialConfig: TrialConfig = {
