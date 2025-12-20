@@ -46,6 +46,65 @@ class Settings(BaseSettings):
     )
     search_rerank_depth: int = Field(default=30, description="Number of results to rerank")
 
+    # Embedders
+    embedder_device: str = Field(
+        default="cpu", description="Device for embedder inference: cpu, cuda, mps"
+    )
+    embedder_text_model: str = Field(
+        default="BAAI/bge-base-en-v1.5", description="Dense text embedding model"
+    )
+    embedder_code_model: str = Field(
+        default="nomic-ai/nomic-embed-text-v1.5", description="Code-specific embedding model"
+    )
+    embedder_sparse_model: str = Field(
+        default="naver/splade-cocondenser-ensembledistil",
+        description="Sparse embedding model (SPLADE)",
+    )
+    embedder_colbert_model: str = Field(
+        default="colbert-ir/colbertv2.0", description="ColBERT late interaction model"
+    )
+    embedder_batch_size: int = Field(default=32, description="Batch size for embedding")
+    embedder_cache_size: int = Field(default=10000, description="Embedding cache size (LRU)")
+    embedder_cache_ttl: int = Field(
+        default=3600, description="Embedding cache TTL in seconds"
+    )
+    embedder_preload: bool = Field(
+        default=True, description="Preload models during startup"
+    )
+
+    # Reranker settings (Phase 2b)
+    reranker_fast_model: str = Field(
+        default="ms-marco-MiniLM-L-6-v2", description="FlashRank fast tier model"
+    )
+    reranker_accurate_model: str = Field(
+        default="BAAI/bge-reranker-v2-m3", description="Accurate tier cross-encoder model"
+    )
+    reranker_code_model: str = Field(
+        default="jinaai/jina-reranker-v2-base-multilingual",
+        description="Code-specific reranker model",
+    )
+    reranker_colbert_model: str = Field(
+        default="colbert-ir/colbertv2.0", description="ColBERT late interaction model"
+    )
+    reranker_llm_model: str = Field(
+        default="grok-4-1-fast-reasoning", description="LLM model for listwise reranking"
+    )
+    reranker_llm_provider: str = Field(
+        default="xai", description="LLM provider (openai, anthropic, xai, etc.)"
+    )
+    reranker_batch_size: int = Field(default=16, description="Batch size for reranking")
+    reranker_timeout_ms: int = Field(
+        default=500, description="Timeout for reranking in milliseconds"
+    )
+
+    # Rate limiting (Phase 2b)
+    rate_limit_requests_per_hour: int = Field(
+        default=100, description="Max LLM reranker requests per hour"
+    )
+    rate_limit_budget_cents: int = Field(
+        default=1000, description="Max budget in cents per hour for LLM reranking"
+    )
+
     # CORS
     cors_origins: list[str] = Field(
         default=["http://localhost:3000", "http://localhost:5000"],

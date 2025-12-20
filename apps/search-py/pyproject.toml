@@ -11,14 +11,15 @@ dependencies = [
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",
 
-    # ML inference (will be added in Phase 2)
-    # "sentence-transformers>=5.2.0",
-    # "torch>=2.5.0",
-    # "onnxruntime-gpu>=1.20.0",
+    # ML inference (Phase 2)
+    "sentence-transformers>=3.3.0",
+    "torch>=2.5.0",
+    "transformers>=4.48.0",
 
-    # Reranking (will be added in Phase 3)
-    # "rerankers[transformers,flashrank]>=0.10.0",
-    # "ragatouille>=0.0.9",
+    # Reranking (Phase 2b)
+    "rerankers[transformers]>=0.6.0",
+    "flashrank>=0.2.0",
+    "ragatouille>=0.0.9",
 
     # Vector DB
     "qdrant-client>=1.12.0",
@@ -32,9 +33,9 @@ dependencies = [
 
     # Utilities
     "httpx>=0.28.0",
+    "litellm>=1.55.0",  # For LLM reranker (Phase 2b)
     # "structlog>=24.4.0",  # Will be added in Phase 6
     # "prometheus-client>=0.21.0",  # Will be added in Phase 6
-    # "litellm>=1.55.0",  # Will be added in Phase 3
 ]
 
 [project.optional-dependencies]
