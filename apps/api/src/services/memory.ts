@@ -239,7 +239,7 @@ export class MemoryService {
 	 */
 	async getContext(
 		task: string,
-		files?: string[],
+		_files?: string[],
 		depth: "shallow" | "medium" | "deep" = "medium",
 	): Promise<ContextItem[]> {
 		const limits = {

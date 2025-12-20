@@ -531,7 +531,7 @@ describe("AbstentionDetector", () => {
 			const detector = new AbstentionDetector();
 			const config = detector.getConfig();
 
-			expect(config.nliModel).toBe("Xenova/mobilebert-uncased-mnli");
+			expect(config.nliModel).toBe("Xenova/nli-deberta-v3-base");
 		});
 
 		it("allows custom NLI model", () => {

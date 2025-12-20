@@ -201,7 +201,7 @@ export class EngramRetriever {
 			const { FalkorDB } = await import("falkordb");
 			const falkorUrl = new URL(this.config.falkorUrl);
 			this.falkorDb = (await FalkorDB.connect({
-				socket: { host: falkorUrl.hostname, port: Number.parseInt(falkorUrl.port) || 6379 },
+				socket: { host: falkorUrl.hostname, port: Number.parseInt(falkorUrl.port, 10) || 6379 },
 			})) as unknown as FalkorDBInterface;
 			this.falkorGraph = this.falkorDb.selectGraph("engram_benchmark");
 			console.log(`  [FalkorDB] Connected to ${this.config.falkorUrl}`);
@@ -378,7 +378,7 @@ export class EngramRetriever {
 
 		// Get all session IDs from the mapped instance
 		const sessionIds = mapped.instance.sessions.map(
-			(s, idx) => `session_${mapped.instance.questionId}_${idx}`,
+			(_s, idx) => `session_${mapped.instance.questionId}_${idx}`,
 		);
 
 		for (let sessionIndex = 0; sessionIndex < sessionIds.length; sessionIndex++) {

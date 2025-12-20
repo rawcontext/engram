@@ -13,7 +13,7 @@ import { getResource, getResourcesByType } from "./testing";
 interface SecretLabels {
 	project?: string;
 	environment?: string;
-	managedBy?: string;
+	"managed-by"?: string;
 }
 
 describe("Secret Management", () => {
@@ -50,7 +50,7 @@ describe("Secret Management", () => {
 			const labels = secretResource?.inputs.labels as SecretLabels;
 			expect(labels).toBeDefined();
 			expect(labels.project).toBe("engram");
-			expect(labels.managedBy).toBe("pulumi");
+			expect(labels["managed-by"]).toBe("pulumi");
 		});
 	});
 
@@ -77,7 +77,7 @@ describe("Secret Management", () => {
 				expect(labels).toBeDefined();
 				expect(labels.project).toBe("engram");
 				expect(labels.environment).toBe("test"); // Test stack
-				expect(labels.managedBy).toBe("pulumi");
+				expect(labels["managed-by"]).toBe("pulumi");
 			}
 		});
 	});

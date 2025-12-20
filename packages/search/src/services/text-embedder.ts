@@ -1,4 +1,4 @@
-import { pipeline } from "@huggingface/transformers";
+import { pipeline as hfPipeline } from "@huggingface/transformers";
 import {
 	BasePipelineEmbedder,
 	type EmbedderConfig,
@@ -6,6 +6,11 @@ import {
 	getDefaultDtype,
 } from "./base-embedder";
 import { SpladeEmbedder } from "./splade-embedder";
+
+// Workaround for TS2590: Expression produces a union type that is too complex
+// The @huggingface/transformers pipeline function has complex overloads
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const pipeline = hfPipeline as any;
 
 /**
  * Configuration for TextEmbedder.
@@ -41,6 +46,7 @@ type ExtractorFn = (
  */
 export class TextEmbedder extends BasePipelineEmbedder<TextEmbedderConfig> {
 	private static instance: unknown = null;
+	private static loadingPromise: Promise<unknown> | null = null;
 	private sparseEmbedder = new SpladeEmbedder();
 
 	constructor(config: Partial<TextEmbedderConfig> = {}) {
@@ -49,21 +55,40 @@ export class TextEmbedder extends BasePipelineEmbedder<TextEmbedderConfig> {
 
 	/**
 	 * Get or create singleton pipeline instance.
+	 * Uses a loading promise to prevent concurrent model loading race conditions.
 	 */
 	protected async getInstance(): Promise<ExtractorFn> {
-		if (!TextEmbedder.instance) {
-			const device = this.config.device ?? getDefaultDevice();
-			const dtype = this.config.dtype ?? getDefaultDtype();
-			console.log(
-				`[TextEmbedder] Loading model ${this.config.model} on device=${device} dtype=${dtype}`,
-			);
-			TextEmbedder.instance = await pipeline("feature-extraction", this.config.model, {
-				dtype,
-				device,
-			});
-			console.log(`[TextEmbedder] Model loaded successfully`);
+		// Already loaded - return immediately
+		if (TextEmbedder.instance) {
+			return TextEmbedder.instance as ExtractorFn;
 		}
-		return TextEmbedder.instance as ExtractorFn;
+
+		// Another call is already loading - wait for it
+		if (TextEmbedder.loadingPromise) {
+			await TextEmbedder.loadingPromise;
+			return TextEmbedder.instance as ExtractorFn;
+		}
+
+		// We're the first - create and store the loading promise
+		const device = this.config.device ?? getDefaultDevice();
+		const dtype = this.config.dtype ?? getDefaultDtype();
+		console.log(
+			`[TextEmbedder] Loading model ${this.config.model} on device=${device} dtype=${dtype}`,
+		);
+		const start = Date.now();
+
+		TextEmbedder.loadingPromise = pipeline("feature-extraction", this.config.model, {
+			dtype,
+			device,
+		});
+
+		try {
+			TextEmbedder.instance = await TextEmbedder.loadingPromise;
+			console.log(`[TextEmbedder] Model loaded in ${Date.now() - start}ms`);
+			return TextEmbedder.instance as ExtractorFn;
+		} finally {
+			TextEmbedder.loadingPromise = null;
+		}
 	}
 
 	/**

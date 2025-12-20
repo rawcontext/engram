@@ -109,10 +109,13 @@ fi
 # -----------------------------------------------------------------------------
 # Clear model cache to avoid corrupted files
 # -----------------------------------------------------------------------------
-echo "Clearing transformers model cache..."
-rm -rf /app/.cache/huggingface/transformers/*
+echo "Clearing ALL model caches to avoid corrupted files..."
+rm -rf /app/.cache/*
+rm -rf /root/.cache/huggingface
+rm -rf /home/user/.cache/huggingface 2>/dev/null || true
 rm -rf /app/node_modules/@huggingface/transformers/.cache/*
 mkdir -p /app/.cache
+echo "Cache cleared"
 
 # -----------------------------------------------------------------------------
 # Create Server with Ingest + Benchmark APIs

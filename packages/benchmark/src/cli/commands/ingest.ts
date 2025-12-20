@@ -35,7 +35,7 @@ export async function ingestCommand(options: IngestOptions): Promise<void> {
 	console.log("Connecting to FalkorDB...");
 	const url = new URL(falkorUrl);
 	const db = await FalkorDB.connect({
-		socket: { host: url.hostname, port: Number.parseInt(url.port) || 6379 },
+		socket: { host: url.hostname, port: Number.parseInt(url.port, 10) || 6379 },
 	});
 	const graph = db.selectGraph("engram_benchmark");
 

@@ -111,8 +111,7 @@ ENV NODE_ENV=production
 ENV BENCHMARK_VERBOSE=true
 ENV NODE_OPTIONS="--max-old-space-size=24576"
 
-# GPU mode (onnxruntime-node auto-detects CUDA)
-# Using fp32 for compatibility - fp16 models can have issues
+# GPU mode
 ENV EMBEDDER_DEVICE=cuda
 ENV EMBEDDER_DTYPE=fp32
 ENV QDRANT_URL=http://localhost:6333

@@ -276,7 +276,7 @@ export class AbstentionDetector {
 		// MobileBERT has max 512 tokens, so truncate context to ~1500 chars to leave room for answer
 		const maxContextChars = 1500;
 		const truncatedContext =
-			context.length > maxContextChars ? context.slice(0, maxContextChars) + "..." : context;
+			context.length > maxContextChars ? `${context.slice(0, maxContextChars)}...` : context;
 		const inputText = `${truncatedContext} ${answer}`;
 
 		const result = await pipeline(inputText, ["entailment", "neutral", "contradiction"]);

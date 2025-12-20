@@ -130,6 +130,7 @@ type ExtractorFn = (
  */
 export class ConfigurableTextEmbedder extends BasePipelineEmbedder<EmbedderConfig> {
 	private static instances = new Map<string, unknown>();
+	private static loadingPromises = new Map<string, Promise<unknown>>();
 	private sparseEmbedder?: SpladeEmbedder;
 	private modelConfig: ModelConfig;
 	private includeSparse: boolean;
@@ -172,24 +173,42 @@ export class ConfigurableTextEmbedder extends BasePipelineEmbedder<EmbedderConfi
 
 	/**
 	 * Get or create singleton pipeline instance for this model.
+	 * Uses a loading promise to prevent concurrent model loading race conditions.
 	 */
 	protected async getInstance(): Promise<ExtractorFn> {
 		const key = this.modelConfig.hfModel;
-		if (!ConfigurableTextEmbedder.instances.has(key)) {
-			const device = this.config.device ?? getDefaultDevice();
-			const dtype = this.config.dtype ?? getDefaultDtype();
-			console.log(`[ConfigurableEmbedder] Loading ${key} on device=${device} dtype=${dtype}`);
-			const start = Date.now();
-			ConfigurableTextEmbedder.instances.set(
-				key,
-				await pipeline("feature-extraction", this.modelConfig.hfModel, {
-					dtype,
-					device,
-				}),
-			);
-			console.log(`[ConfigurableEmbedder] Loaded in ${Date.now() - start}ms`);
+
+		// Already loaded - return immediately
+		if (ConfigurableTextEmbedder.instances.has(key)) {
+			return ConfigurableTextEmbedder.instances.get(key) as ExtractorFn;
 		}
-		return ConfigurableTextEmbedder.instances.get(key) as ExtractorFn;
+
+		// Another call is already loading - wait for it
+		if (ConfigurableTextEmbedder.loadingPromises.has(key)) {
+			await ConfigurableTextEmbedder.loadingPromises.get(key);
+			return ConfigurableTextEmbedder.instances.get(key) as ExtractorFn;
+		}
+
+		// We're the first - create and store the loading promise
+		const device = this.config.device ?? getDefaultDevice();
+		const dtype = this.config.dtype ?? getDefaultDtype();
+		console.log(`[ConfigurableEmbedder] Loading ${key} on device=${device} dtype=${dtype}`);
+		const start = Date.now();
+
+		const loadPromise = pipeline("feature-extraction", this.modelConfig.hfModel, {
+			dtype,
+			device,
+		});
+		ConfigurableTextEmbedder.loadingPromises.set(key, loadPromise);
+
+		try {
+			const instance = await loadPromise;
+			ConfigurableTextEmbedder.instances.set(key, instance);
+			console.log(`[ConfigurableEmbedder] Loaded in ${Date.now() - start}ms`);
+			return instance as ExtractorFn;
+		} finally {
+			ConfigurableTextEmbedder.loadingPromises.delete(key);
+		}
 	}
 
 	/**

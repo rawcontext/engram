@@ -28,7 +28,7 @@ describe("Kubernetes Infrastructure", () => {
 			const labels = metadata?.labels as Record<string, string>;
 			expect(labels?.["app.kubernetes.io/part-of"]).toBe("engram");
 			expect(labels?.project).toBe("engram");
-			expect(labels?.managedBy).toBe("pulumi");
+			expect(labels?.["managed-by"]).toBe("pulumi");
 		});
 
 		it("should create a K8s provider", () => {
@@ -337,7 +337,7 @@ describe("Kubernetes Infrastructure", () => {
 					string,
 					string
 				>;
-				expect(labels?.managedBy).toBe("pulumi");
+				expect(labels?.["managed-by"]).toBe("pulumi");
 			}
 		});
 	});

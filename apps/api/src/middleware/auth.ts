@@ -77,7 +77,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions) {
 		// In production: look up key in database, check expiry, get user/scopes
 
 		const keyContext: ApiKeyContext = {
-			keyId: apiKey.slice(0, 20) + "...", // Truncated for logging
+			keyId: `${apiKey.slice(0, 20)}...`, // Truncated for logging
 			keyType,
 			scopes: ["memory:read", "memory:write", "query:read"],
 			rateLimit: 60, // RPM
