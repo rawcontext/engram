@@ -8,7 +8,8 @@
 		"tooling/*"
 	],
 	"overrides": {
-		"zod": "$zod"
+		"zod": "$zod",
+		"onnxruntime-node": "npm:onnxruntime-node-gpu@^1.21.0"
 	},
 	"scripts": {
 		"build": "turbo run build",

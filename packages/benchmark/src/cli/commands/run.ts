@@ -219,10 +219,21 @@ export async function runCommand(benchmark: string, options: RunOptions): Promis
  */
 function createEmbeddingProvider(options: RunOptions): EmbeddingProvider {
 	switch (options.embeddings) {
-		case "engram":
+		case "engram": {
 			// Engram uses custom retriever, but we still need a stub for pipeline init
+			const modelDims: Record<string, number> = {
+				"e5-small": 384,
+				"e5-base": 768,
+				"e5-large": 1024,
+				"gte-base": 768,
+				"gte-large": 1024,
+				"bge-small": 384,
+				"bge-base": 768,
+				"bge-large": 1024,
+			};
+			const dims = modelDims[options.embeddingModel] ?? 384;
 			console.log("🚀 Using Engram full pipeline (search-core)");
-			console.log("   - Dense: E5-small (384d)");
+			console.log(`   - Dense: ${options.embeddingModel} (${dims}d)`);
 			if (options.hybridSearch) {
 				console.log("   - Sparse: SPLADE");
 				console.log("   - Fusion: RRF");
@@ -231,6 +242,7 @@ function createEmbeddingProvider(options: RunOptions): EmbeddingProvider {
 				console.log(`   - Reranker: ${options.rerankTier} tier`);
 			}
 			return new StubEmbeddingProvider(); // Pipeline uses customRetriever instead
+		}
 
 		case "qdrant":
 		case "e5":

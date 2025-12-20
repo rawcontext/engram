@@ -14,6 +14,7 @@
 		"@engram/common": "*",
 		"@engram/logger": "*",
 		"@huggingface/transformers": "^3.8.1",
+		"onnxruntime-node-gpu": "^1.21.0",
 		"@qdrant/js-client-rest": "^1.16.2",
 		"ai": "^4.3.16",
 		"chrono-node": "^2.9.0",
