@@ -52,10 +52,16 @@ export class TextEmbedder extends BasePipelineEmbedder<TextEmbedderConfig> {
 	 */
 	protected async getInstance(): Promise<ExtractorFn> {
 		if (!TextEmbedder.instance) {
+			const device = this.config.device ?? getDefaultDevice();
+			const dtype = this.config.dtype ?? getDefaultDtype();
+			console.log(
+				`[TextEmbedder] Loading model ${this.config.model} on device=${device} dtype=${dtype}`,
+			);
 			TextEmbedder.instance = await pipeline("feature-extraction", this.config.model, {
-				dtype: this.config.dtype ?? getDefaultDtype(),
-				device: this.config.device ?? getDefaultDevice(),
+				dtype,
+				device,
 			});
+			console.log(`[TextEmbedder] Model loaded successfully`);
 		}
 		return TextEmbedder.instance as ExtractorFn;
 	}

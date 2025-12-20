@@ -86,9 +86,12 @@ function detectCudaEnvironment(): boolean {
 export function getDefaultDevice(): EmbedderDevice {
 	const envDevice = process.env.EMBEDDER_DEVICE as EmbedderDevice | undefined;
 	if (envDevice && ["cpu", "cuda", "webgpu"].includes(envDevice)) {
+		console.log(`[Embedder] Using device from env: ${envDevice}`);
 		return envDevice;
 	}
-	return detectCudaEnvironment() ? "cuda" : "cpu";
+	const detected = detectCudaEnvironment() ? "cuda" : "cpu";
+	console.log(`[Embedder] Auto-detected device: ${detected}`);
+	return detected;
 }
 
 /**
