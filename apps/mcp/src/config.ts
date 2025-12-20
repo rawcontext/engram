@@ -17,7 +17,7 @@ export const ConfigSchema = z.object({
 	// Local mode: Database connections
 	falkordbUrl: z.string().url().default("redis://localhost:6379"),
 	qdrantUrl: z.string().url().default("http://localhost:6333"),
-	searchPyUrl: z.string().url().default("http://localhost:5002"),
+	searchUrl: z.string().url().default("http://localhost:5002"),
 
 	// Logging
 	logLevel: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
@@ -57,7 +57,7 @@ export function loadConfig(): Config {
 		httpPort: process.env.MCP_HTTP_PORT ? Number.parseInt(process.env.MCP_HTTP_PORT, 10) : 3010,
 		falkordbUrl: process.env.FALKORDB_URL ?? "redis://localhost:6379",
 		qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6333",
-		searchPyUrl: process.env.SEARCH_PY_URL ?? "http://localhost:5002",
+		searchUrl: process.env.SEARCH_URL ?? "http://localhost:5002",
 		logLevel: process.env.LOG_LEVEL ?? "info",
 	};
 

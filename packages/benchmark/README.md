@@ -17,7 +17,7 @@ LongMemEval benchmark suite for evaluating AI agent memory systems with support 
 ### Using uv (recommended)
 
 ```bash
-cd packages/benchmark-py
+cd packages/benchmark
 uv venv
 source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
 uv pip install -e ".[dev]"
@@ -307,7 +307,7 @@ config = load_config("benchmark.yaml")
 ## Architecture
 
 ```
-packages/benchmark-py/
+packages/benchmark/
 ├── src/engram_benchmark/
 │   ├── __init__.py              # Package exports
 │   ├── cli.py                   # Typer CLI commands
@@ -378,7 +378,7 @@ packages/benchmark-py/
 ### Running Tests
 
 ```bash
-cd packages/benchmark-py
+cd packages/benchmark
 
 # All tests
 pytest

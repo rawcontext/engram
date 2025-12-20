@@ -127,9 +127,9 @@ services:
     restart: unless-stopped
 
   # Search service - Python vector search & reranking
-  search-py:
+  search:
     build:
-      context: ./apps/search-py
+      context: ./apps/search
       dockerfile: Dockerfile.dev
     ports:
       - "5002:5002"
@@ -150,7 +150,7 @@ services:
       falkordb:
         condition: service_healthy
     volumes:
-      - ./apps/search-py/src:/app/src:ro
+      - ./apps/search/src:/app/src:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:5002/health"]

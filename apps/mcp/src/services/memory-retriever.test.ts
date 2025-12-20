@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SearchPyClient } from "../clients/search-py";
+import type { SearchClient } from "../clients/search";
 import { MemoryRetriever } from "./memory-retriever";
 
 // Mock the graph client
@@ -9,10 +9,10 @@ const mockGraphClient = {
 	query: vi.fn(),
 };
 
-// Mock the search-py client
-const mockSearchPyClient: SearchPyClient = {
+// Mock the search client
+const mockSearchClient: SearchClient = {
 	search: vi.fn(),
-} as unknown as SearchPyClient;
+} as unknown as SearchClient;
 
 // Mock the logger
 const mockLogger = {
@@ -29,7 +29,7 @@ describe("MemoryRetriever", () => {
 		vi.clearAllMocks();
 		retriever = new MemoryRetriever({
 			graphClient: mockGraphClient as any,
-			searchPyClient: mockSearchPyClient,
+			searchClient: mockSearchClient,
 			logger: mockLogger as any,
 		});
 	});
@@ -41,7 +41,7 @@ describe("MemoryRetriever", () => {
 	describe("recall", () => {
 		it("should combine results from Qdrant and graph search", async () => {
 			// Search-py results
-			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
 				results: [
 					{
 						id: "qdrant-1",
@@ -108,7 +108,7 @@ describe("MemoryRetriever", () => {
 			const sharedId = "shared-memory";
 
 			// Same memory in both Qdrant and graph
-			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
 				results: [
 					{
 						id: sharedId,
@@ -152,7 +152,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should apply type filter to search", async () => {
-			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
 				results: [],
 				total: 0,
 				took_ms: 10,
@@ -162,7 +162,7 @@ describe("MemoryRetriever", () => {
 			await retriever.recall("test query", 5, { type: "decision" });
 
 			// Search should be called with type filter mapped to search type
-			expect(mockSearchPyClient.search).toHaveBeenCalledWith(
+			expect(mockSearchClient.search).toHaveBeenCalledWith(
 				expect.objectContaining({
 					filters: expect.objectContaining({ type: "doc" }),
 				}),
@@ -176,7 +176,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should apply project filter to graph query", async () => {
-			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
 				results: [],
 				total: 0,
 				took_ms: 10,
@@ -193,7 +193,7 @@ describe("MemoryRetriever", () => {
 
 		it("should respect limit parameter", async () => {
 			// Return more results than limit
-			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
 				results: Array.from({ length: 10 }, (_, i) => ({
 					id: `result-${i}`,
 					score: 0.9 - i * 0.05,
@@ -219,7 +219,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should sort results by score descending", async () => {
-			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
 				results: [
 					{
 						id: "low",
@@ -262,7 +262,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should handle turn type mapping to thought search type", async () => {
-			vi.mocked(mockSearchPyClient.search).mockResolvedValueOnce({
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
 				results: [],
 				total: 0,
 				took_ms: 10,
@@ -271,7 +271,7 @@ describe("MemoryRetriever", () => {
 
 			await retriever.recall("test query", 5, { type: "turn" });
 
-			expect(mockSearchPyClient.search).toHaveBeenCalledWith(
+			expect(mockSearchClient.search).toHaveBeenCalledWith(
 				expect.objectContaining({
 					filters: expect.objectContaining({ type: "thought" }),
 				}),

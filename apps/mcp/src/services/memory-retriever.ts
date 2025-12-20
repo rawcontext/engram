@@ -1,7 +1,7 @@
 import type { MemoryNode, MemoryType } from "@engram/graph";
 import { createLogger, type Logger } from "@engram/logger";
 import { createFalkorClient, type GraphClient } from "@engram/storage";
-import { SearchPyClient } from "../clients/search-py";
+import { SearchClient } from "../clients/search";
 
 export interface RecallFilters {
 	type?: MemoryType | "turn";
@@ -22,9 +22,9 @@ export interface RecallResult {
 
 export interface MemoryRetrieverOptions {
 	graphClient?: GraphClient;
-	searchPyClient?: SearchPyClient;
+	searchClient?: SearchClient;
 	logger?: Logger;
-	searchPyUrl?: string;
+	searchUrl?: string;
 }
 
 /**
@@ -44,18 +44,15 @@ function mapMemoryTypeToSearchType(
 
 export class MemoryRetriever {
 	private graphClient: GraphClient;
-	private searchPyClient: SearchPyClient | null;
+	private searchClient: SearchClient | null;
 	private logger: Logger;
 
 	constructor(options?: MemoryRetrieverOptions) {
 		this.graphClient = options?.graphClient ?? createFalkorClient();
-		const searchPyUrl = options?.searchPyUrl ?? "http://localhost:5002";
-		this.searchPyClient =
-			options?.searchPyClient ??
-			new SearchPyClient(
-				searchPyUrl,
-				options?.logger ?? createLogger({ component: "SearchPyClient" }),
-			);
+		const searchUrl = options?.searchUrl ?? "http://localhost:5002";
+		this.searchClient =
+			options?.searchClient ??
+			new SearchClient(searchUrl, options?.logger ?? createLogger({ component: "SearchClient" }));
 		this.logger = options?.logger ?? createLogger({ component: "MemoryRetriever" });
 	}
 
@@ -69,10 +66,10 @@ export class MemoryRetriever {
 		// Map memory type to search type for Qdrant
 		const searchType = mapMemoryTypeToSearchType(filters?.type);
 
-		// Search in Qdrant for semantic matches using search-py service
-		const searchResults = this.searchPyClient
+		// Search in Qdrant for semantic matches using search service
+		const searchResults = this.searchClient
 			? (
-					await this.searchPyClient.search({
+					await this.searchClient.search({
 						text: query,
 						limit: limit * 2, // Oversample for better recall
 						rerank: true,

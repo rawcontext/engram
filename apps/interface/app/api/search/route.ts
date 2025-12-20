@@ -1,5 +1,5 @@
 import { apiError, apiSuccess } from "@lib/api-response";
-import { type RerankerTier, searchPy } from "@lib/search-py-client";
+import { type RerankerTier, search } from "@lib/search-client";
 import { validate } from "@lib/validate";
 import { z } from "zod";
 
@@ -73,7 +73,7 @@ export const POST = async (req: Request) => {
 		const effectiveRerankDepth = settings?.rerankDepth ?? rerankDepth;
 
 		try {
-			const response = await searchPy({
+			const response = await search({
 				text: query,
 				limit,
 				filters,

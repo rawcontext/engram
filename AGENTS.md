@@ -17,11 +17,11 @@ npm run lint             # Biome linting
 npm run format           # Biome formatting
 
 # Python apps (uv)
-cd apps/search-py && uv sync      # Install dependencies
-cd apps/search-py && uv run pytest  # Run tests
-cd apps/search-py && uv run ruff check src tests  # Lint
-cd apps/search-py && uv run ruff format src tests  # Format
-cd apps/search-py && uv run search  # Start service
+cd apps/search && uv sync      # Install dependencies
+cd apps/search && uv run pytest  # Run tests
+cd apps/search && uv run ruff check src tests  # Lint
+cd apps/search && uv run ruff format src tests  # Format
+cd apps/search && uv run search  # Start service
 ```
 
 ## Code Standards
@@ -52,7 +52,7 @@ apps/
 ├── mcp/         # Model Context Protocol server (stdio)
 ├── memory/      # Graph persistence, real-time pub/sub
 ├── search/      # Vector search & reranking [TypeScript] (port 5002) [DEPRECATED]
-├── search-py/   # Vector search & reranking [Python/FastAPI] (port 5002)
+├── search/   # Vector search & reranking [Python/FastAPI] (port 5002)
 └── tuner/       # Python/FastAPI hyperparameter tuning (port 8000)
 
 packages/
@@ -83,7 +83,7 @@ packages/
 - See `packages/storage/src/falkor.ts:1` for graph client
 - See `packages/graph/src/writer.ts:1` for bitemporal node creation
 - See `packages/search/src/retriever.ts:1` for hybrid search pipeline (TypeScript)
-- See `apps/search-py/src/search/retrieval/retriever.py:1` for hybrid search pipeline (Python)
+- See `apps/search/src/search/retrieval/retriever.py:1` for hybrid search pipeline (Python)
 - See `apps/memory/src/aggregator.ts:1` for turn aggregation
 
 ## Provider Support
@@ -185,10 +185,10 @@ YOU MUST NOT:
 | Event schemas | `/packages/events/src/schemas.ts` |
 | Graph models | `/packages/graph/src/models/` |
 | Search config (TS) | `/packages/search/src/config.ts` |
-| Search config (Py) | `/apps/search-py/src/search/config.py` |
-| Search retriever (Py) | `/apps/search-py/src/search/retrieval/retriever.py` |
-| Search embedders (Py) | `/apps/search-py/src/search/embedders/` |
-| Search rerankers (Py) | `/apps/search-py/src/search/rerankers/` |
+| Search config (Py) | `/apps/search/src/search/config.py` |
+| Search retriever (Py) | `/apps/search/src/search/retrieval/retriever.py` |
+| Search embedders (Py) | `/apps/search/src/search/embedders/` |
+| Search rerankers (Py) | `/apps/search/src/search/rerankers/` |
 
 ## Debugging
 
@@ -246,7 +246,7 @@ const results = await retriever.search({
 
 **Hybrid search (Python)**:
 ```python
-# See apps/search-py/src/search/retrieval/retriever.py
+# See apps/search/src/search/retrieval/retriever.py
 results = await retriever.search(
     query="user question",
     strategy="hybrid",

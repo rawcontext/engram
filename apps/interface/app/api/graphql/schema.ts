@@ -1,5 +1,5 @@
 import { createFalkorClient } from "@engram/storage/falkor";
-import { searchPy } from "@lib/search-py-client";
+import { search } from "@lib/search-client";
 
 const falkor = createFalkorClient();
 
@@ -95,7 +95,7 @@ export const resolvers = {
 			_: unknown,
 			{ query, limit = 10, type }: { query: string; limit?: number; type?: string },
 		) => {
-			const response = await searchPy({
+			const response = await search({
 				text: query,
 				limit,
 				filters: type ? { type: type as "thought" | "code" | "doc" } : undefined,

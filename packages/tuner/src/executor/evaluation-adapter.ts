@@ -1,7 +1,7 @@
 /**
  * Evaluation adapter bridging tuner config to benchmark execution
  *
- * TODO: Migrate to use Python benchmark service (packages/benchmark-py)
+ * TODO: Migrate to use Python benchmark service (packages/benchmark)
  * This module previously used the deprecated TypeScript @engram/benchmark package.
  * It needs to be updated to call the Python benchmark service HTTP API instead.
  *

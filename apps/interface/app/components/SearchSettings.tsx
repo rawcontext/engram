@@ -1,6 +1,6 @@
 "use client";
 
-// TODO: Replace with type from search-py OpenAPI spec or shared types
+// TODO: Replace with type from search OpenAPI spec or shared types
 // import type { RerankerTier } from "@engram/search";
 type RerankerTier = "fast" | "accurate" | "code" | "llm";
 

@@ -214,7 +214,7 @@ engram/
 | [interface](./apps/interface/) | Neural Observatory web UI | [README](./apps/interface/README.md) |
 | [mcp](./apps/mcp/) | MCP server for AI agent integration | [README](./apps/mcp/README.md) |
 | [memory](./apps/memory/) | Graph persistence & real-time pub/sub | [README](./apps/memory/README.md) |
-| [search-py](./apps/search-py/) | Vector search & reranking service (Python/FastAPI) | [README](./apps/search-py/README.md) |
+| [search](./apps/search/) | Vector search & reranking service (Python/FastAPI) | [README](./apps/search/README.md) |
 | [tuner](./apps/tuner/) | Hyperparameter optimization (Python/FastAPI) | [README](./apps/tuner/README.md) |
 
 ### Packages

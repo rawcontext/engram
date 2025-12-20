@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SearchPyClient } from "./search-py";
+import { SearchClient } from "./search";
 
 // Mock fetch globally
 global.fetch = vi.fn();
 
-describe("SearchPyClient", () => {
-	let client: SearchPyClient;
+describe("SearchClient", () => {
+	let client: SearchClient;
 	const baseUrl = "http://localhost:5002";
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		client = new SearchPyClient(baseUrl);
+		client = new SearchClient(baseUrl);
 	});
 
 	afterEach(() => {
@@ -118,7 +118,7 @@ describe("SearchPyClient", () => {
 		});
 
 		it("should handle trailing slash in base URL", async () => {
-			const clientWithSlash = new SearchPyClient("http://localhost:5002/");
+			const clientWithSlash = new SearchClient("http://localhost:5002/");
 			const mockResponse = {
 				results: [],
 				total: 0,

@@ -36,13 +36,13 @@ export interface SearchResponse {
 	took_ms: number;
 }
 
-export class SearchPyClient {
+export class SearchClient {
 	private baseUrl: string;
 	private logger: Logger;
 
 	constructor(baseUrl: string, logger?: Logger) {
 		this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
-		this.logger = logger ?? createLogger({ component: "SearchPyClient" });
+		this.logger = logger ?? createLogger({ component: "SearchClient" });
 	}
 
 	async search(options: SearchOptions): Promise<SearchResponse> {
@@ -59,7 +59,7 @@ export class SearchPyClient {
 			rerank_depth: options.rerank_depth,
 		};
 
-		this.logger.debug({ url, requestBody }, "Sending search request to search-py");
+		this.logger.debug({ url, requestBody }, "Sending search request to search");
 
 		try {
 			const response = await fetch(url, {

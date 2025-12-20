@@ -109,11 +109,11 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 			new MemoryRetriever({
 				graphClient,
 				logger,
-				searchPyUrl: config.searchPyUrl,
+				searchUrl: config.searchUrl,
 			});
 
 		logger.info(
-			{ falkordbUrl: config.falkordbUrl, searchPyUrl: config.searchPyUrl },
+			{ falkordbUrl: config.falkordbUrl, searchUrl: config.searchUrl },
 			"Using local mode",
 		);
 	}

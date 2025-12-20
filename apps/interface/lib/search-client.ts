@@ -1,6 +1,6 @@
 /**
- * HTTP client for search-py service
- * Base URL: http://localhost:5002 (configurable via SEARCH_PY_URL env var)
+ * HTTP client for search service
+ * Base URL: http://localhost:5002 (configurable via SEARCH_URL env var)
  */
 
 export type RerankerTier = "fast" | "accurate" | "code" | "llm";
@@ -53,17 +53,17 @@ export class SearchPyError extends Error {
 }
 
 /**
- * Calls the search-py service /search endpoint
+ * Calls the search service /search endpoint
  * @param request Search request parameters
- * @param baseUrl Base URL for search-py service (default: SEARCH_PY_URL env var or http://localhost:5002)
+ * @param baseUrl Base URL for search service (default: SEARCH_URL env var or http://localhost:5002)
  * @returns Search results
  * @throws SearchPyError on failure
  */
-export async function searchPy(
+export async function search(
 	request: SearchPyRequest,
 	baseUrl?: string,
 ): Promise<SearchPyResponse> {
-	const url = baseUrl || process.env.SEARCH_PY_URL || "http://localhost:5002";
+	const url = baseUrl || process.env.SEARCH_URL || "http://localhost:5002";
 	const endpoint = `${url}/search`;
 
 	try {
@@ -100,12 +100,12 @@ export async function searchPy(
 
 		if (error instanceof Error) {
 			throw new SearchPyError(
-				`Failed to connect to search-py service: ${error.message}`,
+				`Failed to connect to search service: ${error.message}`,
 				undefined,
 				error,
 			);
 		}
 
-		throw new SearchPyError("Unknown error occurred while calling search-py service");
+		throw new SearchPyError("Unknown error occurred while calling search service");
 	}
 }
