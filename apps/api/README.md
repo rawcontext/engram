@@ -22,7 +22,7 @@ This is the cloud backend that powers the Engram MCP server in cloud mode. It pr
 All endpoints except `/v1/health` require an API key:
 
 ```bash
-curl -X POST https://api.engram.sh/v1/memory/remember \
+curl -X POST https://api.example.com/v1/memory/remember \
   -H "Authorization: Bearer engram_live_xxxx" \
   -H "Content-Type: application/json" \
   -d '{"content": "Important fact to remember"}'

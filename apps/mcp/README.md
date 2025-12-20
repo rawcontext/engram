@@ -22,7 +22,7 @@ Connect to Engram Cloud for managed memory storage:
       "args": ["-y", "@engram/mcp"],
       "env": {
         "ENGRAM_API_KEY": "engram_live_xxxx",
-        "ENGRAM_API_URL": "https://api.engram.sh"
+        "ENGRAM_API_URL": "https://api.example.com"
       }
     }
   }
