@@ -65,8 +65,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/package*.json ./
 
-# Reinstall sharp for linux-x64 platform
-RUN npm install --os=linux --cpu=x64 sharp
+# Reinstall native modules for linux-x64 platform with CUDA support
+RUN npm install --os=linux --cpu=x64 sharp \
+    && npm install --os=linux --cpu=x64 onnxruntime-node
 
 # Model cache directory
 ENV HF_HOME=/app/.cache
