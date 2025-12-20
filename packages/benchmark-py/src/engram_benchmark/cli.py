@@ -277,6 +277,291 @@ def evaluate(
 
 
 @app.command()
+def mteb(
+    model: Annotated[
+        str,
+        typer.Option(
+            "--model",
+            "-m",
+            help="Model identifier (HuggingFace or sentence-transformers)",
+        ),
+    ] = "BAAI/bge-base-en-v1.5",
+    tasks: Annotated[
+        str,
+        typer.Option(
+            "--tasks",
+            "-t",
+            help="Comma-separated list of MTEB tasks (or 'all' for all tasks)",
+        ),
+    ] = "Banking77Classification",
+    languages: Annotated[
+        str,
+        typer.Option(
+            "--languages",
+            "-l",
+            help="Comma-separated list of languages (e.g., 'en,es,de')",
+        ),
+    ] = "en",
+    output_dir: Annotated[
+        Path,
+        typer.Option(
+            "--output-dir",
+            "-o",
+            help="Output directory for results",
+        ),
+    ] = Path("./results/mteb"),
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size",
+            "-b",
+            help="Batch size for encoding",
+            min=1,
+            max=512,
+        ),
+    ] = 32,
+    device: Annotated[
+        str,
+        typer.Option(
+            "--device",
+            "-d",
+            help="Device for inference (cpu, cuda, mps, auto)",
+        ),
+    ] = "cpu",
+    list_tasks: Annotated[
+        bool,
+        typer.Option(
+            "--list-tasks",
+            help="List available MTEB tasks and exit",
+        ),
+    ] = False,
+) -> None:
+    """
+    Run MTEB (Massive Text Embedding Benchmark) evaluation.
+
+    Evaluates embedding models across various tasks including retrieval,
+    classification, clustering, and more.
+    """
+    from engram_benchmark.benchmarks.mteb import MTEBBenchmark, MTEBConfig
+
+    # List tasks if requested
+    if list_tasks:
+        try:
+            available_tasks = MTEBBenchmark.get_available_tasks()
+            task_types = MTEBBenchmark.get_task_types()
+
+            console.print("\n[bold cyan]Available MTEB Task Types:[/bold cyan]")
+            for task_type in task_types:
+                console.print(f"  - {task_type}")
+
+            console.print(f"\n[bold cyan]Total Available Tasks:[/bold cyan] {len(available_tasks)}")
+            console.print("\nUse --tasks to specify tasks (comma-separated)")
+            raise typer.Exit(0)
+        except ImportError:
+            console.print(
+                "[bold red]✗ Error:[/bold red] mteb is not installed.\n"
+                "Install with: pip install 'engram-benchmark[mteb]'"
+            )
+            raise typer.Exit(1)
+
+    # Parse tasks and languages
+    task_list = [t.strip() for t in tasks.split(",")]
+    lang_list = [l.strip() for l in languages.split(",")]
+
+    console.print(
+        Panel.fit(
+            f"[bold]Running MTEB Benchmark[/bold]\n\n"
+            f"Model: {model}\n"
+            f"Tasks: {', '.join(task_list)}\n"
+            f"Languages: {', '.join(lang_list)}\n"
+            f"Batch Size: {batch_size}\n"
+            f"Device: {device}\n"
+            f"Output: {output_dir}",
+            border_style="blue",
+        )
+    )
+
+    try:
+        # Create config
+        config = MTEBConfig(
+            model_name=model,
+            tasks=task_list,
+            languages=lang_list,
+            output_folder=output_dir,
+            batch_size=batch_size,
+            device=device,
+        )
+
+        # Run benchmark
+        benchmark = MTEBBenchmark(config)
+        results = benchmark.run()
+
+        # Print results
+        console.print("\n[bold green]✓ MTEB Evaluation Complete![/bold green]")
+        console.print(f"\n[bold]Average Score:[/bold] {results.get_average_score():.4f}")
+        console.print(f"\n[bold]Results by Task:[/bold]")
+        for task, scores in results.scores.items():
+            main_score = scores.get("main_score", 0.0)
+            console.print(f"  {task}: {main_score:.4f}")
+
+        console.print(f"\nDetailed results saved to: {output_dir}")
+        raise typer.Exit(0)
+
+    except ImportError:
+        console.print(
+            "[bold red]✗ Error:[/bold red] mteb is not installed.\n"
+            "Install with: pip install 'engram-benchmark[mteb]'"
+        )
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"\n[bold red]✗ Error:[/bold red] {e}")
+        raise typer.Exit(1) from e
+
+
+@app.command()
+def beir(
+    model: Annotated[
+        str,
+        typer.Option(
+            "--model",
+            "-m",
+            help="Model identifier (sentence-transformers model)",
+        ),
+    ] = "BAAI/bge-base-en-v1.5",
+    datasets: Annotated[
+        str,
+        typer.Option(
+            "--datasets",
+            "-d",
+            help="Comma-separated list of BEIR datasets (or 'all' for common datasets)",
+        ),
+    ] = "nfcorpus",
+    split: Annotated[
+        str,
+        typer.Option(
+            "--split",
+            "-s",
+            help="Dataset split (test or dev)",
+        ),
+    ] = "test",
+    output_dir: Annotated[
+        Path,
+        typer.Option(
+            "--output-dir",
+            "-o",
+            help="Output directory for results",
+        ),
+    ] = Path("./results/beir"),
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size",
+            "-b",
+            help="Batch size for encoding",
+            min=1,
+            max=512,
+        ),
+    ] = 128,
+    top_k: Annotated[
+        int,
+        typer.Option(
+            "--top-k",
+            "-k",
+            help="Number of top documents to retrieve",
+            min=1,
+            max=1000,
+        ),
+    ] = 100,
+    device: Annotated[
+        str,
+        typer.Option(
+            "--device",
+            help="Device for inference (cpu, cuda, mps, auto)",
+        ),
+    ] = "cpu",
+    list_datasets: Annotated[
+        bool,
+        typer.Option(
+            "--list-datasets",
+            help="List available BEIR datasets and exit",
+        ),
+    ] = False,
+) -> None:
+    """
+    Run BEIR (Benchmarking Information Retrieval) evaluation.
+
+    Evaluates retrieval models on zero-shot information retrieval tasks
+    across diverse datasets.
+    """
+    from engram_benchmark.benchmarks.beir import BEIRBenchmark, BEIRConfig
+
+    # List datasets if requested
+    if list_datasets:
+        available_datasets = BEIRBenchmark.get_available_datasets()
+        console.print("\n[bold cyan]Available BEIR Datasets:[/bold cyan]")
+        for dataset in available_datasets:
+            console.print(f"  - {dataset}")
+        console.print("\nUse --datasets to specify datasets (comma-separated)")
+        raise typer.Exit(0)
+
+    # Parse datasets
+    dataset_list = [d.strip() for d in datasets.split(",")]
+
+    console.print(
+        Panel.fit(
+            f"[bold]Running BEIR Benchmark[/bold]\n\n"
+            f"Model: {model}\n"
+            f"Datasets: {', '.join(dataset_list)}\n"
+            f"Split: {split}\n"
+            f"Batch Size: {batch_size}\n"
+            f"Top-K: {top_k}\n"
+            f"Device: {device}\n"
+            f"Output: {output_dir}",
+            border_style="blue",
+        )
+    )
+
+    try:
+        # Create config
+        config = BEIRConfig(
+            model_name=model,
+            datasets=dataset_list,
+            split=split,
+            output_folder=output_dir,
+            batch_size=batch_size,
+            top_k=top_k,
+            device=device,
+        )
+
+        # Run benchmark
+        benchmark = BEIRBenchmark(config)
+        results = benchmark.run()
+
+        # Print results
+        console.print("\n[bold green]✓ BEIR Evaluation Complete![/bold green]")
+        console.print(f"\n[bold]Average NDCG@10:[/bold] {results.get_average_ndcg(10):.4f}")
+        console.print(f"[bold]Average Recall@100:[/bold] {results.get_average_recall(100):.4f}")
+        console.print(f"\n[bold]Results by Dataset:[/bold]")
+        for dataset, scores in results.scores.items():
+            ndcg = scores.get("NDCG@10", 0.0)
+            recall = scores.get("Recall@100", 0.0)
+            console.print(f"  {dataset}: NDCG@10={ndcg:.4f}, Recall@100={recall:.4f}")
+
+        console.print(f"\nDetailed results saved to: {output_dir}")
+        raise typer.Exit(0)
+
+    except ImportError:
+        console.print(
+            "[bold red]✗ Error:[/bold red] beir is not installed.\n"
+            "Install with: pip install 'engram-benchmark[mteb]'"
+        )
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"\n[bold red]✗ Error:[/bold red] {e}")
+        raise typer.Exit(1) from e
+
+
+@app.command()
 def version() -> None:
     """Show version information."""
     from engram_benchmark import __version__
