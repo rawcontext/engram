@@ -22,6 +22,9 @@ dependencies = [
     "litellm>=1.55.0",
     # Vector DB
     "qdrant-client>=1.12.0",
+    # Messaging & Cache
+    "aiokafka>=0.11.0",
+    "redis[hiredis]>=5.0.0",
     # HTTP
     "httpx>=0.28.0",
 ]
