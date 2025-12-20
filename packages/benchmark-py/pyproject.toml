@@ -1,14 +1,41 @@
 [project]
 name = "engram-benchmark"
 version = "0.1.0"
-description = "LongMemEval benchmark suite for Engram memory system"
+description = "LongMemEval benchmark suite for evaluating AI agent memory systems with MTEB and BEIR support"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
-	{ name = "Engram Team" }
+	{ name = "Engram Team", email = "hello@engram.dev" }
 ]
-
+maintainers = [
+	{ name = "Engram Team", email = "hello@engram.dev" }
+]
+keywords = [
+	"benchmark",
+	"evaluation",
+	"memory",
+	"longmemeval",
+	"retrieval",
+	"embeddings",
+	"llm",
+	"rag",
+	"mteb",
+	"beir",
+]
+classifiers = [
+	"Development Status :: 4 - Beta",
+	"Intended Audience :: Developers",
+	"Intended Audience :: Science/Research",
+	"License :: OSI Approved :: MIT License",
+	"Operating System :: OS Independent",
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Topic :: Scientific/Engineering :: Artificial Intelligence",
+	"Topic :: Software Development :: Libraries :: Python Modules",
+	"Typing :: Typed",
+]
 dependencies = [
 	# CLI & Terminal UI
 	"typer>=0.15.0",
@@ -53,6 +80,13 @@ dependencies = [
 	# Progress
 	"tqdm>=4.67.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/engramhq/engram"
+Documentation = "https://github.com/engramhq/engram/tree/main/packages/benchmark-py"
+Repository = "https://github.com/engramhq/engram"
+Issues = "https://github.com/engramhq/engram/issues"
+Changelog = "https://github.com/engramhq/engram/blob/main/packages/benchmark-py/CHANGELOG.md"
 
 [project.optional-dependencies]
 mteb = [
