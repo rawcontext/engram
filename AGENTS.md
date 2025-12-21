@@ -29,8 +29,14 @@ cd apps/search && uv run search  # Start service
 ### TypeScript
 - **Formatter/Linter**: Biome (tabs, double quotes, 100 char line width)
 - **Package Manager**: npm only (never yarn/pnpm)
-- **TypeScript**: Strict mode, ES2022 target, NodeNext modules
+- **TypeScript**: Version 7 (tsgo), strict mode, ESNext target, NodeNext modules
 - **Testing**: Vitest with globals enabled
+
+#### TypeScript 7 Notes
+- Uses `tsgo` - native Go implementation with ~10x faster builds
+- Target `ESNext` for latest ES2025 features (Set methods, Iterator helpers, Promise.try, etc.)
+- Downlevel emit only supports ES2021+, so modern Node.js runtimes required
+- Multi-threaded builds and parallel project compilation enabled by default
 
 IMPORTANT: Run `npm run lint` and `npm run typecheck` before committing.
 
