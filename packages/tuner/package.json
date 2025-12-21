@@ -18,6 +18,11 @@
 		"commander": "^14.0.2",
 		"zod": "^4.2.1"
 	},
+	"turbo": {
+		"build": {
+			"outputs": []
+		}
+	},
 	"scripts": {
 		"build": "echo 'Build success'",
 		"typecheck": "tsgo --noEmit",

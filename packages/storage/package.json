@@ -23,6 +23,11 @@
 		"pg": "^8.16.3",
 		"redis": "^5.10.0"
 	},
+	"turbo": {
+		"build": {
+			"outputs": []
+		}
+	},
 	"scripts": {
 		"build": "echo 'Build success'",
 		"typecheck": "tsgo --noEmit",

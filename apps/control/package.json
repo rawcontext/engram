@@ -1,5 +1,5 @@
 {
-	"name": "control-service",
+	"name": "@engram/control",
 	"version": "0.0.0",
 	"type": "module",
 	"dependencies": {

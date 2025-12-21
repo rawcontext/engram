@@ -69,4 +69,4 @@ jobs:
           cd apps/search && uv sync
           cd ../tuner && uv sync
       - name: Run Python tests via turbo
-        run: npx turbo run test --filter=search-service --filter=tuner-service
+        run: npx turbo run test --filter=@engram/search --filter=@engram/optimizer

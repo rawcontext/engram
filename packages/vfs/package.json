@@ -12,6 +12,11 @@
 		"diff": "^8.0.2",
 		"@types/diff": "^8.0.0"
 	},
+	"turbo": {
+		"build": {
+			"outputs": []
+		}
+	},
 	"scripts": {
 		"build": "echo 'Build success'",
 		"typecheck": "tsgo --noEmit",

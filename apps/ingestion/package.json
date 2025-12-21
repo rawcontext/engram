@@ -1,5 +1,5 @@
 {
-	"name": "ingestion-service",
+	"name": "@engram/ingestion",
 	"version": "0.0.0",
 	"type": "module",
 	"dependencies": {

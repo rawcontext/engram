@@ -20,6 +20,11 @@
 		"@engram/tsconfig": "*",
 		"vitest": "^4.0.16"
 	},
+	"turbo": {
+		"build": {
+			"outputs": []
+		}
+	},
 	"scripts": {
 		"build": "echo 'Build success'",
 		"typecheck": "tsgo --noEmit",
