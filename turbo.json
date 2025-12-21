@@ -22,11 +22,19 @@
 			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/biome.json"],
 			"outputLogs": "new-only"
 		},
+		"//#lint:run": {
+			"inputs": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "biome.json"],
+			"outputLogs": "new-only"
+		},
+		"//#format:run": {
+			"inputs": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "biome.json"],
+			"outputLogs": "new-only"
+		},
 		"dev": {
 			"cache": false,
 			"persistent": true
 		},
-		"//#test:ts": {
+		"//#test:ts:run": {
 			"inputs": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "vitest.config.ts"],
 			"outputs": ["coverage/**"],
 			"env": ["VITEST"]
