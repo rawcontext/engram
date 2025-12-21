@@ -2,8 +2,7 @@
 	"extends": "@engram/tsconfig/base.json",
 	"compilerOptions": {
 		"rootDir": ".",
-		"outDir": "dist",
-		"baseUrl": "."
+		"outDir": "dist"
 	},
 	"include": ["src/**/*.ts"]
 }

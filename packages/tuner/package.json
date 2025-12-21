@@ -10,8 +10,7 @@
 	},
 	"devDependencies": {
 		"@engram/tsconfig": "*",
-		"@types/node": "^25.0.3",
-		"typescript": "^5.9.3"
+		"@types/node": "^25.0.3"
 	},
 	"dependencies": {
 		"@engram/common": "*",
@@ -21,7 +20,7 @@
 	},
 	"scripts": {
 		"build": "echo 'Build success'",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "tsgo --noEmit",
 		"tune": "tsx src/cli/index.ts",
 		"lint": "biome check .",
 		"format": "biome format ."

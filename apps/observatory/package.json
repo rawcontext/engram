@@ -39,14 +39,13 @@
 		"@types/node": "^25.0.3",
 		"@types/react": "^19.2.7",
 		"@types/ws": "^8.18.1",
-		"typescript": "^5.9.3",
 		"vitest-websocket-mock": "^0.5.0"
 	},
 	"scripts": {
 		"dev": "tsx --env-file=.env server.ts",
 		"start": "tsx server.ts",
 		"build": "next build",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "tsgo --noEmit",
 		"generate-docs": "next-openapi-gen generate",
 		"test:watch": "vitest",
 		"test:e2e": "playwright test",

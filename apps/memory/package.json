@@ -16,7 +16,7 @@
 	"scripts": {
 		"dev": "tsx --env-file=.env src/index.ts",
 		"build": "echo 'Build success'",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "tsgo --noEmit",
 		"lint": "biome check .",
 		"format": "biome format ."
 	}

@@ -18,10 +18,9 @@
 			}
 		],
 		"target": "ES2017",
-		"baseUrl": ".",
 		"paths": {
-			"@lib/*": ["lib/*"],
-			"@app/*": ["app/*"]
+			"@lib/*": ["./lib/*"],
+			"@app/*": ["./app/*"]
 		}
 	},
 	"include": [

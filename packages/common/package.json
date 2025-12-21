@@ -16,14 +16,13 @@
 		"@engram/graph": "*"
 	},
 	"devDependencies": {
-		"typescript": "^5.9.3",
 		"@types/node": "^25.0.3",
 		"@engram/tsconfig": "*",
 		"vitest": "^4.0.16"
 	},
 	"scripts": {
 		"build": "echo 'Build success'",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "tsgo --noEmit",
 		"lint": "biome check .",
 		"format": "biome format ."
 	}

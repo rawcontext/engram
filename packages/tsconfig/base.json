@@ -1,9 +1,9 @@
 {
 	"compilerOptions": {
-		"target": "es2022",
+		"target": "ESNext",
 		"module": "esnext",
 		"moduleResolution": "bundler",
-		"lib": ["es2022", "dom"],
+		"lib": ["ESNext", "DOM"],
 		"declaration": true,
 		"declarationMap": true,
 		"sourceMap": true,
@@ -14,7 +14,6 @@
 		"composite": true,
 		"rootDir": ".",
 		"outDir": "dist",
-		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./src/*"]
 		}
