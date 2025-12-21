@@ -27,9 +27,7 @@ vi.mock("@engram/storage/falkor", () => {
 // Import after mock is set up
 import {
 	EDGE_TYPES,
-	ensureConnection,
 	getAllSessions,
-	getFalkorClient,
 	getSessionLineage,
 	getSessionsForWebSocket,
 	getSessionTimeline,
@@ -176,28 +174,6 @@ describe("graph-queries", () => {
 				TRIGGERS: "TRIGGERS",
 				YIELDS: "YIELDS",
 			});
-		});
-	});
-
-	// =========================================================================
-	// ensureConnection
-	// =========================================================================
-	describe("ensureConnection", () => {
-		it("should call falkor.connect()", async () => {
-			await ensureConnection();
-			expect(mockConnect).toHaveBeenCalledTimes(1);
-		});
-	});
-
-	// =========================================================================
-	// getFalkorClient
-	// =========================================================================
-	describe("getFalkorClient", () => {
-		it("should return the falkor client instance", () => {
-			const client = getFalkorClient();
-			expect(client).toBeDefined();
-			expect(client.query).toBeDefined();
-			expect(client.connect).toBeDefined();
 		});
 	});
 

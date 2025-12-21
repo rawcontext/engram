@@ -8,33 +8,21 @@
  * - Tuner: Hyperparameter optimization (PostgreSQL + API + Dashboard)
  */
 
-// FalkorDB Graph Database
-export { falkordbEndpoint, falkordbService, falkordbStatefulSet } from "./falkordb";
+// FalkorDB Graph Database (endpoint only - resources are internal)
+export { falkordbEndpoint } from "./falkordb";
 // Namespace and K8s Provider
 export { k8sProvider, namespace, namespaceName } from "./namespace";
 
-// Qdrant Vector Database
-export { qdrantEndpoint, qdrantGrpcEndpoint, qdrantRelease } from "./qdrant";
+// Qdrant Vector Database (endpoints only - resources are internal)
+export { qdrantEndpoint, qdrantGrpcEndpoint } from "./qdrant";
 
-// Redpanda Streaming
-export { redpandaEndpoint, redpandaRelease, redpandaSchemaRegistryEndpoint } from "./redpanda";
+// Redpanda Streaming (endpoints only - resources are internal)
+export { redpandaEndpoint, redpandaSchemaRegistryEndpoint } from "./redpanda";
 
-// Tuner Service
+// Tuner Service (endpoints only - resources are internal)
 export {
 	// Dashboard
-	dashboardDeployment,
 	dashboardEndpoint,
-	dashboardService,
-	// PostgreSQL
-	postgresEndpoint,
-	postgresSecret,
-	postgresService,
-	postgresStatefulSet,
 	// Tuner API
-	tunerConfigMap,
-	tunerDeployment,
 	tunerEndpoint,
-	tunerPdb,
-	tunerSecret,
-	tunerService,
 } from "./tuner";

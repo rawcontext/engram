@@ -1,7 +1,7 @@
 import type { Logger } from "@engram/logger";
 import { createNodeLogger } from "@engram/logger";
 import { createFalkorClient, type GraphClient } from "@engram/storage";
-import { Rehydrator, TimeTravelService } from "@engram/temporal";
+import { Rehydrator, ReplayEngine, TimeTravelService } from "@engram/temporal";
 import { PatchManager, VirtualFileSystem } from "@engram/vfs";
 
 /**
@@ -19,6 +19,8 @@ export interface ExecutionServiceDeps {
 	rehydrator?: Rehydrator;
 	/** Time travel service. */
 	timeTravelService?: TimeTravelService;
+	/** Replay engine for tool execution audit. */
+	replayEngine?: ReplayEngine;
 	/** Logger instance. */
 	logger?: Logger;
 }
@@ -33,7 +35,7 @@ export interface ExecutionResult {
 }
 
 /**
- * ExecutionService provides VFS operations and time-travel capabilities.
+ * ExecutionService provides VFS operations, time-travel capabilities, and tool execution replay.
  * This is a direct replacement for the MCP-based execution service,
  * integrated directly into the Control service.
  */
@@ -43,6 +45,7 @@ export class ExecutionService {
 	readonly graphClient: GraphClient;
 	readonly rehydrator: Rehydrator;
 	readonly timeTravelService: TimeTravelService;
+	readonly replayEngine: ReplayEngine;
 	readonly logger: Logger;
 
 	constructor(deps?: ExecutionServiceDeps) {
@@ -59,6 +62,7 @@ export class ExecutionService {
 		this.graphClient = deps?.graphClient ?? createFalkorClient();
 		this.rehydrator = deps?.rehydrator ?? new Rehydrator({ graphClient: this.graphClient });
 		this.timeTravelService = deps?.timeTravelService ?? new TimeTravelService(this.rehydrator);
+		this.replayEngine = deps?.replayEngine ?? new ReplayEngine(this.graphClient);
 	}
 
 	/**
@@ -76,7 +80,7 @@ export class ExecutionService {
 	}
 
 	/**
-	 * Apply a unified diff or search/replace block to a file.
+	 * Apply a unified diff to a file.
 	 */
 	async applyPatch(path: string, diff: string): Promise<ExecutionResult> {
 		try {
@@ -85,6 +89,25 @@ export class ExecutionService {
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : String(e);
 			this.logger.error({ path, error: message }, "Failed to apply patch");
+			return { success: false, error: message };
+		}
+	}
+
+	/**
+	 * Apply a simple search/replace operation to a file.
+	 * Alternative to unified diffs for simple text replacements.
+	 */
+	async applySearchReplace(
+		path: string,
+		search: string,
+		replace: string,
+	): Promise<ExecutionResult> {
+		try {
+			this.patchManager.applySearchReplace(path, search, replace);
+			return { success: true, data: `Successfully replaced text in ${path}` };
+		} catch (e: unknown) {
+			const message = e instanceof Error ? e.message : String(e);
+			this.logger.error({ path, search, error: message }, "Failed to apply search/replace");
 			return { success: false, error: message };
 		}
 	}
@@ -153,6 +176,40 @@ export class ExecutionService {
 	 */
 	readDir(path: string): string[] {
 		return this.vfs.readDir(path);
+	}
+
+	/**
+	 * Replay a specific tool call execution for auditing and verification.
+	 * Rehydrates the VFS to the exact state before the tool was executed,
+	 * re-executes the tool, and compares the output with the original.
+	 *
+	 * @param sessionId - The session containing the tool call
+	 * @param eventId - The ToolCall event ID to replay
+	 * @returns Result with comparison details
+	 */
+	async replayToolCall(sessionId: string, eventId: string): Promise<ExecutionResult> {
+		try {
+			await this.graphClient.connect();
+			const result = await this.replayEngine.replay(sessionId, eventId);
+
+			if (!result.success) {
+				return { success: false, error: result.error };
+			}
+
+			const summary = {
+				matches: result.matches,
+				originalOutput: result.originalOutput,
+				replayOutput: result.replayOutput,
+			};
+
+			return { success: true, data: JSON.stringify(summary, null, 2) };
+		} catch (e: unknown) {
+			const message = e instanceof Error ? e.message : String(e);
+			this.logger.error({ sessionId, eventId, error: message }, "Failed to replay tool call");
+			return { success: false, error: message };
+		} finally {
+			await this.graphClient.disconnect();
+		}
 	}
 }
 

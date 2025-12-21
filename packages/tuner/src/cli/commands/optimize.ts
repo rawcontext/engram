@@ -35,6 +35,9 @@ interface OptimizeOptions {
 	// Cache options
 	cache?: boolean;
 	cacheDir?: string;
+	// Objective weights
+	qualityWeight?: number;
+	latencyWeight?: number;
 }
 
 export async function optimizeCommand(options: OptimizeOptions): Promise<void> {
@@ -99,9 +102,13 @@ export async function optimizeCommand(options: OptimizeOptions): Promise<void> {
 	}
 
 	// Configure objectives
+	// Default weights: balanced approach (70% quality, 30% latency)
+	const qualityWeight = options.qualityWeight ?? 0.7;
+	const latencyWeight = options.latencyWeight ?? 0.3;
+
 	const objectives: ObjectiveConfig = {
 		mode: options.objective,
-		weights: { quality: 0.7, latency: 0.3 },
+		weights: { quality: qualityWeight, latency: latencyWeight },
 		latencyBudgetMs: 500,
 	};
 

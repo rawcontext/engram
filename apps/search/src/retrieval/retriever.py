@@ -514,8 +514,11 @@ class SearchRetriever:
         """Select reranker tier based on query complexity.
 
         Uses the query classifier to determine optimal tier when not explicitly
-        specified. Code queries route to CODE tier, otherwise complexity
-        determines tier: SIMPLE→FAST, MODERATE→ACCURATE, COMPLEX→ACCURATE.
+        specified. Selection logic:
+        - Code queries → CODE tier (specialized cross-encoder)
+        - Semantic questions → COLBERT tier (late-interaction for nuanced similarity)
+        - Simple queries → FAST tier (low-latency FlashRank)
+        - Moderate/Complex → ACCURATE tier (cross-encoder)
 
         Args:
             query_text: Query text to classify.
@@ -539,6 +542,15 @@ class SearchRetriever:
                 f"Auto-selected CODE tier: query has code patterns, score={classification.score}"
             )
             return RerankerTier.CODE
+
+        # Semantic questions benefit from ColBERT's late-interaction mechanism
+        # ColBERT excels at nuanced semantic similarity via token-level interactions
+        if classification.features.is_question and not classification.features.has_quotes:
+            logger.debug(
+                f"Auto-selected COLBERT tier: semantic question without exact match intent, "
+                f"score={classification.score}"
+            )
+            return RerankerTier.COLBERT
 
         # Map complexity to tier
         from src.retrieval.types import QueryComplexity

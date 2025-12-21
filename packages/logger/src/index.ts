@@ -2,8 +2,7 @@
 
 import pino from "pino";
 
-export { createBrowserLogger } from "./browser";
-export { childLogger, createNodeLogger, withTenantContext, withTraceContext } from "./node";
+export { createNodeLogger, withTenantContext, withTraceContext } from "./node";
 export * from "./redaction";
 export * from "./types";
 export { pino };

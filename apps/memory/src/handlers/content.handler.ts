@@ -8,6 +8,8 @@ import type { EventHandler, HandlerContext, HandlerResult, TurnState } from "./h
  */
 export class ContentEventHandler implements EventHandler {
 	readonly eventType = "content";
+	private lastUpdateLength = new Map<string, number>();
+	private readonly UPDATE_THRESHOLD = 500;
 
 	canHandle(event: ParsedStreamEvent): boolean {
 		return event.type === "content" && event.role === "assistant" && event.content !== undefined;
@@ -26,9 +28,11 @@ export class ContentEventHandler implements EventHandler {
 		turn.assistantContent += event.content;
 		turn.contentBlockIndex++;
 
-		// Update preview in graph periodically (every 500 chars) to reduce writes
-		if (turn.assistantContent.length % 500 === 0) {
+		// Update preview in graph when content grows by UPDATE_THRESHOLD chars since last update
+		const lastUpdate = this.lastUpdateLength.get(turn.turnId) ?? 0;
+		if (turn.assistantContent.length - lastUpdate >= this.UPDATE_THRESHOLD) {
 			await this.updateTurnPreview(turn, context);
+			this.lastUpdateLength.set(turn.turnId, turn.assistantContent.length);
 		}
 
 		return {
@@ -55,5 +59,12 @@ export class ContentEventHandler implements EventHandler {
 			{ turnId: turn.turnId, previewLength: turn.assistantContent.length },
 			"Updated turn preview",
 		);
+	}
+
+	/**
+	 * Clean up tracking data for a finalized turn to prevent memory leaks
+	 */
+	cleanupTurn(turnId: string): void {
+		this.lastUpdateLength.delete(turnId);
 	}
 }

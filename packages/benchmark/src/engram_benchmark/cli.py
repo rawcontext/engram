@@ -138,6 +138,49 @@ def run(
             help="Use LLM-based evaluation instead of exact match",
         ),
     ] = False,
+    retriever: Annotated[
+        str,
+        typer.Option(
+            "--retriever",
+            "-r",
+            help="Retriever provider (chroma, engram)",
+        ),
+    ] = "chroma",
+    search_url: Annotated[
+        str,
+        typer.Option(
+            "--search-url",
+            help="URL for Engram search-py service (only for --retriever=engram)",
+        ),
+    ] = "http://localhost:5002",
+    search_strategy: Annotated[
+        str,
+        typer.Option(
+            "--search-strategy",
+            help="Search strategy for Engram (hybrid, dense, sparse)",
+        ),
+    ] = "hybrid",
+    rerank: Annotated[
+        bool,
+        typer.Option(
+            "--rerank",
+            help="Enable reranking for Engram retriever",
+        ),
+    ] = True,
+    rerank_tier: Annotated[
+        str,
+        typer.Option(
+            "--rerank-tier",
+            help="Reranker tier for Engram (fast, accurate, code, llm)",
+        ),
+    ] = "accurate",
+    ragas: Annotated[
+        bool,
+        typer.Option(
+            "--ragas",
+            help="Enable RAGAS metrics (faithfulness, context recall, etc.)",
+        ),
+    ] = False,
 ) -> None:
     """
     Run the LongMemEval benchmark.
@@ -145,7 +188,7 @@ def run(
     This command executes the full benchmark pipeline including:
     - Loading the dataset
     - Parsing and mapping instances to documents
-    - Indexing into ChromaDB vector store
+    - Indexing into vector store (ChromaDB or Engram)
     - Retrieving relevant contexts
     - Generating answers with LLM
     - Computing metrics and generating reports
@@ -154,8 +197,6 @@ def run(
 
     from engram_benchmark.longmemeval.pipeline import BenchmarkPipeline, PipelineConfig
     from engram_benchmark.longmemeval.reader import LongMemEvalReader
-    from engram_benchmark.longmemeval.retriever import ChromaRetriever
-    from engram_benchmark.providers.embeddings import EmbeddingProvider
     from engram_benchmark.providers.llm import LiteLLMProvider
     from engram_benchmark.utils.reporting import print_summary
 
@@ -164,6 +205,7 @@ def run(
             f"[bold]Running LongMemEval Benchmark[/bold]\n\n"
             f"Dataset: {dataset}\n"
             f"Limit: {limit or 'all'}\n"
+            f"Retriever: {retriever}\n"
             f"Model: {model}\n"
             f"Embedding: {embedding_model}\n"
             f"Top-K: {top_k}\n"
@@ -176,11 +218,52 @@ def run(
         # Initialize components
         console.print("\n[bold cyan]Initializing components...[/bold cyan]")
 
-        embedder = EmbeddingProvider(model_name=embedding_model)
-        await embedder.load()
+        # Initialize retriever based on provider
+        if retriever == "engram":
+            from engram_benchmark.longmemeval.retriever import EngramRetriever
+            from engram_benchmark.providers.engram import EngramSearchClient
 
-        retriever = ChromaRetriever(embedder=embedder)
-        await retriever.load()
+            # Validate search_strategy and rerank_tier types
+            if search_strategy not in ("hybrid", "dense", "sparse"):
+                console.print(
+                    f"[bold red]Error:[/bold red] Invalid search strategy: {search_strategy}"
+                )
+                raise typer.Exit(1)
+
+            if rerank_tier not in ("fast", "accurate", "code", "llm"):
+                console.print(f"[bold red]Error:[/bold red] Invalid rerank tier: {rerank_tier}")
+                raise typer.Exit(1)
+
+            # Create Engram search client
+            search_client = EngramSearchClient(base_url=search_url)
+
+            # Test connection
+            try:
+                health = await search_client.health()
+                console.print(
+                    f"[bold green]✓[/bold green] Connected to Engram search-py: {health.status}"
+                )
+            except Exception as e:
+                console.print(f"[bold red]✗ Failed to connect to Engram search-py:[/bold red] {e}")
+                raise typer.Exit(1) from e
+
+            # Create EngramRetriever
+            retriever_instance = EngramRetriever(
+                client=search_client,
+                strategy=search_strategy,  # type: ignore[arg-type]
+                rerank=rerank,
+                rerank_tier=rerank_tier,  # type: ignore[arg-type]
+            )
+        else:
+            # Default to ChromaDB
+            from engram_benchmark.longmemeval.retriever import ChromaRetriever
+            from engram_benchmark.providers.embeddings import EmbeddingProvider
+
+            embedder = EmbeddingProvider(model_name=embedding_model)
+            await embedder.load()
+
+            retriever_instance = ChromaRetriever(embedder=embedder)
+            await retriever_instance.load()
 
         llm = LiteLLMProvider(model=model)
         reader = LongMemEvalReader(llm_provider=llm)
@@ -193,10 +276,11 @@ def run(
             concurrency=concurrency,
             top_k=top_k,
             use_llm_eval=llm_eval,
+            ragas_enabled=ragas,
         )
 
         # Run pipeline
-        pipeline = BenchmarkPipeline(config, retriever, reader)
+        pipeline = BenchmarkPipeline(config, retriever_instance, reader)
         report = await pipeline.run()
 
         # Print summary
@@ -258,22 +342,151 @@ def evaluate(
     ] = None,
 ) -> None:
     """
-    Evaluate benchmark predictions against ground truth (placeholder).
+    Evaluate benchmark predictions against ground truth.
 
     Computes accuracy, retrieval metrics, and abstention metrics.
     """
+    import asyncio
+
+    from engram_benchmark.longmemeval.loader import load_dataset
+    from engram_benchmark.longmemeval.mapper import DocumentMapper, parse_batch
+    from engram_benchmark.longmemeval.pipeline import PipelineResult
+    from engram_benchmark.longmemeval.types import EvaluationMetrics
+    from engram_benchmark.metrics.abstention import compute_abstention_metrics
+    from engram_benchmark.metrics.qa import evaluate_qa
+    from engram_benchmark.metrics.retrieval import compute_retrieval_metrics
+    from engram_benchmark.utils.reporting import (
+        BenchmarkReport,
+        generate_json_report,
+        generate_markdown_report,
+        print_summary,
+    )
+
     console.print(
         Panel.fit(
-            "[bold yellow]⚠ Not yet implemented[/bold yellow]\n\n"
-            "This command will be implemented in Phase 4 (Evaluation Metrics).\n"
+            f"[bold]Evaluating Predictions[/bold]\n\n"
             f"Predictions: {predictions}\n"
             f"Ground Truth: {ground_truth}\n"
             f"LLM Eval: {llm_eval}\n"
-            f"Output: {output or 'default'}",
-            border_style="yellow",
-            title="Evaluate Results",
+            f"Output: {output or 'stdout'}",
+            border_style="blue",
         )
     )
+
+    async def run_evaluation() -> None:
+        # Load predictions from JSONL
+        console.print("\n[bold cyan]Loading predictions...[/bold cyan]")
+        results: list[PipelineResult] = []
+        with open(predictions, encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    results.append(PipelineResult.model_validate_json(line))
+
+        console.print(f"[bold green]✓[/bold green] Loaded {len(results)} predictions")
+
+        # Load ground truth dataset
+        console.print("\n[bold cyan]Loading ground truth...[/bold cyan]")
+        dataset = load_dataset(str(ground_truth), validate=False)
+        mapper = DocumentMapper(granularity="turn")
+        parsed_instances = parse_batch(dataset, mapper)
+
+        console.print(
+            f"[bold green]✓[/bold green] Loaded {len(parsed_instances)} ground truth instances"
+        )
+
+        # Match predictions to ground truth by question_id
+        console.print("\n[bold cyan]Matching predictions to ground truth...[/bold cyan]")
+        instance_by_id = {inst.question_id: inst for inst in parsed_instances}
+
+        matched_results = []
+        matched_instances = []
+        for result in results:
+            if result.question_id in instance_by_id:
+                matched_results.append(result)
+                matched_instances.append(instance_by_id[result.question_id])
+
+        console.print(
+            f"[bold green]✓[/bold green] Matched {len(matched_results)}/{len(results)} predictions"
+        )
+
+        if len(matched_results) == 0:
+            console.print("[bold red]✗ No matching predictions found[/bold red]")
+            raise typer.Exit(1)
+
+        # Extract data for evaluation
+        predictions_list = [r.reader_output.answer for r in matched_results]
+        ground_truth_list = [inst.answer for inst in matched_instances]
+        question_types = [inst.memory_ability for inst in matched_instances]
+        question_ids = [inst.question_id for inst in matched_instances]
+
+        # Compute QA metrics
+        console.print("\n[bold cyan]Computing QA metrics...[/bold cyan]")
+        qa_metrics = await evaluate_qa(
+            predictions=predictions_list,
+            ground_truth=ground_truth_list,
+            question_types=question_types,
+            question_ids=question_ids,
+            use_llm_eval=llm_eval,
+            llm_model="openai/gpt-4o",
+        )
+
+        # Compute retrieval metrics
+        console.print("\n[bold cyan]Computing retrieval metrics...[/bold cyan]")
+        retrieval_results = [r.retrieval for r in matched_results]
+        retrieval_metrics = compute_retrieval_metrics(retrieval_results)
+
+        # Compute abstention metrics (if applicable)
+        abstention_ground_truth = [inst.is_abstention for inst in matched_instances]
+        abstention_predictions = [r.reader_output.is_abstention for r in matched_results]
+
+        abstention_metrics = None
+        if any(abstention_ground_truth):
+            console.print("\n[bold cyan]Computing abstention metrics...[/bold cyan]")
+            abstention_metrics = compute_abstention_metrics(
+                predictions=abstention_predictions,
+                ground_truth=abstention_ground_truth,
+            )
+
+        # Build evaluation metrics
+        metrics = EvaluationMetrics(
+            overall=qa_metrics["overall"],
+            by_ability=qa_metrics,
+            retrieval=retrieval_metrics,
+            abstention=abstention_metrics,
+        )
+
+        # Create report
+        report = BenchmarkReport(
+            dataset_path=str(ground_truth),
+            total_instances=len(matched_results),
+            metrics=metrics,
+            config={"llm_eval": llm_eval},
+        )
+
+        # Print summary
+        console.print("\n[bold cyan]Evaluation Results:[/bold cyan]")
+        print_summary(report)
+
+        # Save report if output path provided
+        if output:
+            if output.suffix == ".json":
+                generate_json_report(report, output)
+                console.print(f"\n[bold green]✓[/bold green] JSON report saved to: {output}")
+            elif output.suffix == ".md":
+                generate_markdown_report(report, output)
+                console.print(f"\n[bold green]✓[/bold green] Markdown report saved to: {output}")
+            else:
+                console.print(
+                    f"[bold yellow]⚠ Unknown output format: {output.suffix}[/bold yellow]"
+                )
+
+    # Run async evaluation
+    try:
+        asyncio.run(run_evaluation())
+        raise typer.Exit(0)
+    except Exception as e:
+        console.print(f"\n[bold red]✗ Error:[/bold red] {e}")
+        raise typer.Exit(1) from e
 
 
 @app.command()

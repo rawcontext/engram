@@ -1,5 +1,5 @@
 import type { FalkorNode } from "@engram/storage";
-import { FalkorBaseRepository } from "./falkor-base";
+import { FalkorBaseRepository, type TimeTravelOptions } from "./falkor-base";
 import type { SessionRepository } from "./session.repository";
 import type { CreateSessionInput, Session, UpdateSessionInput } from "./types";
 
@@ -37,6 +37,61 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 		);
 		if (!results[0]?.s) return null;
 		return this.mapToSession(results[0].s);
+	}
+
+	/**
+	 * Find a session as it existed at a specific point in time.
+	 * Supports both valid time (vt) and transaction time (tt) queries.
+	 *
+	 * @param id - Session ID
+	 * @param time - Time-travel options (vt and/or tt)
+	 * @returns Session as it existed at the specified time, or null if not found
+	 *
+	 * @example
+	 * // Get session as it was valid on Jan 1, 2024
+	 * const session = await repo.findByIdAt('123', { vt: Date.parse('2024-01-01') });
+	 *
+	 * @example
+	 * // Get session as it was recorded in the database at a specific time
+	 * const session = await repo.findByIdAt('123', { tt: Date.parse('2024-01-01') });
+	 *
+	 * @example
+	 * // Get current version (default behavior)
+	 * const session = await repo.findByIdAt('123', { tt: 'current' });
+	 */
+	async findByIdAt(id: string, time: TimeTravelOptions): Promise<Session | null> {
+		const qb = this.createQueryBuilder().match("(s:Session {id: $id})").at(["s"], time).return("s");
+
+		const { cypher, params } = qb.build();
+		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(cypher, {
+			...params,
+			id,
+		});
+
+		if (!results[0]?.s) return null;
+		return this.mapToSession(results[0].s);
+	}
+
+	/**
+	 * Find all sessions for a user as they existed at a specific point in time.
+	 *
+	 * @param userId - User ID
+	 * @param time - Time-travel options (vt and/or tt)
+	 * @returns Sessions as they existed at the specified time
+	 */
+	async findByUserAt(userId: string, time: TimeTravelOptions): Promise<Session[]> {
+		const qb = this.createQueryBuilder()
+			.match("(s:Session {user_id: $userId})")
+			.at(["s"], time)
+			.return("s");
+
+		const { cypher, params } = qb.build();
+		const results = await this.query<{ s: FalkorNode<SessionNodeProps> }>(cypher, {
+			...params,
+			userId,
+		});
+
+		return results.map((r) => this.mapToSession(r.s));
 	}
 
 	async findByExternalId(externalId: string): Promise<Session | null> {

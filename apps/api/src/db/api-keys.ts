@@ -187,6 +187,86 @@ export class ApiKeyRepository {
 	}
 
 	/**
+	 * Rotate an API key atomically - revokes old key and creates new one in a transaction
+	 * This ensures either both operations succeed or both fail, preventing orphaned states.
+	 *
+	 * @example
+	 * const newKey = await repo.rotate(oldKeyId, {
+	 *   id: ulid(),
+	 *   key: generateNewKey(),
+	 *   keyType: "live",
+	 *   name: "Rotated API Key"
+	 * });
+	 */
+	async rotate(
+		oldKeyId: string,
+		newKeyParams: {
+			id: string;
+			key: string;
+			keyType: "live" | "test";
+			name: string;
+			description?: string;
+			userId?: string;
+			scopes?: string[];
+			rateLimitRpm?: number;
+			expiresAt?: Date;
+			metadata?: Record<string, unknown>;
+		},
+	): Promise<ApiKey> {
+		return this.db.transaction(async (client) => {
+			// 1. Revoke old key
+			await client.query(
+				`
+				UPDATE api_keys
+				SET is_active = false, updated_at = NOW()
+				WHERE id = $1
+				`,
+				[oldKeyId],
+			);
+
+			// 2. Create new key
+			const keyHash = hashApiKey(newKeyParams.key);
+			const keyPrefix = `${newKeyParams.key.slice(0, 20)}...`;
+			const scopes = newKeyParams.scopes ?? ["memory:read", "memory:write", "query:read"];
+			const rateLimitRpm = newKeyParams.rateLimitRpm ?? 60;
+			const metadata = newKeyParams.metadata ?? {};
+
+			const result = await client.query<DbApiKey>(
+				`
+				INSERT INTO api_keys (
+					id, key_hash, key_prefix, key_type, user_id, name, description,
+					scopes, rate_limit_rpm, expires_at, metadata
+				)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+				RETURNING
+					id, key_hash, key_prefix, key_type, user_id, name, description,
+					scopes, rate_limit_rpm, is_active, expires_at,
+					created_at, updated_at, last_used_at, metadata
+				`,
+				[
+					newKeyParams.id,
+					keyHash,
+					keyPrefix,
+					newKeyParams.keyType,
+					newKeyParams.userId,
+					newKeyParams.name,
+					newKeyParams.description,
+					scopes,
+					rateLimitRpm,
+					newKeyParams.expiresAt,
+					JSON.stringify(metadata),
+				],
+			);
+
+			if (!result.rows[0]) {
+				throw new Error("Failed to create new API key during rotation");
+			}
+
+			return this.mapFromDb(result.rows[0]);
+		});
+	}
+
+	/**
 	 * List API keys for a user
 	 */
 	async listByUser(userId: string): Promise<ApiKey[]> {

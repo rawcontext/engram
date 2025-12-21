@@ -62,12 +62,12 @@ describe("Blob Storage", () => {
 			expect(uri1).not.toBe(uri2);
 		});
 
-		it("should read saved content", async () => {
+		it("should load saved content", async () => {
 			const store = new FileSystemBlobStore(testDir);
 			const content = "hello world";
 
 			const uri = await store.save(content);
-			const readContent = await store.read(uri);
+			const readContent = await store.load(uri);
 
 			expect(readContent).toBe(content);
 		});
@@ -85,20 +85,20 @@ describe("Blob Storage", () => {
 		it("should throw on invalid URI scheme", async () => {
 			const store = new FileSystemBlobStore(testDir);
 
-			await expect(store.read("gs://bucket/hash")).rejects.toThrow("Invalid URI scheme");
+			await expect(store.load("gs://bucket/hash")).rejects.toThrow("Invalid URI scheme");
 		});
 
-		it("should throw on non-existent file read", async () => {
+		it("should throw on non-existent file load", async () => {
 			const store = new FileSystemBlobStore(testDir);
 
-			await expect(store.read("file:///nonexistent/file")).rejects.toThrow();
+			await expect(store.load("file:///nonexistent/file")).rejects.toThrow();
 		});
 
 		it("should handle empty content", async () => {
 			const store = new FileSystemBlobStore(testDir);
 
 			const uri = await store.save("");
-			const content = await store.read(uri);
+			const content = await store.load(uri);
 
 			expect(content).toBe("");
 		});
@@ -108,7 +108,7 @@ describe("Blob Storage", () => {
 			const largeContent = "x".repeat(100000);
 
 			const uri = await store.save(largeContent);
-			const content = await store.read(uri);
+			const content = await store.load(uri);
 
 			expect(content).toBe(largeContent);
 		});
@@ -118,7 +118,7 @@ describe("Blob Storage", () => {
 			const unicodeContent = "Hello World! Special chars";
 
 			const uri = await store.save(unicodeContent);
-			const content = await store.read(uri);
+			const content = await store.load(uri);
 
 			expect(content).toBe(unicodeContent);
 		});
@@ -128,7 +128,7 @@ describe("Blob Storage", () => {
 			const jsonContent = JSON.stringify({ key: "value", nested: { array: [1, 2, 3] } });
 
 			const uri = await store.save(jsonContent);
-			const content = await store.read(uri);
+			const content = await store.load(uri);
 
 			expect(JSON.parse(content)).toEqual({ key: "value", nested: { array: [1, 2, 3] } });
 		});
@@ -164,20 +164,20 @@ describe("Blob Storage", () => {
 		it("should throw on invalid URI scheme", async () => {
 			const store = new GCSBlobStore("test-bucket");
 
-			await expect(store.read("file:///local/file")).rejects.toThrow("Invalid URI scheme");
+			await expect(store.load("file:///local/file")).rejects.toThrow("Invalid URI scheme");
 		});
 
 		it("should throw on invalid GCS URI format", async () => {
 			const store = new GCSBlobStore("test-bucket");
 
-			await expect(store.read("gs://bucket-only")).rejects.toThrow("Invalid GCS URI format");
+			await expect(store.load("gs://bucket-only")).rejects.toThrow("Invalid GCS URI format");
 		});
 
-		it("should throw StorageError on GCS read failure", async () => {
+		it("should throw StorageError on GCS load failure", async () => {
 			const store = new GCSBlobStore("test-bucket");
 			mockExists.mockRejectedValueOnce(new Error("Network error"));
 
-			await expect(store.read("gs://test-bucket/somefile")).rejects.toThrow(
+			await expect(store.load("gs://test-bucket/somefile")).rejects.toThrow(
 				"Failed to read blob from GCS",
 			);
 		});
@@ -193,15 +193,15 @@ describe("Blob Storage", () => {
 			const store = new GCSBlobStore("test-bucket");
 			mockExists.mockResolvedValueOnce([false]);
 
-			await expect(store.read("gs://test-bucket/somefile")).rejects.toThrow("Blob not found");
+			await expect(store.load("gs://test-bucket/somefile")).rejects.toThrow("Blob not found");
 		});
 
-		it("should read content successfully", async () => {
+		it("should load content successfully", async () => {
 			const store = new GCSBlobStore("test-bucket");
 			mockExists.mockResolvedValueOnce([true]);
 			mockDownload.mockResolvedValueOnce([Buffer.from("loaded content")]);
 
-			const content = await store.read("gs://test-bucket/somefile");
+			const content = await store.load("gs://test-bucket/somefile");
 
 			expect(content).toBe("loaded content");
 		});

@@ -58,6 +58,11 @@ class PipelineConfig(BaseModel):
     top_k: int = Field(default=10, ge=1, le=100)
     use_llm_eval: bool = Field(default=False)
     llm_eval_model: str = Field(default="openai/gpt-4o")
+    ragas_enabled: bool = Field(default=False, description="Compute RAGAS metrics")
+    ragas_llm_model: str = Field(default="openai/gpt-4o", description="LLM model for RAGAS")
+    ragas_embedding_model: str = Field(
+        default="BAAI/bge-base-en-v1.5", description="Embedding model for RAGAS"
+    )
 
 
 class PipelineResult(BaseModel):
@@ -67,6 +72,8 @@ class PipelineResult(BaseModel):
     retrieval: RetrievalResult
     reader_output: LongMemEvalReaderOutput
     ground_truth: str
+    retrieval_latency_ms: float = Field(ge=0.0, description="Retrieval latency in milliseconds")
+    reader_latency_ms: float = Field(ge=0.0, description="Reader latency in milliseconds")
 
 
 class BenchmarkPipeline:
@@ -181,21 +188,27 @@ class BenchmarkPipeline:
         semaphore = asyncio.Semaphore(self.config.concurrency)
 
         async def process_instance(instance: ParsedInstance) -> PipelineResult:
+            import time
+
             async with semaphore:
-                # Retrieve
+                # Track retrieval latency
+                retrieval_start = time.perf_counter()
                 retrieval = await self.retriever.retrieve(
                     instance,
                     top_k=self.config.top_k,
                 )
+                retrieval_latency_ms = (time.perf_counter() - retrieval_start) * 1000
 
                 # Format contexts for reader
                 contexts = [ctx.content for ctx in retrieval.contexts]
 
-                # Read (generate answer)
+                # Track reader latency
+                reader_start = time.perf_counter()
                 reader_output = await self.reader.generate_answer(
                     instance=instance,
                     contexts=contexts,
                 )
+                reader_latency_ms = (time.perf_counter() - reader_start) * 1000
 
                 tracker.complete_instance(success=True)
 
@@ -204,6 +217,8 @@ class BenchmarkPipeline:
                     retrieval=retrieval,
                     reader_output=reader_output,
                     ground_truth=instance.answer,
+                    retrieval_latency_ms=retrieval_latency_ms,
+                    reader_latency_ms=reader_latency_ms,
                 )
 
         with tracker.start(), tracker.stage("Retrieving and generating answers", total=total):
@@ -246,12 +261,63 @@ class BenchmarkPipeline:
                 ground_truth=abstention_ground_truth,
             )
 
+        # Compute latency metrics
+        from engram_benchmark.metrics.latency import compute_latency_percentiles
+
+        retrieval_latencies = [r.retrieval_latency_ms for r in self.results]
+        reader_latencies = [r.reader_latency_ms for r in self.results]
+
+        retrieval_latency_metrics = compute_latency_percentiles(retrieval_latencies)
+        reader_latency_metrics = compute_latency_percentiles(reader_latencies)
+
+        latency_metrics = {
+            "retrieval_p50_ms": retrieval_latency_metrics.p50_ms,
+            "retrieval_p90_ms": retrieval_latency_metrics.p90_ms,
+            "retrieval_p95_ms": retrieval_latency_metrics.p95_ms,
+            "retrieval_p99_ms": retrieval_latency_metrics.p99_ms,
+            "reader_p50_ms": reader_latency_metrics.p50_ms,
+            "reader_p90_ms": reader_latency_metrics.p90_ms,
+            "reader_p95_ms": reader_latency_metrics.p95_ms,
+            "reader_p99_ms": reader_latency_metrics.p99_ms,
+            "total_p50_ms": retrieval_latency_metrics.p50_ms + reader_latency_metrics.p50_ms,
+            "total_p95_ms": retrieval_latency_metrics.p95_ms + reader_latency_metrics.p95_ms,
+        }
+
+        # Compute RAGAS metrics (if enabled)
+        ragas_metrics = None
+        if self.config.ragas_enabled:
+            from engram_benchmark.metrics.ragas import evaluate_ragas
+
+            # Prepare RAGAS inputs
+            questions = [inst.question for inst in self.parsed_instances]
+            answers = predictions
+            contexts = [[ctx.content for ctx in r.retrieval.contexts] for r in self.results]
+            ground_truths = ground_truth
+
+            ragas_result = await evaluate_ragas(
+                questions=questions,
+                answers=answers,
+                contexts=contexts,
+                ground_truths=ground_truths,
+                llm_model=self.config.ragas_llm_model,
+                embedding_model=self.config.ragas_embedding_model,
+            )
+
+            ragas_metrics = {
+                "faithfulness": ragas_result.faithfulness,
+                "answer_relevancy": ragas_result.answer_relevancy,
+                "context_precision": ragas_result.context_precision,
+                "context_recall": ragas_result.context_recall,
+            }
+
         # Build evaluation metrics
         metrics = EvaluationMetrics(
             overall=qa_metrics["overall"],
             by_ability=qa_metrics,
             retrieval=retrieval_metrics,
             abstention=abstention_metrics,
+            ragas=ragas_metrics,
+            latency=latency_metrics,
         )
 
         # Create report

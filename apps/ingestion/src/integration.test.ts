@@ -713,18 +713,18 @@ describe("Ingestion API Integration Tests", () => {
 			expect(response.status).toBe(200);
 		});
 
-		it("should handle optional fields in event schema", async () => {
+		it("should handle optional headers field in event schema", async () => {
 			const event = {
 				...createBaseEvent("openai"),
-				source_ip: "192.168.1.1",
-				protocol_version: "1.0",
-				trace_id: "trace-abc-123",
 				payload: {
 					id: "chatcmpl-optional",
 					object: "chat.completion.chunk",
 					created: Date.now(),
 					model: "gpt-4",
 					choices: [],
+				},
+				headers: {
+					"x-custom-header": "test-value",
 				},
 			};
 

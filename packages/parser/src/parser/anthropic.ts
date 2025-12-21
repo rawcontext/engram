@@ -20,11 +20,15 @@ export class AnthropicParser implements ParserStrategy {
 			}
 			const message = result.data.message;
 			const usage = message?.usage;
-			return {
+			const delta: StreamDelta = {
 				usage: {
 					input: usage?.input_tokens || 0,
 				},
 			};
+			if (message?.role) {
+				delta.role = message.role;
+			}
+			return delta;
 		}
 
 		if (type === "content_block_start") {
@@ -52,10 +56,11 @@ export class AnthropicParser implements ParserStrategy {
 			}
 			const delta = result.data.delta;
 			if (delta.type === "text_delta") {
-				return { content: delta.text };
+				return { role: "assistant", content: delta.text };
 			}
 			if (delta.type === "input_json_delta") {
 				return {
+					role: "assistant",
 					toolCall: {
 						index: result.data.index,
 						args: delta.partial_json,

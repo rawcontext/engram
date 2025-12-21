@@ -618,17 +618,3 @@ function truncatePreview(text: string, maxLength: number): string {
 	if (text.length <= maxLength) return text;
 	return `${text.slice(0, maxLength).trim()}...`;
 }
-
-/**
- * Ensure FalkorDB connection is established
- */
-export async function ensureConnection(): Promise<void> {
-	await falkor.connect();
-}
-
-/**
- * Get the FalkorDB client instance (for direct queries if needed)
- */
-export function getFalkorClient() {
-	return falkor;
-}

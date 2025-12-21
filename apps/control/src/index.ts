@@ -57,7 +57,7 @@ async function init() {
 const startConsumer = async () => {
 	await init();
 
-	const consumer = await kafka.createConsumer("control-group");
+	const consumer = await kafka.getConsumer({ groupId: "control-group" });
 	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
 
 	// Publish consumer ready status to Redis

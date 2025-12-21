@@ -4,7 +4,7 @@ Structured logging built on Pino.
 
 ## Overview
 
-Provides consistent structured logging with support for tenant isolation and trace context propagation. Works in both Node.js and browser environments.
+Provides consistent structured logging with support for tenant isolation and trace context propagation for Node.js environments.
 
 ## Installation
 
@@ -17,7 +17,7 @@ npm install @engram/logger
 ### Node.js
 
 ```typescript
-import { createNodeLogger, childLogger } from "@engram/logger";
+import { createNodeLogger } from "@engram/logger";
 
 const logger = createNodeLogger({
   service: "memory",
@@ -28,19 +28,8 @@ logger.info("Service started");
 logger.error({ err }, "Operation failed");
 
 // Create child logger with additional context
-const requestLogger = childLogger(logger, { requestId: "abc-123" });
+const requestLogger = logger.child({ component: "request-handler", requestId: "abc-123" });
 requestLogger.info("Processing request");
-```
-
-### Browser
-
-```typescript
-import { createBrowserLogger } from "@engram/logger";
-
-const logger = createBrowserLogger({
-  service: "interface",
-  level: "debug",
-});
 ```
 
 ### Context Helpers
@@ -65,7 +54,7 @@ import { pino } from "@engram/logger";
 
 // Use Pino directly for advanced configuration
 const customLogger = pino({
-  level: "trace",
+  level: "debug",
   transport: {
     target: "pino-pretty",
   },
@@ -76,9 +65,7 @@ const customLogger = pino({
 
 | Level | Use Case |
 |:------|:---------|
-| `fatal` | System is unusable |
 | `error` | Error conditions |
 | `warn` | Warning conditions |
 | `info` | Normal operations |
 | `debug` | Debug information |
-| `trace` | Detailed tracing |

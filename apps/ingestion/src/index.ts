@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
-import { type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
+import { ParsedStreamEventSchema, type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
 import { createNodeLogger, type Logger } from "@engram/logger";
 import {
 	DiffExtractor,
@@ -172,13 +173,6 @@ export class IngestionProcessor {
 				}
 			: undefined;
 
-		const usage = delta.usage
-			? {
-					input_tokens: delta.usage.input || 0,
-					output_tokens: delta.usage.output || 0,
-				}
-			: undefined;
-
 		// Determine the event type
 		// Override type if thought is present (ThinkingExtractor extracts but doesn't change type)
 		let eventType = delta.type;
@@ -190,26 +184,87 @@ export class IngestionProcessor {
 			else if (delta.content) eventType = "content";
 		}
 
-		// 6. Publish
-		await this.kafkaClient.sendEvent("parsed_events", sessionId, {
+		// Extract file path from tool call arguments if present (for Edit tool calls with diffs)
+		let diffFile: string | undefined;
+		if (delta.diff && delta.toolCall?.args) {
+			try {
+				const args = JSON.parse(delta.toolCall.args);
+				diffFile = args.file_path || args.path || args.filename;
+			} catch {
+				// JSON parse failed or incomplete, ignore
+			}
+		}
+
+		// Build metadata object with session context and provider-specific metadata
+		const metadata: Record<string, unknown> = {
+			session_id: sessionId,
+			working_dir: workingDir,
+			git_remote: gitRemote,
+			agent_type: agentType,
+		};
+
+		// Preserve provider-specific metadata (cost, timing, model, stopReason, cache metrics)
+		if (delta.cost !== undefined) {
+			metadata.cost_usd = delta.cost;
+		}
+		if (delta.timing) {
+			if (delta.timing.duration !== undefined) metadata.duration_ms = delta.timing.duration;
+			if (delta.timing.start !== undefined) metadata.timing_start = delta.timing.start;
+			if (delta.timing.end !== undefined) metadata.timing_end = delta.timing.end;
+		}
+		if (delta.model) {
+			metadata.model = delta.model;
+		}
+		if (delta.stopReason) {
+			metadata.stop_reason = delta.stopReason;
+		}
+		if (delta.session) {
+			if (delta.session.id) metadata.provider_session_id = delta.session.id;
+			if (delta.session.messageId) metadata.message_id = delta.session.messageId;
+			if (delta.session.partId) metadata.part_id = delta.session.partId;
+			if (delta.session.threadId) metadata.thread_id = delta.session.threadId;
+		}
+		if (delta.gitSnapshot) {
+			metadata.git_snapshot = delta.gitSnapshot;
+		}
+
+		// Extend usage object with cache metrics
+		const extendedUsage = delta.usage
+			? {
+					input_tokens: delta.usage.input || 0,
+					output_tokens: delta.usage.output || 0,
+					cache_read_tokens: delta.usage.cacheRead,
+					cache_write_tokens: delta.usage.cacheWrite,
+					reasoning_tokens: delta.usage.reasoning,
+					total_tokens: delta.usage.total,
+				}
+			: undefined;
+
+		// 6. Construct and validate ParsedStreamEvent
+		const parsedEvent = {
+			event_id: randomUUID(), // Generate unique event_id
 			type: eventType,
 			role: delta.role,
 			content: delta.content,
 			thought: delta.thought,
-			diff: delta.diff ? { file: undefined, hunk: delta.diff } : undefined,
+			diff: delta.diff ? { file: diffFile, hunk: delta.diff } : undefined,
 			tool_call,
-			usage,
+			usage: extendedUsage,
 			original_event_id: rawEvent.event_id,
 			timestamp: rawEvent.ingest_timestamp,
-			metadata: {
-				session_id: sessionId,
-				working_dir: workingDir,
-				git_remote: gitRemote,
-				agent_type: agentType,
-			},
-		});
+			metadata,
+		};
 
-		this.logger.info({ eventId: rawEvent.event_id, sessionId }, "Processed event");
+		// Validate against schema before publishing
+		const validatedEvent = ParsedStreamEventSchema.parse(parsedEvent);
+
+		// 7. Publish validated event
+		await this.kafkaClient.sendEvent("parsed_events", sessionId, validatedEvent);
+
+		this.logger.info(
+			{ eventId: validatedEvent.event_id, originalEventId: rawEvent.event_id, sessionId },
+			"Processed and published event",
+		);
 		return { status: "processed" };
 	}
 }
@@ -244,7 +299,7 @@ export const processEvent = processor.processEvent.bind(processor);
 
 // Kafka Consumer
 async function startConsumer() {
-	const consumer = await kafka.createConsumer("ingestion-group");
+	const consumer = await kafka.getConsumer({ groupId: "ingestion-group" });
 	await consumer.subscribe({ topic: "raw_events", fromBeginning: false });
 
 	// Publish consumer ready status to Redis

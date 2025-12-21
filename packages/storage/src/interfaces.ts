@@ -17,6 +17,7 @@ export type KafkaMessage = {
 	value: Buffer;
 	offset: string;
 	timestamp?: string;
+	headers?: Record<string, Buffer | string | undefined>;
 };
 
 /**

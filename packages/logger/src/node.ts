@@ -48,12 +48,10 @@ export function createNodeLogger(
 				level(label) {
 					// Map to Cloud Logging severity
 					const severityMap: Record<string, string> = {
-						trace: "DEBUG",
 						debug: "DEBUG",
 						info: "INFO",
 						warn: "WARNING",
 						error: "ERROR",
-						fatal: "CRITICAL",
 					};
 					return { severity: severityMap[label] || label.toUpperCase() };
 				},
@@ -85,21 +83,6 @@ export function createNodeLogger(
 	);
 
 	return logger;
-}
-
-/**
- * Create a child logger with additional context.
- *
- * @param logger - Parent logger
- * @param component - Component name
- * @param context - Additional context
- */
-export function childLogger(
-	logger: Logger,
-	component: string,
-	context?: Record<string, unknown>,
-): Logger {
-	return logger.child({ component, ...context });
 }
 
 /**

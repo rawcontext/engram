@@ -11,7 +11,8 @@ export interface ApiKeyAuthOptions {
 }
 
 export interface ApiKeyContext {
-	keyId: string;
+	keyId: string; // Full key ID (UUID)
+	keyPrefix: string; // Display prefix for logging
 	keyType: "live" | "test";
 	userId?: string;
 	scopes: string[];
@@ -103,7 +104,8 @@ export function apiKeyAuth(options: ApiKeyAuthOptions) {
 		}
 
 		const keyContext: ApiKeyContext = {
-			keyId: validatedKey.keyPrefix,
+			keyId: validatedKey.id,
+			keyPrefix: validatedKey.keyPrefix,
 			keyType: validatedKey.keyType,
 			userId: validatedKey.userId,
 			scopes: validatedKey.scopes,
@@ -113,7 +115,10 @@ export function apiKeyAuth(options: ApiKeyAuthOptions) {
 		// Store in context for downstream use
 		c.set("apiKey", keyContext);
 
-		logger.debug({ keyId: keyContext.keyId, keyType: keyContext.keyType }, "API key authenticated");
+		logger.debug(
+			{ keyId: keyContext.keyId, keyPrefix: keyContext.keyPrefix, keyType: keyContext.keyType },
+			"API key authenticated",
+		);
 
 		await next();
 	};

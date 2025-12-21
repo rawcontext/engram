@@ -51,6 +51,7 @@ export class CodexParser implements ParserStrategy {
 			if (itemType === "reasoning") {
 				return {
 					type: "thought",
+					role: "assistant",
 					thought: item.text,
 				};
 			}

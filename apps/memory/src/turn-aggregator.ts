@@ -61,7 +61,7 @@ export type NodeCreatedCallback = (
 	sessionId: string,
 	node: {
 		id: string;
-		type: "turn" | "reasoning" | "toolcall";
+		type: "turn" | "reasoning" | "toolcall" | "diffhunk";
 		label: string;
 		properties: Record<string, unknown>;
 	},
@@ -120,7 +120,7 @@ export class TurnAggregator {
 		sessionId: string,
 		node: {
 			id: string;
-			type: "turn" | "reasoning" | "toolcall";
+			type: "turn" | "reasoning" | "toolcall" | "diffhunk";
 			label: string;
 			properties: Record<string, unknown>;
 		},

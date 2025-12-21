@@ -1,4 +1,4 @@
-import type { FalkorClient } from "@engram/storage";
+import type { GraphClient } from "@engram/storage";
 import type { VirtualFileSystem } from "@engram/vfs";
 import { Rehydrator } from "./rehydrator";
 
@@ -51,8 +51,8 @@ function createSeededRandom(seed: number): () => number {
 export class ReplayEngine {
 	private rehydrator: Rehydrator;
 
-	constructor(private falkor: FalkorClient) {
-		this.rehydrator = new Rehydrator(falkor);
+	constructor(private graphClient: GraphClient) {
+		this.rehydrator = new Rehydrator({ graphClient });
 	}
 
 	/**
@@ -123,7 +123,7 @@ export class ReplayEngine {
 			       tc.result as result, tc.vt_start as vt_start
 		`;
 
-		const results = await this.falkor.query<{
+		const results = await this.graphClient.query<{
 			id: string;
 			name: string;
 			arguments: string;

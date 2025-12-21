@@ -30,12 +30,9 @@ describe("Event Schemas", () => {
 			const validEvent = {
 				event_id: "123e4567-e89b-12d3-a456-426614174000",
 				ingest_timestamp: new Date().toISOString(),
-				source_ip: "127.0.0.1",
 				provider: "anthropic",
-				protocol_version: "1.0",
 				payload: { some: "data" },
 				headers: { "x-test": "true" },
-				trace_id: "trace-123",
 			};
 			const parsed = RawStreamEventSchema.parse(validEvent);
 			expect(parsed).toEqual(validEvent);

@@ -7,8 +7,11 @@
 
 import { Command } from "commander";
 import { bestCommand } from "./commands/best.js";
+import { deleteCommand } from "./commands/delete.js";
+import { importanceCommand } from "./commands/importance.js";
 import { listCommand } from "./commands/list.js";
 import { optimizeCommand } from "./commands/optimize.js";
+import { paretoCommand } from "./commands/pareto.js";
 import { statusCommand } from "./commands/status.js";
 
 const program = new Command();
@@ -38,6 +41,9 @@ program
 	.option("--cache", "Enable evaluation caching", true)
 	.option("--no-cache", "Disable evaluation caching")
 	.option("--cache-dir <dir>", "Cache directory", ".tuner-cache")
+	// Objective weights
+	.option("--quality-weight <n>", "Quality objective weight (default: 0.7)", parseFloat)
+	.option("--latency-weight <n>", "Latency objective weight (default: 0.3)", parseFloat)
 	.action(optimizeCommand);
 
 program
@@ -63,5 +69,30 @@ program
 	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/api/v1")
 	.option("--format <type>", "Output format: table | json", "table")
 	.action(listCommand);
+
+program
+	.command("delete")
+	.description("Delete a study")
+	.argument("<study>", "Study name")
+	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/api/v1")
+	.option("--force", "Skip confirmation prompt", false)
+	.action(deleteCommand);
+
+program
+	.command("pareto")
+	.description("Get Pareto front from a multi-objective study")
+	.argument("<study>", "Study name")
+	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/api/v1")
+	.option("--format <type>", "Output format: table | json", "table")
+	.action(paretoCommand);
+
+program
+	.command("importance")
+	.description("Analyze parameter importance")
+	.argument("<study>", "Study name")
+	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/api/v1")
+	.option("--format <type>", "Output format: table | json", "table")
+	.option("--target-idx <n>", "Target objective index (for multi-objective)", parseInt, 0)
+	.action(importanceCommand);
 
 program.parse();

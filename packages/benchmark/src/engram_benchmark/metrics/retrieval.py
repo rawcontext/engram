@@ -170,16 +170,100 @@ def compute_retrieval_metrics(
             mrr=0.0,
         )
 
-    # Aggregate metrics by averaging
+    # Aggregate turn and session recall by averaging
     total_turn_recall = sum(r.turn_recall for r in retrieval_results)
     total_session_recall = sum(r.session_recall for r in retrieval_results)
-
     num_results = len(retrieval_results)
+
+    # Compute per-K metrics (recall@K, NDCG@K, MRR)
+    k_values = [1, 5, 10]
+    recall_at_k: dict[int, float] = {}
+    ndcg_at_k: dict[int, float] = {}
+    mrr_scores: list[float] = []
+
+    for result in retrieval_results:
+        # Build relevance list (1 if has_answer, 0 otherwise)
+        relevance = [1 if ctx.has_answer else 0 for ctx in result.contexts]
+
+        # Compute Recall@K for each K
+        for k in k_values:
+            # Recall@K: fraction of relevant items in top-K
+            top_k_relevance = relevance[:k]
+            recall = sum(top_k_relevance) / sum(relevance) if sum(relevance) > 0 else 0.0
+
+            if k not in recall_at_k:
+                recall_at_k[k] = 0.0
+            recall_at_k[k] += recall
+
+        # Compute NDCG@K for each K
+        for k in k_values:
+            ndcg = _compute_ndcg(relevance, k)
+            if k not in ndcg_at_k:
+                ndcg_at_k[k] = 0.0
+            ndcg_at_k[k] += ndcg
+
+        # Compute MRR (Mean Reciprocal Rank)
+        mrr = _compute_mrr(relevance)
+        mrr_scores.append(mrr)
+
+    # Average per-K metrics across all results
+    for k in k_values:
+        recall_at_k[k] /= num_results
+        ndcg_at_k[k] /= num_results
+
+    # Average MRR
+    avg_mrr = sum(mrr_scores) / num_results if mrr_scores else 0.0
 
     return RetrievalMetrics(
         turn_recall=total_turn_recall / num_results,
         session_recall=total_session_recall / num_results,
-        recall_at_k={1: 0.0, 5: 0.0, 10: 0.0},  # Would need per-K tracking
-        ndcg_at_k={1: 0.0, 5: 0.0, 10: 0.0},  # Would need per-K tracking
-        mrr=0.0,  # Would need position tracking
+        recall_at_k=recall_at_k,
+        ndcg_at_k=ndcg_at_k,
+        mrr=avg_mrr,
     )
+
+
+def _compute_ndcg(relevance: list[int], k: int) -> float:
+    """
+    Compute Normalized Discounted Cumulative Gain at K.
+
+    Args:
+            relevance: Binary relevance list (1 for relevant, 0 for not)
+            k: Cutoff rank
+
+    Returns:
+            NDCG@K score between 0 and 1
+    """
+    import numpy as np
+
+    # DCG@K: sum of (relevance / log2(rank+1)) for top-K
+    top_k = relevance[:k]
+    if not top_k:
+        return 0.0
+
+    dcg = sum(rel / np.log2(i + 2) for i, rel in enumerate(top_k))
+
+    # IDCG@K: DCG for ideal ranking (all relevant items first)
+    ideal = sorted(relevance, reverse=True)[:k]
+    idcg = sum(rel / np.log2(i + 2) for i, rel in enumerate(ideal))
+
+    if idcg == 0:
+        return 0.0
+
+    return dcg / idcg
+
+
+def _compute_mrr(relevance: list[int]) -> float:
+    """
+    Compute Mean Reciprocal Rank.
+
+    Args:
+            relevance: Binary relevance list (1 for relevant, 0 for not)
+
+    Returns:
+            MRR score (reciprocal of first relevant item's rank, or 0 if none)
+    """
+    for i, rel in enumerate(relevance):
+        if rel > 0:
+            return 1.0 / (i + 1)
+    return 0.0

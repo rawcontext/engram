@@ -58,6 +58,31 @@ const EXECUTION_TOOLS: ToolDefinition[] = [
 			required: ["session_id", "timestamp"],
 		},
 	},
+	{
+		name: "get_filesystem_snapshot",
+		description:
+			"Get a complete VFS snapshot at a specific point in time for inspection or time-travel",
+		inputSchema: {
+			type: "object",
+			properties: {
+				session_id: { type: "string", description: "Session ID" },
+				timestamp: { type: "number", description: "Epoch timestamp" },
+			},
+			required: ["session_id", "timestamp"],
+		},
+	},
+	{
+		name: "get_zipped_snapshot",
+		description: "Get a zipped VFS snapshot at a specific point in time for download or archival",
+		inputSchema: {
+			type: "object",
+			properties: {
+				session_id: { type: "string", description: "Session ID" },
+				timestamp: { type: "number", description: "Epoch timestamp" },
+			},
+			required: ["session_id", "timestamp"],
+		},
+	},
 ];
 
 /**
@@ -134,6 +159,52 @@ export class ToolRouter {
 					(args.path as string) || "/",
 				);
 				break;
+			case "get_filesystem_snapshot": {
+				try {
+					const vfs = await this.executionService.getFilesystemState(
+						args.session_id as string,
+						args.timestamp as number,
+					);
+					// Serialize complete VFS root structure for inspection
+					const snapshot = {
+						root: vfs.root,
+						timestamp: args.timestamp,
+						session_id: args.session_id,
+					};
+					return {
+						content: [{ type: "text", text: JSON.stringify(snapshot, null, 2) }],
+					};
+				} catch (e: unknown) {
+					const message = e instanceof Error ? e.message : String(e);
+					return {
+						content: [{ type: "text", text: `Error: ${message}` }],
+						isError: true,
+					};
+				}
+			}
+			case "get_zipped_snapshot": {
+				try {
+					const zipBuffer = await this.executionService.getZippedState(
+						args.session_id as string,
+						args.timestamp as number,
+					);
+					// Return base64-encoded zip for transport
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Zipped snapshot (${zipBuffer.length} bytes): ${zipBuffer.toString("base64")}`,
+							},
+						],
+					};
+				} catch (e: unknown) {
+					const message = e instanceof Error ? e.message : String(e);
+					return {
+						content: [{ type: "text", text: `Error: ${message}` }],
+						isError: true,
+					};
+				}
+			}
 			default:
 				return {
 					content: [{ type: "text", text: `Unknown execution tool: ${toolName}` }],

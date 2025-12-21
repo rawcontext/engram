@@ -1,6 +1,17 @@
 import type { GraphClient } from "@engram/storage";
 import { ulid } from "ulid";
+import { QueryBuilder } from "../queries/builder";
 import { createBitemporal, MAX_DATE, now } from "../utils/time";
+
+/**
+ * Options for time-travel queries.
+ */
+export interface TimeTravelOptions {
+	/** Valid time - when the data was valid in the real world */
+	vt?: number;
+	/** Transaction time - when the data was recorded in the database */
+	tt?: number | "current";
+}
 
 /**
  * Base class for FalkorDB repository implementations.
@@ -9,6 +20,7 @@ import { createBitemporal, MAX_DATE, now } from "../utils/time";
  * - Bitemporal property management
  * - Query parameter building
  * - Node property mapping
+ * - Time-travel query support
  */
 export abstract class FalkorBaseRepository {
 	constructor(protected readonly graphClient: GraphClient) {}
@@ -26,6 +38,13 @@ export abstract class FalkorBaseRepository {
 	 */
 	protected createBitemporal(validFrom?: number) {
 		return createBitemporal(validFrom ?? now());
+	}
+
+	/**
+	 * Create a QueryBuilder for time-travel queries.
+	 */
+	protected createQueryBuilder(): QueryBuilder {
+		return new QueryBuilder();
 	}
 
 	/**

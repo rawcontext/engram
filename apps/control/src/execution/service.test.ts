@@ -189,6 +189,38 @@ describe("ExecutionService", () => {
 		});
 	});
 
+	describe("applySearchReplace", () => {
+		it("should successfully apply search/replace", async () => {
+			const service = new ExecutionService();
+			service.writeFile("/file.txt", "Hello, World!");
+
+			const result = await service.applySearchReplace("/file.txt", "World", "Universe");
+
+			expect(result.success).toBe(true);
+			expect(result.data).toBe("Successfully replaced text in /file.txt");
+			expect(service.vfs.readFile("/file.txt")).toBe("Hello, Universe!");
+		});
+
+		it("should return error when search text not found", async () => {
+			const service = new ExecutionService();
+			service.writeFile("/file.txt", "Hello, World!");
+
+			const result = await service.applySearchReplace("/file.txt", "Missing", "Replacement");
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain("Search block not found");
+		});
+
+		it("should handle file not found", async () => {
+			const service = new ExecutionService();
+
+			const result = await service.applySearchReplace("/nonexistent.txt", "search", "replace");
+
+			expect(result.success).toBe(false);
+			expect(result.error).toBeDefined();
+		});
+	});
+
 	describe("listFilesAtTime", () => {
 		it("should return list of files", async () => {
 			const mockGraphClient: GraphClient = {

@@ -15,7 +15,7 @@ export interface HandlerContext {
 	graphClient: GraphClient;
 	/** Logger instance for debugging and error reporting */
 	logger: Logger;
-	/** Callback for emitting real-time node creation events */
+	/** Callback for emitting real-time node creation events (turn, reasoning, toolcall only) */
 	emitNodeCreated?: (node: {
 		id: string;
 		type: "turn" | "reasoning" | "toolcall";

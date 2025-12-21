@@ -14,7 +14,16 @@ export class PathTraversalError extends Error {
 
 /**
  * Node.js file system implementation of IFileSystem.
- * Wraps the native fs module for production use.
+ * Wraps the native fs module for production use with real filesystem operations.
+ *
+ * Use cases:
+ * - Production environments requiring actual file I/O
+ * - Integration with external tools that expect real files
+ * - Scenarios where persistent storage beyond process lifetime is needed
+ *
+ * Compare to:
+ * - VirtualFileSystem: In-memory only, used for agent sessions and time-travel
+ * - InMemoryFileSystem: Test implementation of IFileSystem interface
  *
  * Security: All paths are validated against the base directory to prevent
  * path traversal attacks (e.g., ../../etc/passwd).

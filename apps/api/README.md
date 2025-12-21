@@ -8,14 +8,35 @@ This is the cloud backend that powers the Engram MCP server in cloud mode. It pr
 
 ## Endpoints
 
+### Public Endpoints
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/v1/memory/remember` | Store a memory |
-| POST | `/v1/memory/recall` | Search memories |
-| POST | `/v1/memory/query` | Execute read-only Cypher |
-| POST | `/v1/memory/context` | Get comprehensive context |
 | GET | `/v1/health` | Health check |
-| GET | `/v1/usage` | Usage stats for API key |
+
+### Memory Operations
+*(Requires `memory:read` or `memory:write` scopes)*
+
+| Method | Endpoint | Description | Required Scope |
+|--------|----------|-------------|----------------|
+| POST | `/v1/memory/remember` | Store a memory | `memory:write` |
+| POST | `/v1/memory/recall` | Search memories | `memory:read` |
+| POST | `/v1/memory/query` | Execute read-only Cypher | `query:read` |
+| POST | `/v1/memory/context` | Get comprehensive context | `memory:read` |
+
+### API Key Management
+*(Requires `keys:manage` scope)*
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/v1/keys` | List API keys for authenticated user |
+| POST | `/v1/keys/revoke` | Revoke an API key |
+
+### Usage & Analytics
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/v1/usage` | Usage stats for authenticated API key |
 
 ## Authentication
 
@@ -34,6 +55,17 @@ curl -X POST https://api.example.com/v1/memory/remember \
 engram_live_<32_random_chars>  # Production
 engram_test_<32_random_chars>  # Development/Testing
 ```
+
+### API Key Scopes
+
+API keys support fine-grained access control via scopes:
+
+- `memory:read` - Read memories via recall/context endpoints
+- `memory:write` - Create new memories via remember endpoint
+- `query:read` - Execute read-only Cypher queries
+- `keys:manage` - List and revoke API keys
+
+By default, new API keys are created with `memory:read`, `memory:write`, and `query:read` scopes.
 
 ## Response Format
 
@@ -64,11 +96,15 @@ engram_test_<32_random_chars>  # Development/Testing
 
 ## Rate Limiting
 
-Requests are rate-limited per API key. Headers indicate current status:
+Requests are rate-limited per API key using a Redis-backed sliding window algorithm. This ensures consistent rate limiting across distributed API instances.
+
+Response headers indicate current status:
 
 - `X-RateLimit-Limit`: Maximum requests per minute
 - `X-RateLimit-Remaining`: Requests remaining in window
 - `X-RateLimit-Reset`: Unix timestamp when limit resets
+
+When rate limited, the API returns HTTP 429 with a `Retry-After` header indicating seconds until the limit resets.
 
 ## Environment Variables
 
@@ -76,8 +112,9 @@ Requests are rate-limited per API key. Headers indicate current status:
 |----------|-------------|---------|
 | `PORT` | Server port | `8080` |
 | `FALKORDB_URL` | FalkorDB connection | `redis://localhost:6379` |
-| `QDRANT_URL` | Qdrant connection | `http://localhost:6333` |
+| `POSTGRES_URL` | PostgreSQL connection | `postgresql://postgres:postgres@localhost:5432/engram` |
 | `REDIS_URL` | Redis for rate limiting | `redis://localhost:6379` |
+| `SEARCH_URL` | Search service URL | `http://localhost:5002` |
 | `LOG_LEVEL` | Logging level | `info` |
 | `RATE_LIMIT_RPM` | Default rate limit | `60` |
 
@@ -105,7 +142,7 @@ npm run typecheck
 docker build -t engram-api .
 docker run -p 8080:8080 \
   -e FALKORDB_URL=redis://falkordb:6379 \
-  -e QDRANT_URL=http://qdrant:6333 \
+  -e SEARCH_URL=http://search:5002 \
   engram-api
 ```
 

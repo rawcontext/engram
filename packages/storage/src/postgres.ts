@@ -4,9 +4,6 @@ const { Pool } = pg;
 
 export interface PostgresClientOptions {
 	url: string;
-	maxConnections?: number;
-	idleTimeoutMs?: number;
-	connectionTimeoutMs?: number;
 }
 
 /**
@@ -21,9 +18,9 @@ export class PostgresClient {
 	constructor(options: PostgresClientOptions) {
 		this.pool = new Pool({
 			connectionString: options.url,
-			max: options.maxConnections ?? 20,
-			idleTimeoutMillis: options.idleTimeoutMs ?? 30000,
-			connectionTimeoutMillis: options.connectionTimeoutMs ?? 5000,
+			max: 20,
+			idleTimeoutMillis: 30000,
+			connectionTimeoutMillis: 5000,
 		});
 	}
 

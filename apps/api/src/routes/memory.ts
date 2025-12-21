@@ -1,6 +1,7 @@
 import type { Logger } from "@engram/logger";
 import { Hono } from "hono";
 import { z } from "zod";
+import { requireScopes } from "../middleware/scopes";
 import type { MemoryService } from "../services/memory";
 
 // Request schemas
@@ -45,7 +46,7 @@ export function createMemoryRoutes(options: MemoryRoutesOptions) {
 	const app = new Hono();
 
 	// POST /v1/memory/remember - Store a memory
-	app.post("/remember", async (c) => {
+	app.post("/remember", requireScopes("memory:write"), async (c) => {
 		try {
 			const body = await c.req.json();
 			const parsed = RememberSchema.safeParse(body);
@@ -80,7 +81,7 @@ export function createMemoryRoutes(options: MemoryRoutesOptions) {
 	});
 
 	// POST /v1/memory/recall - Search memories
-	app.post("/recall", async (c) => {
+	app.post("/recall", requireScopes("memory:read"), async (c) => {
 		try {
 			const body = await c.req.json();
 			const parsed = RecallSchema.safeParse(body);
@@ -119,7 +120,7 @@ export function createMemoryRoutes(options: MemoryRoutesOptions) {
 	});
 
 	// POST /v1/memory/query - Execute read-only Cypher
-	app.post("/query", async (c) => {
+	app.post("/query", requireScopes("query:read"), async (c) => {
 		try {
 			const body = await c.req.json();
 			const parsed = QuerySchema.safeParse(body);
@@ -154,7 +155,7 @@ export function createMemoryRoutes(options: MemoryRoutesOptions) {
 	});
 
 	// POST /v1/memory/context - Get comprehensive context
-	app.post("/context", async (c) => {
+	app.post("/context", requireScopes("memory:read"), async (c) => {
 		try {
 			const body = await c.req.json();
 			const parsed = ContextSchema.safeParse(body);

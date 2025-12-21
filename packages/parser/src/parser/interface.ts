@@ -4,6 +4,7 @@ export interface StreamDelta {
 	content?: string;
 	thought?: string;
 	diff?: string;
+	diffFile?: string; // File path associated with diff block
 	toolCall?: {
 		index?: number;
 		id?: string;

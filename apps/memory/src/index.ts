@@ -1,5 +1,5 @@
 import { GraphPruner } from "@engram/graph";
-import { createNodeLogger, type Logger, pino } from "@engram/logger";
+import { createNodeLogger, type Logger, pino, withTraceContext } from "@engram/logger";
 import {
 	createFalkorClient,
 	createKafkaClient,
@@ -147,8 +147,10 @@ const onNodeCreated: NodeCreatedCallback = async (sessionId, node) => {
 
 const turnAggregator = new TurnAggregator(falkor, logger, onNodeCreated);
 
-// Pruning Job
-const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+// Pruning Job Configuration
+const PRUNE_INTERVAL_MS =
+	Number.parseInt(process.env.PRUNE_INTERVAL_HOURS ?? "24", 10) * 60 * 60 * 1000;
+const RETENTION_DAYS = Number.parseInt(process.env.RETENTION_DAYS ?? "30", 10);
 const TURN_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // Store interval IDs for cleanup on shutdown
@@ -159,10 +161,10 @@ function startPruningJob(): NodeJS.Timeout {
 	// Start the periodic job
 	pruningIntervalId = setInterval(async () => {
 		try {
-			logger.info("Starting scheduled graph pruning...");
-			// Default retention: 30 days
-			const deleted = await pruner.pruneHistory();
-			logger.info({ deleted }, "Graph pruning complete");
+			logger.info({ retentionDays: RETENTION_DAYS }, "Starting scheduled graph pruning...");
+			const retentionMs = RETENTION_DAYS * 24 * 60 * 60 * 1000;
+			const deleted = await pruner.pruneHistory({ retentionMs });
+			logger.info({ deleted, retentionDays: RETENTION_DAYS }, "Graph pruning complete");
 		} catch (error) {
 			logger.error({ err: error }, "Graph pruning failed");
 		}
@@ -198,7 +200,7 @@ function clearAllIntervals(): void {
 
 // Kafka Consumer for Persistence
 async function startPersistenceConsumer() {
-	const consumer = await kafka.createConsumer("memory-group");
+	const consumer = await kafka.getConsumer({ groupId: "memory-group" });
 	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
 
 	// Publish consumer ready status to Redis
@@ -238,6 +240,15 @@ async function startPersistenceConsumer() {
 
 	await consumer.run({
 		eachMessage: async ({ message }) => {
+			// Extract trace context from Kafka message headers
+			const headers = message.headers || {};
+			const traceId = headers.trace_id?.toString();
+			const correlationId = headers.correlation_id?.toString() || headers.message_id?.toString();
+
+			// Create child logger with trace context for this message
+			const messageLogger =
+				traceId || correlationId ? withTraceContext(logger, { traceId, correlationId }) : logger;
+
 			// Define event type for type safety
 			interface ParsedEvent {
 				event_id?: string;
@@ -263,7 +274,7 @@ async function startPersistenceConsumer() {
 				if (!rawValue) return;
 				event = JSON.parse(rawValue) as ParsedEvent;
 
-				logger.info(
+				messageLogger.info(
 					{
 						event_summary: {
 							id: event.event_id,
@@ -277,7 +288,7 @@ async function startPersistenceConsumer() {
 				const sessionId = event.metadata?.session_id || event.original_event_id; // ingestion might need to pass session_id better
 
 				if (!sessionId) {
-					logger.warn("Event missing session_id, skipping persistence");
+					messageLogger.warn("Event missing session_id, skipping persistence");
 					return;
 				}
 
@@ -348,27 +359,16 @@ async function startPersistenceConsumer() {
 					);
 				}
 
-				// Publish to Redis for real-time WebSocket streaming
+				// Publish 'memory.node_created' for Search Service indexing
+				// Note: Real-time graph node updates are published via TurnAggregator's onNodeCreated callback
 				const eventId = event.original_event_id || crypto.randomUUID();
 				const type = event.type || "unknown";
 				const content = event.content || event.thought || "";
 				const role = event.role || "system";
 
-				await redis.publishSessionUpdate(sessionId, {
-					type: "node_created",
-					data: {
-						id: eventId,
-						type,
-						role,
-						content,
-						timestamp: event.timestamp || new Date().toISOString(),
-					},
-				});
-
-				// Publish 'memory.node_created' for Search Service (still needed for indexing)
 				await kafka.sendEvent("memory.node_created", eventId, {
 					id: eventId,
-					labels: ["Turn"], // Changed from Thought to Turn
+					labels: ["Turn"],
 					session_id: sessionId,
 					properties: { content, role, type },
 				});

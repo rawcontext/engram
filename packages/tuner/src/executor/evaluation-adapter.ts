@@ -16,7 +16,8 @@
  * @module @engram/tuner/executor
  */
 
-import type { BenchmarkMetrics } from "./benchmark-types.js";
+import type { BenchmarkReport } from "./benchmark-types.js";
+import { extractBenchmarkMetrics } from "./benchmark-types.js";
 import type { TrialConfig } from "./config-mapper.js";
 import type { TrialMetrics } from "./trial-runner.js";
 
@@ -88,12 +89,14 @@ export function mapTrialToBenchmarkConfig(
 }
 
 /**
- * Map benchmark metrics to tuner TrialMetrics format
+ * Map benchmark report to tuner TrialMetrics format
  *
- * @param benchmarkMetrics - Metrics from benchmark run
+ * @param report - Full benchmark report
  * @returns Metrics in tuner format
  */
-export function mapBenchmarkToTrialMetrics(benchmarkMetrics: BenchmarkMetrics): TrialMetrics {
+export function mapBenchmarkToTrialMetrics(report: BenchmarkReport): TrialMetrics {
+	const benchmarkMetrics = extractBenchmarkMetrics(report);
+
 	return {
 		// Quality metrics
 		ndcg: benchmarkMetrics.ndcgAt10,
@@ -117,9 +120,7 @@ export function mapBenchmarkToTrialMetrics(benchmarkMetrics: BenchmarkMetrics): 
 /**
  * Evaluate a trial configuration using the benchmark pipeline
  *
- * This function is a placeholder. To implement, choose one of:
- * 1. CLI subprocess: Run `engram-benchmark run` with spawned process
- * 2. HTTP API: Add FastAPI server to packages/benchmark, call via fetch
+ * Executes the engram-benchmark CLI via subprocess and parses the JSON report.
  *
  * @param trialConfig - Configuration from tuner trial
  * @param options - Adapter options including dataset path
@@ -141,13 +142,103 @@ export async function evaluateWithBenchmark(
 	trialConfig: TrialConfig,
 	options: EvaluationAdapterOptions,
 ): Promise<TrialMetrics> {
-	// Map trial config to benchmark config
-	const _benchmarkConfig = mapTrialToBenchmarkConfig(trialConfig, options);
+	const { spawn } = await import("node:child_process");
+	const { mkdtemp, readFile, rm } = await import("node:fs/promises");
+	const { tmpdir } = await import("node:os");
+	const { join } = await import("node:path");
 
-	// Implementation options:
-	// 1. CLI: spawn('engram-benchmark', ['run', '--dataset', options.dataset, ...])
-	// 2. HTTP: fetch('http://localhost:8001/api/benchmark', { method: 'POST', body: ... })
-	throw new Error(
-		"evaluateWithBenchmark not implemented: integrate with engram-benchmark CLI or HTTP API",
-	);
+	// Create temporary output directory
+	const outputDir = await mkdtemp(join(tmpdir(), "engram-benchmark-"));
+
+	try {
+		// Map trial config to benchmark CLI args
+		const benchmarkConfig = mapTrialToBenchmarkConfig(trialConfig, options);
+
+		// Build CLI arguments
+		const args = [
+			"run",
+			"--dataset",
+			benchmarkConfig.dataset as string,
+			"--output-dir",
+			outputDir,
+			"--retriever",
+			"engram",
+			"--search-url",
+			(benchmarkConfig.qdrantUrl as string) ?? "http://localhost:5002",
+			"--search-strategy",
+			benchmarkConfig.hybridSearch ? "hybrid" : "dense",
+			"--top-k",
+			"10",
+		];
+
+		if (benchmarkConfig.limit) {
+			args.push("--limit", String(benchmarkConfig.limit));
+		}
+
+		if (benchmarkConfig.rerank) {
+			args.push("--rerank");
+			args.push("--rerank-tier", benchmarkConfig.rerankTier as string);
+		}
+
+		// Run benchmark CLI
+		await new Promise<void>((resolve, reject) => {
+			const proc = spawn("engram-benchmark", args, {
+				stdio: ["ignore", "pipe", "pipe"],
+			});
+
+			let lastProgress = "";
+
+			proc.stdout?.on("data", (data: Buffer) => {
+				const output = data.toString();
+				// Look for progress indicators
+				const progressMatch = output.match(/(\w+):\s*(\d+)%/);
+				if (progressMatch && options.onProgress) {
+					const [, stage, pct] = progressMatch;
+					const pctNum = Number.parseInt(pct, 10);
+					if (`${stage}:${pct}` !== lastProgress) {
+						lastProgress = `${stage}:${pct}`;
+						options.onProgress(stage, pctNum);
+					}
+				}
+			});
+
+			proc.stderr?.on("data", (data: Buffer) => {
+				console.error(`[benchmark stderr]: ${data.toString()}`);
+			});
+
+			proc.on("error", (error) => {
+				reject(
+					new Error(
+						`Failed to spawn engram-benchmark CLI: ${error.message}. Ensure it's installed via 'cd packages/benchmark && uv sync'`,
+					),
+				);
+			});
+
+			proc.on("close", (code) => {
+				if (code === 0) {
+					resolve();
+				} else {
+					reject(new Error(`Benchmark process exited with code ${code}`));
+				}
+			});
+		});
+
+		// Read the JSON report
+		const reportFiles = await import("node:fs/promises").then((fs) => fs.readdir(outputDir));
+		const jsonFile = reportFiles.find((f) => f.startsWith("report_") && f.endsWith(".json"));
+
+		if (!jsonFile) {
+			throw new Error(`No JSON report found in ${outputDir}`);
+		}
+
+		const reportPath = join(outputDir, jsonFile);
+		const reportJson = await readFile(reportPath, "utf-8");
+		const report = JSON.parse(reportJson) as BenchmarkReport;
+
+		// Map to TrialMetrics
+		return mapBenchmarkToTrialMetrics(report);
+	} finally {
+		// Cleanup temporary directory
+		await rm(outputDir, { recursive: true, force: true });
+	}
 }

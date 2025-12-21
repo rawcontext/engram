@@ -222,3 +222,9 @@ class EvaluationMetrics(BaseModel):
     by_ability: dict[MemoryAbility, AbilityMetrics]
     retrieval: RetrievalMetrics | None = None
     abstention: AbstentionMetrics | None = None
+    ragas: dict[str, float] | None = Field(
+        default=None, description="RAGAS metrics (faithfulness, context_recall, etc.)"
+    )
+    latency: dict[str, float] | None = Field(
+        default=None, description="Latency metrics (p50, p95, p99, etc.)"
+    )

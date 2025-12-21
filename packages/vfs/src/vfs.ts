@@ -17,6 +17,20 @@ export interface DirectoryNode {
 	children: Record<string, FileNode | DirectoryNode>;
 }
 
+/**
+ * Virtual in-memory file system for agent sessions and time-travel.
+ * Does not implement IFileSystem interface - designed specifically for
+ * in-memory state management and snapshot creation.
+ *
+ * Use cases:
+ * - Agent session VFS state (ExecutionService)
+ * - Time-travel and state reconstruction
+ * - Snapshot creation for bitemporal storage
+ *
+ * Compare to:
+ * - NodeFileSystem: Real filesystem I/O implementing IFileSystem
+ * - InMemoryFileSystem: Test implementation of IFileSystem interface
+ */
 export class VirtualFileSystem {
 	public root: DirectoryNode;
 	public cwd: string;

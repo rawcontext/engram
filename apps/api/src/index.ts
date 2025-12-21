@@ -7,10 +7,14 @@ import { logger as honoLogger } from "hono/logger";
 import { loadConfig } from "./config";
 import { ApiKeyRepository } from "./db/api-keys";
 import { runMigrations } from "./db/migrate";
+import { UsageRepository } from "./db/usage";
 import { apiKeyAuth } from "./middleware/auth";
 import { rateLimiter } from "./middleware/rate-limit";
+import { requireScopes } from "./middleware/scopes";
+import { createApiKeyRoutes } from "./routes/api-keys";
 import { createHealthRoutes } from "./routes/health";
 import { createMemoryRoutes } from "./routes/memory";
+import { createUsageRoutes } from "./routes/usage";
 import { MemoryService } from "./services/memory";
 
 async function main() {
@@ -33,6 +37,7 @@ async function main() {
 
 	// Initialize repositories
 	const apiKeyRepo = new ApiKeyRepository(postgresClient);
+	const usageRepo = new UsageRepository(postgresClient);
 
 	// Initialize services
 	const memoryService = new MemoryService({
@@ -55,7 +60,19 @@ async function main() {
 	const protectedRoutes = new Hono();
 	protectedRoutes.use("*", apiKeyAuth({ logger, apiKeyRepo }));
 	protectedRoutes.use("*", rateLimiter({ redisUrl: config.redisUrl, logger }));
+
+	// Memory routes - require memory scopes
 	protectedRoutes.route("/memory", createMemoryRoutes({ memoryService, logger }));
+
+	// Usage routes - any authenticated key can view usage
+	protectedRoutes.route("/usage", createUsageRoutes({ usageRepo, logger }));
+
+	// API key management routes - require keys:manage scope
+	const keyManagementRoutes = new Hono();
+	keyManagementRoutes.use("*", requireScopes("keys:manage"));
+	keyManagementRoutes.route("/", createApiKeyRoutes({ apiKeyRepo, logger }));
+	protectedRoutes.route("/keys", keyManagementRoutes);
+
 	app.route("/v1", protectedRoutes);
 
 	// Global error handler

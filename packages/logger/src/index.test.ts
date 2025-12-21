@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createLogger } from "./index";
-import { childLogger, createNodeLogger, withTenantContext, withTraceContext } from "./node";
+import { createNodeLogger, withTenantContext, withTraceContext } from "./node";
 import { DEFAULT_REDACT_PATHS, mergeRedactPaths } from "./redaction";
 
 describe("Logger Package", () => {
@@ -90,37 +90,6 @@ describe("Logger Package", () => {
 				pinoOptions: { name: "custom-name" },
 			});
 			expect(logger).toBeDefined();
-		});
-	});
-
-	describe("childLogger", () => {
-		it("should create a child logger with component", () => {
-			const baseLogger = createNodeLogger({ service: "test" });
-			const child = childLogger(baseLogger, "MyComponent");
-
-			expect(child.bindings()).toMatchObject({
-				component: "MyComponent",
-			});
-		});
-
-		it("should create a child logger with component and extra context", () => {
-			const baseLogger = createNodeLogger({ service: "test" });
-			const child = childLogger(baseLogger, "MyComponent", { requestId: "req-123" });
-
-			expect(child.bindings()).toMatchObject({
-				component: "MyComponent",
-				requestId: "req-123",
-			});
-		});
-
-		it("should preserve parent bindings in child", () => {
-			const baseLogger = createNodeLogger({ service: "parent-service" });
-			const child = childLogger(baseLogger, "ChildComponent");
-
-			expect(child.bindings()).toMatchObject({
-				service: "parent-service",
-				component: "ChildComponent",
-			});
 		});
 	});
 

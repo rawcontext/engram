@@ -33,6 +33,14 @@ export const EngramSearchSpace = {
 		step: 0.05,
 	} satisfies FloatParameter,
 
+	"search.minScore.sparse": {
+		type: "float",
+		name: "search.minScore.sparse",
+		low: 0.05,
+		high: 0.2,
+		step: 0.05,
+	} satisfies FloatParameter,
+
 	// Reranker settings (Priority 1-2)
 	"reranker.depth": {
 		type: "int",
@@ -85,6 +93,14 @@ export const EngramSearchSpace = {
 	"reranker.tiers.accurate.maxCandidates": {
 		type: "int",
 		name: "reranker.tiers.accurate.maxCandidates",
+		low: 10,
+		high: 50,
+		step: 5,
+	} satisfies IntParameter,
+
+	"reranker.tiers.code.maxCandidates": {
+		type: "int",
+		name: "reranker.tiers.code.maxCandidates",
 		low: 10,
 		high: 50,
 		step: 5,

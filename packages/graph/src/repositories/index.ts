@@ -43,6 +43,7 @@ export {
 // FalkorDB Implementations
 // =============================================================================
 
+export type { TimeTravelOptions } from "./falkor-base";
 export { FalkorBaseRepository } from "./falkor-base";
 export { FalkorReasoningRepository } from "./falkor-reasoning.repository";
 export { FalkorSessionRepository } from "./falkor-session.repository";

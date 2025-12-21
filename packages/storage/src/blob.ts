@@ -64,13 +64,6 @@ export class FileSystemBlobStore implements BlobStore {
 
 		return fs.readFile(resolvedPath, "utf-8");
 	}
-
-	/**
-	 * @deprecated Use load(uri) instead
-	 */
-	async read(uri: string): Promise<string> {
-		return this.load(uri);
-	}
 }
 
 export class GCSBlobStore implements BlobStore {
@@ -178,13 +171,6 @@ export class GCSBlobStore implements BlobStore {
 				"read",
 			);
 		}
-	}
-
-	/**
-	 * @deprecated Use load(uri) instead
-	 */
-	async read(uri: string): Promise<string> {
-		return this.load(uri);
 	}
 }
 
