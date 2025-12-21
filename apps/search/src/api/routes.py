@@ -226,7 +226,7 @@ async def embed(request: Request, embed_request: EmbedRequest) -> EmbedResponse:
 
     try:
         # Get embedder from factory
-        embedder = embedder_factory.get_embedder(embed_request.embedder_type)
+        embedder = await embedder_factory.get_embedder(embed_request.embedder_type)
 
         # Generate embedding
         embedding = await embedder.embed(embed_request.text, is_query=embed_request.is_query)
