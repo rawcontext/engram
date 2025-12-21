@@ -1,5 +1,4 @@
 import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
-import type { Context } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	handleIngestEvent,

@@ -10,6 +10,17 @@ coverage
 bun.lockb
 *.tsbuildinfo
 
+# Playwright
+playwright-report/
+test-results/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.coverage
+htmlcov/
+
 # Beads (local issue tracker)
 .beads/
 

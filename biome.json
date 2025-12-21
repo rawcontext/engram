@@ -7,7 +7,19 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!**/dist", "!**/.next", "!**/node_modules", "!**/coverage", "!**/.turbo"]
+		"includes": [
+			"**",
+			"!**/dist",
+			"!**/.next",
+			"!**/node_modules",
+			"!**/coverage",
+			"!**/.turbo",
+			"!**/playwright-report",
+			"!**/test-results",
+			"!**/.venv",
+			"!**/__pycache__",
+			"!**/*.lock"
+		]
 	},
 	"css": {
 		"linter": {
