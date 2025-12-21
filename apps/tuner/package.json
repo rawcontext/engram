@@ -1,0 +1,10 @@
+{
+	"name": "tuner-service",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"test": "uv run pytest",
+		"lint": "uv run ruff check src tests",
+		"format": "uv run ruff format src tests"
+	}
+}

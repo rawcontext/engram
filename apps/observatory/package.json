@@ -48,7 +48,10 @@
 		"build": "next build",
 		"typecheck": "tsc --noEmit",
 		"generate-docs": "next-openapi-gen generate",
+		"test:watch": "vitest",
 		"test:e2e": "playwright test",
-		"test:e2e:ui": "playwright test --ui"
+		"test:e2e:ui": "playwright test --ui",
+		"lint": "biome check .",
+		"format": "biome format ."
 	}
 }

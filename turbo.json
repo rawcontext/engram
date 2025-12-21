@@ -1,19 +1,42 @@
 {
 	"$schema": "https://turbo.build/schema.json",
-	"globalDependencies": ["**/.env"],
+	"globalDependencies": [".env", ".env.*", "tsconfig.json", "biome.json"],
+	"globalPassThroughEnv": ["CI", "NODE_ENV", "GITHUB_ACTIONS"],
+	"globalEnv": ["REDIS_URL", "QDRANT_URL"],
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": ["dist/**", ".next/**"]
+			"inputs": ["$TURBO_DEFAULT$", "!**/*.test.ts", "!**/*.spec.ts"],
+			"outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+			"outputLogs": "new-only"
 		},
-		"typecheck": {},
-		"lint": {},
+		"typecheck": {
+			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", "tsconfig.json"],
+			"outputLogs": "new-only"
+		},
+		"lint": {
+			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/biome.json"],
+			"outputLogs": "new-only"
+		},
 		"dev": {
 			"cache": false,
 			"persistent": true
 		},
+		"//#test:ts": {
+			"inputs": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "vitest.config.ts"],
+			"outputs": ["coverage/**"],
+			"env": ["VITEST"]
+		},
+		"//#test:ts:watch": {
+			"cache": false,
+			"persistent": true,
+			"interactive": true
+		},
 		"test": {
-			"outputs": ["coverage/**"]
+			"inputs": ["src/**/*.py", "tests/**/*.py", "pyproject.toml"],
+			"outputs": ["coverage/**", ".coverage", "htmlcov/**"],
+			"outputLogs": "new-only"
 		}
 	}
 }

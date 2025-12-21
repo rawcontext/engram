@@ -6,9 +6,14 @@ import json
 import logging
 import os
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any, cast, TYPE_CHECKING
 
 import redis.asyncio as redis
+
+if TYPE_CHECKING:
+    from redis.asyncio import Redis as RedisType
+else:
+    RedisType = redis.Redis
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -62,10 +67,10 @@ class RedisPublisher:
             url: Redis connection URL. Defaults to REDIS_URL env var.
         """
         self.url = url or os.environ.get("REDIS_URL", "redis://localhost:6379")
-        self._client: redis.Redis[str] | None = None
-        self._connect_promise: asyncio.Task[redis.Redis[str]] | None = None
+        self._client: RedisType | None = None
+        self._connect_promise: asyncio.Task[RedisType] | None = None
 
-    async def connect(self) -> redis.Redis[str]:
+    async def connect(self) -> RedisType:
         """Connect to Redis server with connection reuse.
 
         Returns existing connection if already open, otherwise creates new connection.
@@ -87,10 +92,10 @@ class RedisPublisher:
             return await self._connect_promise
 
         # Start new connection attempt
-        async def _connect() -> redis.Redis[str]:
+        async def _connect() -> RedisType:
             try:
                 logger.info(f"Connecting to Redis at {self.url}")
-                client = cast(redis.Redis[str], redis.from_url(self.url, decode_responses=True))
+                client = cast(RedisType, redis.from_url(self.url, decode_responses=True))
                 await client.ping()
                 self._client = client
                 logger.info("Redis publisher connected successfully")
@@ -215,12 +220,12 @@ class RedisSubscriber:
             url: Redis connection URL. Defaults to REDIS_URL env var.
         """
         self.url = url or os.environ.get("REDIS_URL", "redis://localhost:6379")
-        self._client: redis.Redis[str] | None = None
+        self._client: RedisType | None = None
         self._pubsub: redis.client.PubSub[str] | None = None
         self._subscriptions: dict[str, set[Callable[[dict[str, Any]], None]]] = {}
         self._listen_task: asyncio.Task[None] | None = None
 
-    async def connect(self) -> redis.Redis[str]:
+    async def connect(self) -> RedisType:
         """Connect to Redis server.
 
         Returns:
@@ -234,7 +239,7 @@ class RedisSubscriber:
                 pass
 
         logger.info(f"Connecting to Redis subscriber at {self.url}")
-        self._client = cast(redis.Redis[str], redis.from_url(self.url, decode_responses=True))
+        self._client = cast(RedisType, redis.from_url(self.url, decode_responses=True))
         self._pubsub = self._client.pubsub()
         await self._client.ping()
         logger.info("Redis subscriber connected successfully")

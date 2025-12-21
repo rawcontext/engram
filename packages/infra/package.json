@@ -15,12 +15,13 @@
 	"scripts": {
 		"build": "echo 'Pulumi compiles TypeScript directly'",
 		"typecheck": "tsc --noEmit",
-		"test": "vitest run",
 		"preview": "pulumi preview",
 		"up": "pulumi up",
 		"destroy": "pulumi destroy",
 		"wake": "pulumi config set devEnabled true && pulumi up --yes",
 		"sleep": "pulumi config set devEnabled false && pulumi up --yes",
-		"status": "pulumi config get devEnabled 2>/dev/null || echo 'true (default)'"
+		"status": "pulumi config get devEnabled 2>/dev/null || echo 'true (default)'",
+		"lint": "biome check .",
+		"format": "biome format ."
 	}
 }

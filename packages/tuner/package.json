@@ -22,6 +22,8 @@
 	"scripts": {
 		"build": "echo 'Build success'",
 		"typecheck": "tsc --noEmit",
-		"tune": "tsx src/cli/index.ts"
+		"tune": "tsx src/cli/index.ts",
+		"lint": "biome check .",
+		"format": "biome format ."
 	}
 }

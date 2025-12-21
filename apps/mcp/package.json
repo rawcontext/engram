@@ -62,6 +62,8 @@
 		"typecheck": "tsc --noEmit",
 		"prepublishOnly": "npm run build",
 		"start": "node dist/index.js",
-		"start:http": "node dist/http-server.js"
+		"start:http": "node dist/http-server.js",
+		"lint": "biome check .",
+		"format": "biome format ."
 	}
 }

@@ -3,7 +3,7 @@ name = "engram-search"
 version = "0.1.0"
 description = "Intelligent vector search service for Engram with embedding and reranking"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     # Web framework
     "fastapi>=0.126.0",
@@ -11,9 +11,9 @@ dependencies = [
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
     # ML inference
-    "sentence-transformers>=5.2.0",
-    "torch>=2.9.1",
-    "transformers>=4.57.3",
+    "sentence-transformers>=5.1.1,<5.2.0",
+    "torch>=2.6.0,<2.9.0",
+    "transformers>=4.41.0,<4.57.0",
     "einops>=0.8.1",
     # Reranking
     "rerankers[transformers]>=0.10.0",

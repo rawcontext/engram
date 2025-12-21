@@ -16,6 +16,8 @@
 	},
 	"scripts": {
 		"build": "echo 'Build success'",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check .",
+		"format": "biome format ."
 	}
 }
