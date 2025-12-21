@@ -1,86 +1,110 @@
-# Neural Observatory
+# Observatory
 
-**Real-time visualization of AI agent reasoning, memory, and behavior.**
+**Real-time visualization interface for AI agent sessions.**
 
-The Neural Observatory is Engram's frontend interface—a Next.js application that provides live streaming views into AI coding agent sessions. Watch thoughts unfold, explore knowledge graphs, and search across session history as agents like Claude Code, Codex, and others work through problems.
+Observatory is Engram's Next.js 16 frontend that provides live streaming views into AI coding agent sessions. Monitor reasoning traces, explore knowledge graphs, and search across session history as agents like Claude Code work through problems.
 
-> Part of the [Engram](../../README.md) system. See [Tech Stack](../../docs/TECH_STACK.md) for architecture details.
+> Part of the [Engram](../../README.md) monorepo.
 
 ---
 
-## What You'll See
+## Features
 
 ### Session Browser
-Browse active and historical sessions. Live sessions pulse green; recent sessions show amber indicators. Click any session to dive into its reasoning trace.
+- **Live sessions**: Real-time active sessions with green pulse indicators
+- **Recent sessions**: Historical sessions with timestamp and event count
+- **Activity visualization**: Dynamic bars showing event distribution
+- **Real-time updates**: WebSocket-powered, no polling
 
-### Knowledge Graph
-Interactive force-directed visualization of the session's reasoning structure:
-- **Session** (silver) → **Turn** (amber) → **Reasoning** (cyan) → **ToolCall** (violet)
-- Click nodes for details, hover to highlight parent chains
-- Pan, zoom, and minimap navigation
-
-### Thought Stream
-Timeline view of the agent's work:
-- User queries with syntax highlighting
-- Collapsible `<thinking>` blocks showing internal reasoning
-- Tool calls with status, file paths, and arguments
-- Assistant responses with token counts
+### Session Detail View
+Two-panel interface with synchronized state:
+- **Lineage Graph** (left): Interactive force-directed graph built with React Flow
+  - Node types: Session, Turn, Reasoning, ToolCall
+  - Hover synchronization between graph and timeline
+  - Click nodes for detailed JSON inspection
+  - Pan, zoom, and minimap controls
+- **Thought Stream** (right): Scrollable timeline of session events
+  - User queries with syntax highlighting
+  - Collapsible `<thinking>` blocks
+  - Tool calls with status badges and arguments
+  - Assistant responses
 
 ### Semantic Search
-Find anything across all sessions:
-- Paste a session ID to navigate directly
-- Type 3+ characters for semantic search
-- Results ranked by hybrid vector + keyword matching
-- Optional cross-encoder reranking with 4 model tiers
+- **UUID detection**: Paste session ID to navigate directly
+- **Hybrid search**: Vector + keyword matching via Python search service
+- **Reranking**: Four-tier system (fast, accurate, code, llm)
+- **Settings panel**: Configure reranker, depth, and latency budgets
+- **Debounced queries**: Optimized for fast typing
 
-### System Status
-Footer displays real-time consumer group health:
-- Green pulse: All services healthy
-- Amber: Some services down
-- Red: Services offline
+### System Health
+Footer displays real-time consumer group status:
+- **Event-driven**: Redis pub/sub, no polling
+- **Service monitoring**: ingestion, memory, search, control
+- **Visual indicators**: Green (healthy), amber (degraded), red (offline)
+- **Heartbeat tracking**: 30-second timeout detection
 
 ---
 
 ## Architecture
 
-```
-Browser ◄──WebSocket──► Interface Server ◄──Redis Pub/Sub──► Memory Service
-                              │
-                              ├── /api/ws/sessions     (session list updates)
-                              ├── /api/ws/session/:id  (per-session streaming)
-                              └── /api/ws/consumers    (health monitoring)
-```
+### Custom WebSocket Server
 
-### Why Custom WebSocket Server?
-
-Next.js API routes don't support WebSocket upgrades. We wrap Next.js in a custom HTTP server (`server.ts`) that:
-1. Handles WebSocket upgrades on `/api/ws/*` paths
-2. Passes all other requests to Next.js
+Next.js API routes don't support WebSocket upgrades. `server.ts` wraps Next.js with a custom HTTP server:
+1. Intercepts `/api/ws/*` paths for WebSocket upgrades
+2. Passes all other requests to Next.js request handler
 3. Maintains persistent Redis subscriptions
+4. Preserves HMR (Hot Module Replacement) in development
 
-### Real-Time Data Flow
+### Data Flow
 
-1. **Memory Service** persists events to FalkorDB and publishes to Redis
-2. **Redis channels** organized by session: `session:{id}:updates`, `sessions:updates`, `consumers:status`
-3. **WebSocket server** subscribes to Redis and broadcasts to connected clients
-4. **React hooks** manage WebSocket lifecycle and update UI state
-
-```typescript
-// Example: Subscribe to session updates
-const { lineage, replay, isConnected } = useSessionStream({ sessionId });
-
-// lineage: { nodes: Node[], links: Link[] }  - for graph visualization
-// replay: { timeline: Event[] }               - for thought stream
 ```
+Memory Service → Redis Pub/Sub → WebSocket Server → React Client
+     ↓
+  FalkorDB (graph storage)
+     ↓
+  Qdrant (vector search via search-py service)
+```
+
+**Redis Channels:**
+- `sessions:updates` - Global session list changes
+- `session:{id}:updates` - Per-session event stream
+- `consumers:status` - Service heartbeats and status
+
+**WebSocket Endpoints:**
+- `/api/ws/sessions` - Session list streaming
+- `/api/ws/session/:sessionId` - Individual session streaming
+- `/api/ws/consumers` - Consumer group health
+
+### REST API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/sessions` | GET | List all sessions with pagination |
+| `/api/lineage/:sessionId` | GET | Fetch session graph (fallback) |
+| `/api/replay/:sessionId` | GET | Fetch session timeline (fallback) |
+| `/api/search` | POST | Semantic search across sessions |
+| `/api/graphql` | POST | GraphQL queries (GraphQL Yoga) |
+
+### Search Integration
+
+Observatory communicates with the Python search service:
+- **Base URL**: `http://localhost:5002` (configurable via `SEARCH_URL`)
+- **Client**: `lib/search-client.ts` - HTTP wrapper with TypeScript types
+- **Strategy**: Hybrid (dense + sparse) with optional reranking
+- **Tiers**: `fast`, `accurate`, `code`, `llm` (latency/quality tradeoff)
 
 ---
 
-## Local Development
+## Development
 
 ### Prerequisites
 
-- Node.js 24+
-- Running infrastructure (`npm run infra:up` from monorepo root)
+- **Node.js**: 24+
+- **Infrastructure**: Running via `npm run infra:up` from monorepo root
+  - FalkorDB (Redis-based graph): port 6379
+  - Qdrant (vector store): port 6333
+  - Redpanda (Kafka): port 19092
+  - Redis (pub/sub): port 6379
 
 ### Setup
 
@@ -89,25 +113,38 @@ const { lineage, replay, isConnected } = useSessionStream({ sessionId });
 npm install
 npm run infra:up
 
-# Start just the observatory
+# Start observatory
 cd apps/observatory
 npm run dev
 ```
 
-Open http://localhost:5000
+**Access**: http://localhost:5000
 
 ### Environment Variables
 
-Create `.env`:
+Observatory uses `.env` symlinked to monorepo root. Key variables:
 
 ```bash
-REDIS_URL=redis://localhost:6379
-QDRANT_URL=http://localhost:6333
-REDPANDA_BROKERS=localhost:19092
-PORT=5000
+REDIS_URL=redis://localhost:6379      # FalkorDB + Redis pub/sub
+SEARCH_URL=http://localhost:5002      # Python search service
+PORT=5000                              # Observatory port
 ```
 
-### Generate Test Data
+### Scripts
+
+```bash
+npm run dev          # Start dev server with custom WebSocket handler
+npm run build        # Production build
+npm run start        # Production server
+npm run typecheck    # TypeScript validation (tsgo)
+npm run lint         # Biome linting
+npm run format       # Biome formatting
+npm test:watch       # Vitest watch mode
+npm test:e2e         # Playwright E2E tests
+npm test:e2e:ui      # Playwright UI mode
+```
+
+### Generating Test Data
 
 ```bash
 # From monorepo root
@@ -120,76 +157,202 @@ npx tsx scripts/traffic-gen.ts
 
 ```
 apps/observatory/
-├── server.ts                 # Custom HTTP + WebSocket server
+├── server.ts                       # Custom HTTP + WebSocket server
 ├── app/
-│   ├── page.tsx              # Homepage (session browser)
-│   ├── session/[id]/
-│   │   └── page.tsx          # Session detail page
+│   ├── page.tsx                    # Homepage (session browser + search)
+│   ├── session/[sessionId]/
+│   │   ├── page.tsx                # Session wrapper (async params)
+│   │   └── view.tsx                # Session detail client component
+│   ├── components/
+│   │   ├── EngramLogo.tsx          # Animated logo
+│   │   ├── NeuralBackground.tsx    # Three.js neural network
+│   │   ├── SessionBrowser.tsx      # Session card grid
+│   │   ├── SearchInput.tsx         # Search bar with mode detection
+│   │   ├── SearchSettings.tsx      # Reranker configuration
+│   │   ├── SearchResults.tsx       # Search result cards
+│   │   ├── LineageGraph/
+│   │   │   ├── index.tsx           # React Flow graph wrapper
+│   │   │   ├── NeuralNode.tsx      # Custom node renderer
+│   │   │   ├── config/nodeTypeConfig.tsx  # Node styling
+│   │   │   └── layouts/gridLayout.ts      # Layout algorithm
+│   │   ├── SessionReplay/
+│   │   │   ├── index.tsx           # Timeline container
+│   │   │   ├── Timeline.tsx        # Scrollable event list
+│   │   │   ├── StatsHeader.tsx     # Session stats
+│   │   │   └── MessageCards/       # Event card components
+│   │   └── shared/
+│   │       ├── SystemFooter.tsx    # Consumer status footer
+│   │       ├── StatusIndicator.tsx # Status badges
+│   │       ├── Particles.tsx       # Background particles
+│   │       └── design-tokens.ts    # Color system
 │   └── api/
-│       ├── ingest/route.ts   # Event ingestion endpoint
-│       ├── search/route.ts   # Semantic search
-│       ├── sessions/route.ts # Session list
-│       └── graphql/route.ts  # GraphQL queries
-├── components/
-│   ├── LineageGraph/         # Force-directed graph (React Flow)
-│   ├── SessionReplay/        # Timeline component
-│   ├── SessionBrowser.tsx    # Session cards
-│   ├── SearchInput.tsx       # Search bar
-│   ├── SearchSettings.tsx    # Reranker configuration
-│   └── shared/
-│       ├── SystemFooter.tsx  # Consumer status
-│       └── design-tokens.ts  # Design system
-├── hooks/
-│   ├── useSessionStream.ts   # Per-session WebSocket
-│   ├── useSessionsStream.ts  # Session list WebSocket
-│   ├── useConsumerStatus.ts  # Consumer health WebSocket
-│   └── useSearch.ts          # Search with debouncing
-└── lib/
-    ├── websocket-server.ts   # WebSocket handlers
-    └── graph-queries.ts      # FalkorDB Cypher queries
+│       ├── sessions/route.ts       # Session list endpoint
+│       ├── lineage/[sessionId]/route.ts  # Graph data (REST fallback)
+│       ├── replay/[sessionId]/route.ts   # Timeline data (REST fallback)
+│       ├── search/route.ts         # Search proxy to search-py
+│       ├── graphql/
+│       │   ├── route.ts            # GraphQL Yoga handler
+│       │   └── schema.ts           # Type defs + resolvers
+│       └── consumers/route.ts      # Consumer status (REST)
+├── lib/
+│   ├── websocket-server.ts         # WebSocket connection handlers
+│   ├── graph-queries.ts            # FalkorDB Cypher queries
+│   ├── search-client.ts            # HTTP client for search-py
+│   ├── api-response.ts             # Standardized API responses
+│   ├── validate.ts                 # Zod request validation
+│   ├── auth.ts                     # Clerk authentication (future)
+│   ├── rbac.ts                     # Role-based access control (future)
+│   └── types.ts                    # Shared TypeScript types
+└── hooks/
+    ├── useSessionStream.ts         # WebSocket hook for session detail
+    ├── useSessionsStream.ts        # WebSocket hook for session list
+    ├── useConsumerStatus.ts        # WebSocket hook for health status
+    ├── useSearch.ts                # Search with debouncing
+    └── useWebSocket.ts             # Low-level WebSocket connection
 ```
 
 ---
 
-## WebSocket Endpoints
+## Technology Stack
 
-### `/api/ws/sessions`
+### Core
+- **Framework**: Next.js 16.1 (App Router, React Server Components)
+- **React**: 19.2.3
+- **TypeScript**: 7 (tsgo - Go-based compiler)
+- **Node.js**: 24+ (native ESM, ESNext features)
 
-Global session list updates.
+### UI & Visualization
+- **Graph**: React Flow (`@xyflow/react`) - lineage visualization
+- **3D Background**: Three.js + React Three Fiber
+- **Icons**: Lucide React
+- **Styling**: Inline styles with design tokens (no CSS-in-JS)
 
-**Server → Client:**
-```typescript
-{ type: 'sessions', data: Session[] }
-{ type: 'session_created', data: Session }
-{ type: 'session_updated', data: Session }
-```
+### Data & State
+- **Data Fetching**: SWR (stale-while-revalidate)
+- **Real-time**: WebSocket (native `ws` library)
+- **Graph DB**: FalkorDB (via `@engram/storage`)
+- **Vector Search**: Qdrant (via Python search service)
+- **Streaming Events**: Redpanda/Kafka
 
-### `/api/ws/session/:id`
+### API & GraphQL
+- **GraphQL**: GraphQL Yoga (lightweight, standards-compliant)
+- **Validation**: Zod 4.2 (schema validation)
+- **HTTP Client**: Native `fetch`
 
-Per-session streaming.
+### Development & Testing
+- **Testing**: Vitest + Playwright
+- **Linting**: Biome (replaces ESLint + Prettier)
+- **Package Manager**: npm (workspaces)
+- **Build Tool**: Next.js + tsgo
 
-**Server → Client:**
-```typescript
-{ type: 'lineage', data: { nodes, links } }   // Initial graph
-{ type: 'replay', data: { timeline } }        // Initial timeline
-{ type: 'update', data: SessionUpdate }       // Real-time updates
-```
+### External Packages
+- **Monorepo Packages**:
+  - `@engram/events` - Event schemas
+  - `@engram/logger` - Pino structured logging
+  - `@engram/graph` - Graph models and repositories
+  - `@engram/storage` - FalkorDB, Kafka, Redis clients
 
-### `/api/ws/consumers`
+---
 
-Consumer group health (event-driven via Redis, not polling).
+## WebSocket Protocol
 
-**Server → Client:**
-```typescript
+### Session List Stream (`/api/ws/sessions`)
+
+**Initial Message:**
+```json
 {
-  type: 'status',
-  data: {
-    groups: [{ groupId, stateName, memberCount, isReady }],
-    allReady: boolean,
-    readyCount: number,
-    totalCount: number
+  "type": "sessions",
+  "data": [
+    {
+      "id": "session-uuid",
+      "title": "Session title",
+      "userId": "user-id",
+      "startedAt": 1703001600000,
+      "lastEventAt": 1703005200000,
+      "eventCount": 42,
+      "preview": "Last event preview",
+      "isActive": true
+    }
+  ]
+}
+```
+
+**Update Messages:**
+```json
+{ "type": "session_created", "data": { /* Session */ } }
+{ "type": "session_updated", "data": { /* Session */ } }
+```
+
+### Session Detail Stream (`/api/ws/session/:sessionId`)
+
+**Initial Messages:**
+```json
+{
+  "type": "lineage",
+  "data": {
+    "nodes": [
+      { "id": "node-id", "label": "Session", "type": "Session", /* ... */ }
+    ],
+    "links": [
+      { "source": "node-1", "target": "node-2", "type": "HAS_TURN" }
+    ]
   }
 }
+
+{
+  "type": "replay",
+  "data": {
+    "timeline": [
+      {
+        "id": "event-id",
+        "type": "user_query",
+        "timestamp": 1703001600000,
+        "content": "User message",
+        /* ... */
+      }
+    ]
+  }
+}
+```
+
+**Update Message:**
+```json
+{
+  "type": "update",
+  "data": {
+    "type": "new_event",
+    "sessionId": "session-uuid",
+    "event": { /* Event data */ }
+  }
+}
+```
+
+### Consumer Status Stream (`/api/ws/consumers`)
+
+**Status Message:**
+```json
+{
+  "type": "status",
+  "data": {
+    "groups": [
+      {
+        "groupId": "ingestion-group",
+        "stateName": "STABLE",
+        "memberCount": 1,
+        "isReady": true
+      }
+    ],
+    "allReady": true,
+    "readyCount": 4,
+    "totalCount": 4,
+    "timestamp": 1703001600000
+  }
+}
+```
+
+**Client Messages:**
+```json
+{ "type": "refresh" }  // Request current status
 ```
 
 ---
@@ -198,82 +361,163 @@ Consumer group health (event-driven via Redis, not polling).
 
 ### Reranker Tiers
 
-| Tier | Model | Latency | Best For |
+Observatory supports four reranker tiers (configured via `SearchSettings.tsx`):
+
+| Tier | Model | Latency | Use Case |
 |------|-------|---------|----------|
-| `fast` | MiniLM-L-6-v2 | ~50ms | Quick lookups |
-| `accurate` | BGE-reranker-base | ~150ms | Complex queries |
-| `code` | Jina-reranker-v2 | ~150ms | Code search |
-| `llm` | Grok-4 listwise | ~2s | Premium results |
+| **fast** | MiniLM-L-6-v2 | ~50ms | Quick lookups, autocomplete |
+| **accurate** | BGE-reranker-base | ~150ms | General queries (default) |
+| **code** | Jina-reranker-v2 | ~150ms | Code-specific search |
+| **llm** | Grok-4 listwise | ~2s | Premium results, complex queries |
 
-### Search Settings UI
+### Search Settings
 
-Click the settings icon next to the search bar to configure:
-- Enable/disable reranking
-- Select reranker tier
-- Adjust rerank depth (candidates to consider)
+Users can configure:
+- **Rerank**: Enable/disable reranking (default: enabled)
+- **Tier**: Reranker model tier (default: `accurate`)
+- **Depth**: Number of candidates to rerank (default: 30)
+- **Latency Budget**: Maximum reranking time in ms (optional)
+
+Settings persist to `localStorage` as `engram-search-settings`.
 
 ---
 
-## Graph Schema
+## GraphQL Schema
 
-The knowledge graph rendered in the UI follows this structure:
+Observatory exposes a GraphQL endpoint at `/api/graphql` (GraphQL Yoga):
 
+```graphql
+type Query {
+  session(id: ID!): Session
+  sessions(limit: Int): [Session!]!
+  search(query: String!, limit: Int, type: String): [SearchResult!]!
+  graph(cypher: String!): JSON  # Disabled for security
+}
+
+type Session {
+  id: ID!
+  title: String
+  userId: String
+  startedAt: Float
+  thoughts(limit: Int): [Thought!]!
+}
+
+type Thought {
+  id: ID!
+  role: String
+  content: String
+  isThinking: Boolean
+  validFrom: Float
+  validTo: Float
+  transactionStart: Float
+  transactionEnd: Float
+  causedBy: [ToolCall!]
+}
+
+type ToolCall {
+  id: ID!
+  name: String!
+  arguments: String
+  result: String
+  validFrom: Float
+  validTo: Float
+}
+
+type SearchResult {
+  id: ID!
+  content: String!
+  score: Float!
+  nodeId: String
+  sessionId: String
+  type: String
+  timestamp: Float
+}
 ```
-Session -[HAS_TURN]-> Turn -[NEXT]-> Turn
-                        |
-                        +--[HAS_REASONING]-> Reasoning
-                        |
-                        +--[HAS_TOOL_CALL]-> ToolCall
 
-Reasoning -[TRIGGERS]-> ToolCall  (lineage edge)
-```
-
-### Node Properties
-
-| Node | Key Fields |
-|------|------------|
-| **Session** | `id`, `started_at`, `last_event_at`, `agent_type` |
-| **Turn** | `sequence_index`, `user_content`, `assistant_preview` |
-| **Reasoning** | `preview`, `reasoning_type` |
-| **ToolCall** | `tool_name`, `tool_type`, `status`, `file_path` |
+**Security Note**: Arbitrary Cypher execution is disabled. Use specific resolvers instead.
 
 ---
 
 ## Troubleshooting
 
-### WebSocket won't connect
+### WebSocket Connection Issues
 
-1. Ensure you're running `npm run dev` (not `next dev` directly)
-2. Check port 5000 is available
-3. Verify Redis is running: `docker ps | grep falkor`
+**Problem**: WebSocket fails to connect
 
-### No sessions appearing
+**Solutions**:
+1. Verify you're running `npm run dev` (not `next dev` directly)
+2. Check port 5000 is available: `lsof -i :5000`
+3. Ensure Redis is running: `docker ps | grep redis`
+4. Check browser console for upgrade errors
 
-1. Check FalkorDB: `docker ps | grep falkor`
+### No Sessions Appearing
+
+**Problem**: Session browser is empty
+
+**Solutions**:
+1. Verify FalkorDB is running: `docker ps | grep falkor`
 2. Query the graph:
    ```bash
-   docker exec -it <container> redis-cli
+   docker exec -it falkordb redis-cli
    > GRAPH.QUERY engram "MATCH (s:Session) RETURN count(s)"
    ```
-3. Run traffic generator: `npx tsx scripts/traffic-gen.ts`
+3. Check memory service is running and publishing to Redis
+4. Generate test data: `npx tsx scripts/traffic-gen.ts`
 
-### Search returns no results
+### Search Returns No Results
 
-1. Verify Qdrant: `curl http://localhost:6333/collections`
-2. Check if documents are indexed (search service must be running)
-3. Try a broader query
+**Problem**: Search query returns empty results
 
-### Consumer status shows OFFLINE
+**Solutions**:
+1. Verify Qdrant is running: `curl http://localhost:6333/collections`
+2. Check search service: `curl http://localhost:5002/health`
+3. Ensure documents are indexed (search service must be running)
+4. Try a broader query or disable reranking
+5. Check search service logs for errors
 
-1. Start the services: `npm run dev` from monorepo root
-2. Check Redpanda: http://localhost:8080
-3. Verify Redis pub/sub (services publish heartbeats every 10s)
+### Consumer Status Shows OFFLINE
+
+**Problem**: Footer shows services offline
+
+**Solutions**:
+1. Start all services: `npm run dev` from monorepo root
+2. Check Redpanda: http://localhost:8080 (Redpanda Console)
+3. Verify consumer groups:
+   ```bash
+   docker exec -it redpanda rpk group list
+   ```
+4. Check Redis pub/sub:
+   ```bash
+   docker exec -it redis redis-cli
+   > PSUBSCRIBE consumers:*
+   ```
+5. Services publish heartbeats every 10s; allow 30s for timeout
+
+### Three.js Performance Issues
+
+**Problem**: Neural background animation is choppy
+
+**Solutions**:
+1. Background uses dynamic import with `ssr: false`
+2. Reduce particle count in `Particles` component
+3. Disable background in `NeuralBackground.tsx`
+4. Check GPU acceleration in browser settings
+
+---
+
+## Security Notes
+
+- **Arbitrary Cypher**: GraphQL `graph` resolver is disabled to prevent injection attacks
+- **Authentication**: Clerk integration prepared but not enforced (`lib/auth.ts`)
+- **RBAC**: Role-based access control defined but not active (`lib/rbac.ts`)
+- **Input Validation**: All API routes use Zod schema validation
+- **CORS**: Not configured (assumes same-origin or controlled proxy)
 
 ---
 
 ## Related Documentation
 
-- [Engram Overview](../../README.md) - System introduction
-- [Tech Stack](../../docs/TECH_STACK.md) - Architecture deep dive
-- [Search Service](../search/README.md) - Hybrid search details
-- [Memory Service](../memory/README.md) - Graph persistence
+- [Engram Overview](../../README.md) - Monorepo structure and system architecture
+- [Search Service](../search/README.md) - Python/FastAPI search implementation
+- [Memory Service](../memory/README.md) - Graph persistence and real-time pub/sub
+- [Agent Mandates](../../AGENTS.md) - Development guidelines and code standards

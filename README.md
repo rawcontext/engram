@@ -52,11 +52,11 @@ Engram makes this possible by treating AI agent sessions as first-class data—s
 │ • FalkorDB graph│    │ • Session mgmt      │    │ • Qdrant vectors│
 │ • Turn aggregation│  │ • Context assembly  │    │ • Hybrid search │
 │ • Redis pub/sub │    │ • MCP orchestration │    │ • Reranking     │
-│ • Bitemporal    │    │ • Decision engine   │    │ • 4 model tiers │
+│ • Bitemporal    │    │ • Decision engine   │    │ • 5 model tiers │
 └────────┬────────┘    └─────────────────────┘    └────────┬────────┘
          │                                                  │
          │ Redis pub/sub                                    │
-         ▼                                                  │
+         ▼                                                  ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        NEURAL OBSERVATORY                                    │
 │                     (Next.js + WebSocket Streaming)                          │
@@ -65,6 +65,17 @@ Engram makes this possible by treating AI agent sessions as first-class data—s
 │  │ Session     │  │ Knowledge Graph     │  │ Thought Stream             │  │
 │  │ Browser     │  │ (Force-directed)    │  │ (Timeline + Replay)        │  │
 │  └─────────────┘  └─────────────────────┘  └─────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            CLOUD API                                         │
+│                         (Hono + PostgreSQL)                                  │
+│                                                                              │
+│  • /v1/memory/remember - Store memories with deduplication                  │
+│  • /v1/memory/recall - Hybrid search with reranking                         │
+│  • /v1/memory/query - Read-only Cypher queries                              │
+│  • /v1/memory/context - Comprehensive context assembly                       │
+│  • API key auth with scopes + Redis-backed rate limiting                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -85,18 +96,19 @@ Agent types → Ingestion → Kafka → Memory → Redis → WebSocket → Brows
 Search isn't just keyword matching. Engram uses a sophisticated multi-stage retrieval pipeline:
 
 1. **Temporal parsing** extracts time references ("yesterday", "last week")
-2. **Multi-query expansion** improves recall with query variants
-3. **Dense vectors** (e5-small) for semantic similarity
+2. **Multi-query expansion** improves recall with query variants (DMQR-RAG)
+3. **Dense vectors** (BGE/Nomic) for semantic similarity
 4. **Sparse vectors** (SPLADE) for keyword matching
-5. **Learned RRF fusion** with MLP-predicted weights
-6. **Cross-encoder reranking** with 4 model tiers:
+5. **RRF fusion** combines dense and sparse results
+6. **Cross-encoder reranking** with 5 model tiers:
 
 | Tier | Model | Latency | Use Case |
 |------|-------|---------|----------|
-| `fast` | MiniLM-L-6-v2 | ~50ms | Quick queries |
-| `accurate` | BGE-reranker-base | ~150ms | Complex queries |
-| `code` | Jina-reranker-v2 | ~150ms | Code-specific |
-| `llm` | Grok-4 (listwise) | ~2s | Premium tier |
+| `fast` | FlashRank | ~10ms | Quick lookups, autocomplete |
+| `accurate` | BGE-reranker-v2-m3 | ~50ms | General queries (default) |
+| `code` | Jina-reranker-v2 | ~50ms | Code-specific search |
+| `colbert` | ColBERTv2 | ~30ms | Late interaction reranking |
+| `llm` | Grok-4 (listwise) | ~500ms | Premium tier |
 
 7. **Abstention detection** knows when not to answer (low confidence)
 
@@ -160,10 +172,11 @@ npm run dev
 
 ### Verify It's Working
 
-1. **Neural Observatory**: http://localhost:3000
-2. **Redpanda Console**: http://localhost:18081
-3. **Qdrant Dashboard**: http://localhost:6333/dashboard
-4. **Optuna Dashboard**: http://localhost:8080
+1. **Neural Observatory**: http://localhost:5000
+2. **API Service**: http://localhost:8080/v1/health
+3. **Redpanda Console**: http://localhost:18081
+4. **Qdrant Dashboard**: http://localhost:6333/dashboard
+5. **Optuna Dashboard**: http://localhost:8081
 
 ### Simulate Traffic
 
@@ -179,25 +192,27 @@ npx tsx scripts/traffic-gen.ts
 ```
 engram/
 ├── apps/
+│   ├── api/                # Cloud REST API (Hono)
 │   ├── control/            # Session orchestration, VFS & time-travel
 │   ├── ingestion/          # Event parsing & normalization
-│   ├── observatory/        # Neural Observatory (Next.js)
 │   ├── mcp/                # Engram MCP server for AI agents (remember/recall/query)
 │   ├── memory/             # Graph persistence & pub/sub
-│   ├── search/             # Vector search & reranking
-│   └── tuner/              # Python/FastAPI hyperparameter optimization
+│   ├── observatory/        # Neural Observatory (Next.js)
+│   ├── search/             # Vector search & reranking (Python/FastAPI)
+│   └── tuner/              # Hyperparameter optimization (Python/FastAPI)
 ├── packages/
-│   ├── benchmark/          # LongMemEval evaluation suite
+│   ├── benchmark/          # LongMemEval evaluation suite (Python)
 │   ├── common/             # Shared utilities & error types
 │   ├── events/             # Event schemas (Zod)
-│   ├── graph/              # Graph models, repositories & pruning
+│   ├── graph/              # Bitemporal graph models & repositories
 │   ├── infra/              # Pulumi infrastructure (GCP/K8s)
 │   ├── logger/             # Pino-based structured logging
 │   ├── parser/             # Provider parsers & extractors
 │   ├── search/             # Embedders, rerankers & fusion
 │   ├── storage/            # DB clients (Kafka, Redis, FalkorDB, Qdrant)
 │   ├── temporal/           # Time-travel service & rehydration
-│   ├── tuner/              # Tuner client package
+│   ├── tsconfig/           # Shared TypeScript configuration
+│   ├── tuner/              # Tuner client & search space builders
 │   └── vfs/                # Virtual file system
 ├── scripts/
 │   └── traffic-gen.ts      # Traffic simulation for testing
@@ -209,12 +224,13 @@ engram/
 
 | App | Description | Docs |
 |:----|:------------|:-----|
+| [api](./apps/api/) | Cloud REST API with API key auth & rate limiting | [README](./apps/api/README.md) |
 | [control](./apps/control/) | Session orchestration, VFS & time-travel | [README](./apps/control/README.md) |
 | [ingestion](./apps/ingestion/) | Event parsing & normalization pipeline | [README](./apps/ingestion/README.md) |
-| [observatory](./apps/observatory/) | Neural Observatory web UI | [README](./apps/observatory/README.md) |
 | [mcp](./apps/mcp/) | MCP server for AI agent integration | [README](./apps/mcp/README.md) |
 | [memory](./apps/memory/) | Graph persistence & real-time pub/sub | [README](./apps/memory/README.md) |
-| [search](./apps/search/) | Vector search & reranking service (Python/FastAPI) | [README](./apps/search/README.md) |
+| [observatory](./apps/observatory/) | Neural Observatory web UI | [README](./apps/observatory/README.md) |
+| [search](./apps/search/) | Vector search & reranking (Python/FastAPI) | [README](./apps/search/README.md) |
 | [tuner](./apps/tuner/) | Hyperparameter optimization (Python/FastAPI) | [README](./apps/tuner/README.md) |
 
 ### Packages
@@ -231,6 +247,7 @@ engram/
 | [search](./packages/search/) | Embedders, rerankers & fusion | [README](./packages/search/README.md) |
 | [storage](./packages/storage/) | DB clients (Kafka, Redis, FalkorDB, Qdrant) | [README](./packages/storage/README.md) |
 | [temporal](./packages/temporal/) | Time-travel service & rehydration | [README](./packages/temporal/README.md) |
+| [tsconfig](./packages/tsconfig/) | Shared TypeScript configuration | [README](./packages/tsconfig/README.md) |
 | [tuner](./packages/tuner/) | Tuner client & search space builders | [README](./packages/tuner/README.md) |
 | [vfs](./packages/vfs/) | Virtual file system | [README](./packages/vfs/README.md) |
 
@@ -247,6 +264,13 @@ engram/
 ---
 
 ## Services
+
+### API Service (Port 8080)
+
+Cloud-native REST API for programmatic access to Engram's memory system. Provides endpoints for storing/retrieving memories, executing read-only Cypher queries, and API key management with rate limiting.
+
+**Endpoints:** `/v1/memory/remember`, `/v1/memory/recall`, `/v1/memory/query`, `/v1/memory/context`
+**Authentication:** Bearer token (API keys with scopes)
 
 ### Ingestion Service (Port 5001)
 
@@ -288,7 +312,7 @@ Model Context Protocol server for AI agent integration. Provides tools for stori
 
 Python/FastAPI service for hyperparameter optimization using Optuna. Tunes RRF fusion weights, reranker thresholds, and abstention parameters based on LongMemEval benchmark results.
 
-### Neural Observatory (Port 3000)
+### Neural Observatory (Port 5000)
 
 Real-time web interface for visualizing agent sessions. Features session browser, interactive knowledge graph, thought stream timeline, and semantic search.
 
@@ -336,13 +360,14 @@ Engram runs on multiple services, all containerized for local development:
 
 | Service | Port | Purpose |
 |---------|------|---------|
+| **API** | 8080 | Cloud REST API for memory operations |
 | **Redpanda** | 9092, 19092 | Kafka-compatible event streaming |
 | **Redpanda Console** | 18081 | Kafka topic management UI |
 | **FalkorDB** | 6379 | Graph database (Redis-compatible) + Redis pub/sub |
 | **Qdrant** | 6333 | Vector database for semantic search |
 | **PostgreSQL** | 5432 | Optuna study persistence |
 | **Tuner** | 8000 | FastAPI hyperparameter optimization service |
-| **Optuna Dashboard** | 8080 | Optimization visualization |
+| **Optuna Dashboard** | 8081 | Optimization visualization |
 
 ```bash
 # Start infrastructure

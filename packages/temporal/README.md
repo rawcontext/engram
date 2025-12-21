@@ -1,10 +1,10 @@
 # @engram/temporal
 
-Bitemporal state management and time-travel capabilities.
+Bitemporal state management and time-travel capabilities for Engram.
 
 ## Overview
 
-Enables the system to query and reconstruct state at any historical point (valid time) and any point in transaction history (transaction time). Essential for debugging, auditing, and recovery.
+This package provides the core temporal infrastructure for reconstructing and replaying system state at any point in time. It enables querying historical VFS snapshots, applying incremental diffs, and replaying tool executions for debugging and verification.
 
 ## Installation
 
@@ -16,89 +16,166 @@ npm install @engram/temporal
 
 ### Rehydrator
 
-Reconstructs session VFS state at any point in time from graph snapshots.
+Reconstructs Virtual File System (VFS) state at any point in time by loading snapshots from blob storage and applying incremental diffs from the graph.
+
+**Algorithm:**
+1. Query graph for the latest `Snapshot` node before `targetTime`
+2. Load VFS state from blob storage using `vfs_state_blob_ref`
+3. Query graph for all `DiffHunk` nodes between snapshot time and target time
+4. Apply patches in chronological order using `PatchManager`
 
 ```typescript
-import { Rehydrator } from "@engram/temporal";
+import { Rehydrator, createRehydrator } from "@engram/temporal";
 
-const rehydrator = new Rehydrator(graphClient);
+// Production usage (uses default Falkor + blob store)
+const rehydrator = createRehydrator();
 
-// Reconstruct file system state at a specific time
-const vfs = await rehydrator.rehydrate({
-  sessionId: "session-123",
-  asOf: new Date("2024-01-15T10:00:00Z"),
+// With dependency injection (for testing)
+const rehydrator = createRehydrator({
+  graphClient: customGraphClient,
+  blobStore: customBlobStore,
 });
+
+// Reconstruct VFS at a specific timestamp
+const vfs = await rehydrator.rehydrate("session-123", 1640000000000);
 
 // Access files as they existed at that time
 const content = vfs.readFile("/src/index.ts");
+const files = vfs.readDir("/src");
 ```
 
-### TimeTravelManager
-
-Enables querying and replaying system state.
-
-```typescript
-import { TimeTravelManager } from "@engram/temporal";
-
-const manager = new TimeTravelManager(graphClient);
-
-// Query state at valid time
-const state = await manager.queryAtValidTime({
-  sessionId: "session-123",
-  validTime: new Date("2024-01-15T10:00:00Z"),
-});
-
-// Query state at transaction time
-const historicalView = await manager.queryAtTransactionTime({
-  sessionId: "session-123",
-  transactionTime: new Date("2024-01-16T12:00:00Z"),
-});
+**Bitemporal Filtering:**
+The Rehydrator queries only valid, non-deleted snapshots using bitemporal validation:
+```cypher
+WHERE s.vt_start <= $targetTime AND s.vt_end > $targetTime
+  AND s.tt_end = 253402300799000
 ```
 
-### ReplayManager
+### TimeTravelService
 
-Replay historical operations for debugging.
+High-level service for retrieving filesystem state at historical points.
 
 ```typescript
-import { ReplayManager } from "@engram/temporal";
+import { TimeTravelService } from "@engram/temporal";
 
-const replay = new ReplayManager(graphClient);
+const service = new TimeTravelService(rehydrator);
 
-// Replay all operations in a session
-await replay.replaySession({
-  sessionId: "session-123",
-  fromTime: startTime,
-  toTime: endTime,
-  onOperation: (op) => console.log(op),
-});
+// Get VFS at specific time
+const vfs = await service.getFilesystemState("session-123", 1640000000000);
+
+// Get compressed snapshot as Buffer
+const zippedState = await service.getZippedState("session-123", 1640000000000);
+
+// List files at a path
+const files = await service.listFiles("session-123", 1640000000000, "/src");
 ```
 
-## Error Handling
+### ReplayEngine
+
+Replays historical tool call events by rehydrating VFS state and re-executing tools. Used for debugging agent decisions and verifying reproducibility.
 
 ```typescript
-import { RehydrationError } from "@engram/temporal";
+import { ReplayEngine } from "@engram/temporal";
+
+const engine = new ReplayEngine(graphClient);
+
+// Replay a specific tool call and compare outputs
+const result = await engine.replay("session-123", "tool-call-event-id");
+
+if (result.success) {
+  console.log("Matches original:", result.matches);
+  console.log("Original output:", result.originalOutput);
+  console.log("Replay output:", result.replayOutput);
+} else {
+  console.error("Replay failed:", result.error);
+}
+```
+
+**Supported Tools:**
+- `read_file`: Reads file content from rehydrated VFS
+- `write_file`: Writes file to rehydrated VFS
+- `list_directory`: Lists directory entries from rehydrated VFS
+
+### Error Classification
+
+Utilities for distinguishing user errors from system errors.
+
+```typescript
+import { isUserError, type ExecutionError } from "@engram/temporal";
 
 try {
-  await rehydrator.rehydrate({ sessionId: "missing" });
+  // Code execution
 } catch (err) {
-  if (err instanceof RehydrationError) {
-    console.error("Failed to rehydrate:", err.message);
+  if (isUserError(err)) {
+    // User code issue: SyntaxError, ReferenceError, TypeError, etc.
+    console.log("User error:", err.message);
+  } else {
+    // System error: ECONNREFUSED, ETIMEDOUT, OOM, etc.
+    console.error("System error:", err.message);
   }
 }
 ```
 
 ## Bitemporal Concepts
 
-| Concept | Description |
-|:--------|:------------|
-| **Valid Time** | When the fact was true in the real world |
-| **Transaction Time** | When we recorded the fact in the system |
-| **As-Of Query** | What was true at a given valid time? |
-| **As-Known Query** | What did we know at a given transaction time? |
+| Concept | Description | Field |
+|:--------|:------------|:------|
+| **Valid Time Start** | When the fact became true in the real world | `vt_start` |
+| **Valid Time End** | When the fact stopped being true | `vt_end` |
+| **Transaction Time Start** | When we recorded the fact in the system | `tt_start` |
+| **Transaction Time End** | When we marked the fact as deleted | `tt_end` |
+| **As-Of Query** | What was true at a given valid time? | `WHERE vt_start <= $t AND vt_end > $t` |
+| **As-Known Query** | What did we know at a given transaction time? | `WHERE tt_start <= $t AND tt_end > $t` |
+
+All graph nodes in Engram use these four temporal fields to support time-travel queries.
+
+## Architecture
+
+**Graph Relationships:**
+```
+Session -[:TRIGGERS]-> Thought -[:NEXT*]-> Thought -[:YIELDS]-> ToolCall -[:YIELDS]-> DiffHunk
+Session -[:HAS_SNAPSHOT]-> Snapshot
+```
+
+**Rehydration Flow:**
+```
+1. Query FalkorDB for latest Snapshot (bitemporal filtered)
+2. Load VFS from blob storage (GCS/local)
+3. Query FalkorDB for DiffHunks (session-filtered, time-ordered)
+4. Apply patches with PatchManager (continue on partial failures)
+5. Return reconstructed VFS
+```
 
 ## Use Cases
 
 - **Debugging**: See exact file state when a bug was introduced
-- **Auditing**: Review what the system knew at any point
-- **Recovery**: Restore state from before an error
-- **Analysis**: Compare state across time periods
+- **Auditing**: Review what the system knew at any transaction time
+- **Recovery**: Restore VFS state from before an error occurred
+- **Verification**: Replay tool calls to verify agent decision consistency
+- **Analysis**: Compare state across time periods for behavioral analysis
+
+## Dependencies
+
+- **@engram/storage**: FalkorDB client, blob store (GCS/local)
+- **@engram/vfs**: Virtual file system, patch manager
+- **@engram/common**: RehydrationError and shared utilities
+- **zod**: Schema validation (v4.2.1+)
+
+## Exported APIs
+
+```typescript
+// Classes
+export { Rehydrator } from "./rehydrator";
+export { TimeTravelService } from "./time-travel";
+export { ReplayEngine } from "./replay";
+
+// Factories
+export { createRehydrator } from "./rehydrator";
+
+// Types
+export type { RehydratorDeps } from "./rehydrator";
+export type { ExecutionError, ExecutionErrorType } from "./errors";
+
+// Utilities
+export { isUserError } from "./errors";
+```
