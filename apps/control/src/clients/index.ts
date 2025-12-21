@@ -6,6 +6,8 @@
 
 export {
 	createSearchClient,
+	type EmbedOptions,
+	type EmbedResponse,
 	SearchClient,
 	type SearchFilters,
 	type SearchOptions,

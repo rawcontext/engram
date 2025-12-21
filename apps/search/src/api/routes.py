@@ -5,7 +5,14 @@ import time
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
-from src.api.schemas import HealthResponse, SearchRequest, SearchResponse, SearchResult
+from src.api.schemas import (
+    EmbedRequest,
+    EmbedResponse,
+    HealthResponse,
+    SearchRequest,
+    SearchResponse,
+    SearchResult,
+)
 from src.retrieval.types import SearchFilters, SearchQuery, TimeRange
 from src.utils.metrics import get_content_type, get_metrics
 
@@ -170,4 +177,67 @@ async def search(request: Request, search_request: SearchRequest) -> SearchRespo
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Search failed: {str(e)}",
+        ) from e
+
+
+@router.post("/embed", response_model=EmbedResponse)
+async def embed(request: Request, embed_request: EmbedRequest) -> EmbedResponse:
+    """Generate embedding for text.
+
+    Produces dense vector embeddings using the specified embedder type.
+    Useful for semantic similarity comparison and tool selection.
+
+    Args:
+        request: FastAPI request object with app state.
+        embed_request: Embedding request with text and embedder type.
+
+    Returns:
+        Dense embedding vector with metadata.
+
+    Raises:
+        HTTPException: If embedding generation fails.
+    """
+    start_time = time.time()
+
+    logger.info(
+        f"Embed request: text='{embed_request.text[:50]}...', "
+        f"type={embed_request.embedder_type}, is_query={embed_request.is_query}"
+    )
+
+    # Verify embedder factory is available
+    embedder_factory = getattr(request.app.state, "embedder_factory", None)
+    if embedder_factory is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Embedding service unavailable: embedder factory not initialized",
+        )
+
+    try:
+        # Get embedder from factory
+        embedder = embedder_factory.get_embedder(embed_request.embedder_type)
+
+        # Generate embedding
+        embedding = await embedder.embed(embed_request.text, is_query=embed_request.is_query)
+
+        # Calculate timing
+        took_ms = int((time.time() - start_time) * 1000)
+
+        logger.info(
+            f"Embedding completed: dimensions={len(embedding)}, took_ms={took_ms}, "
+            f"type={embed_request.embedder_type}"
+        )
+
+        return EmbedResponse(
+            embedding=embedding,
+            dimensions=len(embedding),
+            embedder_type=embed_request.embedder_type,
+            took_ms=took_ms,
+        )
+
+    except Exception as e:
+        took_ms = int((time.time() - start_time) * 1000)
+        logger.error(f"Embedding failed after {took_ms}ms: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Embedding failed: {str(e)}",
         ) from e

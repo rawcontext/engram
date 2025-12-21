@@ -62,3 +62,22 @@ class SearchResponse(BaseModel):
     results: list[SearchResult] = Field(description="Search results")
     total: int = Field(description="Total number of results")
     took_ms: int = Field(description="Time taken in milliseconds")
+
+
+class EmbedRequest(BaseModel):
+    """Embedding request payload."""
+
+    text: str = Field(description="Text to embed")
+    embedder_type: str = Field(
+        default="text", description="Embedder type: 'text', 'code', 'sparse', or 'colbert'"
+    )
+    is_query: bool = Field(default=True, description="Whether this is a query (vs document)")
+
+
+class EmbedResponse(BaseModel):
+    """Embedding response."""
+
+    embedding: list[float] = Field(description="Dense embedding vector")
+    dimensions: int = Field(description="Number of dimensions in embedding")
+    embedder_type: str = Field(description="Embedder type used")
+    took_ms: int = Field(description="Time taken in milliseconds")

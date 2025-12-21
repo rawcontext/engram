@@ -9,16 +9,19 @@
 		"./falkor": "./src/falkor.ts",
 		"./kafka": "./src/kafka.ts",
 		"./blob": "./src/blob.ts",
+		"./postgres": "./src/postgres.ts",
 		"./redis": "./src/redis.ts"
 	},
 	"devDependencies": {
-		"typescript": "^5.9.3",
+		"@engram/tsconfig": "*",
 		"@types/node": "^24.10.1",
-		"@engram/tsconfig": "*"
+		"@types/pg": "^8.11.10",
+		"typescript": "^5.9.3"
 	},
 	"dependencies": {
 		"@google-cloud/storage": "^7.14.0",
 		"falkordb": "^6.3.1",
+		"pg": "^8.13.1",
 		"redis": "^5.10.0"
 	},
 	"scripts": {

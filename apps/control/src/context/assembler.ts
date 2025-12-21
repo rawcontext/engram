@@ -1,10 +1,5 @@
 import { GraphOperationError, SearchError } from "@engram/common";
-import {
-	createFalkorClient,
-	type FalkorClient,
-	type GraphClient,
-	type ThoughtNode,
-} from "@engram/storage";
+import { createFalkorClient, type GraphClient, type ThoughtNode } from "@engram/storage";
 import type { SearchClient, SearchOptions } from "../clients/search.js";
 
 const SYSTEM_PROMPT = `You are Engram, an intelligent assistant with access to a knowledge graph and semantic memory.

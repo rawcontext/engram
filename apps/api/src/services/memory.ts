@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Logger } from "@engram/logger";
 import type { GraphClient } from "@engram/storage";
 import { ulid } from "ulid";
+import { SearchClient } from "../clients/search";
 
 // Allowed read-only Cypher keywords
 const ALLOWED_CYPHER_PREFIXES = [
@@ -34,7 +35,7 @@ const BLOCKED_CYPHER_KEYWORDS = [
 
 export interface MemoryServiceOptions {
 	graphClient: GraphClient;
-	qdrantUrl: string;
+	searchUrl: string;
 	logger: Logger;
 }
 
@@ -71,16 +72,16 @@ export interface ContextItem {
 /**
  * Memory service for Cloud API
  *
- * Provides memory operations backed by FalkorDB and Qdrant.
+ * Provides memory operations backed by FalkorDB and Qdrant via the search service.
  */
 export class MemoryService {
 	private graphClient: GraphClient;
-	private qdrantUrl: string;
+	private searchClient: SearchClient;
 	private logger: Logger;
 
 	constructor(options: MemoryServiceOptions) {
 		this.graphClient = options.graphClient;
-		this.qdrantUrl = options.qdrantUrl;
+		this.searchClient = new SearchClient(options.searchUrl, options.logger);
 		this.logger = options.logger;
 	}
 
@@ -151,63 +152,197 @@ export class MemoryService {
 	}
 
 	/**
-	 * Search memories using hybrid retrieval
+	 * Search memories using hybrid retrieval with Qdrant vector search
 	 */
 	async recall(query: string, limit = 5, filters?: RecallFilters): Promise<MemoryResult[]> {
-		// Build filter conditions
-		const conditions: string[] = ["m.vt_end > $now"];
-		const params: Record<string, unknown> = {
-			query: `%${query}%`,
-			now: Date.now(),
-			limit,
-		};
+		// Map memory type to search type for Qdrant
+		// Memory types: decision, context, insight, preference, fact
+		// Search types: thought, code, doc
+		const searchType = filters?.type ? "doc" : undefined;
 
-		if (filters?.type) {
-			conditions.push("m.type = $type");
-			params.type = filters.type;
-		}
+		// Build search filters for Qdrant
+		const searchFilters: Record<string, unknown> = {};
 
 		if (filters?.project) {
-			conditions.push("m.project = $project");
-			params.project = filters.project;
+			searchFilters.project = filters.project;
 		}
 
-		if (filters?.after) {
-			conditions.push("m.vt_start >= $after");
-			params.after = new Date(filters.after).getTime();
+		// Build time range filter if after/before specified
+		if (filters?.after || filters?.before) {
+			searchFilters.time_range = {
+				start: filters.after ? new Date(filters.after).getTime() : 0,
+				end: filters.before ? new Date(filters.before).getTime() : Date.now(),
+			};
 		}
 
-		if (filters?.before) {
-			conditions.push("m.vt_start <= $before");
-			params.before = new Date(filters.before).getTime();
+		try {
+			// Perform hybrid vector search via search service
+			const searchResponse = await this.searchClient.search({
+				text: query,
+				limit: limit * 2, // Oversample for better recall
+				threshold: 0.5,
+				strategy: "hybrid",
+				rerank: true,
+				rerank_tier: "fast",
+				filters: {
+					type: searchType,
+					...searchFilters,
+				},
+			});
+
+			this.logger.debug(
+				{ count: searchResponse.results.length, took_ms: searchResponse.took_ms },
+				"Vector search completed",
+			);
+
+			// Also perform keyword search in graph as fallback
+			const graphConditions: string[] = ["m.vt_end > $now"];
+			const graphParams: Record<string, unknown> = {
+				query: query.toLowerCase(),
+				now: Date.now(),
+				limit,
+			};
+
+			if (filters?.type) {
+				graphConditions.push("m.type = $type");
+				graphParams.type = filters.type;
+			}
+
+			if (filters?.project) {
+				graphConditions.push("m.project = $project");
+				graphParams.project = filters.project;
+			}
+
+			if (filters?.after) {
+				graphConditions.push("m.vt_start >= $after");
+				graphParams.after = new Date(filters.after).getTime();
+			}
+
+			if (filters?.before) {
+				graphConditions.push("m.vt_start <= $before");
+				graphParams.before = new Date(filters.before).getTime();
+			}
+
+			const whereClause = graphConditions.join(" AND ");
+
+			const graphResults = await this.graphClient.query<{
+				id: string;
+				content: string;
+				type: string;
+				tags: string[];
+				created_at: string;
+			}>(
+				`MATCH (m:Memory)
+				WHERE ${whereClause} AND m.content CONTAINS $query
+				RETURN m.id as id, m.content as content, m.type as type, m.tags as tags, m.created_at as created_at
+				ORDER BY m.vt_start DESC
+				LIMIT $limit`,
+				graphParams,
+			);
+
+			// Merge and dedupe results (prioritize vector search)
+			const resultMap = new Map<string, MemoryResult>();
+
+			// Add vector search results (higher priority)
+			for (const result of searchResponse.results) {
+				const payload = result.payload as {
+					node_id?: string;
+					content?: string;
+					type?: string;
+					tags?: string[];
+					timestamp?: number;
+					project?: string;
+				};
+
+				if (payload?.node_id && payload?.content) {
+					resultMap.set(payload.node_id, {
+						id: payload.node_id,
+						content: payload.content,
+						type: payload.type ?? "unknown",
+						tags: payload.tags ?? [],
+						score: result.reranker_score ?? result.score,
+						createdAt: payload.timestamp
+							? new Date(payload.timestamp).toISOString()
+							: new Date().toISOString(),
+					});
+				}
+			}
+
+			// Add graph results (lower priority, won't override)
+			for (const result of graphResults) {
+				if (!resultMap.has(result.id)) {
+					resultMap.set(result.id, {
+						id: result.id,
+						content: result.content,
+						type: result.type,
+						tags: result.tags ?? [],
+						score: 0.5, // Default score for keyword matches
+						createdAt: result.created_at,
+					});
+				}
+			}
+
+			// Sort by score and limit
+			return Array.from(resultMap.values())
+				.sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+				.slice(0, limit);
+		} catch (error) {
+			// Fallback to keyword search if vector search fails
+			this.logger.warn({ error }, "Vector search failed, falling back to keyword search");
+
+			const graphConditions: string[] = ["m.vt_end > $now"];
+			const graphParams: Record<string, unknown> = {
+				query: query.toLowerCase(),
+				now: Date.now(),
+				limit,
+			};
+
+			if (filters?.type) {
+				graphConditions.push("m.type = $type");
+				graphParams.type = filters.type;
+			}
+
+			if (filters?.project) {
+				graphConditions.push("m.project = $project");
+				graphParams.project = filters.project;
+			}
+
+			if (filters?.after) {
+				graphConditions.push("m.vt_start >= $after");
+				graphParams.after = new Date(filters.after).getTime();
+			}
+
+			if (filters?.before) {
+				graphConditions.push("m.vt_start <= $before");
+				graphParams.before = new Date(filters.before).getTime();
+			}
+
+			const whereClause = graphConditions.join(" AND ");
+
+			const results = await this.graphClient.query<{
+				id: string;
+				content: string;
+				type: string;
+				tags: string[];
+				created_at: string;
+			}>(
+				`MATCH (m:Memory)
+				WHERE ${whereClause} AND m.content CONTAINS $query
+				RETURN m.id as id, m.content as content, m.type as type, m.tags as tags, m.created_at as created_at
+				ORDER BY m.vt_start DESC
+				LIMIT $limit`,
+				graphParams,
+			);
+
+			return results.map((r, i) => ({
+				id: r.id,
+				content: r.content,
+				type: r.type,
+				tags: r.tags ?? [],
+				score: 1 - i * 0.1, // Simple rank-based scoring
+				createdAt: r.created_at,
+			}));
 		}
-
-		const whereClause = conditions.join(" AND ");
-
-		// Simple keyword search (TODO: integrate Qdrant for vector search)
-		const results = await this.graphClient.query<{
-			id: string;
-			content: string;
-			type: string;
-			tags: string[];
-			created_at: string;
-		}>(
-			`MATCH (m:Memory)
-			WHERE ${whereClause} AND m.content CONTAINS $query
-			RETURN m.id as id, m.content as content, m.type as type, m.tags as tags, m.created_at as created_at
-			ORDER BY m.vt_start DESC
-			LIMIT $limit`,
-			params,
-		);
-
-		return results.map((r, i) => ({
-			id: r.id,
-			content: r.content,
-			type: r.type,
-			tags: r.tags ?? [],
-			score: 1 - i * 0.1, // Simple rank-based scoring
-			createdAt: r.created_at,
-		}));
 	}
 
 	/**

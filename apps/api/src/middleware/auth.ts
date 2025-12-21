@@ -1,11 +1,13 @@
 import type { Logger } from "@engram/logger";
 import type { Context, Next } from "hono";
+import type { ApiKey, ApiKeyRepository } from "../db/api-keys";
 
 // API key prefix pattern
 const API_KEY_PATTERN = /^engram_(live|test)_[a-zA-Z0-9]{32}$/;
 
 export interface ApiKeyAuthOptions {
 	logger: Logger;
+	apiKeyRepo: ApiKeyRepository;
 }
 
 export interface ApiKeyContext {
@@ -19,11 +21,11 @@ export interface ApiKeyContext {
 /**
  * API key authentication middleware
  *
- * Validates the Authorization header and extracts API key metadata.
+ * Validates the Authorization header against the database and extracts API key metadata.
  * Sets the key context on the request for downstream use.
  */
 export function apiKeyAuth(options: ApiKeyAuthOptions) {
-	const { logger } = options;
+	const { logger, apiKeyRepo } = options;
 
 	return async (c: Context, next: Next) => {
 		const authHeader = c.req.header("Authorization");
@@ -69,24 +71,49 @@ export function apiKeyAuth(options: ApiKeyAuthOptions) {
 			);
 		}
 
-		// Extract key type from prefix
-		const keyType = apiKey.startsWith("engram_live_") ? "live" : "test";
+		// Validate key against database
+		let validatedKey: ApiKey | null;
+		try {
+			validatedKey = await apiKeyRepo.validate(apiKey);
+		} catch (error) {
+			logger.error({ error }, "Failed to validate API key");
+			return c.json(
+				{
+					success: false,
+					error: {
+						code: "INTERNAL_ERROR",
+						message: "Failed to validate API key",
+					},
+				},
+				500,
+			);
+		}
 
-		// TODO: Validate key against database
-		// For now, accept any properly formatted key
-		// In production: look up key in database, check expiry, get user/scopes
+		if (!validatedKey) {
+			return c.json(
+				{
+					success: false,
+					error: {
+						code: "UNAUTHORIZED",
+						message: "Invalid or expired API key",
+					},
+				},
+				401,
+			);
+		}
 
 		const keyContext: ApiKeyContext = {
-			keyId: `${apiKey.slice(0, 20)}...`, // Truncated for logging
-			keyType,
-			scopes: ["memory:read", "memory:write", "query:read"],
-			rateLimit: 60, // RPM
+			keyId: validatedKey.keyPrefix,
+			keyType: validatedKey.keyType,
+			userId: validatedKey.userId,
+			scopes: validatedKey.scopes,
+			rateLimit: validatedKey.rateLimitRpm,
 		};
 
 		// Store in context for downstream use
 		c.set("apiKey", keyContext);
 
-		logger.debug({ keyId: keyContext.keyId, keyType }, "API key authenticated");
+		logger.debug({ keyId: keyContext.keyId, keyType: keyContext.keyType }, "API key authenticated");
 
 		await next();
 	};

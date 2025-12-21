@@ -16,6 +16,7 @@
  * @module @engram/tuner/executor
  */
 
+import type { BenchmarkMetrics } from "./benchmark-types.js";
 import type { TrialConfig } from "./config-mapper.js";
 import type { TrialMetrics } from "./trial-runner.js";
 
@@ -85,26 +86,6 @@ export function mapTrialToBenchmarkConfig(
 		temporalAware: false,
 	};
 }
-
-/**
- * Metrics returned from benchmark evaluation.
- * These map to the metrics computed by engram-benchmark.
- */
-type BenchmarkMetrics = {
-	accuracy: number;
-	recallAt1: number;
-	recallAt5: number;
-	recallAt10: number;
-	ndcgAt10: number;
-	mrr: number;
-	abstentionPrecision: number;
-	abstentionRecall: number;
-	abstentionF1: number;
-	p50Latency: number;
-	p95Latency: number;
-	p99Latency: number;
-	totalDurationMs: number;
-};
 
 /**
  * Map benchmark metrics to tuner TrialMetrics format

@@ -16,4 +16,5 @@ export type {
 } from "./interfaces";
 export * from "./interfaces";
 export * from "./kafka";
+export * from "./postgres";
 export * from "./redis";

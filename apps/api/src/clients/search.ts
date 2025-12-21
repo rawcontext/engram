@@ -2,12 +2,12 @@
  * HTTP client for the Python search service.
  *
  * Provides search functionality by calling the search service API at port 5002.
- * This replaces the deprecated TypeScript @engram/search package.
+ * This replaces direct Qdrant integration with a service-oriented approach.
  *
- * @module @engram/control/clients/search
+ * @module @engram/api/clients/search
  */
 
-import { createNodeLogger, type Logger } from "@engram/logger";
+import type { Logger } from "@engram/logger";
 
 export interface SearchFilters {
 	session_id?: string;
@@ -45,25 +45,12 @@ export interface SearchResponse {
 	took_ms: number;
 }
 
-export interface EmbedOptions {
-	text: string;
-	embedder_type?: "text" | "code" | "sparse" | "colbert";
-	is_query?: boolean;
-}
-
-export interface EmbedResponse {
-	embedding: number[];
-	dimensions: number;
-	embedder_type: string;
-	took_ms: number;
-}
-
 /**
  * HTTP client for the Python search service.
  *
  * @example
  * ```ts
- * const client = new SearchClient("http://localhost:5002");
+ * const client = new SearchClient("http://localhost:5002", logger);
  * const response = await client.search({ text: "user question", limit: 5 });
  * console.log(response.results);
  * ```
@@ -72,11 +59,9 @@ export class SearchClient {
 	private baseUrl: string;
 	private logger: Logger;
 
-	constructor(baseUrl: string, logger?: Logger) {
+	constructor(baseUrl: string, logger: Logger) {
 		this.baseUrl = baseUrl.replace(/\/$/, "");
-		this.logger =
-			logger ??
-			createNodeLogger({ service: "control-service", base: { component: "SearchClient" } });
+		this.logger = logger;
 	}
 
 	/**
@@ -122,46 +107,6 @@ export class SearchClient {
 	}
 
 	/**
-	 * Generate an embedding for the given text.
-	 */
-	async embed(options: EmbedOptions): Promise<EmbedResponse> {
-		const url = `${this.baseUrl}/embed`;
-
-		const requestBody = {
-			text: options.text,
-			embedder_type: options.embedder_type ?? "text",
-			is_query: options.is_query ?? true,
-		};
-
-		this.logger.debug({ url, text: options.text.slice(0, 50) }, "Sending embed request");
-
-		try {
-			const response = await fetch(url, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(requestBody),
-			});
-
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(`Embed request failed with status ${response.status}: ${errorText}`);
-			}
-
-			const data = (await response.json()) as EmbedResponse;
-
-			this.logger.debug(
-				{ dimensions: data.dimensions, took_ms: data.took_ms },
-				"Embed request completed",
-			);
-
-			return data;
-		} catch (error) {
-			this.logger.error({ error, url }, "Embed request failed");
-			throw error;
-		}
-	}
-
-	/**
 	 * Check if the search service is healthy.
 	 */
 	async health(): Promise<{ status: string; qdrant_connected: boolean }> {
@@ -177,12 +122,4 @@ export class SearchClient {
 			return { status: "unreachable", qdrant_connected: false };
 		}
 	}
-}
-
-/**
- * Create a SearchClient with default configuration.
- */
-export function createSearchClient(baseUrl?: string): SearchClient {
-	const url = baseUrl ?? process.env.SEARCH_URL ?? "http://localhost:5002";
-	return new SearchClient(url);
 }

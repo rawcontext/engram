@@ -1,10 +1,12 @@
 import { createLogger } from "@engram/logger";
-import { FalkorClient } from "@engram/storage";
+import { FalkorClient, PostgresClient } from "@engram/storage";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger as honoLogger } from "hono/logger";
 import { loadConfig } from "./config";
+import { ApiKeyRepository } from "./db/api-keys";
+import { runMigrations } from "./db/migrate";
 import { apiKeyAuth } from "./middleware/auth";
 import { rateLimiter } from "./middleware/rate-limit";
 import { createHealthRoutes } from "./routes/health";
@@ -22,10 +24,20 @@ async function main() {
 	await graphClient.connect();
 	logger.info("Connected to FalkorDB");
 
+	const postgresClient = new PostgresClient({ url: config.postgresUrl });
+	await postgresClient.connect();
+	logger.info("Connected to PostgreSQL");
+
+	// Run database migrations
+	await runMigrations(postgresClient, logger);
+
+	// Initialize repositories
+	const apiKeyRepo = new ApiKeyRepository(postgresClient);
+
 	// Initialize services
 	const memoryService = new MemoryService({
 		graphClient,
-		qdrantUrl: config.qdrantUrl,
+		searchUrl: config.searchUrl,
 		logger,
 	});
 
@@ -41,7 +53,7 @@ async function main() {
 
 	// Protected routes
 	const protectedRoutes = new Hono();
-	protectedRoutes.use("*", apiKeyAuth({ logger }));
+	protectedRoutes.use("*", apiKeyAuth({ logger, apiKeyRepo }));
 	protectedRoutes.use("*", rateLimiter({ redisUrl: config.redisUrl, logger }));
 	protectedRoutes.route("/memory", createMemoryRoutes({ memoryService, logger }));
 	app.route("/v1", protectedRoutes);
@@ -83,6 +95,7 @@ async function main() {
 	const shutdown = async () => {
 		logger.info("Shutting down...");
 		await graphClient.disconnect();
+		await postgresClient.disconnect();
 		process.exit(0);
 	};
 

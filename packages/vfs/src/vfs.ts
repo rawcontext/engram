@@ -32,17 +32,17 @@ export class VirtualFileSystem {
 	}
 
 	public mkdir(path: string): void {
-		// TODO: Implement recursive mkdir
-		// For V1, simplified: assumes one level
-		// Real implementation needs full path traversal
 		const parts = this.splitPath(path);
 		let current = this.root;
+
 		for (const part of parts) {
 			if (!current.children[part]) {
 				current.children[part] = { type: "directory", name: part, children: {} };
 			}
 			const next = current.children[part];
-			if (next.type !== "directory") throw new Error(`Not a directory: ${part}`);
+			if (next.type !== "directory") {
+				throw new Error(`Not a directory: ${part}`);
+			}
 			current = next;
 		}
 	}
@@ -52,18 +52,17 @@ export class VirtualFileSystem {
 		const fileName = parts.pop() || "";
 		if (!fileName) throw new Error("Invalid path");
 
-		let current = this.root;
-		for (const part of parts) {
-			if (!current.children[part]) {
-				this.mkdir(this.joinPath(parts)); // Recursively create?
-				// Re-traverse or just create here
-				current.children[part] = { type: "directory", name: part, children: {} };
-			}
-			const next = current.children[part];
-			if (next.type !== "directory") throw new Error(`Not a directory: ${part}`);
-			current = next;
+		if (parts.length > 0) {
+			this.mkdir(this.joinPath(parts));
 		}
-		current.children[fileName] = {
+
+		const parentPath = parts.length > 0 ? this.joinPath(parts) : "/";
+		const parent = this.resolve(parentPath);
+		if (!parent || parent.type !== "directory") {
+			throw new Error(`Not a directory: ${parentPath}`);
+		}
+
+		parent.children[fileName] = {
 			type: "file",
 			name: fileName,
 			content,

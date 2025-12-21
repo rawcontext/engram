@@ -6,8 +6,12 @@ export const ConfigSchema = z.object({
 
 	// Database connections
 	falkordbUrl: z.string().url().default("redis://localhost:6379"),
+	postgresUrl: z.string().default("postgresql://postgres:postgres@localhost:5432/engram"),
 	qdrantUrl: z.string().url().default("http://localhost:6333"),
 	redisUrl: z.string().url().default("redis://localhost:6379"),
+
+	// Search service
+	searchUrl: z.string().url().default("http://localhost:5002"),
 
 	// Logging
 	logLevel: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
@@ -22,8 +26,10 @@ export function loadConfig(): Config {
 	return ConfigSchema.parse({
 		port: process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 8080,
 		falkordbUrl: process.env.FALKORDB_URL ?? "redis://localhost:6379",
+		postgresUrl: process.env.POSTGRES_URL ?? "postgresql://postgres:postgres@localhost:5432/engram",
 		qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6333",
 		redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
+		searchUrl: process.env.SEARCH_URL ?? "http://localhost:5002",
 		logLevel: process.env.LOG_LEVEL ?? "info",
 		rateLimitRpm: process.env.RATE_LIMIT_RPM ? Number.parseInt(process.env.RATE_LIMIT_RPM, 10) : 60,
 	});
