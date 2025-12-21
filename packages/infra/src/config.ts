@@ -28,6 +28,12 @@ export const gkeConfig = {
 	deletionProtection: environment === "prod",
 };
 
+// Database Configuration
+export const databaseConfig = {
+	// Use 3 replicas for production HA, 1 for dev/test
+	replicas: environment === "prod" ? 3 : 1,
+};
+
 // Common Labels (must be lowercase for GCP)
 export const commonLabels = {
 	project: "engram",

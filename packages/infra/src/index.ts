@@ -19,17 +19,26 @@
  */
 
 // Re-export configuration for reference
-export { commonLabels, environment, gcpProject, gcpRegion } from "./config";
+export { commonLabels, databaseConfig, environment, gcpProject, gcpRegion } from "./config";
 // Re-export GKE resources
 export { cluster, kubeconfig } from "./gke";
 // Re-export Kubernetes workloads (endpoints only - resources are internal)
 export {
+	// Backups
+	backupBucket,
+	backupSchedules,
 	// Dashboard
 	dashboardEndpoint,
 	// FalkorDB
 	falkordbEndpoint,
+	// Ingestion
+	ingestionServiceAccount,
 	// K8s Provider
 	k8sProvider,
+	// MCP
+	mcpServiceAccount,
+	// Memory
+	memoryServiceAccount,
 	// Namespace
 	namespace,
 	namespaceName,
@@ -39,6 +48,8 @@ export {
 	// Redpanda
 	redpandaEndpoint,
 	redpandaSchemaRegistryEndpoint,
+	// Search
+	searchServiceAccount,
 	// Tuner
 	tunerEndpoint,
 } from "./k8s";

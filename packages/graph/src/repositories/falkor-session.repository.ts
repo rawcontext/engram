@@ -167,6 +167,34 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 	}
 
 	async update(id: string, updates: UpdateSessionInput): Promise<Session> {
+		const maxRetries = 3;
+		let lastError: Error | null = null;
+
+		for (let attempt = 0; attempt < maxRetries; attempt++) {
+			try {
+				return await this.performUpdate(id, updates);
+			} catch (error) {
+				if (error instanceof Error && error.message.includes("Concurrent modification")) {
+					lastError = error;
+					// Exponential backoff: 10ms, 20ms, 40ms
+					await new Promise((resolve) => setTimeout(resolve, 10 * 2 ** attempt));
+					continue;
+				}
+				// Non-retryable error, throw immediately
+				throw error;
+			}
+		}
+
+		throw new Error(
+			`Failed to update session ${id} after ${maxRetries} attempts due to concurrent modifications. Last error: ${lastError?.message}`,
+		);
+	}
+
+	/**
+	 * Internal method to perform a single update attempt.
+	 * Separated for retry logic in the public update() method.
+	 */
+	private async performUpdate(id: string, updates: UpdateSessionInput): Promise<Session> {
 		const existing = await this.findById(id);
 		if (!existing) {
 			throw new Error(`Session not found: ${id}`);

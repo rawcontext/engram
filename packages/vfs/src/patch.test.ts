@@ -4,30 +4,30 @@ import { VirtualFileSystem } from "./vfs";
 
 describe("PatchManager", () => {
 	describe("applySearchReplace", () => {
-		it("should apply search and replace", () => {
+		it("should apply search and replace", async () => {
 			const vfs = new VirtualFileSystem();
 			vfs.writeFile("/code.ts", "const x = 1;");
 			const pm = new PatchManager(vfs);
 
-			pm.applySearchReplace("/code.ts", "const x = 1;", "const x = 2;");
+			await pm.applySearchReplace("/code.ts", "const x = 1;", "const x = 2;");
 			expect(vfs.readFile("/code.ts")).toBe("const x = 2;");
 		});
 
-		it("should replace first occurrence only", () => {
+		it("should replace first occurrence only", async () => {
 			const vfs = new VirtualFileSystem();
 			vfs.writeFile("/code.ts", "const x = 1;\nconst x = 1;");
 			const pm = new PatchManager(vfs);
 
-			pm.applySearchReplace("/code.ts", "const x = 1;", "const x = 2;");
+			await pm.applySearchReplace("/code.ts", "const x = 1;", "const x = 2;");
 			expect(vfs.readFile("/code.ts")).toBe("const x = 2;\nconst x = 1;");
 		});
 
-		it("should handle multiline search and replace", () => {
+		it("should handle multiline search and replace", async () => {
 			const vfs = new VirtualFileSystem();
 			vfs.writeFile("/code.ts", "function foo() {\n  return 1;\n}");
 			const pm = new PatchManager(vfs);
 
-			pm.applySearchReplace(
+			await pm.applySearchReplace(
 				"/code.ts",
 				"function foo() {\n  return 1;\n}",
 				"function foo() {\n  return 2;\n}",
@@ -35,31 +35,31 @@ describe("PatchManager", () => {
 			expect(vfs.readFile("/code.ts")).toBe("function foo() {\n  return 2;\n}");
 		});
 
-		it("should throw if search block not found", () => {
+		it("should throw if search block not found", async () => {
 			const vfs = new VirtualFileSystem();
 			vfs.writeFile("/code.ts", "const x = 1;");
 			const pm = new PatchManager(vfs);
 
-			expect(() => pm.applySearchReplace("/code.ts", "const y = 1;", "const y = 2;")).toThrow(
-				"Search block not found",
-			);
+			await expect(
+				pm.applySearchReplace("/code.ts", "const y = 1;", "const y = 2;"),
+			).rejects.toThrow("Search block not found");
 		});
 
-		it("should handle empty replacement", () => {
+		it("should handle empty replacement", async () => {
 			const vfs = new VirtualFileSystem();
 			vfs.writeFile("/code.ts", "const x = 1;");
 			const pm = new PatchManager(vfs);
 
-			pm.applySearchReplace("/code.ts", "const x = 1;", "");
+			await pm.applySearchReplace("/code.ts", "const x = 1;", "");
 			expect(vfs.readFile("/code.ts")).toBe("");
 		});
 
-		it("should handle special regex characters in search", () => {
+		it("should handle special regex characters in search", async () => {
 			const vfs = new VirtualFileSystem();
 			vfs.writeFile("/code.ts", "const regex = /[a-z]+/;");
 			const pm = new PatchManager(vfs);
 
-			pm.applySearchReplace("/code.ts", "const regex = /[a-z]+/;", "const regex = /[A-Z]+/;");
+			await pm.applySearchReplace("/code.ts", "const regex = /[a-z]+/;", "const regex = /[A-Z]+/;");
 			expect(vfs.readFile("/code.ts")).toBe("const regex = /[A-Z]+/;");
 		});
 	});
@@ -140,7 +140,27 @@ describe("PatchManager", () => {
 +modified
  line3`;
 
-			expect(() => pm.applyUnifiedDiff("/file.txt", patch)).toThrow("Failed to apply patch");
+			// Now throws early with validation error (catches off-by-one boundary errors)
+			expect(() => pm.applyUnifiedDiff("/file.txt", patch)).toThrow("Invalid hunk");
+		});
+
+		it("should catch off-by-one errors in diff boundaries", () => {
+			const vfs = new VirtualFileSystem();
+			vfs.writeFile("/file.txt", "line1\nline2");
+			const pm = new PatchManager(vfs);
+
+			// Patch tries to modify lines 5-7, but file only has 2 lines
+			const patch = `--- file.txt
++++ file.txt
+@@ -5,3 +5,3 @@
+ line5
+-line6
++modified
+ line7`;
+
+			expect(() => pm.applyUnifiedDiff("/file.txt", patch)).toThrow(
+				"Invalid hunk: line range 5-7 exceeds file length 2",
+			);
 		});
 
 		it("should handle multiple hunks", () => {

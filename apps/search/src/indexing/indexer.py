@@ -72,13 +72,13 @@ class DocumentIndexer:
 
             # Generate dense embeddings
             logger.debug("Generating dense embeddings...")
-            text_embedder = self.embedders.get_text_embedder()
+            text_embedder = await self.embedders.get_text_embedder()
             await text_embedder.load()
             dense_embeddings = await text_embedder.embed_batch(texts, is_query=False)
 
             # Generate sparse embeddings
             logger.debug("Generating sparse embeddings...")
-            sparse_embedder = self.embedders.get_sparse_embedder()
+            sparse_embedder = await self.embedders.get_sparse_embedder()
             await sparse_embedder.load()
             sparse_embeddings = sparse_embedder.embed_sparse_batch(texts)
 
@@ -86,7 +86,7 @@ class DocumentIndexer:
             colbert_embeddings: list[list[list[float]] | None] = [None] * len(documents)
             if self.config.enable_colbert:
                 logger.debug("Generating ColBERT embeddings...")
-                colbert_embedder = self.embedders.get_colbert_embedder()
+                colbert_embedder = await self.embedders.get_colbert_embedder()
                 await colbert_embedder.load()
                 colbert_embeddings = [
                     emb if emb else None for emb in colbert_embedder.embed_document_batch(texts)

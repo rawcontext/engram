@@ -26,4 +26,5 @@ export {
 	type TrialMetrics,
 	type TrialProgressEvent,
 	type TrialRunnerOptions,
+	type TrialsResult,
 } from "./trial-runner.js";

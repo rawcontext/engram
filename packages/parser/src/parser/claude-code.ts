@@ -7,6 +7,10 @@ import {
 	ClaudeCodeToolUseSchema,
 } from "./schemas";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /**
  * Parser for Claude Code's stream-json output format.
  *
@@ -20,12 +24,11 @@ import {
 export class ClaudeCodeParser implements ParserStrategy {
 	parse(payload: unknown): StreamDelta | null {
 		// Type guard for payload
-		if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+		if (!isRecord(payload)) {
 			return null;
 		}
 
-		const p = payload as Record<string, unknown>;
-		const type = typeof p.type === "string" ? p.type : "";
+		const type = typeof payload.type === "string" ? payload.type : "";
 
 		// Handle assistant messages with content
 		if (type === "assistant") {

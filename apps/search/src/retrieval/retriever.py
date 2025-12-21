@@ -193,9 +193,11 @@ class SearchRetriever:
         """
         # Get appropriate embedder based on vector field and generate embedding
         if vector_field == CODE_DENSE_FIELD:
-            vector = await self.embedder_factory.get_code_embedder().embed(text, is_query=True)
+            embedder = await self.embedder_factory.get_code_embedder()
+            vector = await embedder.embed(text, is_query=True)
         else:
-            vector = await self.embedder_factory.get_text_embedder().embed(text, is_query=True)
+            embedder = await self.embedder_factory.get_text_embedder()
+            vector = await embedder.embed(text, is_query=True)
 
         # Execute Qdrant dense search using query_points
         results = await self.qdrant_client.client.query_points(
@@ -231,7 +233,7 @@ class SearchRetriever:
             List of scored points from Qdrant.
         """
         # Get sparse embedder
-        sparse_embedder = self.embedder_factory.get_sparse_embedder()
+        sparse_embedder = await self.embedder_factory.get_sparse_embedder()
 
         # Generate sparse query vector
         sparse_dict = sparse_embedder.embed_sparse(text)
@@ -277,14 +279,18 @@ class SearchRetriever:
         """
         # Generate both vectors in parallel
         if vector_field == CODE_DENSE_FIELD:
+            code_embedder = await self.embedder_factory.get_code_embedder()
+            sparse_embedder = await self.embedder_factory.get_sparse_embedder()
             dense_vector, sparse_dict = await asyncio.gather(
-                self.embedder_factory.get_code_embedder().embed(text, is_query=True),
-                asyncio.to_thread(self.embedder_factory.get_sparse_embedder().embed_sparse, text),
+                code_embedder.embed(text, is_query=True),
+                asyncio.to_thread(sparse_embedder.embed_sparse, text),
             )
         else:
+            text_embedder = await self.embedder_factory.get_text_embedder()
+            sparse_embedder = await self.embedder_factory.get_sparse_embedder()
             dense_vector, sparse_dict = await asyncio.gather(
-                self.embedder_factory.get_text_embedder().embed(text, is_query=True),
-                asyncio.to_thread(self.embedder_factory.get_sparse_embedder().embed_sparse, text),
+                text_embedder.embed(text, is_query=True),
+                asyncio.to_thread(sparse_embedder.embed_sparse, text),
             )
 
         # Convert sparse dict to Qdrant format

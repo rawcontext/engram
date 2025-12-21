@@ -41,6 +41,9 @@ export class TunerClient {
 		this.timeout = options.timeout ?? 30000;
 	}
 
+	/**
+	 * Make HTTP request with proper handling of empty responses
+	 */
 	private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -64,9 +67,11 @@ export class TunerClient {
 				);
 			}
 
-			// Handle 204 No Content
+			// Handle 204 No Content - safe for void return types
 			if (response.status === 204) {
-				return undefined as T;
+				// This is safe when T is void, which is the only valid use case for 204
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any
+				return undefined as any;
 			}
 
 			return response.json();

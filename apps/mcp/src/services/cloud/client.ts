@@ -53,27 +53,38 @@ export class EngramCloudClient implements IEngramClient {
 
 		this.logger?.debug({ url, method: options.method ?? "GET" }, "API request");
 
-		const response = await fetch(url, {
-			...options,
-			headers: {
-				Authorization: `Bearer ${this.apiKey}`,
-				"Content-Type": "application/json",
-				...options.headers,
-			},
-		});
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-		const body = (await response.json()) as ApiResponse<T>;
+		try {
+			const response = await fetch(url, {
+				...options,
+				headers: {
+					Authorization: `Bearer ${this.apiKey}`,
+					"Content-Type": "application/json",
+					...options.headers,
+				},
+				signal: controller.signal,
+			});
 
-		if (!body.success || body.error) {
-			throw new EngramApiError(
-				body.error?.code ?? "UNKNOWN_ERROR",
-				body.error?.message ?? "An unknown error occurred",
-				response.status,
-				body.error?.details,
-			);
+			clearTimeout(timeoutId);
+
+			const body = (await response.json()) as ApiResponse<T>;
+
+			if (!body.success || body.error) {
+				throw new EngramApiError(
+					body.error?.code ?? "UNKNOWN_ERROR",
+					body.error?.message ?? "An unknown error occurred",
+					response.status,
+					body.error?.details,
+				);
+			}
+
+			return body.data as T;
+		} catch (error) {
+			clearTimeout(timeoutId);
+			throw error;
 		}
-
-		return body.data as T;
 	}
 
 	// ============================================

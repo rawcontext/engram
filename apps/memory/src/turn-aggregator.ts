@@ -24,7 +24,7 @@ export interface StreamEventInput {
 	thought?: string;
 	tool_call?: {
 		id?: string;
-		name: string;
+		name?: string;
 		arguments_delta?: string;
 		index?: number;
 	};
@@ -164,7 +164,7 @@ export class TurnAggregator {
 	 * Normalize a StreamEventInput to a ParsedStreamEvent for handler processing.
 	 * Provides default values for required fields.
 	 */
-	private normalizeEvent(input: StreamEventInput): ParsedStreamEvent {
+	private normalizeEvent(input: StreamEventInput | ParsedStreamEvent): ParsedStreamEvent {
 		const eventId = input.event_id || randomUUID();
 		const originalEventId = input.original_event_id || eventId;
 		const timestamp = input.timestamp || new Date().toISOString();
@@ -181,7 +181,7 @@ export class TurnAggregator {
 			tool_call: input.tool_call
 				? {
 						id: input.tool_call.id || `call_${randomUUID().slice(0, 8)}`,
-						name: input.tool_call.name,
+						name: input.tool_call.name || "unknown_tool",
 						arguments_delta: input.tool_call.arguments_delta || "{}",
 						index: input.tool_call.index ?? 0,
 					}
@@ -194,7 +194,7 @@ export class TurnAggregator {
 				: undefined,
 			usage: input.usage,
 			metadata: input.metadata,
-		};
+		} as ParsedStreamEvent;
 	}
 
 	/**
@@ -367,22 +367,33 @@ export class TurnAggregator {
 		});
 
 		// Emit node created event for real-time WebSocket updates
-		this.emitNodeCreated(turn.sessionId, {
-			id: turn.turnId,
-			type: "turn",
-			label: "Turn",
-			properties: {
-				user_content: turn.userContent.slice(0, 500),
-				sequence_index: turn.sequenceIndex,
-			},
-		});
+		try {
+			this.emitNodeCreated(turn.sessionId, {
+				id: turn.turnId,
+				type: "turn",
+				label: "Turn",
+				properties: {
+					user_content: turn.userContent.slice(0, 500),
+					sequence_index: turn.sequenceIndex,
+				},
+			});
+		} catch (error) {
+			this.logger.error(
+				{ err: error, turnId: turn.turnId },
+				"Failed to emit turn node created event",
+			);
+		}
 	}
 
 	/**
 	 * Finalize a turn (update with final stats)
 	 */
 	private async finalizeTurn(turn: TurnState): Promise<void> {
+		// Guard against double finalization race condition
 		if (turn.isFinalized) return;
+
+		// Set finalized flag BEFORE async operation to prevent race condition
+		turn.isFinalized = true;
 
 		const query = `
 			MATCH (t:Turn {id: $turnId})
@@ -393,27 +404,33 @@ export class TurnAggregator {
 				t.output_tokens = $outputTokens
 		`;
 
-		await this.graphClient.query(query, {
-			turnId: turn.turnId,
-			preview: turn.assistantContent.slice(0, 2000),
-			filesTouched: JSON.stringify([...turn.filesTouched.keys()]),
-			toolCallsCount: turn.toolCallsCount,
-			inputTokens: turn.inputTokens,
-			outputTokens: turn.outputTokens,
-		});
-
-		turn.isFinalized = true;
-		this.logger.info(
-			{
+		try {
+			await this.graphClient.query(query, {
 				turnId: turn.turnId,
-				sessionId: turn.sessionId,
-				contentLength: turn.assistantContent.length,
-				reasoningBlocks: turn.reasoningBlocks.length,
-				filesTouched: turn.filesTouched.size,
-				toolCalls: turn.toolCallsCount,
-			},
-			"Finalized turn",
-		);
+				preview: turn.assistantContent.slice(0, 2000),
+				filesTouched: JSON.stringify([...turn.filesTouched.keys()]),
+				toolCallsCount: turn.toolCallsCount,
+				inputTokens: turn.inputTokens,
+				outputTokens: turn.outputTokens,
+			});
+
+			this.logger.info(
+				{
+					turnId: turn.turnId,
+					sessionId: turn.sessionId,
+					contentLength: turn.assistantContent.length,
+					reasoningBlocks: turn.reasoningBlocks.length,
+					filesTouched: turn.filesTouched.size,
+					toolCalls: turn.toolCallsCount,
+				},
+				"Finalized turn",
+			);
+		} catch (error) {
+			// If finalization fails, reset the flag so it can be retried
+			turn.isFinalized = false;
+			this.logger.error({ err: error, turnId: turn.turnId }, "Failed to finalize turn");
+			throw error;
+		}
 	}
 
 	/**

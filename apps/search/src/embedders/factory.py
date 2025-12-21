@@ -1,5 +1,6 @@
 """Factory for creating embedder instances."""
 
+import asyncio
 import logging
 from typing import Literal, cast
 
@@ -22,6 +23,7 @@ class EmbedderFactory:
     - Lazy loading of embedders
     - Singleton pattern for each embedder type
     - Easy access to all embedder types
+    - Thread-safe creation with asyncio locks
     """
 
     def __init__(self, settings: Settings) -> None:
@@ -32,72 +34,82 @@ class EmbedderFactory:
         """
         self.settings = settings
         self._embedders: dict[str, BaseEmbedder] = {}
+        self._locks: dict[str, asyncio.Lock] = {
+            "text": asyncio.Lock(),
+            "code": asyncio.Lock(),
+            "sparse": asyncio.Lock(),
+            "colbert": asyncio.Lock(),
+        }
 
-    def get_text_embedder(self) -> TextEmbedder:
+    async def get_text_embedder(self) -> TextEmbedder:
         """Get or create text embedder instance.
 
         Returns:
                 TextEmbedder instance.
         """
-        if "text" not in self._embedders:
-            logger.info("Creating text embedder")
-            self._embedders["text"] = TextEmbedder(
-                model_name=self.settings.embedder_text_model,
-                device=self.settings.embedder_device,
-                batch_size=self.settings.embedder_batch_size,
-                cache_size=self.settings.embedder_cache_size,
-            )
-        return cast(TextEmbedder, self._embedders["text"])
+        async with self._locks["text"]:
+            if "text" not in self._embedders:
+                logger.info("Creating text embedder")
+                self._embedders["text"] = TextEmbedder(
+                    model_name=self.settings.embedder_text_model,
+                    device=self.settings.embedder_device,
+                    batch_size=self.settings.embedder_batch_size,
+                    cache_size=self.settings.embedder_cache_size,
+                )
+            return cast(TextEmbedder, self._embedders["text"])
 
-    def get_code_embedder(self) -> CodeEmbedder:
+    async def get_code_embedder(self) -> CodeEmbedder:
         """Get or create code embedder instance.
 
         Returns:
                 CodeEmbedder instance.
         """
-        if "code" not in self._embedders:
-            logger.info("Creating code embedder")
-            self._embedders["code"] = CodeEmbedder(
-                model_name=self.settings.embedder_code_model,
-                device=self.settings.embedder_device,
-                batch_size=self.settings.embedder_batch_size,
-                cache_size=self.settings.embedder_cache_size,
-            )
-        return cast(CodeEmbedder, self._embedders["code"])
+        async with self._locks["code"]:
+            if "code" not in self._embedders:
+                logger.info("Creating code embedder")
+                self._embedders["code"] = CodeEmbedder(
+                    model_name=self.settings.embedder_code_model,
+                    device=self.settings.embedder_device,
+                    batch_size=self.settings.embedder_batch_size,
+                    cache_size=self.settings.embedder_cache_size,
+                )
+            return cast(CodeEmbedder, self._embedders["code"])
 
-    def get_sparse_embedder(self) -> SparseEmbedder:
+    async def get_sparse_embedder(self) -> SparseEmbedder:
         """Get or create sparse embedder instance.
 
         Returns:
                 SparseEmbedder instance.
         """
-        if "sparse" not in self._embedders:
-            logger.info("Creating sparse embedder")
-            self._embedders["sparse"] = SparseEmbedder(
-                model_name=self.settings.embedder_sparse_model,
-                device=self.settings.embedder_device,
-                batch_size=self.settings.embedder_batch_size,
-                cache_size=self.settings.embedder_cache_size,
-            )
-        return cast(SparseEmbedder, self._embedders["sparse"])
+        async with self._locks["sparse"]:
+            if "sparse" not in self._embedders:
+                logger.info("Creating sparse embedder")
+                self._embedders["sparse"] = SparseEmbedder(
+                    model_name=self.settings.embedder_sparse_model,
+                    device=self.settings.embedder_device,
+                    batch_size=self.settings.embedder_batch_size,
+                    cache_size=self.settings.embedder_cache_size,
+                )
+            return cast(SparseEmbedder, self._embedders["sparse"])
 
-    def get_colbert_embedder(self) -> ColBERTEmbedder:
+    async def get_colbert_embedder(self) -> ColBERTEmbedder:
         """Get or create ColBERT embedder instance.
 
         Returns:
                 ColBERTEmbedder instance.
         """
-        if "colbert" not in self._embedders:
-            logger.info("Creating ColBERT embedder")
-            self._embedders["colbert"] = ColBERTEmbedder(
-                model_name=self.settings.embedder_colbert_model,
-                device=self.settings.embedder_device,
-                batch_size=self.settings.embedder_batch_size,
-                cache_size=self.settings.embedder_cache_size,
-            )
-        return cast(ColBERTEmbedder, self._embedders["colbert"])
+        async with self._locks["colbert"]:
+            if "colbert" not in self._embedders:
+                logger.info("Creating ColBERT embedder")
+                self._embedders["colbert"] = ColBERTEmbedder(
+                    model_name=self.settings.embedder_colbert_model,
+                    device=self.settings.embedder_device,
+                    batch_size=self.settings.embedder_batch_size,
+                    cache_size=self.settings.embedder_cache_size,
+                )
+            return cast(ColBERTEmbedder, self._embedders["colbert"])
 
-    def get_embedder(self, embedder_type: EmbedderType) -> BaseEmbedder:
+    async def get_embedder(self, embedder_type: EmbedderType) -> BaseEmbedder:
         """Get embedder by type.
 
         Args:
@@ -110,13 +122,13 @@ class EmbedderFactory:
                 ValueError: If embedder type is invalid.
         """
         if embedder_type == "text":
-            return self.get_text_embedder()
+            return await self.get_text_embedder()
         elif embedder_type == "code":
-            return self.get_code_embedder()
+            return await self.get_code_embedder()
         elif embedder_type == "sparse":
-            return self.get_sparse_embedder()
+            return await self.get_sparse_embedder()
         elif embedder_type == "colbert":
-            return self.get_colbert_embedder()
+            return await self.get_colbert_embedder()
         else:
             raise ValueError(f"Invalid embedder type: {embedder_type}")
 
@@ -128,16 +140,15 @@ class EmbedderFactory:
         """
         logger.info("Preloading all embedder models...")
 
-        embedders = [
+        # Get embedders (this will create them if they don't exist)
+        embedders = await asyncio.gather(
             self.get_text_embedder(),
             self.get_code_embedder(),
             self.get_sparse_embedder(),
             self.get_colbert_embedder(),
-        ]
+        )
 
         # Load all models concurrently, collecting any errors
-        import asyncio
-
         results = await asyncio.gather(
             *[embedder.load() for embedder in embedders],
             return_exceptions=True,

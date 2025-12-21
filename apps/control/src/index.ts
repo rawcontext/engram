@@ -75,14 +75,30 @@ const startConsumer = async () => {
 	}, 10000);
 
 	// Cleanup heartbeat on process exit
-	process.on("SIGTERM", () => {
+	const cleanup = async () => {
 		clearInterval(heartbeatInterval);
-		redis.publishConsumerStatus("consumer_disconnected", "control-group", "control-service");
-	});
-	process.on("SIGINT", () => {
-		clearInterval(heartbeatInterval);
-		redis.publishConsumerStatus("consumer_disconnected", "control-group", "control-service");
-	});
+		try {
+			await redis.publishConsumerStatus(
+				"consumer_disconnected",
+				"control-group",
+				"control-service",
+			);
+			await redis.disconnect();
+			logger.info("Redis publisher disconnected");
+		} catch (e) {
+			logger.error({ err: e }, "Error during Redis cleanup");
+		}
+		try {
+			await consumer.disconnect();
+			logger.info("Kafka consumer disconnected");
+		} catch (e) {
+			logger.error({ err: e }, "Error during Kafka cleanup");
+		}
+		process.exit(0);
+	};
+
+	process.on("SIGTERM", cleanup);
+	process.on("SIGINT", cleanup);
 
 	await consumer.run({
 		eachMessage: async ({ message }) => {

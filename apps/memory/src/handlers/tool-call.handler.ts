@@ -18,7 +18,7 @@ export class ToolCallEventHandler implements EventHandler {
 	readonly eventType = "tool_call";
 
 	canHandle(event: ParsedStreamEvent): boolean {
-		return event.type === "tool_call" && event.tool_call !== undefined;
+		return event.type === "tool_call" && event.tool_call !== undefined && !!event.tool_call.name;
 	}
 
 	async handle(
@@ -26,20 +26,23 @@ export class ToolCallEventHandler implements EventHandler {
 		turn: TurnState,
 		context: HandlerContext,
 	): Promise<HandlerResult> {
-		if (!event.tool_call) {
+		if (!event.tool_call || !event.tool_call.name) {
 			return { handled: false };
 		}
+
+		// Type narrowing: we've verified name exists above
+		const toolCall = event.tool_call as { name: string; id?: string; arguments_delta?: string };
 
 		turn.toolCallsCount++;
 
 		// Extract file path from tool call if it's a file operation
-		const filePath = this.extractFilePath(event.tool_call.name, event.tool_call.arguments_delta);
-		const fileAction = filePath ? this.inferFileAction(event.tool_call.name) : undefined;
+		const filePath = this.extractFilePath(toolCall.name, toolCall.arguments_delta);
+		const fileAction = filePath ? this.inferFileAction(toolCall.name) : undefined;
 
 		// Create ToolCall node with file info embedded
 		const toolCallState = await this.createToolCallNode(
 			turn,
-			event.tool_call,
+			toolCall,
 			context,
 			filePath ?? undefined,
 			fileAction,
@@ -74,7 +77,7 @@ export class ToolCallEventHandler implements EventHandler {
 	 */
 	private async createToolCallNode(
 		turn: TurnState,
-		toolCall: { name: string; id?: string; arguments_delta?: string },
+		toolCall: { name: string; id?: string | undefined; arguments_delta?: string | undefined },
 		context: HandlerContext,
 		filePath?: string,
 		fileAction?: string,
@@ -162,19 +165,23 @@ export class ToolCallEventHandler implements EventHandler {
 
 		// Emit node created event for real-time WebSocket updates
 		if (context.emitNodeCreated) {
-			context.emitNodeCreated({
-				id: toolCallId,
-				type: "toolcall",
-				label: "ToolCall",
-				properties: {
-					tool_name: toolCall.name,
-					tool_type: toolType,
-					arguments_preview: argumentsPreview,
-					file_path: filePath,
-					file_action: fileAction,
-					sequence_index: turn.contentBlockIndex,
-				},
-			});
+			try {
+				context.emitNodeCreated({
+					id: toolCallId,
+					type: "toolcall",
+					label: "ToolCall",
+					properties: {
+						tool_name: toolCall.name,
+						tool_type: toolType,
+						arguments_preview: argumentsPreview,
+						file_path: filePath,
+						file_action: fileAction,
+						sequence_index: turn.contentBlockIndex,
+					},
+				});
+			} catch (error) {
+				context.logger.error({ err: error, toolCallId }, "Failed to emit node created event");
+			}
 		}
 
 		return {

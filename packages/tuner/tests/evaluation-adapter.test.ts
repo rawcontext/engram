@@ -1,10 +1,69 @@
 import { describe, expect, it } from "vitest";
-import type { BenchmarkMetrics } from "../src/executor/benchmark-types.js";
+import type { BenchmarkReport } from "../src/executor/benchmark-types.js";
 import type { TrialConfig } from "../src/executor/config-mapper.js";
 import {
 	mapBenchmarkToTrialMetrics,
 	mapTrialToBenchmarkConfig,
 } from "../src/executor/evaluation-adapter.js";
+
+/**
+ * Helper to create a BenchmarkReport from simplified metrics for testing
+ */
+function createBenchmarkReport(metrics: {
+	accuracy: number;
+	recallAt1: number;
+	recallAt5: number;
+	recallAt10: number;
+	ndcgAt10: number;
+	mrr: number;
+	abstentionPrecision: number;
+	abstentionRecall: number;
+	abstentionF1: number;
+	p50Latency: number;
+	p95Latency: number;
+	p99Latency: number;
+	totalDurationMs: number;
+}): BenchmarkReport {
+	return {
+		timestamp: new Date().toISOString(),
+		dataset_path: "/test/dataset.json",
+		total_instances: 100,
+		metrics: {
+			overall: {
+				total: 100,
+				correct: Math.round(metrics.accuracy * 100),
+				accuracy: metrics.accuracy,
+			},
+			by_ability: {
+				IE: { total: 20, correct: 18, accuracy: 0.9 },
+				MR: { total: 20, correct: 16, accuracy: 0.8 },
+				TR: { total: 20, correct: 14, accuracy: 0.7 },
+				KU: { total: 20, correct: 12, accuracy: 0.6 },
+				ABS: { total: 20, correct: 10, accuracy: 0.5 },
+			},
+			retrieval: {
+				turn_recall: 0.8,
+				session_recall: 0.9,
+				recall_at_k: {
+					1: metrics.recallAt1,
+					5: metrics.recallAt5,
+					10: metrics.recallAt10,
+				},
+				ndcg_at_k: { 10: metrics.ndcgAt10 },
+				mrr: metrics.mrr,
+			},
+			abstention: {
+				true_positives: 10,
+				false_positives: 2,
+				false_negatives: 3,
+				true_negatives: 85,
+				precision: metrics.abstentionPrecision,
+				recall: metrics.abstentionRecall,
+				f1: metrics.abstentionF1,
+			},
+		},
+	};
+}
 
 describe("mapTrialToBenchmarkConfig", () => {
 	const baseTrialConfig: TrialConfig = {
@@ -149,7 +208,7 @@ describe("mapTrialToBenchmarkConfig", () => {
 
 describe("mapBenchmarkToTrialMetrics", () => {
 	it("should map all quality metrics", () => {
-		const benchmarkMetrics: BenchmarkMetrics = {
+		const report = createBenchmarkReport({
 			accuracy: 0.88,
 			recallAt1: 0.75,
 			recallAt5: 0.85,
@@ -163,9 +222,9 @@ describe("mapBenchmarkToTrialMetrics", () => {
 			p95Latency: 100,
 			p99Latency: 150,
 			totalDurationMs: 10000,
-		};
+		});
 
-		const result = mapBenchmarkToTrialMetrics(benchmarkMetrics);
+		const result = mapBenchmarkToTrialMetrics(report);
 
 		expect(result.ndcg).toBe(0.78);
 		expect(result.mrr).toBe(0.72);
@@ -175,7 +234,7 @@ describe("mapBenchmarkToTrialMetrics", () => {
 	});
 
 	it("should map latency metrics", () => {
-		const benchmarkMetrics: BenchmarkMetrics = {
+		const report = createBenchmarkReport({
 			accuracy: 0.5,
 			recallAt1: 0.5,
 			recallAt5: 0.5,
@@ -189,17 +248,18 @@ describe("mapBenchmarkToTrialMetrics", () => {
 			p95Latency: 75,
 			p99Latency: 125,
 			totalDurationMs: 5000,
-		};
+		});
 
-		const result = mapBenchmarkToTrialMetrics(benchmarkMetrics);
+		const result = mapBenchmarkToTrialMetrics(report);
 
-		expect(result.p50Latency).toBe(25);
-		expect(result.p95Latency).toBe(75);
-		expect(result.p99Latency).toBe(125);
+		// Note: latency metrics are not currently provided by benchmark API
+		expect(result.p50Latency).toBe(0);
+		expect(result.p95Latency).toBe(0);
+		expect(result.p99Latency).toBe(0);
 	});
 
 	it("should map abstention metrics", () => {
-		const benchmarkMetrics: BenchmarkMetrics = {
+		const report = createBenchmarkReport({
 			accuracy: 0.5,
 			recallAt1: 0.5,
 			recallAt5: 0.5,
@@ -213,9 +273,9 @@ describe("mapBenchmarkToTrialMetrics", () => {
 			p95Latency: 100,
 			p99Latency: 150,
 			totalDurationMs: 5000,
-		};
+		});
 
-		const result = mapBenchmarkToTrialMetrics(benchmarkMetrics);
+		const result = mapBenchmarkToTrialMetrics(report);
 
 		expect(result.abstentionPrecision).toBe(0.85);
 		expect(result.abstentionRecall).toBe(0.65);
@@ -223,7 +283,7 @@ describe("mapBenchmarkToTrialMetrics", () => {
 	});
 
 	it("should handle zeros correctly", () => {
-		const benchmarkMetrics: BenchmarkMetrics = {
+		const report = createBenchmarkReport({
 			accuracy: 0,
 			recallAt1: 0,
 			recallAt5: 0,
@@ -237,9 +297,9 @@ describe("mapBenchmarkToTrialMetrics", () => {
 			p95Latency: 0,
 			p99Latency: 0,
 			totalDurationMs: 0,
-		};
+		});
 
-		const result = mapBenchmarkToTrialMetrics(benchmarkMetrics);
+		const result = mapBenchmarkToTrialMetrics(report);
 
 		expect(result.ndcg).toBe(0);
 		expect(result.mrr).toBe(0);

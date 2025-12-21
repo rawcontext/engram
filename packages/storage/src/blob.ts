@@ -46,13 +46,25 @@ export class FileSystemBlobStore implements BlobStore {
 			);
 		}
 
+		// Additional path traversal prevention: check for any path separators in filename
+		if (filename.includes("/") || filename.includes("\\") || filename.includes(path.sep)) {
+			throw new StorageError(
+				`Path traversal characters detected in filename: ${filename}`,
+				ErrorCodes.STORAGE_INVALID_PATH,
+				uri,
+				undefined,
+				"read",
+			);
+		}
+
 		// Construct safe path using only the validated filename
 		const safePath = path.join(this.basePath, filename);
 		const resolvedPath = path.resolve(safePath);
 		const resolvedBase = path.resolve(this.basePath);
 
-		// Double-check containment (defense in depth)
-		if (!resolvedPath.startsWith(resolvedBase + path.sep) && resolvedPath !== resolvedBase) {
+		// Ensure the resolved path is exactly basePath/filename (defense in depth)
+		const expectedPath = path.join(resolvedBase, filename);
+		if (resolvedPath !== expectedPath) {
 			throw new StorageError(
 				`Path traversal detected in URI: ${uri}`,
 				ErrorCodes.STORAGE_INVALID_PATH,

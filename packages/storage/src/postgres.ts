@@ -32,10 +32,14 @@ export class PostgresClient {
 			return;
 		}
 
-		// Test connection
+		// Test connection with actual query to validate health
 		const client = await this.pool.connect();
-		client.release();
-		this.connected = true;
+		try {
+			await client.query("SELECT 1");
+			this.connected = true;
+		} finally {
+			client.release();
+		}
 	}
 
 	/**
@@ -113,5 +117,27 @@ export class PostgresClient {
 	 */
 	isConnected(): boolean {
 		return this.connected;
+	}
+
+	/**
+	 * Verify connection health by executing a test query
+	 */
+	async healthCheck(): Promise<boolean> {
+		if (!this.connected) {
+			return false;
+		}
+
+		try {
+			const client = await this.pool.connect();
+			try {
+				await client.query("SELECT 1");
+				return true;
+			} finally {
+				client.release();
+			}
+		} catch {
+			this.connected = false;
+			return false;
+		}
 	}
 }

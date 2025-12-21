@@ -263,7 +263,7 @@ describe("Kubernetes Infrastructure", () => {
 			const template = spec?.template as Record<string, unknown>;
 			const podSpec = template?.spec as Record<string, unknown>;
 			const containers = podSpec?.containers as Array<Record<string, unknown>>;
-			expect(containers?.[0]?.image).toBe("ghcr.io/optuna/optuna-dashboard:latest");
+			expect(containers?.[0]?.image).toBe("ghcr.io/optuna/optuna-dashboard:v0.17.0");
 		});
 
 		it("should create a Service", () => {

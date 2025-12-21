@@ -1,5 +1,8 @@
+import { createLogger } from "@engram/logger";
 import type { ParserStrategy, StreamDelta } from "./interface";
 import { ClineApiDataSchema, ClineSayEventSchema, ClineToolDataSchema } from "./schemas";
+
+const logger = createLogger({ component: "ClineParser" });
 
 /**
  * Parser for Cline CLI's `--output-format json` output.
@@ -47,6 +50,10 @@ export class ClineParser implements ParserStrategy {
 				const parsedApiData = JSON.parse(text);
 				const apiResult = ClineApiDataSchema.safeParse(parsedApiData);
 				if (!apiResult.success) {
+					logger.warn(
+						{ errors: apiResult.error.issues, text },
+						"Failed to parse api_req_started data",
+					);
 					return null;
 				}
 				const apiData = apiResult.data;
@@ -72,8 +79,8 @@ export class ClineParser implements ParserStrategy {
 				}
 
 				return delta;
-			} catch {
-				// Invalid JSON in text field, skip
+			} catch (error) {
+				logger.warn({ error, text }, "Failed to parse JSON in api_req_started event");
 				return null;
 			}
 		}
@@ -84,6 +91,10 @@ export class ClineParser implements ParserStrategy {
 				const parsedApiData = JSON.parse(text);
 				const apiResult = ClineApiDataSchema.safeParse(parsedApiData);
 				if (!apiResult.success) {
+					logger.warn(
+						{ errors: apiResult.error.issues, text },
+						"Failed to parse api_req_finished data",
+					);
 					return null;
 				}
 				const apiData = apiResult.data;
@@ -109,7 +120,8 @@ export class ClineParser implements ParserStrategy {
 				}
 
 				return delta;
-			} catch {
+			} catch (error) {
+				logger.warn({ error, text }, "Failed to parse JSON in api_req_finished event");
 				return null;
 			}
 		}
@@ -120,6 +132,7 @@ export class ClineParser implements ParserStrategy {
 				const parsedToolData = JSON.parse(text);
 				const toolResult = ClineToolDataSchema.safeParse(parsedToolData);
 				if (!toolResult.success) {
+					logger.warn({ errors: toolResult.error.issues, text }, "Failed to parse tool event data");
 					return null;
 				}
 				const toolData = toolResult.data;
@@ -135,7 +148,8 @@ export class ClineParser implements ParserStrategy {
 						index: 0,
 					},
 				};
-			} catch {
+			} catch (error) {
+				logger.warn({ error, text }, "Failed to parse JSON in tool event");
 				return null;
 			}
 		}

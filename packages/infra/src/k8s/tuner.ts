@@ -485,7 +485,7 @@ export const dashboardDeployment =
 										command: ["/bin/sh"],
 										args: [
 											"-c",
-											'optuna-dashboard "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@tuner-postgres.engram.svc.cluster.local:5432/optuna"',
+											`optuna-dashboard "postgresql://\${POSTGRES_USER}:\${POSTGRES_PASSWORD}@tuner-postgres.engram.svc.cluster.local:5432/optuna"`,
 										],
 										ports: [
 											{

@@ -90,15 +90,19 @@ export class ThoughtEventHandler implements EventHandler {
 
 		// Emit node created event for real-time WebSocket updates
 		if (context.emitNodeCreated) {
-			context.emitNodeCreated({
-				id: reasoningId,
-				type: "reasoning",
-				label: "Reasoning",
-				properties: {
-					preview: thought.slice(0, 500),
-					sequence_index: sequenceIndex,
-				},
-			});
+			try {
+				context.emitNodeCreated({
+					id: reasoningId,
+					type: "reasoning",
+					label: "Reasoning",
+					properties: {
+						preview: thought.slice(0, 500),
+						sequence_index: sequenceIndex,
+					},
+				});
+			} catch (error) {
+				context.logger.error({ err: error, reasoningId }, "Failed to emit node created event");
+			}
 		}
 
 		return reasoningId;

@@ -3,6 +3,7 @@ export class QueryBuilder {
 	private whereParts: string[] = [];
 	private returnParts: string[] = [];
 	private params: Record<string, unknown> = {};
+	private paramCounter = 0;
 
 	match(clause: string): this {
 		this.matchParts.push(clause);
@@ -27,8 +28,12 @@ export class QueryBuilder {
 		aliases.forEach((alias) => {
 			// Valid Time Constraint
 			if (vt !== undefined) {
-				this.whereParts.push(`(${alias}.vt_start <= $vt AND ${alias}.vt_end > $vt)`);
-				this.params.vt = vt;
+				// Use unique parameter names per alias to avoid collisions
+				const vtParam = `vt_${this.paramCounter++}`;
+				this.whereParts.push(
+					`(${alias}.vt_start <= $${vtParam} AND ${alias}.vt_end > $${vtParam})`,
+				);
+				this.params[vtParam] = vt;
 			}
 
 			// Transaction Time Constraint
@@ -36,9 +41,12 @@ export class QueryBuilder {
 				// Current knowledge
 				this.whereParts.push(`${alias}.tt_end = 253402300799000`); // MAX_DATE
 			} else if (typeof tt === "number") {
-				// Known at time T
-				this.whereParts.push(`(${alias}.tt_start <= $tt AND ${alias}.tt_end > $tt)`);
-				this.params.tt = tt;
+				// Use unique parameter names per alias to avoid collisions
+				const ttParam = `tt_${this.paramCounter++}`;
+				this.whereParts.push(
+					`(${alias}.tt_start <= $${ttParam} AND ${alias}.tt_end > $${ttParam})`,
+				);
+				this.params[ttParam] = tt;
 			}
 		});
 

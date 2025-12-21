@@ -49,6 +49,7 @@ export function sha256Short(content: string | Buffer, length: number = 8): strin
  * Generate a deterministic hash from a JSON-serializable object.
  *
  * Keys are sorted to ensure consistent hashing regardless of property order.
+ * Handles null, undefined, and primitive values safely.
  *
  * @param obj - Object to hash
  * @returns Hexadecimal hash string
@@ -61,6 +62,18 @@ export function sha256Short(content: string | Buffer, length: number = 8): strin
  * ```
  */
 export function hashObject(obj: unknown): string {
-	const normalized = JSON.stringify(obj, Object.keys(obj as object).sort());
+	// Handle null, undefined, and primitives
+	if (obj === null || obj === undefined || typeof obj !== "object") {
+		return sha256Hash(JSON.stringify(obj));
+	}
+
+	// Handle arrays
+	if (Array.isArray(obj)) {
+		return sha256Hash(JSON.stringify(obj));
+	}
+
+	// Handle objects with sorted keys
+	const sortedKeys = Object.keys(obj).sort();
+	const normalized = JSON.stringify(obj, sortedKeys);
 	return sha256Hash(normalized);
 }

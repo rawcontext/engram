@@ -189,10 +189,46 @@ export async function runTrial(options: TrialRunnerOptions): Promise<void> {
 }
 
 /**
- * Run multiple trials in sequence
+ * Results from running multiple trials
  */
-export async function runTrials(options: TrialRunnerOptions, count: number): Promise<void> {
+export interface TrialsResult {
+	/** Number of successful trials */
+	successful: number;
+	/** Number of failed trials */
+	failed: number;
+	/** Errors from failed trials */
+	errors: Array<{ trialIndex: number; error: Error }>;
+}
+
+/**
+ * Run multiple trials in sequence
+ *
+ * Continues execution even if individual trials fail. Returns summary of successes/failures.
+ *
+ * @param options - Trial runner options
+ * @param count - Number of trials to run
+ * @returns Summary of trial execution results
+ */
+export async function runTrials(options: TrialRunnerOptions, count: number): Promise<TrialsResult> {
+	const result: TrialsResult = {
+		successful: 0,
+		failed: 0,
+		errors: [],
+	};
+
 	for (let i = 0; i < count; i++) {
-		await runTrial(options);
+		try {
+			await runTrial(options);
+			result.successful++;
+		} catch (error) {
+			result.failed++;
+			result.errors.push({
+				trialIndex: i,
+				error: error instanceof Error ? error : new Error(String(error)),
+			});
+			// Continue to next trial instead of crashing
+		}
 	}
+
+	return result;
 }

@@ -49,6 +49,7 @@ describe("AnthropicParser", () => {
 		};
 		const result = parser.parse(event);
 		expect(result).toEqual({
+			role: "assistant",
 			content: "Hello",
 		});
 	});
@@ -64,6 +65,7 @@ describe("AnthropicParser", () => {
 		};
 		const result = parser.parse(event);
 		expect(result).toEqual({
+			role: "assistant",
 			toolCall: {
 				index: 0,
 				args: '{"arg":',

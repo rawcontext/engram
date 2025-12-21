@@ -1,6 +1,7 @@
 """Base abstract class for all embedders."""
 
 import asyncio
+import contextlib
 import logging
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
@@ -173,6 +174,10 @@ class BaseEmbedder(ABC):
         if self.device == "cuda":
             torch.cuda.empty_cache()
 
+        # Shutdown executor to prevent resource leak
+        self._executor.shutdown(wait=True)
+        logger.info(f"Executor shutdown for model {self.model_name}")
+
     @property
     def dimensions(self) -> int:
         """Get embedding dimensions.
@@ -183,4 +188,5 @@ class BaseEmbedder(ABC):
 
     def __del__(self) -> None:
         """Cleanup executor on deletion."""
-        self._executor.shutdown(wait=False)
+        with contextlib.suppress(Exception):
+            self._executor.shutdown(wait=False)

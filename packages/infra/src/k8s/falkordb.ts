@@ -8,7 +8,7 @@
  */
 
 import * as k8s from "@pulumi/kubernetes";
-import { commonLabels } from "../config";
+import { commonLabels, databaseConfig } from "../config";
 import { k8sProvider, namespaceName } from "./namespace";
 
 const appLabels = {
@@ -32,7 +32,7 @@ export const falkordbStatefulSet = k8sProvider
 				},
 				spec: {
 					serviceName: "falkordb",
-					replicas: 1,
+					replicas: databaseConfig.replicas,
 					selector: {
 						matchLabels: { "app.kubernetes.io/name": "falkordb" },
 					},

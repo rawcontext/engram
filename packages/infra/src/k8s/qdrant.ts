@@ -11,7 +11,7 @@
  */
 
 import * as k8s from "@pulumi/kubernetes";
-import { commonLabels } from "../config";
+import { commonLabels, databaseConfig } from "../config";
 import { k8sProvider, namespaceName } from "./namespace";
 
 /**
@@ -30,7 +30,7 @@ export const qdrantRelease = k8sProvider
 				},
 				version: "0.10.1", // Chart version
 				values: {
-					replicaCount: 1,
+					replicaCount: databaseConfig.replicas,
 					image: {
 						repository: "qdrant/qdrant",
 						tag: "v1.12.1",
@@ -58,7 +58,7 @@ export const qdrantRelease = k8sProvider
 							grpc_port: 6334,
 						},
 						cluster: {
-							enabled: false,
+							enabled: databaseConfig.replicas > 1,
 						},
 						storage: {
 							performance: {

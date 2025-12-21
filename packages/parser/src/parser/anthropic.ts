@@ -6,16 +6,19 @@ import {
 	AnthropicMessageStartSchema,
 } from "./schemas";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export class AnthropicParser implements ParserStrategy {
 	parse(payload: unknown): StreamDelta | null {
 		// Type guard for payload
-		if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+		if (!isRecord(payload)) {
 			return null;
 		}
 
-		const p = payload as Record<string, unknown>;
 		// Anthropic Event Types
-		const type = p.type;
+		const type = payload.type;
 
 		if (type === "message_start") {
 			const result = AnthropicMessageStartSchema.safeParse(payload);

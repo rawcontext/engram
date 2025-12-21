@@ -29,6 +29,7 @@ export interface ContextAssemblerDeps {
 export class ContextAssembler {
 	private search: SearchClient | null;
 	private memory: GraphClient;
+	private connectionOwned: boolean;
 
 	/**
 	 * Create a ContextAssembler with injectable dependencies.
@@ -36,7 +37,18 @@ export class ContextAssembler {
 	 */
 	constructor(deps?: ContextAssemblerDeps) {
 		this.search = deps?.searchClient ?? null;
+		// Track if we created the client (and thus need to clean it up)
+		this.connectionOwned = !deps?.graphClient;
 		this.memory = deps?.graphClient ?? createFalkorClient();
+	}
+
+	/**
+	 * Cleanup resources. Should be called when done using the assembler.
+	 */
+	async cleanup(): Promise<void> {
+		if (this.connectionOwned && this.memory.disconnect) {
+			await this.memory.disconnect();
+		}
 	}
 
 	/**
@@ -136,6 +148,11 @@ export class ContextAssembler {
 				cause,
 				{ sessionId, limit },
 			);
+		} finally {
+			// Always close connection if we own it
+			if (this.connectionOwned && this.memory.disconnect) {
+				await this.memory.disconnect();
+			}
 		}
 	}
 

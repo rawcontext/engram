@@ -153,6 +153,17 @@ export class VirtualFileSystem {
 
 	public async loadSnapshot(snapshot: Buffer): Promise<void> {
 		const state = await gunzip(snapshot);
-		this.root = JSON.parse(state.toString());
+		try {
+			const parsed = JSON.parse(state.toString("utf-8"));
+			if (!parsed || typeof parsed !== "object" || parsed.type !== "directory") {
+				throw new Error("Invalid snapshot format: root must be a directory node");
+			}
+			this.root = parsed;
+		} catch (error) {
+			if (error instanceof SyntaxError) {
+				throw new Error(`Failed to parse snapshot: Invalid JSON - ${error.message}`);
+			}
+			throw error;
+		}
 	}
 }

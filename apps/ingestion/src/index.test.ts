@@ -11,8 +11,9 @@ describe("Ingestion Service", () => {
 	it("should process event and publish parsed event", async () => {
 		const processor = new IngestionProcessor(mockKafkaClient);
 
+		const eventId = "550e8400-e29b-41d4-a716-446655440000";
 		const event = {
-			event_id: "123",
+			event_id: eventId,
 			ingest_timestamp: new Date().toISOString(),
 			provider: "openai" as const,
 			payload: {
@@ -31,6 +32,6 @@ describe("Ingestion Service", () => {
 		expect(call[0]).toBe("parsed_events");
 		const parsed = call[2] as { content: string; original_event_id: string };
 		expect(parsed.content).toBe("Hello");
-		expect(parsed.original_event_id).toBe("123");
+		expect(parsed.original_event_id).toBe(eventId);
 	});
 });

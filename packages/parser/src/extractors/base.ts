@@ -12,6 +12,8 @@ export interface TagExtractorConfig<TField extends keyof StreamDelta> {
 	fieldName: TField;
 	/** Whether to include the markers in the extracted content (default: false) */
 	includeMarkers?: boolean;
+	/** Maximum buffer size in characters (default: 1MB) */
+	maxBufferSize?: number;
 }
 
 /**
@@ -26,18 +28,32 @@ export interface TagExtractorConfig<TField extends keyof StreamDelta> {
  * Subclasses provide configuration for their specific tag format.
  */
 export abstract class BaseTagExtractor<TField extends keyof StreamDelta> {
+	private static readonly DEFAULT_MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
+
 	protected buffer = "";
 	protected inBlock = false;
 
 	protected abstract readonly config: TagExtractorConfig<TField>;
+
+	private get maxBufferSize(): number {
+		return this.config.maxBufferSize ?? BaseTagExtractor.DEFAULT_MAX_BUFFER_SIZE;
+	}
 
 	/**
 	 * Process a chunk of streaming text and extract tagged content.
 	 *
 	 * @param chunk - The next chunk of text from the stream
 	 * @returns A StreamDelta with `content` (outside tags) and the configured field (inside tags)
+	 * @throws Error if buffer exceeds maximum size
 	 */
 	process(chunk: string): StreamDelta {
+		if (this.buffer.length + chunk.length > this.maxBufferSize) {
+			throw new Error(
+				`Buffer size exceeded: ${this.buffer.length + chunk.length} > ${this.maxBufferSize}. ` +
+					`Consider flushing or increasing maxBufferSize.`,
+			);
+		}
+
 		this.buffer += chunk;
 
 		let content = "";
@@ -127,6 +143,19 @@ export abstract class BaseTagExtractor<TField extends keyof StreamDelta> {
 	}
 
 	/**
+	 * Safely assign a value to a dynamic field in StreamDelta.
+	 */
+	private assignField(delta: StreamDelta, field: TField, value: string): void {
+		// Using Object.defineProperty for type-safe dynamic field assignment
+		Object.defineProperty(delta, field, {
+			value,
+			writable: true,
+			enumerable: true,
+			configurable: true,
+		});
+	}
+
+	/**
 	 * Build the StreamDelta result from processed content and extracted text.
 	 */
 	private buildDelta(content: string, extracted: string): StreamDelta {
@@ -137,8 +166,7 @@ export abstract class BaseTagExtractor<TField extends keyof StreamDelta> {
 		}
 
 		if (extracted) {
-			// TypeScript needs help with the dynamic field assignment
-			(delta as Record<string, unknown>)[this.config.fieldName] = extracted;
+			this.assignField(delta, this.config.fieldName, extracted);
 		}
 
 		return delta;
@@ -168,7 +196,7 @@ export abstract class BaseTagExtractor<TField extends keyof StreamDelta> {
 
 		if (this.inBlock) {
 			// Inside an unclosed block - treat remaining buffer as extracted content
-			(delta as Record<string, unknown>)[this.config.fieldName] = this.buffer;
+			this.assignField(delta, this.config.fieldName, this.buffer);
 		} else {
 			// Outside a block - treat remaining buffer as regular content
 			delta.content = this.buffer;

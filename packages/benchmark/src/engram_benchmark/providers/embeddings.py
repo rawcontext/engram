@@ -239,6 +239,13 @@ class EmbeddingProvider:
         # Default for BGE-base (will be updated after model loads)
         return 768
 
+    async def cleanup(self) -> None:
+        """Cleanup resources properly."""
+        await self.unload()
+        if self._executor:
+            self._executor.shutdown(wait=True)
+
     def __del__(self) -> None:
         """Cleanup executor on deletion."""
-        self._executor.shutdown(wait=False)
+        if self._executor:
+            self._executor.shutdown(wait=True)

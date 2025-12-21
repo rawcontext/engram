@@ -12,6 +12,22 @@
 type RerankerTier = "fast" | "accurate" | "code";
 
 /**
+ * Type guard for RerankerTier
+ */
+function isRerankerTier(value: unknown): value is RerankerTier {
+	return (
+		typeof value === "string" && (value === "fast" || value === "accurate" || value === "code")
+	);
+}
+
+/**
+ * Type guard for valid tier names in config paths
+ */
+function isTierKey(value: string): value is "fast" | "accurate" | "code" {
+	return value === "fast" || value === "accurate" || value === "code";
+}
+
+/**
  * Reranker configuration for search requests.
  * These settings are passed to the search service per-request.
  */
@@ -73,38 +89,52 @@ export function mapParamsToConfig(params: Record<string, number | string | boole
 
 		if (parts[0] === "search" && parts[1] === "minScore") {
 			config.search.minScore ??= {};
-			if (parts[2] === "dense") config.search.minScore.dense = value as number;
-			if (parts[2] === "sparse") config.search.minScore.sparse = value as number;
-			if (parts[2] === "hybrid") config.search.minScore.hybrid = value as number;
+			if (parts[2] === "dense" && typeof value === "number") {
+				config.search.minScore.dense = value;
+			}
+			if (parts[2] === "sparse" && typeof value === "number") {
+				config.search.minScore.sparse = value;
+			}
+			if (parts[2] === "hybrid" && typeof value === "number") {
+				config.search.minScore.hybrid = value;
+			}
 		} else if (parts[0] === "reranker") {
 			if (parts.length === 2) {
 				// Direct reranker properties
-				if (parts[1] === "depth") config.reranker.depth = value as number;
-				if (parts[1] === "defaultTier") config.reranker.defaultTier = value as RerankerTier;
-				if (parts[1] === "timeoutMs") config.reranker.timeoutMs = value as number;
-				if (parts[1] === "enabled") config.reranker.enabled = value as boolean;
-			} else if (parts[1] === "tiers" && parts.length === 4) {
+				if (parts[1] === "depth" && typeof value === "number") {
+					config.reranker.depth = value;
+				}
+				if (parts[1] === "defaultTier" && isRerankerTier(value)) {
+					config.reranker.defaultTier = value;
+				}
+				if (parts[1] === "timeoutMs" && typeof value === "number") {
+					config.reranker.timeoutMs = value;
+				}
+				if (parts[1] === "enabled" && typeof value === "boolean") {
+					config.reranker.enabled = value;
+				}
+			} else if (parts[1] === "tiers" && parts.length === 4 && isTierKey(parts[2])) {
 				// Tier-specific properties: reranker.tiers.{tier}.{property}
-				const tier = parts[2] as "fast" | "accurate" | "code";
+				const tier = parts[2];
 				const prop = parts[3];
 
 				config.reranker.tiers ??= {};
 				config.reranker.tiers[tier] ??= {};
 				const tierConfig = config.reranker.tiers[tier];
 
-				if (prop === "maxCandidates" && tierConfig) {
-					tierConfig.maxCandidates = value as number;
+				if (prop === "maxCandidates" && typeof value === "number" && tierConfig) {
+					tierConfig.maxCandidates = value;
 				}
-				if (prop === "maxLatencyMs" && tierConfig) {
-					tierConfig.maxLatencyMs = value as number;
+				if (prop === "maxLatencyMs" && typeof value === "number" && tierConfig) {
+					tierConfig.maxLatencyMs = value;
 				}
 			}
 		} else if (parts[0] === "abstention") {
-			if (parts[1] === "minRetrievalScore") {
-				config.abstention.minRetrievalScore = value as number;
+			if (parts[1] === "minRetrievalScore" && typeof value === "number") {
+				config.abstention.minRetrievalScore = value;
 			}
-			if (parts[1] === "minScoreGap") {
-				config.abstention.minScoreGap = value as number;
+			if (parts[1] === "minScoreGap" && typeof value === "number") {
+				config.abstention.minScoreGap = value;
 			}
 		}
 	}

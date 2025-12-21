@@ -11,7 +11,7 @@
  */
 
 import * as k8s from "@pulumi/kubernetes";
-import { commonLabels } from "../config";
+import { commonLabels, databaseConfig } from "../config";
 import { k8sProvider, namespaceName } from "./namespace";
 
 /**
@@ -31,7 +31,7 @@ export const redpandaRelease = k8sProvider
 				version: "5.9.4", // Chart version
 				values: {
 					statefulset: {
-						replicas: 1,
+						replicas: databaseConfig.replicas,
 					},
 					image: {
 						repository: "docker.redpanda.com/redpandadata/redpanda",

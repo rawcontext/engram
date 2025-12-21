@@ -144,6 +144,7 @@ export type RedisPublisher = ReturnType<typeof createRedisPublisher>;
 export function createRedisSubscriber() {
 	let client: RedisClientType | null = null;
 	const subscriptions = new Map<string, Set<(message: unknown) => void>>();
+	let subscriptionLock = Promise.resolve();
 
 	const connect = async () => {
 		if (client?.isOpen) return client;
@@ -159,45 +160,67 @@ export function createRedisSubscriber() {
 		channelOrSessionId: string,
 		callback: (message: T) => void,
 	) => {
-		const conn = await connect();
-		// Support both session-specific channels and global channels
-		const channel = channelOrSessionId.includes(":")
-			? channelOrSessionId // Already a full channel name (e.g., "sessions:updates")
-			: `session:${channelOrSessionId}:updates`; // Session ID, build channel name
+		// Synchronize subscription operations to prevent race conditions
+		await subscriptionLock;
 
-		// Track callbacks per channel
-		if (!subscriptions.has(channel)) {
-			subscriptions.set(channel, new Set());
+		const operationPromise = (async () => {
+			const conn = await connect();
+			// Support both session-specific channels and global channels
+			const channel = channelOrSessionId.includes(":")
+				? channelOrSessionId // Already a full channel name (e.g., "sessions:updates")
+				: `session:${channelOrSessionId}:updates`; // Session ID, build channel name
 
-			// Subscribe to the channel (only once per channel)
-			await conn.subscribe(channel, (message) => {
-				try {
-					const parsed = JSON.parse(message) as T;
+			// Track callbacks per channel
+			if (!subscriptions.has(channel)) {
+				subscriptions.set(channel, new Set());
+
+				// Subscribe to the channel (only once per channel)
+				await conn.subscribe(channel, (message) => {
+					try {
+						const parsed = JSON.parse(message) as T;
+						const callbacks = subscriptions.get(channel);
+						if (callbacks) {
+							for (const cb of callbacks) {
+								cb(parsed);
+							}
+						}
+					} catch (e) {
+						console.error("[Redis Subscriber] Failed to parse message:", e);
+					}
+				});
+			}
+
+			subscriptions.get(channel)?.add(callback as (message: unknown) => void);
+
+			// Return unsubscribe function
+			return async () => {
+				// Synchronize unsubscribe operations as well
+				await subscriptionLock;
+
+				const unsubPromise = (async () => {
 					const callbacks = subscriptions.get(channel);
 					if (callbacks) {
-						for (const cb of callbacks) {
-							cb(parsed);
+						callbacks.delete(callback as (message: unknown) => void);
+						if (callbacks.size === 0) {
+							subscriptions.delete(channel);
+							await conn.unsubscribe(channel);
 						}
 					}
-				} catch (e) {
-					console.error("[Redis Subscriber] Failed to parse message:", e);
-				}
-			});
-		}
+				})();
 
-		subscriptions.get(channel)?.add(callback as (message: unknown) => void);
+				subscriptionLock = unsubPromise.then(
+					() => {},
+					() => {},
+				);
+				await unsubPromise;
+			};
+		})();
 
-		// Return unsubscribe function
-		return async () => {
-			const callbacks = subscriptions.get(channel);
-			if (callbacks) {
-				callbacks.delete(callback as (message: unknown) => void);
-				if (callbacks.size === 0) {
-					subscriptions.delete(channel);
-					await conn.unsubscribe(channel);
-				}
-			}
-		};
+		subscriptionLock = operationPromise.then(
+			() => {},
+			() => {},
+		);
+		return operationPromise;
 	};
 
 	// Subscribe specifically to consumer status updates
@@ -206,19 +229,30 @@ export function createRedisSubscriber() {
 	};
 
 	const disconnect = async () => {
-		try {
-			if (client?.isOpen) {
-				// Unsubscribe from all channels
-				for (const channel of subscriptions.keys()) {
-					await client.unsubscribe(channel);
+		// Synchronize disconnect to prevent race conditions
+		await subscriptionLock;
+
+		const operationPromise = (async () => {
+			try {
+				if (client?.isOpen) {
+					// Unsubscribe from all channels
+					for (const channel of subscriptions.keys()) {
+						await client.unsubscribe(channel);
+					}
+					subscriptions.clear();
+					await client.quit();
 				}
+			} finally {
+				client = null;
 				subscriptions.clear();
-				await client.quit();
 			}
-		} finally {
-			client = null;
-			subscriptions.clear();
-		}
+		})();
+
+		subscriptionLock = operationPromise.then(
+			() => {},
+			() => {},
+		);
+		await operationPromise;
 	};
 
 	return {

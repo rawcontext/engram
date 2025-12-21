@@ -43,9 +43,9 @@ export const ParsedStreamEventSchema = z.object({
 	thought: z.string().optional(),
 	tool_call: z
 		.object({
-			id: z.string(),
-			name: z.string(),
-			arguments_delta: z.string(),
+			id: z.string().optional(),
+			name: z.string().optional(),
+			arguments_delta: z.string().optional(),
 			index: z.number().default(0),
 		})
 		.optional(),

@@ -23,7 +23,32 @@ import type { TrialMetrics } from "./trial-runner.js";
 
 type DatasetVariant = "s" | "m" | "oracle";
 type LLMProviderType = "stub" | "anthropic" | "openai" | "gemini" | "ollama";
-type RunBenchmarkConfig = Record<string, unknown>;
+
+interface RunBenchmarkConfig {
+	dataset: string;
+	variant?: DatasetVariant;
+	limit?: number;
+	qdrantUrl?: string;
+	llm?: LLMProviderType;
+	ollamaUrl?: string;
+	ollamaModel?: string;
+	embeddings: string;
+	rerank: boolean;
+	rerankTier: string;
+	rerankDepth: number;
+	hybridSearch: boolean;
+	abstention: boolean;
+	abstentionThreshold: number;
+	sessionAware: boolean;
+	temporalAware: boolean;
+}
+
+/**
+ * Type guard to validate string config values
+ */
+function isString(value: unknown): value is string {
+	return typeof value === "string";
+}
 
 /**
  * Options for the evaluation adapter
@@ -154,17 +179,25 @@ export async function evaluateWithBenchmark(
 		// Map trial config to benchmark CLI args
 		const benchmarkConfig = mapTrialToBenchmarkConfig(trialConfig, options);
 
+		// Validate required string fields
+		if (!isString(benchmarkConfig.dataset)) {
+			throw new Error("Invalid benchmark config: dataset must be a string");
+		}
+		if (!isString(benchmarkConfig.rerankTier)) {
+			throw new Error("Invalid benchmark config: rerankTier must be a string");
+		}
+
 		// Build CLI arguments
 		const args = [
 			"run",
 			"--dataset",
-			benchmarkConfig.dataset as string,
+			benchmarkConfig.dataset,
 			"--output-dir",
 			outputDir,
 			"--retriever",
 			"engram",
 			"--search-url",
-			(benchmarkConfig.qdrantUrl as string) ?? "http://localhost:5002",
+			benchmarkConfig.qdrantUrl ?? "http://localhost:5002",
 			"--search-strategy",
 			benchmarkConfig.hybridSearch ? "hybrid" : "dense",
 			"--top-k",
@@ -177,7 +210,7 @@ export async function evaluateWithBenchmark(
 
 		if (benchmarkConfig.rerank) {
 			args.push("--rerank");
-			args.push("--rerank-tier", benchmarkConfig.rerankTier as string);
+			args.push("--rerank-tier", benchmarkConfig.rerankTier);
 		}
 
 		// Run benchmark CLI
@@ -233,7 +266,24 @@ export async function evaluateWithBenchmark(
 
 		const reportPath = join(outputDir, jsonFile);
 		const reportJson = await readFile(reportPath, "utf-8");
-		const report = JSON.parse(reportJson) as BenchmarkReport;
+
+		// Parse and validate JSON structure
+		let parsedData: unknown;
+		try {
+			parsedData = JSON.parse(reportJson);
+		} catch (error) {
+			throw new Error(
+				`Failed to parse benchmark report JSON: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+
+		// Basic validation that it's an object
+		if (typeof parsedData !== "object" || parsedData === null) {
+			throw new Error("Invalid benchmark report: expected an object");
+		}
+
+		// Type assertion with validation
+		const report = parsedData as BenchmarkReport;
 
 		// Map to TrialMetrics
 		return mapBenchmarkToTrialMetrics(report);

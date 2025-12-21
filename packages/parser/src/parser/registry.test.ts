@@ -128,7 +128,7 @@ describe("ParserRegistry", () => {
 			};
 
 			const result = registry.parse("anthropic", event);
-			expect(result).toEqual({ content: "Hello" });
+			expect(result).toEqual({ role: "assistant", content: "Hello" });
 		});
 
 		it("should parse using aliases", () => {
@@ -208,7 +208,7 @@ describe("defaultRegistry", () => {
 		};
 
 		const result = defaultRegistry.parse("anthropic", event);
-		expect(result).toEqual({ content: "Hello from Anthropic" });
+		expect(result).toEqual({ role: "assistant", content: "Hello from Anthropic" });
 	});
 
 	it("should parse openai events via gpt alias", () => {

@@ -25,6 +25,7 @@ export class KafkaClient implements MessageClient {
 	private kafka: unknown;
 	private producer: Producer | null = null;
 	private consumers: Consumer[] = [];
+	private consumersLock = Promise.resolve();
 	private brokers: string;
 
 	constructor(brokers: string[] = ["localhost:19092"], _clientId: string = "engram-client") {
@@ -51,28 +52,41 @@ export class KafkaClient implements MessageClient {
 	 * @param config - Consumer configuration including group ID
 	 */
 	public async getConsumer(config: ConsumerConfig): Promise<Consumer> {
-		const kafka = this.kafka as { consumer: (config: Record<string, unknown>) => InternalConsumer };
-		const internalConsumer = kafka.consumer({
-			"bootstrap.servers": this.brokers,
-			"group.id": config.groupId,
-			"auto.offset.reset": "earliest",
-			"enable.auto.commit": true,
-			"session.timeout.ms": 120000, // 2 minutes
-			"max.poll.interval.ms": 180000, // 3 minutes
-		}) as InternalConsumer;
-		await internalConsumer.connect();
+		// Synchronize consumer creation to prevent race conditions
+		await this.consumersLock;
 
-		// Wrap to provide KafkaJS-compatible API
-		const wrappedConsumer: Consumer = {
-			connect: () => internalConsumer.connect(),
-			disconnect: () => internalConsumer.disconnect(),
-			subscribe: (opts: { topic: string; fromBeginning?: boolean }) =>
-				internalConsumer.subscribe({ topics: [opts.topic] }),
-			run: (opts) => internalConsumer.run(opts),
-		};
+		const operationPromise = (async () => {
+			const kafka = this.kafka as {
+				consumer: (config: Record<string, unknown>) => InternalConsumer;
+			};
+			const internalConsumer = kafka.consumer({
+				"bootstrap.servers": this.brokers,
+				"group.id": config.groupId,
+				"auto.offset.reset": "earliest",
+				"enable.auto.commit": true,
+				"session.timeout.ms": 120000, // 2 minutes
+				"max.poll.interval.ms": 180000, // 3 minutes
+			}) as InternalConsumer;
+			await internalConsumer.connect();
 
-		this.consumers.push(wrappedConsumer);
-		return wrappedConsumer;
+			// Wrap to provide KafkaJS-compatible API
+			const wrappedConsumer: Consumer = {
+				connect: () => internalConsumer.connect(),
+				disconnect: () => internalConsumer.disconnect(),
+				subscribe: (opts: { topic: string; fromBeginning?: boolean }) =>
+					internalConsumer.subscribe({ topics: [opts.topic] }),
+				run: (opts) => internalConsumer.run(opts),
+			};
+
+			this.consumers.push(wrappedConsumer);
+			return wrappedConsumer;
+		})();
+
+		this.consumersLock = operationPromise.then(
+			() => {},
+			() => {},
+		);
+		return operationPromise;
 	}
 
 	/**
@@ -100,17 +114,28 @@ export class KafkaClient implements MessageClient {
 	}
 
 	public async disconnect(): Promise<void> {
-		// Disconnect all consumers
-		for (const consumer of this.consumers) {
-			await consumer.disconnect();
-		}
-		this.consumers = [];
+		// Synchronize disconnect to prevent race conditions
+		await this.consumersLock;
 
-		// Disconnect producer
-		if (this.producer) {
-			await this.producer.disconnect();
-			this.producer = null;
-		}
+		const operationPromise = (async () => {
+			// Disconnect all consumers
+			for (const consumer of this.consumers) {
+				await consumer.disconnect();
+			}
+			this.consumers = [];
+
+			// Disconnect producer
+			if (this.producer) {
+				await this.producer.disconnect();
+				this.producer = null;
+			}
+		})();
+
+		this.consumersLock = operationPromise.then(
+			() => {},
+			() => {},
+		);
+		await operationPromise;
 	}
 }
 
