@@ -103,7 +103,7 @@ export class ExecutionService {
 		replace: string,
 	): Promise<ExecutionResult> {
 		try {
-			this.patchManager.applySearchReplace(path, search, replace);
+			await this.patchManager.applySearchReplace(path, search, replace);
 			return { success: true, data: `Successfully replaced text in ${path}` };
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : String(e);

@@ -33,8 +33,9 @@ describe("QueryBuilder", () => {
 			.return("n")
 			.build();
 
-		expect(cypher).toContain("(n.vt_start <= $vt AND n.vt_end > $vt)");
-		expect(cypher).toContain("(n.tt_start <= $tt AND n.tt_end > $tt)");
-		expect(params).toEqual({ vt: 1000, tt: 2000 });
+		// Uses numbered params to avoid collisions when multiple aliases are used
+		expect(cypher).toContain("(n.vt_start <= $vt_0 AND n.vt_end > $vt_0)");
+		expect(cypher).toContain("(n.tt_start <= $tt_1 AND n.tt_end > $tt_1)");
+		expect(params).toEqual({ vt_0: 1000, tt_1: 2000 });
 	});
 });
