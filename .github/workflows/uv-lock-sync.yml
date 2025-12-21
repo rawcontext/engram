@@ -1,0 +1,55 @@
+# Syncs uv.lock when pyproject.toml changes
+# Workaround for: https://github.com/dependabot/dependabot-core/issues/12788
+name: Sync uv.lock
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**/pyproject.toml"
+  pull_request:
+    paths:
+      - "**/pyproject.toml"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Sync uv.lock files
+        run: |
+          for dir in apps/search apps/tuner; do
+            if [ -f "$dir/pyproject.toml" ]; then
+              echo "Syncing $dir/uv.lock"
+              cd "$dir"
+              uv lock --upgrade
+              cd - > /dev/null
+            fi
+          done
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit changes
+        if: steps.changes.outputs.changed == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: sync uv.lock files"
+          file_pattern: "**/uv.lock"
