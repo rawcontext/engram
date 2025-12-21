@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { apiKeyAuth, type ApiKeyAuthOptions } from "./auth";
+import { type ApiKeyAuthOptions, apiKeyAuth } from "./auth";
 
 // Mock Hono context
 function createMockContext(headers: Record<string, string> = {}) {

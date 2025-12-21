@@ -21,6 +21,7 @@ vi.mock("@ai-sdk/xai", () => ({
 
 // Import the mocked generateText for assertions
 import { generateText, tool } from "ai";
+
 const mockGenerateText = vi.mocked(generateText);
 const mockTool = vi.mocked(tool);
 
