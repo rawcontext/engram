@@ -66,6 +66,18 @@ class TestLifespan:
             yield mock_client
 
     @pytest.fixture
+    def mock_schema_manager(self):
+        """Create mock schema manager."""
+        with patch("src.main.SchemaManager") as mock_cls, patch(
+            "src.main.get_turns_collection_schema"
+        ) as mock_schema:
+            mock_manager = MagicMock()
+            mock_manager.ensure_collection = AsyncMock(return_value=False)
+            mock_cls.return_value = mock_manager
+            mock_schema.return_value = MagicMock()
+            yield mock_manager
+
+    @pytest.fixture
     def mock_embedder_factory(self):
         """Create mock embedder factory."""
         with patch("src.main.EmbedderFactory") as mock_cls:
@@ -127,6 +139,7 @@ class TestLifespan:
     async def test_lifespan_startup_success(
         self,
         mock_qdrant_client,
+        mock_schema_manager,
         mock_embedder_factory,
         mock_reranker_router,
         mock_search_retriever,
@@ -152,6 +165,7 @@ class TestLifespan:
 
     async def test_lifespan_qdrant_connect_failure(
         self,
+        mock_schema_manager,
         mock_embedder_factory,
         mock_reranker_router,
         mock_settings,
@@ -175,6 +189,7 @@ class TestLifespan:
 
     async def test_lifespan_collection_not_exists(
         self,
+        mock_schema_manager,
         mock_embedder_factory,
         mock_reranker_router,
         mock_search_retriever,
@@ -199,6 +214,7 @@ class TestLifespan:
     async def test_lifespan_preload_models(
         self,
         mock_qdrant_client,
+        mock_schema_manager,
         mock_reranker_router,
         mock_search_retriever,
         mock_multi_query_retriever,
@@ -233,6 +249,7 @@ class TestLifespan:
     async def test_lifespan_preload_failure(
         self,
         mock_qdrant_client,
+        mock_schema_manager,
         mock_reranker_router,
         mock_search_retriever,
         mock_multi_query_retriever,
@@ -266,6 +283,7 @@ class TestLifespan:
     async def test_lifespan_shutdown_embedder_error(
         self,
         mock_qdrant_client,
+        mock_schema_manager,
         mock_reranker_router,
         mock_search_retriever,
         mock_multi_query_retriever,
@@ -287,6 +305,7 @@ class TestLifespan:
 
     async def test_lifespan_shutdown_qdrant_error(
         self,
+        mock_schema_manager,
         mock_embedder_factory,
         mock_reranker_router,
         mock_search_retriever,

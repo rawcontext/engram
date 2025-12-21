@@ -1,8 +1,9 @@
 """Tests for indexing module (batch, consumer, indexer)."""
 
 import asyncio
+import contextlib
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -642,10 +643,8 @@ class TestMemoryEventConsumer:
         await asyncio.sleep(0.15)
         consumer._running = False
         heartbeat_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await heartbeat_task
-        except asyncio.CancelledError:
-            pass
 
         # Should have published at least one heartbeat
         assert mock_redis.publish_consumer_status.call_count >= 1
@@ -673,10 +672,8 @@ class TestMemoryEventConsumer:
         await asyncio.sleep(0.15)
         consumer._running = False
         heartbeat_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await heartbeat_task
-        except asyncio.CancelledError:
-            pass
 
     async def test_heartbeat_loop_no_redis(
         self,
@@ -698,10 +695,8 @@ class TestMemoryEventConsumer:
         await asyncio.sleep(0.15)
         consumer._running = False
         heartbeat_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await heartbeat_task
-        except asyncio.CancelledError:
-            pass
 
     async def test_start_already_running(
         self,
@@ -927,41 +922,35 @@ class TestDocumentIndexer:
         # Enable ColBERT for this specific test
         config = IndexerConfig(enable_colbert=True)
 
-        # Mock the MultiVector class
-        with patch("src.indexing.indexer.models") as mock_models:
-            mock_multi_vector = MagicMock()
-            mock_models.MultiVector.return_value = mock_multi_vector
-            mock_models.SparseVector = MagicMock()
-            mock_models.PointStruct = MagicMock()
+        indexer = DocumentIndexer(
+            qdrant_client=mock_qdrant,
+            embedder_factory=mock_embedder_factory,
+            config=config,
+        )
 
-            indexer = DocumentIndexer(
-                qdrant_client=mock_qdrant,
-                embedder_factory=mock_embedder_factory,
-                config=config,
-            )
+        doc = Document(
+            id="doc-1",
+            content="test content",
+            metadata={"type": "code"},
+            session_id="session-1",
+        )
 
-            doc = Document(
-                id="doc-1",
-                content="test content",
-                metadata={"type": "code"},
-                session_id="session-1",
-            )
+        colbert_vecs = [[0.1, 0.2], [0.3, 0.4]]
+        point = indexer._build_point(
+            doc=doc,
+            dense_vec=[0.1, 0.2, 0.3],
+            sparse_vec={1: 0.5, 2: 0.3},
+            colbert_vecs=colbert_vecs,
+        )
 
-            point = indexer._build_point(
-                doc=doc,
-                dense_vec=[0.1, 0.2, 0.3],
-                sparse_vec={1: 0.5, 2: 0.3},
-                colbert_vecs=[[0.1, 0.2], [0.3, 0.4]],
-            )
-
-            # Verify MultiVector was called for ColBERT
-            mock_models.MultiVector.assert_called_once_with(vectors=[[0.1, 0.2], [0.3, 0.4]])
-            # Verify PointStruct was called with correct payload
-            call_kwargs = mock_models.PointStruct.call_args.kwargs
-            assert call_kwargs["id"] == "doc-1"
-            assert call_kwargs["payload"]["content"] == "test content"
-            assert call_kwargs["payload"]["type"] == "code"
-            assert call_kwargs["payload"]["session_id"] == "session-1"
+        # Verify ColBERT vectors are included in vectors dict
+        assert config.colbert_vector_name in point.vector
+        assert point.vector[config.colbert_vector_name] == colbert_vecs
+        # Verify payload
+        assert point.id == "doc-1"
+        assert point.payload["content"] == "test content"
+        assert point.payload["type"] == "code"
+        assert point.payload["session_id"] == "session-1"
 
     def test_build_point_without_colbert(
         self,
