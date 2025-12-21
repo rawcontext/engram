@@ -20,10 +20,6 @@ from src.rerankers.router import RerankerRouter
 from src.retrieval.classifier import QueryClassifier
 from src.retrieval.constants import (
     CODE_DENSE_FIELD,
-    MIN_SCORE_DENSE,
-    MIN_SCORE_HYBRID,
-    MIN_SCORE_SPARSE,
-    RERANK_TIMEOUT_MS,
     SPARSE_FIELD,
     TEXT_DENSE_FIELD,
 )
@@ -114,9 +110,9 @@ class SearchRetriever:
 
         # Get effective threshold based on strategy
         threshold_map = {
-            SearchStrategy.DENSE: MIN_SCORE_DENSE,
-            SearchStrategy.SPARSE: MIN_SCORE_SPARSE,
-            SearchStrategy.HYBRID: MIN_SCORE_HYBRID,
+            SearchStrategy.DENSE: self.settings.search_min_score_dense,
+            SearchStrategy.SPARSE: self.settings.search_min_score_sparse,
+            SearchStrategy.HYBRID: self.settings.search_min_score_hybrid,
         }
         effective_threshold = threshold if threshold is not None else threshold_map[strategy]
 
@@ -365,7 +361,7 @@ class SearchRetriever:
                 documents=documents,
                 tier=effective_tier,
                 top_k=limit,
-                timeout_ms=RERANK_TIMEOUT_MS,
+                timeout_ms=self.settings.reranker_timeout_ms,
                 fallback_tier=RerankerTier.FAST,
             )
 
@@ -540,8 +536,7 @@ class SearchRetriever:
         # Code queries get CODE tier for specialized reranking
         if classification.features.has_code:
             logger.debug(
-                f"Auto-selected CODE tier: query has code patterns, "
-                f"score={classification.score}"
+                f"Auto-selected CODE tier: query has code patterns, score={classification.score}"
             )
             return RerankerTier.CODE
 

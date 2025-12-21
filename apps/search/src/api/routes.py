@@ -9,10 +9,16 @@ from src.api.schemas import (
     EmbedRequest,
     EmbedResponse,
     HealthResponse,
+    MultiQueryRequest,
     SearchRequest,
     SearchResponse,
     SearchResult,
+    SessionAwareRequest,
+    SessionAwareResponse,
+    SessionAwareResult,
 )
+from src.retrieval.multi_query import MultiQueryConfig
+from src.retrieval.session import SessionRetrieverConfig
 from src.retrieval.types import RerankerTier, SearchFilters, SearchQuery, SearchStrategy, TimeRange
 from src.utils.metrics import get_content_type, get_metrics
 
@@ -246,4 +252,208 @@ async def embed(request: Request, embed_request: EmbedRequest) -> EmbedResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Embedding failed: {str(e)}",
+        ) from e
+
+
+@router.post("/search/multi-query", response_model=SearchResponse)
+async def multi_query_search(
+    request: Request, multi_query_request: MultiQueryRequest
+) -> SearchResponse:
+    """Perform multi-query search with LLM-based query expansion and RRF fusion.
+
+    Uses diverse multi-query rewriting (DMQR-RAG) to generate query variations
+    and fuses results using Reciprocal Rank Fusion for improved retrieval.
+
+    Args:
+        request: FastAPI request object with app state.
+        multi_query_request: Multi-query search parameters.
+
+    Returns:
+        Search results fused from multiple query variations.
+
+    Raises:
+        HTTPException: If search fails.
+    """
+    start_time = time.time()
+
+    logger.info(
+        f"Multi-query search request: query='{multi_query_request.text[:50]}...', "
+        f"limit={multi_query_request.limit}, num_variations={multi_query_request.num_variations}"
+    )
+
+    # Verify multi-query retriever is available
+    multi_query_retriever = getattr(request.app.state, "multi_query_retriever", None)
+    if multi_query_retriever is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Multi-query search unavailable: retriever not initialized",
+        )
+
+    try:
+        # Update config if different from defaults
+        multi_query_retriever.config = MultiQueryConfig(
+            num_variations=multi_query_request.num_variations,
+            strategies=multi_query_request.strategies,
+            include_original=multi_query_request.include_original,
+            rrf_k=multi_query_request.rrf_k,
+        )
+
+        # Build search filters
+        filters = None
+        if multi_query_request.filters:
+            time_range = None
+            if multi_query_request.filters.time_range:
+                time_range = TimeRange(
+                    start=multi_query_request.filters.time_range.get("start", 0),
+                    end=multi_query_request.filters.time_range.get("end", 0),
+                )
+            filters = SearchFilters(
+                session_id=multi_query_request.filters.session_id,
+                type=multi_query_request.filters.type,
+                time_range=time_range,
+            )
+
+        # Convert string strategy/tier to enums if provided
+        strategy = (
+            SearchStrategy(multi_query_request.strategy) if multi_query_request.strategy else None
+        )
+        rerank_tier = (
+            RerankerTier(multi_query_request.rerank_tier)
+            if multi_query_request.rerank_tier
+            else None
+        )
+
+        # Build search query
+        query = SearchQuery(
+            text=multi_query_request.text,
+            limit=multi_query_request.limit,
+            threshold=multi_query_request.threshold,
+            filters=filters,
+            strategy=strategy,
+            rerank=multi_query_request.rerank,
+            rerank_tier=rerank_tier,
+            rerank_depth=multi_query_request.rerank_depth,
+        )
+
+        # Execute multi-query search
+        results = await multi_query_retriever.search(query)
+
+        # Calculate timing
+        took_ms = int((time.time() - start_time) * 1000)
+
+        # Map results to response schema
+        search_results = [
+            SearchResult(
+                id=str(r.id),
+                score=r.score,
+                rrf_score=r.rrf_score,
+                reranker_score=r.reranker_score,
+                rerank_tier=r.rerank_tier.value if r.rerank_tier else None,
+                payload=r.payload,
+                degraded=r.degraded,
+            )
+            for r in results
+        ]
+
+        logger.info(
+            f"Multi-query search completed: results={len(search_results)}, took_ms={took_ms}"
+        )
+
+        return SearchResponse(
+            results=search_results,
+            total=len(search_results),
+            took_ms=took_ms,
+        )
+
+    except Exception as e:
+        took_ms = int((time.time() - start_time) * 1000)
+        logger.error(f"Multi-query search failed after {took_ms}ms: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Multi-query search failed: {str(e)}",
+        ) from e
+
+
+@router.post("/search/session-aware", response_model=SessionAwareResponse)
+async def session_aware_search(
+    request: Request, session_request: SessionAwareRequest
+) -> SessionAwareResponse:
+    """Perform session-aware hierarchical retrieval.
+
+    Implements two-stage retrieval:
+    1. Stage 1: Retrieve top-S sessions based on session summaries
+    2. Stage 2: Retrieve top-T turns within each matched session
+    3. Optional reranking of combined results
+
+    Args:
+        request: FastAPI request object with app state.
+        session_request: Session-aware search parameters.
+
+    Returns:
+        Search results with session context.
+
+    Raises:
+        HTTPException: If search fails.
+    """
+    start_time = time.time()
+
+    logger.info(
+        f"Session-aware search request: query='{session_request.query[:50]}...', "
+        f"top_sessions={session_request.top_sessions}, "
+        f"turns_per_session={session_request.turns_per_session}"
+    )
+
+    # Verify session-aware retriever is available
+    session_aware_retriever = getattr(request.app.state, "session_aware_retriever", None)
+    if session_aware_retriever is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Session-aware search unavailable: retriever not initialized",
+        )
+
+    try:
+        # Update config if different from defaults
+        session_aware_retriever.config = SessionRetrieverConfig(
+            top_sessions=session_request.top_sessions,
+            turns_per_session=session_request.turns_per_session,
+            final_top_k=session_request.final_top_k,
+        )
+
+        # Execute session-aware retrieval
+        results = await session_aware_retriever.retrieve(session_request.query)
+
+        # Calculate timing
+        took_ms = int((time.time() - start_time) * 1000)
+
+        # Map results to response schema
+        session_results = [
+            SessionAwareResult(
+                id=str(r.id),
+                score=r.score,
+                payload=r.payload,
+                session_id=r.session_id,
+                session_summary=r.session_summary,
+                session_score=r.session_score,
+                rrf_score=r.rrf_score,
+                reranker_score=r.reranker_score,
+            )
+            for r in results
+        ]
+
+        logger.info(
+            f"Session-aware search completed: results={len(session_results)}, took_ms={took_ms}"
+        )
+
+        return SessionAwareResponse(
+            results=session_results,
+            total=len(session_results),
+            took_ms=took_ms,
+        )
+
+    except Exception as e:
+        took_ms = int((time.time() - start_time) * 1000)
+        logger.error(f"Session-aware search failed after {took_ms}ms: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Session-aware search failed: {str(e)}",
         ) from e

@@ -6,7 +6,7 @@ import json
 import logging
 import os
 from collections.abc import Callable
-from typing import Any, cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import redis.asyncio as redis
 

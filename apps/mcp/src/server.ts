@@ -22,9 +22,12 @@ import { EngramCloudClient } from "./services/cloud";
 import type { IEngramClient, IMemoryRetriever, IMemoryStore } from "./services/interfaces";
 import {
 	registerContextTool,
+	registerEnrichMemoryTool,
+	registerExtractFactsTool,
 	registerQueryTool,
 	registerRecallTool,
 	registerRememberTool,
+	registerSummarizeTool,
 } from "./tools";
 
 export interface EngramMcpServerOptions {
@@ -158,7 +161,12 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	// Register tools
 	// Use type assertion for memoryStore since local MemoryStore implements IMemoryStore
 	registerRememberTool(server, memoryStore as MemoryStore, getSessionContext);
-	registerRecallTool(server, memoryRetriever as MemoryRetriever, getSessionContext);
+	registerRecallTool(server, memoryRetriever as MemoryRetriever, getSessionContext, elicitation);
+
+	// Register sampling-based tools (available when client supports sampling)
+	registerSummarizeTool(server, sampling);
+	registerExtractFactsTool(server, sampling);
+	registerEnrichMemoryTool(server, sampling);
 
 	// Query tool and resources need graph client - only available in local mode
 	if (mode === "local" && graphClient) {

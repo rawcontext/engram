@@ -8,6 +8,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export type WebSocketStatus = "connecting" | "open" | "closed" | "error";
 
 /**
+ * Heartbeat/ping-pong options for connection health monitoring
+ */
+export interface HeartbeatOptions {
+	/**
+	 * Message to send as ping. Default: "ping"
+	 */
+	message?: string;
+
+	/**
+	 * Expected pong response message. Default: "pong"
+	 */
+	returnMessage?: string;
+
+	/**
+	 * Interval between heartbeat pings in ms. Default: 30000 (30s)
+	 */
+	interval?: number;
+
+	/**
+	 * Timeout to wait for pong before forcing reconnect in ms. Default: 5000 (5s)
+	 */
+	timeout?: number;
+}
+
+/**
  * Configuration options for the useWebSocket hook
  */
 export interface UseWebSocketOptions<T = unknown> {
@@ -58,6 +83,26 @@ export interface UseWebSocketOptions<T = unknown> {
 	 * Base delay for exponential backoff calculation. Default: 1000
 	 */
 	baseReconnectDelay?: number;
+
+	/**
+	 * Enable heartbeat/ping-pong to detect stale connections. Default: disabled
+	 */
+	heartbeat?: HeartbeatOptions;
+
+	/**
+	 * Queue messages sent while disconnected and flush on reconnect. Default: false
+	 */
+	queueOfflineMessages?: boolean;
+
+	/**
+	 * Maximum number of messages to queue while offline. Default: 100
+	 */
+	maxQueueSize?: number;
+
+	/**
+	 * Maximum age of queued messages in ms before discarding. Default: 30000 (30s)
+	 */
+	maxQueueAge?: number;
 }
 
 /**
@@ -93,6 +138,26 @@ export interface UseWebSocketReturn {
 	 * Current reconnection attempt number (0 when connected)
 	 */
 	reconnectAttempt: number;
+
+	/**
+	 * Last close code received (1000 = normal, etc.)
+	 */
+	lastCloseCode: number | null;
+
+	/**
+	 * Last close reason string
+	 */
+	lastCloseReason: string;
+
+	/**
+	 * Number of messages currently queued (0 if queueing disabled)
+	 */
+	queuedMessageCount: number;
+
+	/**
+	 * Clear all queued messages
+	 */
+	clearQueue: () => void;
 }
 
 /**
@@ -144,15 +209,26 @@ export function useWebSocket<T = unknown>(options: UseWebSocketOptions<T>): UseW
 		maxReconnectAttempts = 5,
 		maxReconnectDelay = 30000,
 		baseReconnectDelay = 1000,
+		heartbeat,
+		queueOfflineMessages = false,
+		maxQueueSize = 100,
+		maxQueueAge = 30000,
 	} = options;
 
 	const [status, setStatus] = useState<WebSocketStatus>("closed");
 	const [reconnectAttempt, setReconnectAttempt] = useState(0);
+	const [lastCloseCode, setLastCloseCode] = useState<number | null>(null);
+	const [lastCloseReason, setLastCloseReason] = useState("");
+	const [queuedMessageCount, setQueuedMessageCount] = useState(0);
 
 	const wsRef = useRef<WebSocket | null>(null);
 	const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const reconnectAttemptsRef = useRef(0);
 	const manualCloseRef = useRef(false);
+	const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+	const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const lastPongRef = useRef<number>(Date.now());
+	const messageQueueRef = useRef<Array<{ message: string; timestamp: number }>>([]);
 
 	// Store callbacks in refs to avoid reconnection on callback changes
 	const onMessageRef = useRef(onMessage);
@@ -183,6 +259,73 @@ export function useWebSocket<T = unknown>(options: UseWebSocketOptions<T>): UseW
 		}
 	}, []);
 
+	const clearHeartbeatTimers = useCallback(() => {
+		if (heartbeatIntervalRef.current) {
+			clearInterval(heartbeatIntervalRef.current);
+			heartbeatIntervalRef.current = null;
+		}
+		if (heartbeatTimeoutRef.current) {
+			clearTimeout(heartbeatTimeoutRef.current);
+			heartbeatTimeoutRef.current = null;
+		}
+	}, []);
+
+	const startHeartbeat = useCallback(() => {
+		if (!heartbeat || !wsRef.current) return;
+
+		const pingMessage = heartbeat.message ?? "ping";
+		const interval = heartbeat.interval ?? 30000;
+		const timeout = heartbeat.timeout ?? 5000;
+
+		clearHeartbeatTimers();
+		lastPongRef.current = Date.now();
+
+		heartbeatIntervalRef.current = setInterval(() => {
+			if (wsRef.current?.readyState === WebSocket.OPEN) {
+				// Check if we received a pong within timeout window
+				const timeSinceLastPong = Date.now() - lastPongRef.current;
+				if (timeSinceLastPong > timeout + interval) {
+					// No pong received, force reconnect
+					clearHeartbeatTimers();
+					if (wsRef.current) {
+						wsRef.current.close();
+					}
+					return;
+				}
+
+				// Send ping
+				wsRef.current.send(pingMessage);
+
+				// Set timeout to expect pong
+				if (heartbeatTimeoutRef.current) {
+					clearTimeout(heartbeatTimeoutRef.current);
+				}
+			}
+		}, interval);
+	}, [heartbeat, clearHeartbeatTimers]);
+
+	const clearQueue = useCallback(() => {
+		messageQueueRef.current = [];
+		setQueuedMessageCount(0);
+	}, []);
+
+	const flushMessageQueue = useCallback(() => {
+		if (!queueOfflineMessages || messageQueueRef.current.length === 0) return;
+
+		const now = Date.now();
+		const validMessages = messageQueueRef.current.filter(
+			(item) => now - item.timestamp <= maxQueueAge,
+		);
+
+		validMessages.forEach((item) => {
+			if (wsRef.current?.readyState === WebSocket.OPEN) {
+				wsRef.current.send(item.message);
+			}
+		});
+
+		clearQueue();
+	}, [queueOfflineMessages, maxQueueAge, clearQueue]);
+
 	const connect = useCallback(() => {
 		if (!url) {
 			setStatus("closed");
@@ -212,10 +355,21 @@ export function useWebSocket<T = unknown>(options: UseWebSocketOptions<T>): UseW
 				reconnectAttemptsRef.current = 0;
 				setReconnectAttempt(0);
 				manualCloseRef.current = false;
+				startHeartbeat();
+				flushMessageQueue();
 				onOpenRef.current?.(ws);
 			};
 
 			ws.onmessage = (event) => {
+				// Check for heartbeat pong response
+				if (heartbeat) {
+					const pongMessage = heartbeat.returnMessage ?? "pong";
+					if (event.data === pongMessage) {
+						lastPongRef.current = Date.now();
+						return;
+					}
+				}
+
 				try {
 					const data = JSON.parse(event.data) as T;
 					onMessageRef.current(data);
@@ -233,16 +387,27 @@ export function useWebSocket<T = unknown>(options: UseWebSocketOptions<T>): UseW
 			ws.onclose = (event) => {
 				setStatus("closed");
 				wsRef.current = null;
+				clearHeartbeatTimers();
+				setLastCloseCode(event.code);
+				setLastCloseReason(event.reason);
 				onCloseRef.current?.(event);
 
-				// Auto-reconnect logic (unless manually closed)
+				// Check if we should reconnect based on close code
+				const shouldNotReconnect =
+					event.code === 1000 || // Normal closure
+					event.code === 1002 || // Protocol error
+					event.code === 1003; // Unsupported data
+
+				// Auto-reconnect logic (unless manually closed or specific close codes)
 				if (
 					!manualCloseRef.current &&
+					!shouldNotReconnect &&
 					shouldReconnect &&
 					reconnectAttemptsRef.current < maxReconnectAttempts
 				) {
+					const jitter = Math.random() * 1000;
 					const delay = Math.min(
-						baseReconnectDelay * 2 ** reconnectAttemptsRef.current,
+						baseReconnectDelay * 2 ** reconnectAttemptsRef.current + jitter,
 						maxReconnectDelay,
 					);
 					reconnectAttemptsRef.current++;
@@ -254,24 +419,50 @@ export function useWebSocket<T = unknown>(options: UseWebSocketOptions<T>): UseW
 		} catch {
 			setStatus("error");
 		}
-	}, [url, shouldReconnect, maxReconnectAttempts, maxReconnectDelay, baseReconnectDelay]);
+	}, [
+		url,
+		shouldReconnect,
+		maxReconnectAttempts,
+		maxReconnectDelay,
+		baseReconnectDelay,
+		heartbeat,
+		startHeartbeat,
+		flushMessageQueue,
+		clearHeartbeatTimers,
+	]);
 
-	const send = useCallback((data: string | object) => {
-		if (wsRef.current?.readyState === WebSocket.OPEN) {
+	const send = useCallback(
+		(data: string | object) => {
 			const message = typeof data === "string" ? data : JSON.stringify(data);
-			wsRef.current.send(message);
-		}
-	}, []);
+
+			if (wsRef.current?.readyState === WebSocket.OPEN) {
+				wsRef.current.send(message);
+			} else if (queueOfflineMessages) {
+				// Queue message if disconnected
+				if (messageQueueRef.current.length >= maxQueueSize) {
+					// Remove oldest message if queue is full
+					messageQueueRef.current.shift();
+				}
+				messageQueueRef.current.push({
+					message,
+					timestamp: Date.now(),
+				});
+				setQueuedMessageCount(messageQueueRef.current.length);
+			}
+		},
+		[queueOfflineMessages, maxQueueSize],
+	);
 
 	const close = useCallback(() => {
 		manualCloseRef.current = true;
 		clearReconnectTimeout();
+		clearHeartbeatTimers();
 		if (wsRef.current) {
 			wsRef.current.close();
 			wsRef.current = null;
 		}
 		setStatus("closed");
-	}, [clearReconnectTimeout]);
+	}, [clearReconnectTimeout, clearHeartbeatTimers]);
 
 	const manualReconnect = useCallback(() => {
 		manualCloseRef.current = false;
@@ -287,12 +478,31 @@ export function useWebSocket<T = unknown>(options: UseWebSocketOptions<T>): UseW
 
 		return () => {
 			clearReconnectTimeout();
+			clearHeartbeatTimers();
 			if (wsRef.current) {
 				wsRef.current.close();
 				wsRef.current = null;
 			}
 		};
-	}, [connect, clearReconnectTimeout]);
+	}, [connect, clearReconnectTimeout, clearHeartbeatTimers]);
+
+	// Handle Page Visibility API - reconnect when tab becomes visible
+	useEffect(() => {
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "visible") {
+				// Check if connection is not open
+				if (wsRef.current?.readyState !== WebSocket.OPEN) {
+					manualReconnect();
+				}
+			}
+		};
+
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+
+		return () => {
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+		};
+	}, [manualReconnect]);
 
 	return {
 		status,
@@ -301,5 +511,9 @@ export function useWebSocket<T = unknown>(options: UseWebSocketOptions<T>): UseW
 		close,
 		reconnect: manualReconnect,
 		reconnectAttempt,
+		lastCloseCode,
+		lastCloseReason,
+		queuedMessageCount,
+		clearQueue,
 	};
 }

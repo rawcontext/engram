@@ -13,6 +13,8 @@ from src.config import get_settings
 from src.embedders import EmbedderFactory
 from src.rerankers import RerankerRouter
 from src.retrieval import SearchRetriever
+from src.retrieval.multi_query import MultiQueryRetriever
+from src.retrieval.session import SessionAwareRetriever
 from src.utils.logging import configure_logging, get_logger
 from src.utils.metrics import SERVICE_INFO
 from src.utils.tracing import TracingMiddleware
@@ -96,9 +98,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         )
         app.state.search_retriever = search_retriever
         logger.info("Search retriever initialized")
+
+        # Initialize multi-query retriever
+        multi_query_retriever = MultiQueryRetriever(
+            base_retriever=search_retriever,
+            model=settings.reranker_llm_model,
+        )
+        app.state.multi_query_retriever = multi_query_retriever
+        logger.info("Multi-query retriever initialized")
+
+        # Initialize session-aware retriever
+        session_aware_retriever = SessionAwareRetriever(
+            qdrant_client=app.state.qdrant,
+            embedder_factory=embedder_factory,
+            settings=settings,
+            reranker_router=reranker_router,
+        )
+        app.state.session_aware_retriever = session_aware_retriever
+        logger.info("Session-aware retriever initialized")
     else:
         app.state.search_retriever = None
-        logger.warning("Search retriever not initialized (Qdrant unavailable)")
+        app.state.multi_query_retriever = None
+        app.state.session_aware_retriever = None
+        logger.warning("Retrievers not initialized (Qdrant unavailable)")
 
     # Preload models if configured
     if settings.embedder_preload:

@@ -81,3 +81,61 @@ class EmbedResponse(BaseModel):
     dimensions: int = Field(description="Number of dimensions in embedding")
     embedder_type: str = Field(description="Embedder type used")
     took_ms: int = Field(description="Time taken in milliseconds")
+
+
+class MultiQueryRequest(BaseModel):
+    """Multi-query search request payload."""
+
+    text: str = Field(description="Search query text")
+    limit: int = Field(default=10, ge=1, le=100, description="Maximum number of results")
+    threshold: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="Minimum similarity score threshold"
+    )
+    filters: SearchFilters | None = Field(default=None, description="Optional search filters")
+    strategy: str | None = Field(
+        default=None, description="Search strategy: 'hybrid', 'dense', or 'sparse'"
+    )
+    rerank: bool = Field(default=False, description="Whether to apply reranking")
+    rerank_tier: str | None = Field(
+        default=None, description="Reranking tier: 'fast', 'accurate', 'code', or 'llm'"
+    )
+    rerank_depth: int = Field(default=30, ge=1, le=100, description="Number of results to rerank")
+    num_variations: int = Field(default=3, ge=1, le=10, description="Number of query variations")
+    strategies: list[str] = Field(
+        default=["paraphrase", "keyword", "stepback"],
+        description="Query expansion strategies",
+    )
+    include_original: bool = Field(default=True, description="Include original query")
+    rrf_k: int = Field(default=60, ge=1, description="RRF fusion constant")
+
+
+class SessionAwareRequest(BaseModel):
+    """Session-aware search request payload."""
+
+    query: str = Field(description="Search query text")
+    top_sessions: int = Field(default=5, ge=1, le=20, description="Number of sessions to retrieve")
+    turns_per_session: int = Field(
+        default=3, ge=1, le=10, description="Number of turns per session"
+    )
+    final_top_k: int = Field(default=10, ge=1, le=100, description="Final top-K after reranking")
+
+
+class SessionAwareResult(BaseModel):
+    """Session-aware search result."""
+
+    id: str = Field(description="Result ID")
+    score: float = Field(description="Similarity score")
+    payload: dict[str, Any] = Field(description="Result payload with content and metadata")
+    session_id: str = Field(description="Session ID")
+    session_summary: str | None = Field(default=None, description="Session summary")
+    session_score: float | None = Field(default=None, description="Session-level score")
+    rrf_score: float | None = Field(default=None, description="RRF score")
+    reranker_score: float | None = Field(default=None, description="Reranker score")
+
+
+class SessionAwareResponse(BaseModel):
+    """Session-aware search response."""
+
+    results: list[SessionAwareResult] = Field(description="Search results with session context")
+    total: int = Field(description="Total number of results")
+    took_ms: int = Field(description="Time taken in milliseconds")
