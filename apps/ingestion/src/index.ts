@@ -509,7 +509,9 @@ export function createIngestionServer(port = 5001, maxBodySize = 50 * 1024 * 102
 
 // Only start server and consumer if running as main module (not imported for testing)
 /* v8 ignore start */
-if (require.main === module || process.env.NODE_ENV === "production") {
+const isMainModule =
+	import.meta.url === `file://${process.argv[1]}` || process.env.NODE_ENV === "production";
+if (isMainModule) {
 	// Start Consumer
 	startConsumer().catch((err) => logger.error({ err }, "Consumer startup failed"));
 

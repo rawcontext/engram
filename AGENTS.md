@@ -22,6 +22,9 @@ cd apps/search && uv run pytest  # Run tests
 cd apps/search && uv run ruff check src tests  # Lint
 cd apps/search && uv run ruff format src tests  # Format
 cd apps/search && uv run search  # Start service
+
+cd apps/tuner && uv sync       # Install tuner dependencies
+cd apps/tuner && uv run tuner  # Start tuner service
 ```
 
 ## Code Standards
@@ -29,7 +32,7 @@ cd apps/search && uv run search  # Start service
 ### TypeScript
 - **Formatter/Linter**: Biome (tabs, double quotes, 100 char line width)
 - **Package Manager**: npm only (never yarn/pnpm)
-- **TypeScript**: Version 7 (tsgo), strict mode, ESNext target, NodeNext modules
+- **TypeScript**: Version 7 (tsgo), strict mode, ESNext target, bundler module resolution
 - **Testing**: Vitest with globals enabled
 
 #### TypeScript 7 Notes
@@ -52,58 +55,92 @@ IMPORTANT: Run `uv run ruff check` and `uv run pytest` before committing.
 
 ```
 apps/
-├── control/     # Session orchestration, VFS, time-travel
-├── ingestion/   # Event parsing pipeline (port 5001)
-├── observatory/ # Next.js 16 frontend (port 3000/5000)
-├── mcp/         # Model Context Protocol server (stdio)
-├── memory/      # Graph persistence, real-time pub/sub
-├── search/      # Vector search & reranking [TypeScript] (port 5002) [DEPRECATED]
-├── search/   # Vector search & reranking [Python/FastAPI] (port 5002)
-└── tuner/       # Python/FastAPI hyperparameter tuning (port 8000)
+├── api/         # Cloud REST API (Hono) - memory operations, API key auth, rate limiting (port 8080)
+├── control/     # Session orchestration, XState decision engine, VFS, MCP tool integration
+├── ingestion/   # Event parsing pipeline, 8+ provider parsers, PII redaction (port 5001)
+├── mcp/         # Engram MCP server - remember/recall/query/context tools (stdio + HTTP ingest)
+├── memory/      # Graph persistence, turn aggregation, real-time pub/sub (Kafka consumer)
+├── observatory/ # Neural Observatory - Next.js 16 real-time session visualization (port 5000)
+├── search/      # Python/FastAPI vector search - hybrid retrieval, multi-tier reranking (port 5002)
+└── tuner/       # Python/FastAPI hyperparameter optimization with Optuna (port 8000)
 
 packages/
-├── benchmark/   # LongMemEval evaluation suite
-├── common/      # Utilities, errors, constants
+├── benchmark/   # LongMemEval evaluation suite (Python) - MTEB/BEIR benchmarks
+├── common/      # Utilities, errors, constants, testing fixtures
 ├── events/      # Zod event schemas (RawStreamEvent, ParsedStreamEvent)
-├── graph/       # Bitemporal graph models & repositories
-├── infra/       # Pulumi IaC for GCP/GKE
-├── logger/      # Pino structured logging
-├── parser/      # Provider stream parsers (8+ LLMs)
-├── search/      # Embedders, retrieval, reranking
-├── storage/     # Falkor, Kafka, Redis, GCS clients
-├── temporal/    # Bitemporal state, time-travel
-├── tsconfig/    # Shared TypeScript config
-├── tuner/       # Tuner orchestration client
-└── vfs/         # Virtual file system for snapshots
+├── graph/       # Bitemporal graph models, repositories, QueryBuilder, GraphPruner
+├── infra/       # Pulumi IaC for GCP/GKE (VPC, GKE Autopilot, databases)
+├── logger/      # Pino structured logging with PII redaction and lifecycle management
+├── parser/      # Provider stream parsers, ThinkingExtractor, DiffExtractor, Redactor
+├── storage/     # FalkorDB, Kafka, PostgreSQL, Redis, GCS/blob clients
+├── temporal/    # Rehydrator, TimeTravelService, ReplayEngine for time-travel
+├── tsconfig/    # Shared TypeScript configuration (base.json)
+├── tuner/       # TypeScript client, CLI, and trial executor for tuner service
+└── vfs/         # VirtualFileSystem, NodeFileSystem, InMemoryFileSystem, PatchManager
 ```
 
 ## Architecture Quick Reference
 
-**Data Flow**: External Agent → Observatory → Ingestion → Kafka → Memory → FalkorDB → Search → Qdrant
+**Data Flow**: External Agent → Ingestion → Kafka → Memory → FalkorDB → Search → Qdrant
 
-**Storage**: FalkorDB (graph), Qdrant (vectors), Redpanda (events), Redis (pub/sub)
+**Storage**: FalkorDB (graph), Qdrant (vectors), Redpanda (events), Redis (pub/sub), PostgreSQL (API keys, Optuna)
 
 **Bitemporal**: All nodes have `vt_start/vt_end` (valid time) + `tt_start/tt_end` (transaction time)
 
 **Key Patterns**:
 - See `packages/storage/src/falkor.ts:1` for graph client
 - See `packages/graph/src/writer.ts:1` for bitemporal node creation
-- See `packages/search/src/retriever.ts:1` for hybrid search pipeline (TypeScript)
-- See `apps/search/src/search/retrieval/retriever.py:1` for hybrid search pipeline (Python)
+- See `apps/search/src/search/retrieval/retriever.py:1` for hybrid search pipeline
 - See `apps/memory/src/aggregator.ts:1` for turn aggregation
+- See `packages/temporal/src/rehydrator.ts:1` for VFS time-travel
 
 ## Provider Support
 
 Parsers in `packages/parser/src/providers/`: Anthropic, OpenAI, Gemini, Claude Code, Cline, Codex, XAI, OpenCode
 
+**Registry Aliases**: `claude` → `anthropic`, `gpt`/`gpt-4` → `openai`, `grok` → `xai`, `claude-code` → `claude_code`
+
 ## MCP Tools (apps/mcp)
 
 | Tool | Purpose |
 |------|---------|
-| `remember` | Store memory with content, type, tags |
-| `recall` | Retrieve relevant memories by query |
-| `query` | Execute raw Cypher on graph |
-| `context` | Get comprehensive context for query |
+| `engram_remember` | Store memory with content, type (decision/context/insight/preference/fact), tags |
+| `engram_recall` | Retrieve memories by query with hybrid search and optional reranking |
+| `engram_query` | Execute read-only Cypher queries (local mode only) |
+| `engram_context` | Get comprehensive context for task (memories, file history, decisions) |
+| `engram_summarize` | Summarize text using client LLM (requires sampling capability) |
+| `engram_extract_facts` | Extract key facts from text as structured list |
+| `engram_enrich_memory` | Auto-generate summary, keywords, category for memory |
+
+**Resources (local mode)**: `memory://{id}`, `session://{id}/transcript`, `file-history://{path}`
+
+**Prompts (local mode)**: `/e prime`, `/e recap`, `/e why`
+
+## API Endpoints (apps/api)
+
+| Endpoint | Method | Purpose | Scope |
+|----------|--------|---------|-------|
+| `/v1/health` | GET | Health check | Public |
+| `/v1/memory/remember` | POST | Store memory with deduplication | `memory:write` |
+| `/v1/memory/recall` | POST | Hybrid search with reranking | `memory:read` |
+| `/v1/memory/query` | POST | Read-only Cypher queries | `query:read` |
+| `/v1/memory/context` | POST | Comprehensive context assembly | `memory:read` |
+| `/v1/keys` | GET | List API keys | `keys:manage` |
+| `/v1/keys/revoke` | POST | Revoke API key | `keys:manage` |
+
+## Search Service API (apps/search)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/health` | GET | Health check with Qdrant status |
+| `/ready` | GET | Kubernetes readiness probe |
+| `/metrics` | GET | Prometheus metrics |
+| `/search` | POST | Hybrid search with strategy (dense/sparse/hybrid) and reranking |
+| `/search/multi-query` | POST | LLM-driven query expansion (DMQR-RAG) |
+| `/search/session-aware` | POST | Two-stage hierarchical retrieval across sessions |
+| `/embed` | POST | Generate embeddings for external use |
+
+**Reranker Tiers**: `fast` (FlashRank ~10ms), `accurate` (BGE cross-encoder ~50ms), `code` (Jina ~50ms), `colbert` (late interaction ~30ms), `llm` (Grok listwise ~500ms)
 
 ## Testing
 
@@ -111,6 +148,10 @@ Parsers in `packages/parser/src/providers/`: Anthropic, OpenAI, Gemini, Claude C
 npm test                           # All tests
 npm test -- --filter=@engram/graph # Single package
 npm test -- --watch               # Watch mode
+
+# Python tests
+cd apps/search && uv run pytest --cov=src --cov-report=html
+cd apps/tuner && uv run pytest
 ```
 
 See `vitest.config.ts` for project-specific configurations.
@@ -122,9 +163,14 @@ See `vitest.config.ts` for project-specific configurations.
 npm run infra:up    # docker-compose.dev.yml
 
 # Production (Pulumi)
-cd packages/infra && pulumi preview
-cd packages/infra && pulumi up
+cd packages/infra
+npm run wake        # Turn on GKE cluster and workloads
+npm run sleep       # Turn off expensive resources
+npm run preview     # Preview changes
+npm run up          # Deploy
 ```
+
+**Services**: FalkorDB (6379), Qdrant (6333), Redpanda (9092/19092), Redis (6379), PostgreSQL (5432)
 
 ## External Tools
 
@@ -133,18 +179,10 @@ cd packages/infra && pulumi up
 **IMPORTANT:** Use `hf` CLI, NOT the deprecated `huggingface-cli`.
 
 ```bash
-# Auth
-hf auth login
-hf auth whoami
-
-# Upload to Spaces
+hf auth login && hf auth whoami
 hf upload <space-name> . . --repo-type space
-
-# Download models/datasets
 hf download <repo-id>
 ```
-
-Install with: `pip install huggingface_hub[cli]`
 
 ## Agent Mandates
 
@@ -190,11 +228,13 @@ YOU MUST NOT:
 | Docker infra | `/docker-compose.dev.yml` |
 | Event schemas | `/packages/events/src/schemas.ts` |
 | Graph models | `/packages/graph/src/models/` |
-| Search config (TS) | `/packages/search/src/config.ts` |
 | Search config (Py) | `/apps/search/src/search/config.py` |
 | Search retriever (Py) | `/apps/search/src/search/retrieval/retriever.py` |
 | Search embedders (Py) | `/apps/search/src/search/embedders/` |
 | Search rerankers (Py) | `/apps/search/src/search/rerankers/` |
+| Parser registry | `/packages/parser/src/registry.ts` |
+| Rehydrator | `/packages/temporal/src/rehydrator.ts` |
+| VFS | `/packages/vfs/src/vfs.ts` |
 
 ## Debugging
 
@@ -210,11 +250,17 @@ docker exec -it falkordb redis-cli
 # Check Qdrant collections
 curl http://localhost:6333/collections
 
-# Search-py health check
+# Search service health check
 curl http://localhost:5002/health
 
-# Search-py metrics
+# Search service metrics
 curl http://localhost:5002/metrics
+
+# Tuner service health
+curl http://localhost:8000/api/v1/health
+
+# Optuna Dashboard
+open http://localhost:8081
 ```
 
 ## Common Patterns
@@ -222,10 +268,10 @@ curl http://localhost:5002/metrics
 **Creating graph nodes** (always include bitemporal fields):
 ```typescript
 // See packages/graph/src/writer.ts
-await writer.createNode({
+await writer.writeNode("Session", {
   id: generateId(),
-  vt_start: new Date().toISOString(),
-  tt_start: new Date().toISOString(),
+  vt_start: Date.now(),
+  tt_start: Date.now(),
   // ... node-specific fields
 });
 ```
@@ -239,26 +285,32 @@ await producer.send({
 });
 ```
 
-**Hybrid search (TypeScript)**:
-```typescript
-// See packages/search/src/retriever.ts
-const results = await retriever.search({
-  query: "user question",
-  hybridSearch: true,
-  rerank: true,
-  rerankerTier: "accurate"
-});
-```
-
 **Hybrid search (Python)**:
 ```python
 # See apps/search/src/search/retrieval/retriever.py
 results = await retriever.search(
     query="user question",
     strategy="hybrid",
+    rerank=True,
     rerank_tier="accurate",
     limit=20
 )
+```
+
+**Time-travel VFS reconstruction**:
+```typescript
+// See packages/temporal/src/rehydrator.ts
+const rehydrator = createRehydrator();
+const vfs = await rehydrator.rehydrate("session-123", 1640000000000);
+const content = vfs.readFile("/src/index.ts");
+```
+
+**Using parser registry**:
+```typescript
+// See packages/parser/src/registry.ts
+import { defaultRegistry } from "@engram/parser";
+const parser = defaultRegistry.get("anthropic"); // or "claude", "gpt", "xai"
+const delta = parser.parse(rawEvent);
 ```
 
 ---
