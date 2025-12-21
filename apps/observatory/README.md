@@ -89,8 +89,8 @@ const { lineage, replay, isConnected } = useSessionStream({ sessionId });
 npm install
 npm run infra:up
 
-# Start just the interface
-cd apps/interface
+# Start just the observatory
+cd apps/observatory
 npm run dev
 ```
 
@@ -119,7 +119,7 @@ npx tsx scripts/traffic-gen.ts
 ## Project Structure
 
 ```
-apps/interface/
+apps/observatory/
 ├── server.ts                 # Custom HTTP + WebSocket server
 ├── app/
 │   ├── page.tsx              # Homepage (session browser)

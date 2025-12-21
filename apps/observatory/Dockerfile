@@ -2,7 +2,7 @@ FROM oven/bun:1.3.4 AS builder
 WORKDIR /app
 COPY . .
 RUN bun install --frozen-lockfile
-RUN bun run build --filter=interface-service...
+RUN bun run build --filter=observatory...
 
 FROM oven/bun:1.3.4-alpine AS runner
 WORKDIR /app
@@ -10,11 +10,11 @@ ENV NODE_ENV=production
 RUN addgroup -S engram && adduser -S engram -G engram
 
 # Next.js standalone output
-COPY --from=builder /app/apps/interface/.next/standalone ./
-COPY --from=builder /app/apps/interface/.next/static ./apps/interface/.next/static
-COPY --from=builder /app/apps/interface/public ./apps/interface/public
+COPY --from=builder /app/apps/observatory/.next/standalone ./
+COPY --from=builder /app/apps/observatory/.next/static ./apps/observatory/.next/static
+COPY --from=builder /app/apps/observatory/public ./apps/observatory/public
 
 USER engram
 EXPOSE 3000
-WORKDIR /app/apps/interface
+WORKDIR /app/apps/observatory
 CMD ["bun", "run", "server.js"]

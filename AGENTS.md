@@ -48,7 +48,7 @@ IMPORTANT: Run `uv run ruff check` and `uv run pytest` before committing.
 apps/
 ├── control/     # Session orchestration, VFS, time-travel
 ├── ingestion/   # Event parsing pipeline (port 5001)
-├── interface/   # Next.js 16 frontend (port 3000/5000)
+├── observatory/ # Next.js 16 frontend (port 3000/5000)
 ├── mcp/         # Model Context Protocol server (stdio)
 ├── memory/      # Graph persistence, real-time pub/sub
 ├── search/      # Vector search & reranking [TypeScript] (port 5002) [DEPRECATED]
@@ -73,7 +73,7 @@ packages/
 
 ## Architecture Quick Reference
 
-**Data Flow**: External Agent → Interface → Ingestion → Kafka → Memory → FalkorDB → Search → Qdrant
+**Data Flow**: External Agent → Observatory → Ingestion → Kafka → Memory → FalkorDB → Search → Qdrant
 
 **Storage**: FalkorDB (graph), Qdrant (vectors), Redpanda (events), Redis (pub/sub)
 

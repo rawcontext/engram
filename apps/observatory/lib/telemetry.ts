@@ -2,7 +2,7 @@ import { createNodeLogger } from "@engram/logger";
 import type { NextResponse } from "next/server";
 
 const logger = createNodeLogger({
-	service: "interface-service",
+	service: "observatory",
 	base: { component: "api-telemetry" },
 });
 

@@ -35,8 +35,8 @@ steps:
     waitFor: ['test']
 
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-interface'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/interface:$SHORT_SHA', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/interface:latest', '-f', 'apps/interface/Dockerfile', '.']
+    id: 'build-observatory'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/observatory:$SHORT_SHA', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/observatory:latest', '-f', 'apps/observatory/Dockerfile', '.']
     waitFor: ['test']
 
   # 4. Push Docker images (parallel)
@@ -62,9 +62,9 @@ steps:
     waitFor: ['build-control']
 
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-interface'
-    args: ['push', '--all-tags', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/interface']
-    waitFor: ['build-interface']
+    id: 'push-observatory'
+    args: ['push', '--all-tags', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/observatory']
+    waitFor: ['build-observatory']
 
   # 5. Deploy to Cloud Run (parallel)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -93,10 +93,10 @@ steps:
     waitFor: ['push-control']
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'deploy-interface'
+    id: 'deploy-observatory'
     entrypoint: gcloud
-    args: ['run', 'deploy', 'interface', '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/interface:$SHORT_SHA', '--region', 'us-central1', '--platform', 'managed', '--port', '3000']
-    waitFor: ['push-interface']
+    args: ['run', 'deploy', 'observatory', '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/observatory:$SHORT_SHA', '--region', 'us-central1', '--platform', 'managed', '--port', '3000']
+    waitFor: ['push-observatory']
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -107,4 +107,4 @@ images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/memory:$SHORT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/execution:$SHORT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/control:$SHORT_SHA'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/interface:$SHORT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/engram-repo/observatory:$SHORT_SHA'

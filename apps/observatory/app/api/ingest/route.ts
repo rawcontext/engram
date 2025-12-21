@@ -6,7 +6,7 @@ import { withTelemetry } from "@lib/telemetry";
 import { validate } from "@lib/validate";
 
 // Initialize Kafka
-const kafka = createKafkaClient("interface-service");
+const kafka = createKafkaClient("observatory");
 
 // Zod Schema for Documentation (re-exporting or referencing)
 export const _IngestBody = RawStreamEventSchema;

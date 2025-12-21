@@ -181,7 +181,7 @@ engram/
 ├── apps/
 │   ├── control/            # Session orchestration, VFS & time-travel
 │   ├── ingestion/          # Event parsing & normalization
-│   ├── interface/          # Neural Observatory (Next.js)
+│   ├── observatory/        # Neural Observatory (Next.js)
 │   ├── mcp/                # Engram MCP server for AI agents (remember/recall/query)
 │   ├── memory/             # Graph persistence & pub/sub
 │   ├── search/             # Vector search & reranking
@@ -211,7 +211,7 @@ engram/
 |:----|:------------|:-----|
 | [control](./apps/control/) | Session orchestration, VFS & time-travel | [README](./apps/control/README.md) |
 | [ingestion](./apps/ingestion/) | Event parsing & normalization pipeline | [README](./apps/ingestion/README.md) |
-| [interface](./apps/interface/) | Neural Observatory web UI | [README](./apps/interface/README.md) |
+| [observatory](./apps/observatory/) | Neural Observatory web UI | [README](./apps/observatory/README.md) |
 | [mcp](./apps/mcp/) | MCP server for AI agent integration | [README](./apps/mcp/README.md) |
 | [memory](./apps/memory/) | Graph persistence & real-time pub/sub | [README](./apps/memory/README.md) |
 | [search](./apps/search/) | Vector search & reranking service (Python/FastAPI) | [README](./apps/search/README.md) |
@@ -242,7 +242,7 @@ engram/
 |----------|-------------|
 | [Architecture](./ARCHITECTURE.md) | System architecture, data models, and service communication |
 | [Tech Stack](./docs/TECH_STACK.md) | Detailed technology choices and rationale |
-| [Neural Observatory](./apps/interface/README.md) | Frontend documentation |
+| [Neural Observatory](./apps/observatory/README.md) | Frontend documentation |
 
 ---
 
@@ -292,7 +292,7 @@ Python/FastAPI service for hyperparameter optimization using Optuna. Tunes RRF f
 
 Real-time web interface for visualizing agent sessions. Features session browser, interactive knowledge graph, thought stream timeline, and semantic search.
 
-[Read more →](./apps/interface/README.md)
+[Read more →](./apps/observatory/README.md)
 
 ---
 
