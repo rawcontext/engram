@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  # Shared setup job - caches dependencies for downstream jobs
+  # Shared setup job - uploads node_modules as artifact
   install:
     runs-on: ubuntu-latest
     steps:
@@ -49,12 +49,13 @@ jobs:
           cd apps/search && uv sync
           cd ../tuner && uv sync
 
-      # Cache node_modules for other jobs
-      - name: Cache node_modules
-        uses: actions/cache/save@v4
+      # Upload node_modules as artifact for downstream jobs
+      - name: Upload node_modules
+        uses: actions/upload-artifact@v4
         with:
+          name: node_modules
           path: node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
+          retention-days: 1
 
   # Typecheck and Lint run in parallel
   check:
@@ -73,11 +74,11 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Restore node_modules
-        uses: actions/cache/restore@v4
+      - name: Download node_modules
+        uses: actions/download-artifact@v4
         with:
+          name: node_modules
           path: node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
 
       - name: Run ${{ matrix.task }}
         run: npm run ${{ matrix.task }}
@@ -95,11 +96,11 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Restore node_modules
-        uses: actions/cache/restore@v4
+      - name: Download node_modules
+        uses: actions/download-artifact@v4
         with:
+          name: node_modules
           path: node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
 
       - name: Run TypeScript tests
         run: npm run test:ts
