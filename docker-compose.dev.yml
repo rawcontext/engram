@@ -56,12 +56,12 @@ services:
       timeout: 3s
       retries: 5
 
-  # NOTE: memory-service is disabled in Docker due to @confluentinc/kafka-javascript
+  # NOTE: @engram/memory is disabled in Docker due to @confluentinc/kafka-javascript
   # native binding incompatibility with Bun runtime. Run it locally instead:
-  #   bun run --filter=memory-service dev
+  #   bun run --filter=@engram/memory dev
   #
   # To fix: Replace @confluentinc/kafka-javascript with kafkajs in packages/storage
-  # memory-service:
+  # @engram/memory:
   #   build:
   #     context: .
   #     dockerfile: apps/memory/Dockerfile.dev
