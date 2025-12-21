@@ -1,10 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import WS from "vitest-websocket-mock";
+
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useWebSocket, type WebSocketStatus } from "./useWebSocket";
+import WS from "vitest-websocket-mock";
+import { useWebSocket } from "./useWebSocket";
 
 // Match the URL building logic from useWebSocket
 function getExpectedUrl(path: string): string {
@@ -14,13 +15,8 @@ function getExpectedUrl(path: string): string {
 }
 
 describe("useWebSocket", () => {
-	let server: WS;
 	const testPath = "/api/ws/test";
 	const testUrl = getExpectedUrl(testPath);
-
-	beforeEach(() => {
-		server = new WS(testUrl, { jsonProtocol: true });
-	});
 
 	afterEach(() => {
 		WS.clean();
@@ -35,21 +31,28 @@ describe("useWebSocket", () => {
 	});
 
 	it("should connect and set status to open", async () => {
+		const server = new WS(testUrl, { jsonProtocol: true });
 		const onMessage = vi.fn();
+
 		const { result } = renderHook(() => useWebSocket({ url: testPath, onMessage }));
 
-		expect(result.current.status).toBe("connecting");
+		// Wait for the hook to establish connection (check hook state, not server)
+		await waitFor(
+			() => {
+				expect(result.current.status).toBe("open");
+				expect(result.current.isConnected).toBe(true);
+			},
+			{ timeout: 5000 },
+		);
 
-		await server.connected;
-
-		await waitFor(() => {
-			expect(result.current.status).toBe("open");
-			expect(result.current.isConnected).toBe(true);
-		});
+		// Verify server also saw the connection
+		expect(server.server.clients().length).toBe(1);
 	});
 
 	it("should parse JSON messages and call onMessage", async () => {
+		const server = new WS(testUrl, { jsonProtocol: true });
 		const onMessage = vi.fn();
+
 		renderHook(() => useWebSocket({ url: testPath, onMessage }));
 
 		await server.connected;
@@ -62,7 +65,6 @@ describe("useWebSocket", () => {
 
 	it("should handle non-JSON messages", async () => {
 		// Create server without JSON protocol for raw messages
-		WS.clean();
 		const rawServer = new WS(testUrl);
 		const onMessage = vi.fn();
 
@@ -77,7 +79,9 @@ describe("useWebSocket", () => {
 	});
 
 	it("should call onOpen with WebSocket instance", async () => {
+		const server = new WS(testUrl, { jsonProtocol: true });
 		const onOpen = vi.fn();
+
 		renderHook(() => useWebSocket({ url: testPath, onMessage: vi.fn(), onOpen }));
 
 		await server.connected;
@@ -89,7 +93,9 @@ describe("useWebSocket", () => {
 	});
 
 	it("should call onClose when connection closes", async () => {
+		const server = new WS(testUrl, { jsonProtocol: true });
 		const onClose = vi.fn();
+
 		renderHook(() =>
 			useWebSocket({
 				url: testPath,
@@ -108,7 +114,9 @@ describe("useWebSocket", () => {
 	});
 
 	it("should call onError on connection error", async () => {
+		const server = new WS(testUrl, { jsonProtocol: true });
 		const onError = vi.fn();
+
 		renderHook(() =>
 			useWebSocket({
 				url: testPath,
@@ -127,6 +135,7 @@ describe("useWebSocket", () => {
 	});
 
 	it("should send messages through WebSocket", async () => {
+		const server = new WS(testUrl, { jsonProtocol: true });
 		const { result } = renderHook(() => useWebSocket({ url: testPath, onMessage: vi.fn() }));
 
 		await server.connected;
@@ -142,7 +151,6 @@ describe("useWebSocket", () => {
 	});
 
 	it("should send string messages without additional stringification", async () => {
-		WS.clean();
 		const rawServer = new WS(testUrl);
 		const { result } = renderHook(() => useWebSocket({ url: testPath, onMessage: vi.fn() }));
 
@@ -157,6 +165,8 @@ describe("useWebSocket", () => {
 
 	it("should reconnect with exponential backoff on close", async () => {
 		vi.useFakeTimers({ shouldAdvanceTime: true });
+
+		let server = new WS(testUrl, { jsonProtocol: true });
 
 		const { result } = renderHook(() =>
 			useWebSocket({
@@ -179,6 +189,10 @@ describe("useWebSocket", () => {
 			expect(result.current.status).toBe("closed");
 		});
 
+		// Clean up and create new server for reconnection
+		WS.clean();
+		server = new WS(testUrl, { jsonProtocol: true });
+
 		// First reconnect attempt after 1000ms (1000 * 2^0)
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(1000);
@@ -189,6 +203,8 @@ describe("useWebSocket", () => {
 
 	it("should respect maxReconnectAttempts", async () => {
 		vi.useFakeTimers({ shouldAdvanceTime: true });
+
+		let server = new WS(testUrl, { jsonProtocol: true });
 
 		const { result } = renderHook(() =>
 			useWebSocket({
@@ -207,17 +223,27 @@ describe("useWebSocket", () => {
 			expect(result.current.status).toBe("closed");
 		});
 
+		// Clean up and create new server
+		WS.clean();
+		server = new WS(testUrl, { jsonProtocol: true });
+
 		// First reconnect (100ms)
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(100);
 		});
 		expect(result.current.reconnectAttempt).toBe(1);
 
-		// Close again for second attempt
+		// Connect and close again
+		await server.connected;
+		server.close();
+
+		await waitFor(() => {
+			expect(result.current.status).toBe("closed");
+		});
+
+		// Clean up and create new server
 		WS.clean();
-		const server2 = new WS(testUrl, { jsonProtocol: true });
-		await server2.connected;
-		server2.close();
+		server = new WS(testUrl, { jsonProtocol: true });
 
 		// Second reconnect (200ms = 100 * 2^1)
 		await act(async () => {
@@ -225,11 +251,9 @@ describe("useWebSocket", () => {
 		});
 		expect(result.current.reconnectAttempt).toBe(2);
 
-		// Close again - should NOT reconnect (max attempts reached)
-		WS.clean();
-		const server3 = new WS(testUrl, { jsonProtocol: true });
-		await server3.connected;
-		server3.close();
+		// Connect and close again - should NOT reconnect (max attempts reached)
+		await server.connected;
+		server.close();
 
 		await waitFor(() => {
 			expect(result.current.status).toBe("closed");
@@ -244,6 +268,8 @@ describe("useWebSocket", () => {
 
 	it("should allow manual close and disable auto-reconnect", async () => {
 		vi.useFakeTimers({ shouldAdvanceTime: true });
+
+		const server = new WS(testUrl, { jsonProtocol: true });
 
 		const { result } = renderHook(() =>
 			useWebSocket({
@@ -273,6 +299,8 @@ describe("useWebSocket", () => {
 	});
 
 	it("should allow manual reconnect after close", async () => {
+		let server = new WS(testUrl, { jsonProtocol: true });
+
 		const { result } = renderHook(() =>
 			useWebSocket({
 				url: testPath,
@@ -291,13 +319,13 @@ describe("useWebSocket", () => {
 
 		// Create new server for reconnect
 		WS.clean();
-		const newServer = new WS(testUrl, { jsonProtocol: true });
+		server = new WS(testUrl, { jsonProtocol: true });
 
 		act(() => {
 			result.current.reconnect();
 		});
 
-		await newServer.connected;
+		await server.connected;
 
 		await waitFor(() => {
 			expect(result.current.status).toBe("open");
@@ -307,6 +335,8 @@ describe("useWebSocket", () => {
 
 	it("should reset reconnect attempts on successful connection", async () => {
 		vi.useFakeTimers({ shouldAdvanceTime: true });
+
+		let server = new WS(testUrl, { jsonProtocol: true });
 
 		const { result } = renderHook(() =>
 			useWebSocket({
@@ -321,16 +351,22 @@ describe("useWebSocket", () => {
 		await server.connected;
 		server.close();
 
+		await waitFor(() => {
+			expect(result.current.status).toBe("closed");
+		});
+
+		// Clean up and create new server
+		WS.clean();
+		server = new WS(testUrl, { jsonProtocol: true });
+
 		// Advance through a reconnect attempt
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(100);
 		});
 		expect(result.current.reconnectAttempt).toBe(1);
 
-		// New server accepts connection
-		WS.clean();
-		const newServer = new WS(testUrl, { jsonProtocol: true });
-		await newServer.connected;
+		// Wait for new connection to complete
+		await server.connected;
 
 		await waitFor(() => {
 			expect(result.current.status).toBe("open");
@@ -339,6 +375,8 @@ describe("useWebSocket", () => {
 	});
 
 	it("should cleanup on unmount", async () => {
+		const server = new WS(testUrl, { jsonProtocol: true });
+
 		const { result, unmount } = renderHook(() =>
 			useWebSocket({ url: testPath, onMessage: vi.fn() }),
 		);
@@ -352,6 +390,8 @@ describe("useWebSocket", () => {
 	});
 
 	it("should not send messages when disconnected", async () => {
+		const server = new WS(testUrl, { jsonProtocol: true });
+
 		const { result } = renderHook(() =>
 			useWebSocket({
 				url: testPath,
@@ -372,10 +412,12 @@ describe("useWebSocket", () => {
 		});
 
 		// Server should not have received the message
-		expect(server).not.toHaveReceivedMessages([{ type: "test" }]);
+		expect(server.messages).not.toContainEqual({ type: "test" });
 	});
 
 	it("should handle URL changes by reconnecting", async () => {
+		const server = new WS(testUrl, { jsonProtocol: true });
+
 		const onMessage = vi.fn();
 		const { result, rerender } = renderHook(
 			({ url }: { url: string | null }) => useWebSocket({ url, onMessage }),

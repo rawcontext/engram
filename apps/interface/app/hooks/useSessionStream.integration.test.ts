@@ -1,11 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import WS from "vitest-websocket-mock";
-import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useSessionStream } from "./useSessionStream";
+
 import type { LineageResponse, ReplayResponse } from "@lib/types";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import WS from "vitest-websocket-mock";
+import { useSessionStream } from "./useSessionStream";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -34,32 +35,27 @@ const mockReplayData: ReplayResponse = {
 	],
 };
 
+function setupFetchMock(lineage = mockLineageData, replay = mockReplayData) {
+	mockFetch.mockImplementation((url: string) => {
+		if (url.includes("/api/lineage/")) {
+			return Promise.resolve({
+				ok: true,
+				json: () => Promise.resolve({ data: lineage }),
+			});
+		}
+		if (url.includes("/api/replay/")) {
+			return Promise.resolve({
+				ok: true,
+				json: () => Promise.resolve({ data: replay }),
+			});
+		}
+		return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+	});
+}
+
 describe("useSessionStream", () => {
-	let server: WS;
 	const sessionId = "test-session-123";
 	const wsUrl = getExpectedUrl(sessionId);
-
-	beforeEach(() => {
-		vi.useFakeTimers({ shouldAdvanceTime: true });
-		server = new WS(wsUrl, { jsonProtocol: true });
-
-		// Default mock for fetch returning empty data
-		mockFetch.mockImplementation((url: string) => {
-			if (url.includes("/api/lineage/")) {
-				return Promise.resolve({
-					ok: true,
-					json: () => Promise.resolve({ data: mockLineageData }),
-				});
-			}
-			if (url.includes("/api/replay/")) {
-				return Promise.resolve({
-					ok: true,
-					json: () => Promise.resolve({ data: mockReplayData }),
-				});
-			}
-			return Promise.reject(new Error(`Unexpected fetch: ${url}`));
-		});
-	});
 
 	afterEach(() => {
 		WS.clean();
@@ -68,6 +64,7 @@ describe("useSessionStream", () => {
 	});
 
 	it("should initialize with null data and not connected", () => {
+		setupFetchMock();
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
 		// Initially null before fetch completes
@@ -77,6 +74,9 @@ describe("useSessionStream", () => {
 	});
 
 	it("should fetch initial data via REST API", async () => {
+		setupFetchMock();
+		const server = new WS(wsUrl, { jsonProtocol: true });
+
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
 		await waitFor(() => {
@@ -86,10 +86,16 @@ describe("useSessionStream", () => {
 
 		expect(mockFetch).toHaveBeenCalledWith(`/api/lineage/${sessionId}`);
 		expect(mockFetch).toHaveBeenCalledWith(`/api/replay/${sessionId}`);
+
+		// Cleanup
+		server.close();
 	});
 
 	it("should connect via WebSocket and receive messages", async () => {
+		setupFetchMock();
+		const server = new WS(wsUrl, { jsonProtocol: true });
 		const onLineageUpdate = vi.fn();
+
 		renderHook(() => useSessionStream({ sessionId, onLineageUpdate }));
 
 		await server.connected;
@@ -114,7 +120,10 @@ describe("useSessionStream", () => {
 	});
 
 	it("should handle replay messages", async () => {
+		setupFetchMock();
+		const server = new WS(wsUrl, { jsonProtocol: true });
 		const onReplayUpdate = vi.fn();
+
 		const { result } = renderHook(() => useSessionStream({ sessionId, onReplayUpdate }));
 
 		await server.connected;
@@ -138,6 +147,9 @@ describe("useSessionStream", () => {
 	});
 
 	it("should handle update messages with node_created type", async () => {
+		setupFetchMock();
+		const server = new WS(wsUrl, { jsonProtocol: true });
+
 		renderHook(() => useSessionStream({ sessionId }));
 
 		await server.connected;
@@ -151,6 +163,9 @@ describe("useSessionStream", () => {
 	});
 
 	it("should handle error messages", async () => {
+		setupFetchMock();
+		const server = new WS(wsUrl, { jsonProtocol: true });
+
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
 		await server.connected;
@@ -164,8 +179,10 @@ describe("useSessionStream", () => {
 	});
 
 	it("should fall back to polling when WebSocket unavailable", async () => {
-		// Close WebSocket immediately to simulate unavailability
-		WS.clean();
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		setupFetchMock();
+
+		// No WebSocket server created - connection will fail
 
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
@@ -181,21 +198,7 @@ describe("useSessionStream", () => {
 
 		// Reset mock to track polling calls
 		mockFetch.mockClear();
-		mockFetch.mockImplementation((url: string) => {
-			if (url.includes("/api/lineage/")) {
-				return Promise.resolve({
-					ok: true,
-					json: () => Promise.resolve({ data: mockLineageData }),
-				});
-			}
-			if (url.includes("/api/replay/")) {
-				return Promise.resolve({
-					ok: true,
-					json: () => Promise.resolve({ data: mockReplayData }),
-				});
-			}
-			return Promise.reject(new Error(`Unexpected fetch: ${url}`));
-		});
+		setupFetchMock();
 
 		// Advance through a polling interval (2 seconds)
 		await act(async () => {
@@ -207,6 +210,9 @@ describe("useSessionStream", () => {
 	});
 
 	it("should handle reconnection with exponential backoff", async () => {
+		setupFetchMock();
+		let server = new WS(wsUrl, { jsonProtocol: true });
+
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
 		await server.connected;
@@ -221,14 +227,10 @@ describe("useSessionStream", () => {
 
 		// Create new server for reconnection
 		WS.clean();
-		const newServer = new WS(wsUrl, { jsonProtocol: true });
+		server = new WS(wsUrl, { jsonProtocol: true });
 
-		// Advance timer for reconnection (default 1000ms base delay)
-		await act(async () => {
-			await vi.advanceTimersByTimeAsync(1000);
-		});
-
-		await newServer.connected;
+		// Wait for reconnection (hook will retry)
+		await server.connected;
 
 		await waitFor(() => {
 			expect(result.current.isConnected).toBe(true);
@@ -236,6 +238,10 @@ describe("useSessionStream", () => {
 	});
 
 	it("should fall back to polling after max reconnect attempts", async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		setupFetchMock();
+		let server = new WS(wsUrl, { jsonProtocol: true });
+
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
 		await server.connected;
@@ -243,19 +249,28 @@ describe("useSessionStream", () => {
 
 		// Simulate multiple connection failures
 		for (let i = 0; i < 5; i++) {
+			server.close();
+
+			await waitFor(() => {
+				expect(result.current.isConnected).toBe(false);
+			});
+
 			WS.clean();
-			const tempServer = new WS(wsUrl, { jsonProtocol: true });
-			await tempServer.connected;
-			tempServer.close();
+			server = new WS(wsUrl, { jsonProtocol: true });
 
 			await act(async () => {
 				// Exponential backoff: 1000, 2000, 4000, 8000, 16000
 				await vi.advanceTimersByTimeAsync(1000 * 2 ** i);
 			});
+
+			if (i < 4) {
+				await server.connected;
+			}
 		}
 
 		// After 5 attempts, should fall back to polling
 		mockFetch.mockClear();
+		setupFetchMock();
 
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(2000);
@@ -265,6 +280,9 @@ describe("useSessionStream", () => {
 	});
 
 	it("should clean up on unmount", async () => {
+		setupFetchMock();
+		const server = new WS(wsUrl, { jsonProtocol: true });
+
 		const { unmount } = renderHook(() => useSessionStream({ sessionId }));
 
 		await server.connected;
@@ -277,15 +295,21 @@ describe("useSessionStream", () => {
 	it("should handle fetch errors gracefully", async () => {
 		mockFetch.mockRejectedValueOnce(new Error("Network error"));
 		mockFetch.mockRejectedValueOnce(new Error("Network error"));
+		const server = new WS(wsUrl, { jsonProtocol: true });
 
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
 		await waitFor(() => {
 			expect(result.current.error).toBe("Network error");
 		});
+
+		server.close();
 	});
 
 	it("should call refresh manually", async () => {
+		setupFetchMock();
+		const server = new WS(wsUrl, { jsonProtocol: true });
+
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
 		await waitFor(() => {
@@ -320,11 +344,14 @@ describe("useSessionStream", () => {
 		});
 
 		expect(result.current.lineage).toEqual(newLineage);
+		server.close();
 	});
 
 	it("should stop polling when disconnect is called", async () => {
-		// First, trigger polling by not having WebSocket
-		WS.clean();
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		setupFetchMock();
+
+		// No WebSocket server - triggers polling fallback
 
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
@@ -358,6 +385,8 @@ describe("useSessionStream", () => {
 		mockFetch.mockRejectedValueOnce(new Error("Initial error"));
 		mockFetch.mockRejectedValueOnce(new Error("Initial error"));
 
+		const server = new WS(wsUrl, { jsonProtocol: true });
+
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
 		await waitFor(() => {
@@ -372,7 +401,10 @@ describe("useSessionStream", () => {
 	});
 
 	it("should handle legacy update format with lineage field", async () => {
+		setupFetchMock();
+		const server = new WS(wsUrl, { jsonProtocol: true });
 		const onLineageUpdate = vi.fn();
+
 		renderHook(() => useSessionStream({ sessionId, onLineageUpdate }));
 
 		await server.connected;
@@ -391,6 +423,9 @@ describe("useSessionStream", () => {
 	});
 
 	it("should expose WebSocket status", async () => {
+		setupFetchMock();
+		const server = new WS(wsUrl, { jsonProtocol: true });
+
 		const { result } = renderHook(() => useSessionStream({ sessionId }));
 
 		expect(result.current.status).toBe("connecting");
