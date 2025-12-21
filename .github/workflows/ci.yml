@@ -6,140 +6,53 @@ on:
   pull_request:
     branches: [main]
 
-# Cancel in-progress runs when a new run is triggered
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Shared setup job - uploads node_modules as artifact
-  install:
+  typecheck:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: "npm"
+      - run: npm ci --include=optional
+      - run: npm run typecheck
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Cache uv dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            apps/search/.venv
-            apps/tuner/.venv
-          key: uv-${{ runner.os }}-${{ hashFiles('apps/*/uv.lock') }}
-          restore-keys: |
-            uv-${{ runner.os }}-
-
-      - name: Install Node dependencies
-        run: npm ci --include=optional
-
-      - name: Install sharp for Linux
-        run: npm install --os=linux --cpu=x64 sharp
-
-      - name: Install Python dependencies
-        run: |
-          cd apps/search && uv sync
-          cd ../tuner && uv sync
-
-      # Upload node_modules as artifact for downstream jobs
-      - name: Upload node_modules
-        uses: actions/upload-artifact@v4
-        with:
-          name: node_modules
-          path: node_modules
-          retention-days: 1
-
-  # Typecheck and Lint run in parallel
-  check:
-    needs: install
+  lint:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        task: [typecheck, lint]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "24"
+          cache: "npm"
+      - run: npm ci --include=optional
+      - run: npm run lint
 
-      - name: Download node_modules
-        uses: actions/download-artifact@v4
-        with:
-          name: node_modules
-          path: node_modules
-
-      - name: Run ${{ matrix.task }}
-        run: npm run ${{ matrix.task }}
-
-  # TypeScript tests
   test-ts:
-    needs: install
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "24"
+          cache: "npm"
+      - run: npm ci --include=optional
+      - run: npm run test:ts
 
-      - name: Download node_modules
-        uses: actions/download-artifact@v4
-        with:
-          name: node_modules
-          path: node_modules
-
-      - name: Run TypeScript tests
-        run: npm run test:ts
-
-  # Python tests run in parallel matrix
   test-python:
-    needs: install
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        app: [search, tuner]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Restore uv cache
-        uses: actions/cache/restore@v4
-        with:
-          path: apps/${{ matrix.app }}/.venv
-          key: uv-${{ runner.os }}-${{ hashFiles('apps/*/uv.lock') }}
-          restore-keys: |
-            uv-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: cd apps/${{ matrix.app }} && uv sync
-
-      - name: Run ${{ matrix.app }} tests
-        run: cd apps/${{ matrix.app }} && uv run pytest
+      - uses: astral-sh/setup-uv@v7
+      - name: Run search tests
+        run: cd apps/search && uv sync && uv run pytest
+      - name: Run tuner tests
+        run: cd apps/tuner && uv sync && uv run pytest
