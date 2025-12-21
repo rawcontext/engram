@@ -155,8 +155,11 @@ async def search(request: Request, search_request: SearchRequest) -> SearchRespo
             rerank_depth=search_request.rerank_depth,
         )
 
-        # Execute search
-        results = await search_retriever.search(query)
+        # Execute search - use turns collection if specified
+        if search_request.collection == "engram_turns":
+            results = await search_retriever.search_turns(query, fallback_to_legacy=False)
+        else:
+            results = await search_retriever.search(query)
 
         # Calculate timing
         took_ms = int((time.time() - start_time) * 1000)

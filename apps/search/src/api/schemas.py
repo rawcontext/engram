@@ -40,6 +40,10 @@ class SearchRequest(BaseModel):
         default=None, description="Reranking tier: 'fast', 'accurate', 'code', or 'llm'"
     )
     rerank_depth: int = Field(default=30, ge=1, le=100, description="Number of results to rerank")
+    collection: str | None = Field(
+        default=None,
+        description="Collection: 'engram_memory' (default) or 'engram_turns' (turn-level)",
+    )
 
 
 class SearchResult(BaseModel):
