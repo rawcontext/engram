@@ -26,7 +26,7 @@ interface SearchSettingsProps {
  * - MiniLM: Distilled BERT, 6 layers, 22M params - fast inference
  * - BGE: BERT-based, trained on diverse retrieval tasks
  * - Jina: Multilingual (89 langs), code-optimized
- * - Grok: xAI's reasoning model, premium tier
+ * - Gemini: Google's fast reasoning model, premium tier
  */
 const TIER_OPTIONS = [
 	{
@@ -72,12 +72,12 @@ const TIER_OPTIONS = [
 	{
 		value: "llm",
 		label: "LLM",
-		shortDesc: "Grok-4.1 Reasoning",
-		model: "grok-4-1-fast-reasoning",
+		shortDesc: "Gemini 3.0 Flash",
+		model: "gemini-3-flash-preview",
 		arch: "Listwise LLM",
 		params: "~300B",
 		latency: "~2s",
-		description: "xAI reasoning model, sees all candidates",
+		description: "Google's fast reasoning model, sees all candidates",
 	},
 ] as const;
 

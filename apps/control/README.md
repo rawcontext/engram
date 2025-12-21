@@ -19,7 +19,7 @@ The Control Service is the central orchestration layer that manages agent sessio
 - **Context assembly**: Combines system prompt, recent history, and relevant memories
 - **Tool integration**: Dynamic tool discovery and execution via ToolRouter
 - **Error recovery**: Graceful degradation with timeout handling and recovery states
-- **Model integration**: Uses xAI Grok-4-1-fast-reasoning for thought generation
+- **Model integration**: Uses Google Gemini-3-flash-preview for thought generation
 
 ### Virtual File System (VFS)
 - **In-memory file operations**: Read, write, mkdir, patch files
@@ -136,7 +136,7 @@ Tools from MCP servers are dynamically discovered and merged with built-in tools
 
 ### External Libraries
 - `xstate` (v5.25.0) - Finite state machine orchestration
-- `@ai-sdk/xai` (v2.0.42) - xAI model integration (Grok)
+- `@ai-sdk/google` - Google AI model integration (Gemini)
 - `ai` (v5.0.116) - AI SDK for tool definitions and text generation
 - `@modelcontextprotocol/sdk` (v1.25.1) - MCP client for external tools
 - `zod` (v4.2.1) - Schema validation for tool inputs

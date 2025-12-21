@@ -102,7 +102,7 @@ class MultiQueryRetriever:
         self,
         base_retriever: SearchRetriever,
         config: MultiQueryConfig | None = None,
-        model: str = "grok-4-1-fast-reasoning",
+        model: str = "gemini-3-flash-preview",
     ) -> None:
         """Initialize multi-query retriever.
 
@@ -258,7 +258,7 @@ class MultiQueryRetriever:
 
                 self.total_tokens += total_tokens
 
-                # Cost estimation for grok-4-1-fast-reasoning
+                # Cost estimation for gemini-3-flash-preview
                 # Rough estimate: $0.50/1M tokens (average of input/output)
                 cost_cents = (total_tokens / 1_000_000) * 50
                 self.total_cost_cents += cost_cents

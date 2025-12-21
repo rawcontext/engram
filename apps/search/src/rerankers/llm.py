@@ -44,7 +44,7 @@ class LLMReranker(BaseReranker):
     Includes rate limiting for cost control.
 
     Attributes:
-        model: LLM model name (e.g., gpt-4o-mini, claude-3-haiku, grok-4-1-fast).
+        model: LLM model name (e.g., gpt-4o-mini, claude-3-haiku, gemini-3-flash-preview).
         provider: Optional provider prefix (openai, anthropic, xai, etc.).
         rate_limiter: Optional rate limiter instance.
         cost_per_1k_tokens: Estimated cost in cents per 1k tokens.
@@ -52,8 +52,8 @@ class LLMReranker(BaseReranker):
 
     def __init__(
         self,
-        model: str = "grok-4-1-fast-reasoning",
-        provider: str | None = "xai",
+        model: str = "gemini-3-flash-preview",
+        provider: str | None = "google",
         rate_limiter: SlidingWindowRateLimiter | None = None,
         cost_per_1k_tokens: float = 0.5,  # Rough estimate
         temperature: float = 0.0,

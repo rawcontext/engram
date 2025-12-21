@@ -140,7 +140,7 @@ Parsers in `packages/parser/src/providers/`: Anthropic, OpenAI, Gemini, Claude C
 | `/search/session-aware` | POST | Two-stage hierarchical retrieval across sessions |
 | `/embed` | POST | Generate embeddings for external use |
 
-**Reranker Tiers**: `fast` (FlashRank ~10ms), `accurate` (BGE cross-encoder ~50ms), `code` (Jina ~50ms), `colbert` (late interaction ~30ms), `llm` (Grok listwise ~500ms)
+**Reranker Tiers**: `fast` (FlashRank ~10ms), `accurate` (BGE cross-encoder ~50ms), `code` (Jina ~50ms), `colbert` (late interaction ~30ms), `llm` (Gemini 3.0 Flash ~500ms)
 
 ## Testing
 

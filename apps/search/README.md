@@ -260,8 +260,8 @@ All configuration is managed via environment variables (see `.env` file):
 - `RERANKER_ACCURATE_MODEL`: Cross-encoder (default: `BAAI/bge-reranker-v2-m3`)
 - `RERANKER_CODE_MODEL`: Code reranker (default: `jinaai/jina-reranker-v2-base-multilingual`)
 - `RERANKER_COLBERT_MODEL`: ColBERT model (default: `colbert-ir/colbertv2.0`)
-- `RERANKER_LLM_MODEL`: LLM for listwise reranking (default: `grok-4-1-fast-reasoning`)
-- `RERANKER_LLM_PROVIDER`: LLM provider (default: `xai`)
+- `RERANKER_LLM_MODEL`: LLM for listwise reranking (default: `gemini-3-flash-preview`)
+- `RERANKER_LLM_PROVIDER`: LLM provider (default: `google`)
 - `RERANKER_BATCH_SIZE`: Batch size (default: `16`)
 - `RERANKER_TIMEOUT_MS`: Timeout in milliseconds (default: `500`)
 

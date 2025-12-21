@@ -108,7 +108,7 @@ Search isn't just keyword matching. Engram uses a sophisticated multi-stage retr
 | `accurate` | BGE-reranker-v2-m3 | ~50ms | General queries (default) |
 | `code` | Jina-reranker-v2 | ~50ms | Code-specific search |
 | `colbert` | ColBERTv2 | ~30ms | Late interaction reranking |
-| `llm` | Grok-4 (listwise) | ~500ms | Premium tier |
+| `llm` | Gemini 3.0 Flash (listwise) | ~500ms | Premium tier |
 
 7. **Abstention detection** knows when not to answer (low confidence)
 

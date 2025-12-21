@@ -11,9 +11,9 @@ flowchart TB
     end
 
     subgraph Interface["Interface Layer"]
-        NextJS["Next.js App<br/>:3000"]
+        Observatory["Neural Observatory<br/>(Next.js 16)<br/>:5000"]
+        CloudAPI["Cloud REST API<br/>(Hono)<br/>:8080"]
         WebSocket["WebSocket Server"]
-        API["REST API"]
     end
 
     subgraph Streaming["Event Streaming"]
@@ -26,17 +26,17 @@ flowchart TB
 
     subgraph Services["Application Services"]
         Ingestion["Ingestion Service<br/>:5001"]
-        Memory["Memory Service<br/>(MCP Server)"]
-        Search["Search Service<br/>:5002"]
+        Memory["Memory Service<br/>(Kafka Consumer)"]
+        Search["Search Service<br/>(FastAPI)<br/>:5002"]
         Control["Control Service<br/>(VFS/Time-Travel)"]
-        EngramMCP["Engram MCP Server<br/>(stdio/HTTP)"]
+        EngramMCP["Engram MCP Server<br/>(stdio + HTTP)"]
     end
 
     subgraph Storage["Data Stores"]
         Falkor[("FalkorDB<br/>(Graph)<br/>:6379")]
         Qdrant[("Qdrant<br/>(Vector)<br/>:6333")]
         Redis[("Redis<br/>(Pub/Sub)")]
-        Postgres[("PostgreSQL<br/>(Optuna)<br/>:5432")]
+        Postgres[("PostgreSQL<br/>(API Keys/Optuna)<br/>:5432")]
     end
 
     subgraph Optimization["Hyperparameter Tuning"]
@@ -44,8 +44,9 @@ flowchart TB
         Dashboard["Optuna Dashboard<br/>:8080"]
     end
 
-    Agent --> API
-    API --> RawTopic
+    Agent --> CloudAPI
+    Agent --> EngramMCP
+    CloudAPI --> RawTopic
     RawTopic --> Ingestion
     Ingestion --> ParsedTopic
     Ingestion -.-> DLQ
@@ -61,14 +62,17 @@ flowchart TB
     Search --> Qdrant
 
     Redis --> WebSocket
-    WebSocket --> NextJS
+    WebSocket --> Observatory
 
     Control --> Falkor
     EngramMCP --> Falkor
     EngramMCP --> Qdrant
+    CloudAPI --> Falkor
+    CloudAPI --> Qdrant
 
     Tuner --> Postgres
     Dashboard --> Postgres
+    CloudAPI --> Postgres
 ```
 
 ## Data Flow Pipeline
@@ -307,7 +311,7 @@ const ToolCallType = {
 
 ## MCP Server Architecture
 
-The Engram MCP Server provides Model Context Protocol integration for AI agents.
+The Engram MCP Server provides Model Context Protocol integration for AI agents with both stdio and HTTP transports.
 
 ```mermaid
 flowchart TB
@@ -317,31 +321,34 @@ flowchart TB
 
     subgraph Transport["Transport Layer"]
         Stdio["Stdio Transport"]
-        HTTP["HTTP Transport<br/>(Planned)"]
+        HTTP["HTTP Transport<br/>(Ingest Endpoints)"]
     end
 
     subgraph EngramMCP["Engram MCP Server"]
         subgraph Tools["Tools"]
-            Remember["remember<br/>Store memories"]
-            Recall["recall<br/>Retrieve memories"]
-            Query["query<br/>Execute Cypher"]
-            Context["context<br/>Get full context"]
+            Remember["engram_remember<br/>Store memories"]
+            Recall["engram_recall<br/>Retrieve memories"]
+            Query["engram_query<br/>Execute Cypher"]
+            Context["engram_context<br/>Get full context"]
+            Summarize["engram_summarize<br/>LLM summarization"]
+            ExtractFacts["engram_extract_facts<br/>Fact extraction"]
+            EnrichMemory["engram_enrich_memory<br/>Auto-enrichment"]
         end
 
-        subgraph Resources["Resources"]
-            MemoryRes["memory://<br/>Memory content"]
-            SessionRes["session://<br/>Session data"]
-            FileHistoryRes["file-history://<br/>File changes"]
+        subgraph Resources["Resources (Local Mode)"]
+            MemoryRes["memory://{id}<br/>Memory content"]
+            SessionRes["session://{id}/transcript<br/>Session data"]
+            FileHistoryRes["file-history://{path}<br/>File changes"]
         end
 
-        subgraph Prompts["Prompts"]
-            Prime["e-prime<br/>Initial context"]
-            Recap["e-recap<br/>Session summary"]
-            Why["e-why<br/>Reasoning explanation"]
+        subgraph Prompts["Prompts (Local Mode)"]
+            Prime["/e prime<br/>Initial context"]
+            Recap["/e recap<br/>Session summary"]
+            Why["/e why<br/>Reasoning explanation"]
         end
 
         subgraph Capabilities["Capability Services"]
-            Sampling["SamplingService"]
+            Sampling["SamplingService<br/>(Client LLM calls)"]
             Elicitation["ElicitationService"]
             Roots["RootsService"]
         end
@@ -358,7 +365,9 @@ flowchart TB
     end
 
     Agent <--> Stdio
+    Agent <--> HTTP
     Stdio <--> Tools & Resources & Prompts
+    HTTP <--> Tools
     Tools --> Services
     Resources --> Services
     Prompts --> Services
@@ -370,26 +379,67 @@ flowchart TB
 
 | Tool | Purpose | Parameters |
 |:-----|:--------|:-----------|
-| **remember** | Store context for future retrieval | content, type, tags, project |
-| **recall** | Retrieve relevant memories | query, limit, project, types |
-| **query** | Execute raw Cypher queries | query (Cypher string) |
-| **context** | Get comprehensive context | query, include_sessions, include_memories |
+| **engram_remember** | Store memory with deduplication | content, type (decision/context/insight/preference/fact), tags, project |
+| **engram_recall** | Hybrid search with optional reranking | query, limit, project, types, rerank |
+| **engram_query** | Execute read-only Cypher queries (local mode) | query (Cypher string) |
+| **engram_context** | Comprehensive context for task | query, include_sessions, include_memories, include_file_history |
+| **engram_summarize** | Summarize text using client LLM | text, max_length (requires sampling capability) |
+| **engram_extract_facts** | Extract key facts as structured list | text (requires sampling capability) |
+| **engram_enrich_memory** | Auto-generate summary, keywords, category | memory_id (requires sampling capability) |
 
-### MCP Resources
+### MCP Resources (Local Mode Only)
 
 | Resource URI | Content |
 |:-------------|:--------|
-| `memory://{id}` | Memory node content |
-| `session://{id}` | Session with turns |
-| `file-history://{path}` | File change history |
+| `memory://{id}` | Memory node content with metadata |
+| `session://{id}/transcript` | Full session transcript with turns |
+| `file-history://{path}` | File change history across sessions |
 
-### MCP Prompts
+### MCP Prompts (Local Mode Only)
 
 | Prompt | Purpose |
 |:-------|:--------|
-| **e-prime** | Initial context priming with relevant memories |
-| **e-recap** | Session summary for context recovery |
-| **e-why** | Explain reasoning behind decisions |
+| **/e prime** | Initial context priming with relevant memories and recent activity |
+| **/e recap** | Session summary for context recovery after breaks |
+| **/e why** | Explain reasoning behind decisions with causal trace |
+
+## Cloud REST API
+
+The Cloud API (`apps/api`) provides authenticated HTTP access to memory operations with API key authentication and rate limiting.
+
+### API Endpoints
+
+| Endpoint | Method | Purpose | Scope |
+|:---------|:-------|:--------|:------|
+| `/v1/health` | GET | Health check | Public |
+| `/v1/memory/remember` | POST | Store memory with deduplication | `memory:write` |
+| `/v1/memory/recall` | POST | Hybrid search with reranking | `memory:read` |
+| `/v1/memory/query` | POST | Read-only Cypher queries | `query:read` |
+| `/v1/memory/context` | POST | Comprehensive context assembly | `memory:read` |
+| `/v1/keys` | GET | List API keys | `keys:manage` |
+| `/v1/keys/revoke` | POST | Revoke API key | `keys:manage` |
+
+### Authentication
+
+- API keys stored in PostgreSQL with scoped permissions
+- Rate limiting per API key
+- CORS configuration for web clients
+
+## Search Service API
+
+The Search Service (`apps/search`) provides vector search capabilities via FastAPI.
+
+### Search Endpoints
+
+| Endpoint | Method | Purpose |
+|:---------|:-------|:--------|
+| `/health` | GET | Health check with Qdrant status |
+| `/ready` | GET | Kubernetes readiness probe |
+| `/metrics` | GET | Prometheus metrics |
+| `/search` | POST | Hybrid search with strategy (dense/sparse/hybrid) |
+| `/search/multi-query` | POST | LLM-driven query expansion (DMQR-RAG) |
+| `/search/session-aware` | POST | Two-stage hierarchical retrieval |
+| `/embed` | POST | Generate embeddings for external use |
 
 ## Embedding Architecture
 
@@ -468,10 +518,11 @@ flowchart TB
 
     subgraph Reranking["Tiered Reranking"]
         RerankerRouter["Reranker Router"]
-        Fast["Fast: MiniLM-L6-v2"]
-        Accurate["Accurate: BGE-reranker-base"]
+        Fast["Fast: FlashRank"]
+        Accurate["Accurate: BGE cross-encoder"]
         CodeRank["Code: Jina-reranker-v2"]
-        LLM["LLM: Grok-4 Listwise"]
+        ColBERT["ColBERT: Late interaction"]
+        LLM["LLM: Gemini 3.0 Flash"]
     end
 
     subgraph PostProcessing["Post-Processing"]
@@ -490,8 +541,8 @@ flowchart TB
     QueryFeatures --> FusionPredictor --> RRF --> ScoreMerger
     SessionRetriever --> ScoreMerger
     ScoreMerger --> RerankerRouter
-    RerankerRouter --> Fast & Accurate & CodeRank & LLM
-    Fast & Accurate & CodeRank & LLM --> Dedup --> AbstentionDetector
+    RerankerRouter --> Fast & Accurate & CodeRank & ColBERT & LLM
+    Fast & Accurate & CodeRank & ColBERT & LLM --> Dedup --> AbstentionDetector
     AbstentionDetector --> Results
     AbstentionDetector -.->|"low confidence"| Abstained
 ```
@@ -512,12 +563,13 @@ flowchart TB
 
 ### Reranker Tiers
 
-| Tier | Model | Use Case |
-|:-----|:------|:---------|
-| **fast** | MiniLM-L-6-v2 | High-throughput, low-latency |
-| **accurate** | BGE-reranker-base | General-purpose accuracy |
-| **code** | Jina-reranker-v2 | Code-specific ranking |
-| **llm** | Grok-4 Listwise | Highest quality, complex queries |
+| Tier | Model | Latency | Use Case |
+|:-----|:------|:--------|:---------|
+| **fast** | FlashRank | ~10ms | High-throughput, real-time autocomplete |
+| **accurate** | BGE cross-encoder | ~50ms | General-purpose accuracy |
+| **code** | Jina-reranker-v2 | ~50ms | Code-specific ranking |
+| **colbert** | Late interaction | ~30ms | Multi-vector token-level matching |
+| **llm** | Gemini 3.0 Flash listwise | ~500ms | Highest quality, complex queries |
 
 ## Provider Parsers
 
@@ -618,12 +670,13 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph Services["Services"]
-        Interface["Interface<br/>:3000"]
+        Observatory["Observatory<br/>:5000"]
+        API["Cloud API<br/>:8080"]
         Ingestion["Ingestion<br/>:5001"]
-        Memory["Memory<br/>(MCP)"]
+        Memory["Memory<br/>(Consumer)"]
         Search["Search<br/>:5002"]
-        Control["Control<br/>(VFS/Time-Travel)"]
-        EngramMCP["Engram MCP"]
+        Control["Control<br/>(VFS)"]
+        EngramMCP["Engram MCP<br/>(stdio/HTTP)"]
         Tuner["Tuner<br/>:8000"]
     end
 
@@ -635,9 +688,13 @@ flowchart TB
         Postgres["PostgreSQL"]
     end
 
-    Interface -->|"POST events"| Kafka
-    Interface -->|"Cypher queries"| Graph
-    Interface <-->|"Pub/Sub"| PubSub
+    Observatory <-->|"Pub/Sub"| PubSub
+    Observatory -->|"Cypher queries"| Graph
+
+    API -->|"POST events"| Kafka
+    API -->|"Cypher queries"| Graph
+    API -->|"Vector search"| Vector
+    API -->|"API keys"| Postgres
 
     Ingestion <-->|"Consume/Produce"| Kafka
 
@@ -650,7 +707,6 @@ flowchart TB
 
     Control <-->|"Consume"| Kafka
     Control -->|"Query context"| Graph
-    Control -->|"Time-travel"| Graph
 
     EngramMCP -->|"Query"| Graph
     EngramMCP -->|"Search"| Vector
@@ -664,19 +720,58 @@ flowchart TB
 
 | Service | Image | Ports | Purpose |
 |:--------|:------|:------|:--------|
-| **Redpanda** | redpanda:v23.3.1 | 9092, 19092, 18081 | Kafka-compatible streaming |
-| **FalkorDB** | falkordb:latest | 6379 | Graph database |
-| **Qdrant** | qdrant:latest | 6333 | Vector database |
-| **PostgreSQL** | postgres:17-alpine | 5432 | Optuna study persistence |
+| **Redpanda** | redpanda:v24.2.1 | 9092, 19092, 18081 | Kafka-compatible streaming |
+| **FalkorDB** | falkordb:v4.2.1 | 6379 | Graph database |
+| **Qdrant** | qdrant:v1.12.1 | 6333, 6334 | Vector database (HTTP + gRPC) |
+| **PostgreSQL** | postgres:17-alpine | 5432 | API keys & Optuna persistence |
 | **Tuner** | Custom (FastAPI) | 8000 | Hyperparameter optimization |
-| **Optuna Dashboard** | optuna-dashboard | 8080 | Optimization visualization |
+| **Optuna Dashboard** | optuna-dashboard:v0.17.0 | 8080 | Optimization visualization |
 
 ### Production Infrastructure (Pulumi/GCP)
 
-- **GKE Cluster**: Kubernetes for service orchestration
-- **Cloud Run**: Serverless service deployments
-- **Cloud Storage**: Blob storage for large content
-- **Managed Redis**: Real-time pub/sub
+All infrastructure managed via Pulumi IaC (`packages/infra`) with cost control via `devEnabled` flag.
+
+**Networking:**
+- VPC network with private Google access
+- Cloud Router with NAT gateway for egress
+- Regional subnet with manual configuration
+
+**GKE Autopilot Cluster:**
+- Fully-managed node provisioning and scaling
+- Vertical Pod Autoscaling enabled
+- Regular release channel for automatic upgrades
+- Deletion protection in production
+
+**Kubernetes Workloads (engram namespace):**
+
+| Component | Type | Storage | Replicas (dev/prod) |
+|:----------|:-----|:--------|:--------------------|
+| FalkorDB | StatefulSet | 50Gi PVC | 1 / 3 |
+| Qdrant | Helm Chart | 50Gi PVC | 1 / 3 |
+| Redpanda | Helm Chart | 50Gi PVC | 1 / 3 |
+| PostgreSQL | StatefulSet | 10Gi PVC | 1 / 1 |
+| Tuner API | Deployment | - | 2 / 2 |
+| Dashboard | Deployment | - | 1 / 1 |
+
+**Network Policies (Least Privilege):**
+- Default deny-all ingress for namespace
+- FalkorDB: memory, ingestion, mcp, backup jobs only
+- Qdrant: search, memory, backup jobs only
+- Redpanda: ingestion, memory, backup jobs only
+
+**RBAC Service Accounts:**
+- `memory-sa`, `ingestion-sa`, `search-sa`, `mcp-sa`: ConfigMaps, Secrets, Pods access
+- `backup-sa`: ClusterRole for PVC and storage access
+
+**Automated Backups:**
+- GCS bucket with 30-day retention
+- Daily CronJobs: FalkorDB (2 AM), Qdrant (3 AM), Redpanda (4 AM)
+- Stored in `gs://{project}-engram-backups/`
+
+**Secret Management:**
+- Google Generative AI API key for Gemini reranking
+- PostgreSQL credentials for tuner service
+- Automatic replication across regions
 
 ## Hyperparameter Tuning
 
@@ -831,28 +926,28 @@ flowchart TB
 ```
 engram/
 ├── apps/
-│   ├── control/          # Orchestration, VFS & time-travel
-│   ├── ingestion/        # Event stream processing
-│   ├── interface/        # Next.js frontend
-│   ├── mcp/              # Engram MCP server
-│   ├── memory/           # Graph persistence service
-│   ├── search/           # Vector search service
-│   └── tuner/            # Python/FastAPI hyperparameter tuning
+│   ├── api/              # Cloud REST API (Hono) - API key auth, rate limiting (:8080)
+│   ├── control/          # Session orchestration, XState decision engine, VFS
+│   ├── ingestion/        # Event parsing pipeline, 8+ provider parsers (:5001)
+│   ├── mcp/              # Engram MCP server (stdio + HTTP ingest)
+│   ├── memory/           # Graph persistence, turn aggregation (Kafka consumer)
+│   ├── observatory/      # Neural Observatory - Next.js 16 session visualization (:5000)
+│   ├── search/           # Python/FastAPI vector search, hybrid retrieval (:5002)
+│   └── tuner/            # Python/FastAPI hyperparameter optimization (:8000)
 │
 ├── packages/
-│   ├── benchmark/        # LongMemEval evaluation suite
-│   ├── common/           # Shared utilities
-│   ├── events/           # Event schemas
-│   ├── graph/            # Graph models & repositories
-│   ├── infra/            # Pulumi infrastructure
-│   ├── logger/           # Pino-based logging
-│   ├── parser/           # Provider stream parsers
-│   ├── search/           # Search services & embedders
-│   ├── storage/          # Falkor, Kafka, Redis clients
-│   ├── temporal/         # Time-travel service
-│   ├── tsconfig/         # Shared TypeScript config
-│   ├── tuner/            # Tuner client package
-│   └── vfs/              # Virtual file system
+│   ├── benchmark/        # LongMemEval evaluation suite (Python)
+│   ├── common/           # Utilities, errors, constants, testing fixtures
+│   ├── events/           # Zod event schemas (RawStreamEvent, ParsedStreamEvent)
+│   ├── graph/            # Bitemporal graph models, repositories, QueryBuilder
+│   ├── infra/            # Pulumi IaC for GCP (VPC, GKE Autopilot, databases)
+│   ├── logger/           # Pino structured logging with PII redaction
+│   ├── parser/           # Provider stream parsers, ThinkingExtractor, Redactor
+│   ├── storage/          # FalkorDB, Kafka, PostgreSQL, Redis, GCS clients
+│   ├── temporal/         # Rehydrator, TimeTravelService, ReplayEngine
+│   ├── tsconfig/         # Shared TypeScript 7 (tsgo) configuration
+│   ├── tuner/            # TypeScript client, CLI, trial executor
+│   └── vfs/              # VirtualFileSystem, NodeFileSystem, PatchManager
 │
 └── ARCHITECTURE.md       # This document
 ```

@@ -368,7 +368,7 @@ Observatory supports four reranker tiers (configured via `SearchSettings.tsx`):
 | **fast** | MiniLM-L-6-v2 | ~50ms | Quick lookups, autocomplete |
 | **accurate** | BGE-reranker-base | ~150ms | General queries (default) |
 | **code** | Jina-reranker-v2 | ~150ms | Code-specific search |
-| **llm** | Grok-4 listwise | ~2s | Premium results, complex queries |
+| **llm** | Gemini 3.0 Flash | ~2s | Premium results, complex queries |
 
 ### Search Settings
 

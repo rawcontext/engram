@@ -81,10 +81,10 @@ class Settings(BaseSettings):
         default="colbert-ir/colbertv2.0", description="ColBERT late interaction model"
     )
     reranker_llm_model: str = Field(
-        default="grok-4-1-fast-reasoning", description="LLM model for listwise reranking"
+        default="gemini-3-flash-preview", description="LLM model for listwise reranking"
     )
     reranker_llm_provider: str = Field(
-        default="xai", description="LLM provider (openai, anthropic, xai, etc.)"
+        default="google", description="LLM provider (openai, anthropic, google, etc.)"
     )
     reranker_batch_size: int = Field(default=16, description="Batch size for reranking")
     reranker_timeout_ms: int = Field(

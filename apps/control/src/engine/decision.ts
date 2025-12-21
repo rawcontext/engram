@@ -1,4 +1,4 @@
-import { xai } from "@ai-sdk/xai";
+import { google } from "@ai-sdk/google";
 import { createNodeLogger, type Logger } from "@engram/logger";
 import { generateText, type ToolSet, tool } from "ai";
 import { createActor, fromPromise } from "xstate";
@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { ContextAssembler } from "../context/assembler";
 import { type AgentContext, agentMachine, type ToolCall } from "../state/machine";
 
-const model = xai("grok-4-1-fast-reasoning");
+const model = google("gemini-3-flash-preview");
 
 /**
  * Interface for tool adapters (ToolRouter).
