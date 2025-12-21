@@ -2,6 +2,11 @@
 	"name": "@engram/search",
 	"version": "0.0.0",
 	"private": true,
+	"turbo": {
+		"test": {
+			"outputs": []
+		}
+	},
 	"scripts": {
 		"test": "uv run pytest",
 		"lint": "uv run ruff check src tests",
