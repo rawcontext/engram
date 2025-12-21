@@ -3,7 +3,7 @@
 	"remoteCache": {
 		"signature": true
 	},
-	"globalDependencies": [".env", ".env.*", "tsconfig.json", "biome.json"],
+	"globalDependencies": ["tsconfig.json", "biome.json"],
 	"globalPassThroughEnv": ["CI", "NODE_ENV", "GITHUB_ACTIONS"],
 	"globalEnv": ["REDIS_URL", "QDRANT_URL"],
 	"tasks": {
