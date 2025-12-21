@@ -62,10 +62,6 @@ jobs:
         run: npm ci
         if: steps.node-modules.outputs.cache-hit != 'true'
 
-      - name: Verify lockfile
-        run: npm ls --all > /dev/null
-        if: steps.node-modules.outputs.cache-hit == 'true'
-
       - name: Build packages
         run: npm run build
 

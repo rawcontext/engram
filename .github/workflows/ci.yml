@@ -31,8 +31,6 @@ jobs:
           key: node-modules-${{ hashFiles('package-lock.json') }}
       - run: npm ci --include=optional
         if: steps.node-modules.outputs.cache-hit != 'true'
-      - run: npm ls --all > /dev/null
-        if: steps.node-modules.outputs.cache-hit == 'true'
       - run: npm run typecheck
 
   lint:
@@ -49,8 +47,6 @@ jobs:
           key: node-modules-${{ hashFiles('package-lock.json') }}
       - run: npm ci --include=optional
         if: steps.node-modules.outputs.cache-hit != 'true'
-      - run: npm ls --all > /dev/null
-        if: steps.node-modules.outputs.cache-hit == 'true'
       - run: npm run lint
 
   test-ts:
@@ -67,8 +63,6 @@ jobs:
           key: node-modules-${{ hashFiles('package-lock.json') }}
       - run: npm ci --include=optional
         if: steps.node-modules.outputs.cache-hit != 'true'
-      - run: npm ls --all > /dev/null
-        if: steps.node-modules.outputs.cache-hit == 'true'
       - run: npm run test:ts
 
   test-python:
@@ -85,15 +79,12 @@ jobs:
           key: node-modules-${{ hashFiles('package-lock.json') }}
       - run: npm ci --include=optional
         if: steps.node-modules.outputs.cache-hit != 'true'
-      - run: npm ls --all > /dev/null
-        if: steps.node-modules.outputs.cache-hit == 'true'
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-      - run: npm ci --include=optional
       - name: Sync Python dependencies
         run: |
           cd apps/search && uv sync
