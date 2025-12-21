@@ -251,6 +251,9 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 	 * Map FalkorDB node to domain Turn object.
 	 */
 	private mapToTurn(node: FalkorNode<TurnNodeProps>, sessionId: string): Turn {
+		if (!node || !node.properties) {
+			throw new Error("Invalid node: node or properties is null/undefined");
+		}
 		const props = node.properties;
 		return {
 			id: props.id,

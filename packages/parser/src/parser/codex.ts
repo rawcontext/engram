@@ -24,8 +24,13 @@ import {
  */
 export class CodexParser implements ParserStrategy {
 	parse(payload: unknown): StreamDelta | null {
+		// Type guard for payload
+		if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+			return null;
+		}
+
 		const p = payload as Record<string, unknown>;
-		const type = p.type as string;
+		const type = typeof p.type === "string" ? p.type : "";
 
 		// Handle item.completed events (main content events)
 		if (type === "item.completed") {

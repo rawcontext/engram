@@ -52,9 +52,12 @@ export class Rehydrator {
 		const patchManager = new PatchManager(vfs);
 
 		// 1. Find latest Snapshot before targetTime for this session
+		// Include bitemporal validation to ensure we only get valid, non-deleted snapshots
 		const snapshotQuery = `
 			MATCH (s:Snapshot)-[:SNAPSHOT_OF]->(sess:Session {id: $sessionId})
 			WHERE s.snapshot_at <= $targetTime
+			  AND s.vt_start <= $targetTime AND s.vt_end > $targetTime
+			  AND s.tt_end = 253402300799000
 			RETURN s.vfs_state_blob_ref, s.snapshot_at
 			ORDER BY s.snapshot_at DESC
 			LIMIT 1

@@ -83,7 +83,7 @@ function SessionCard({
 				flexDirection: "column",
 				padding: "14px 16px",
 				background: isHovered
-					? `linear-gradient(135deg, ${accentColorRgba} 0.08) 0%, rgba(15, 20, 30, 0.8) 100%)`
+					? `linear-gradient(135deg, ${accentColorRgba} 0.08), rgba(15, 20, 30, 0.8))`
 					: "rgba(15, 20, 30, 0.6)",
 				backdropFilter: "blur(8px)",
 				border: isHovered

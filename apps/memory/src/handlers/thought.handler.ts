@@ -70,7 +70,8 @@ export class ThoughtEventHandler implements EventHandler {
 				preview: $preview,
 				reasoning_type: 'chain_of_thought',
 				sequence_index: $sequenceIndex,
-				vt_start: $now
+				vt_start: $now,
+				tt_start: $now
 			})
 			MERGE (t)-[:CONTAINS]->(r)
 			RETURN r

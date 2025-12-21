@@ -88,6 +88,13 @@ export async function search(
 				errorMessage = response.statusText || errorMessage;
 			}
 
+			console.error("[SearchPy] HTTP error:", {
+				status: response.status,
+				message: errorMessage,
+				details: errorDetails,
+				request,
+			});
+
 			throw new SearchPyError(errorMessage, response.status, errorDetails);
 		}
 
@@ -99,6 +106,11 @@ export async function search(
 		}
 
 		if (error instanceof Error) {
+			console.error("[SearchPy] Connection error:", {
+				message: error.message,
+				request,
+				error,
+			});
 			throw new SearchPyError(
 				`Failed to connect to search service: ${error.message}`,
 				undefined,
@@ -106,6 +118,7 @@ export async function search(
 			);
 		}
 
+		console.error("[SearchPy] Unknown error:", { request, error });
 		throw new SearchPyError("Unknown error occurred while calling search service");
 	}
 }

@@ -3,6 +3,85 @@ import { mergeRedactPaths } from "./redaction";
 import type { Logger, NodeLoggerOptions, TenantContext, TraceContext } from "./types";
 
 /**
+ * Lifecycle state for logger management
+ */
+enum LoggerState {
+	Active = "active",
+	Flushing = "flushing",
+	Destroyed = "destroyed",
+}
+
+/**
+ * Extended logger interface with lifecycle methods
+ */
+export interface LifecycleLogger extends Logger {
+	destroy?: () => void;
+}
+
+/**
+ * Wraps a Pino logger with lifecycle management to prevent race conditions
+ * and post-destroy logging.
+ */
+function wrapLoggerWithLifecycle(logger: Logger): LifecycleLogger {
+	let state = LoggerState.Active;
+	const originalFlush = logger.flush?.bind(logger);
+
+	// Wrap all logging methods to check state
+	const createLoggingMethod = <T extends (...args: any[]) => any>(originalMethod: T): T => {
+		return ((...args: unknown[]) => {
+			if (state === LoggerState.Destroyed) {
+				// Silently drop logs after destroy
+				return;
+			}
+			return originalMethod(...args);
+		}) as T;
+	};
+
+	const wrappedLogger = Object.create(logger) as LifecycleLogger;
+
+	// Wrap flush to prevent concurrent flush/destroy
+	if (originalFlush) {
+		wrappedLogger.flush = ((cb?: (err?: Error) => void) => {
+			if (state !== LoggerState.Active) {
+				cb?.();
+				return;
+			}
+			state = LoggerState.Flushing;
+			try {
+				originalFlush(cb);
+			} finally {
+				if (state === LoggerState.Flushing) {
+					state = LoggerState.Active;
+				}
+			}
+		}) as typeof logger.flush;
+	}
+
+	// Add destroy method with state tracking
+	wrappedLogger.destroy = () => {
+		if (state === LoggerState.Destroyed) return;
+
+		// Wait for flush to complete if in progress
+		if (state === LoggerState.Flushing) {
+			// Already flushing, just mark for destroy
+			state = LoggerState.Destroyed;
+			return;
+		}
+
+		state = LoggerState.Destroyed;
+		// Pino doesn't have a destroy method, but we prevent further logging
+	};
+
+	// Wrap all logging methods
+	(["trace", "debug", "info", "warn", "error", "fatal"] as const).forEach((level) => {
+		const originalMethod = logger[level].bind(logger);
+		wrappedLogger[level] = createLoggingMethod(originalMethod);
+	});
+
+	return wrappedLogger;
+}
+
+/**
  * Create a Pino logger for Node.js/Bun environments.
  *
  * Features:
@@ -11,11 +90,12 @@ import type { Logger, NodeLoggerOptions, TenantContext, TraceContext } from "./t
  * - PII redaction via Pino's built-in redaction
  * - Pretty printing in development
  * - Structured JSON in production
+ * - Lifecycle management to prevent race conditions and post-destroy logging
  */
 export function createNodeLogger(
 	options: NodeLoggerOptions,
 	destination?: DestinationStream,
-): Logger {
+): LifecycleLogger {
 	const {
 		service,
 		level = "info",
@@ -82,7 +162,7 @@ export function createNodeLogger(
 		destination,
 	);
 
-	return logger;
+	return wrapLoggerWithLifecycle(logger);
 }
 
 /**

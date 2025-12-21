@@ -1,5 +1,7 @@
 """Analysis endpoints for study results."""
 
+import asyncio
+
 import optuna
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
@@ -41,10 +43,10 @@ def _get_storage(request: Request) -> optuna.storages.RDBStorage:
     return storage
 
 
-def _load_study(storage: optuna.storages.RDBStorage, study_name: str) -> optuna.Study:
+async def _load_study(storage: optuna.storages.RDBStorage, study_name: str) -> optuna.Study:
     """Load a study by name."""
     try:
-        return optuna.load_study(study_name=study_name, storage=storage)
+        return await asyncio.to_thread(optuna.load_study, study_name=study_name, storage=storage)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -59,7 +61,7 @@ async def get_best_params(request: Request, study_name: str) -> BestParamsRespon
     For multi-objective studies, returns the first Pareto-optimal trial.
     """
     storage = _get_storage(request)
-    study = _load_study(storage, study_name)
+    study = await _load_study(storage, study_name)
 
     if len(study.trials) == 0:
         raise HTTPException(
@@ -100,7 +102,7 @@ async def get_best_params(request: Request, study_name: str) -> BestParamsRespon
 async def get_pareto_front(request: Request, study_name: str) -> list[ParetoTrialResponse]:
     """Get the Pareto frontier for a multi-objective study."""
     storage = _get_storage(request)
-    study = _load_study(storage, study_name)
+    study = await _load_study(storage, study_name)
 
     if not study._is_multi_objective():
         raise HTTPException(
@@ -131,11 +133,9 @@ async def get_param_importance(
     For multi-objective studies, use target_idx to specify which objective.
     """
     storage = _get_storage(request)
-    study = _load_study(storage, study_name)
+    study = await _load_study(storage, study_name)
 
-    completed_trials = [
-        t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE
-    ]
+    completed_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
 
     if len(completed_trials) < 2:
         raise HTTPException(
@@ -145,7 +145,8 @@ async def get_param_importance(
 
     try:
         # Use fANOVA for parameter importance
-        importance = optuna.importance.get_param_importances(
+        importance = await asyncio.to_thread(
+            optuna.importance.get_param_importances,
             study,
             evaluator=optuna.importance.FanovaImportanceEvaluator(),
             target=lambda t: t.values[target_idx] if study._is_multi_objective() else t.value,
@@ -153,10 +154,11 @@ async def get_param_importance(
     except Exception as e:
         # Fall back to mean decrease impurity if fANOVA fails
         try:
-            importance = optuna.importance.get_param_importances(
+            importance = await asyncio.to_thread(
+                optuna.importance.get_param_importances,
                 study,
                 evaluator=optuna.importance.MeanDecreaseImpurityImportanceEvaluator(),
-                target=lambda t: t.values[target_idx] if study._is_multi_objective() else t.value,
+                target=lambda t: (t.values[target_idx] if study._is_multi_objective() else t.value),
             )
             return ParamImportance(importances=importance, method="mean_decrease_impurity")
         except Exception:

@@ -265,6 +265,9 @@ export class FalkorToolCallRepository extends FalkorBaseRepository implements To
 	 * Map FalkorDB node to domain ToolCall object.
 	 */
 	private mapToToolCall(node: FalkorNode<ToolCallNodeProps>, turnId: string): ToolCall {
+		if (!node || !node.properties) {
+			throw new Error("Invalid node: node or properties is null/undefined");
+		}
 		const props = node.properties;
 		return {
 			id: props.id,

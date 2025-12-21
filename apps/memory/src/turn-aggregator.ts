@@ -340,7 +340,8 @@ export class TurnAggregator {
 				sequence_index: $sequenceIndex,
 				files_touched: $filesTouched,
 				tool_calls_count: $toolCallsCount,
-				vt_start: $now
+				vt_start: $now,
+				tt_start: $now
 			})
 			MERGE (s)-[:HAS_TURN]->(t)
 			WITH t

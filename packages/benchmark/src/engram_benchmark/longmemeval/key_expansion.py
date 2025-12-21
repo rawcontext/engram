@@ -119,11 +119,12 @@ List facts one per line, numbered.
 Facts:"""
 
             # Call LLM
-            response = await self.llm.complete(
+            llm_response = await self.llm.generate(
                 prompt=prompt,
                 max_tokens=500,
                 temperature=0.3,
             )
+            response = llm_response.content
 
             # Parse response (simple line-based parsing)
             lines = response.strip().split("\n")

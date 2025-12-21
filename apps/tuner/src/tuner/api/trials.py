@@ -1,5 +1,7 @@
 """Trial management endpoints for the ask/tell optimization loop."""
 
+import asyncio
+
 import optuna
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -19,10 +21,10 @@ def _get_storage(request: Request) -> optuna.storages.RDBStorage:
     return storage
 
 
-def _load_study(storage: optuna.storages.RDBStorage, study_name: str) -> optuna.Study:
+async def _load_study(storage: optuna.storages.RDBStorage, study_name: str) -> optuna.Study:
     """Load a study by name."""
     try:
-        return optuna.load_study(study_name=study_name, storage=storage)
+        return await asyncio.to_thread(optuna.load_study, study_name=study_name, storage=storage)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -69,10 +71,10 @@ async def suggest_trial(request: Request, study_name: str) -> TrialSuggestion:
     This is the 'ask' part of the ask/tell pattern for distributed optimization.
     """
     storage = _get_storage(request)
-    study = _load_study(storage, study_name)
+    study = await _load_study(storage, study_name)
 
     # Create a new trial
-    trial = study.ask()
+    trial = await asyncio.to_thread(study.ask)
 
     # Get search space from study user_attrs
     search_space = study.user_attrs.get("search_space", [])
@@ -106,7 +108,7 @@ async def complete_trial(
     This is the 'tell' part of the ask/tell pattern for distributed optimization.
     """
     storage = _get_storage(request)
-    study = _load_study(storage, study_name)
+    study = await _load_study(storage, study_name)
 
     # Normalize values to list for consistent handling
     values = body.values if isinstance(body.values, list) else [body.values]
@@ -119,14 +121,14 @@ async def complete_trial(
         )
     trial = study.trials[trial_id]
     for step, value in body.intermediate_values.items():
-        trial.report(value, step)
+        await asyncio.to_thread(trial.report, value, step)
 
     # Set user attributes
     for key, value in body.user_attrs.items():
-        trial.set_user_attr(key, value)
+        await asyncio.to_thread(trial.set_user_attr, key, value)
 
     # Tell Optuna the result
-    study.tell(trial_id, values)
+    await asyncio.to_thread(study.tell, trial_id, values)
 
     # Fetch updated trial
     trial = study.trials[trial_id]
@@ -156,7 +158,7 @@ async def prune_trial(
 ) -> TrialResponse:
     """Mark a trial as pruned (early stopped)."""
     storage = _get_storage(request)
-    study = _load_study(storage, study_name)
+    study = await _load_study(storage, study_name)
 
     # Validate trial_id exists
     if trial_id < 0 or trial_id >= len(study.trials):
@@ -166,7 +168,7 @@ async def prune_trial(
         )
 
     # Tell Optuna the trial was pruned
-    study.tell(trial_id, state=optuna.trial.TrialState.PRUNED)
+    await asyncio.to_thread(study.tell, trial_id, state=optuna.trial.TrialState.PRUNED)
 
     # Fetch updated trial
     trial = study.trials[trial_id]
@@ -198,7 +200,7 @@ async def list_trials(
 ) -> list[TrialResponse]:
     """List trials for a study with optional filtering."""
     storage = _get_storage(request)
-    study = _load_study(storage, study_name)
+    study = await _load_study(storage, study_name)
 
     trials = study.trials
 

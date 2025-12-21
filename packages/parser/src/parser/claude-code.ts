@@ -19,8 +19,13 @@ import {
  */
 export class ClaudeCodeParser implements ParserStrategy {
 	parse(payload: unknown): StreamDelta | null {
+		// Type guard for payload
+		if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+			return null;
+		}
+
 		const p = payload as Record<string, unknown>;
-		const type = p.type as string;
+		const type = typeof p.type === "string" ? p.type : "";
 
 		// Handle assistant messages with content
 		if (type === "assistant") {

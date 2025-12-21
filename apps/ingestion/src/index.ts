@@ -36,21 +36,47 @@ const diffExtractors = new Map<string, ExtractorEntry<DiffExtractor>>();
 // Session extractor TTL: 30 minutes of inactivity
 const EXTRACTOR_TTL_MS = 30 * 60 * 1000;
 
+// Mutex for extractor cleanup to prevent race conditions
+let cleanupInProgress = false;
+
 /**
  * Clean up stale extractors to prevent memory leaks.
  * Runs periodically to remove extractors for inactive sessions.
+ * Uses a mutex to prevent concurrent cleanup operations.
  */
 function cleanupStaleExtractors(): void {
-	const now = Date.now();
-	for (const [sessionId, entry] of thinkingExtractors) {
-		if (now - entry.lastAccess > EXTRACTOR_TTL_MS) {
+	// Prevent concurrent cleanup operations
+	if (cleanupInProgress) {
+		return;
+	}
+
+	cleanupInProgress = true;
+	try {
+		const now = Date.now();
+		// Collect session IDs to delete first to avoid iterator invalidation
+		const thinkingToDelete: string[] = [];
+		const diffToDelete: string[] = [];
+
+		for (const [sessionId, entry] of thinkingExtractors) {
+			if (now - entry.lastAccess > EXTRACTOR_TTL_MS) {
+				thinkingToDelete.push(sessionId);
+			}
+		}
+		for (const [sessionId, entry] of diffExtractors) {
+			if (now - entry.lastAccess > EXTRACTOR_TTL_MS) {
+				diffToDelete.push(sessionId);
+			}
+		}
+
+		// Delete after iteration completes
+		for (const sessionId of thinkingToDelete) {
 			thinkingExtractors.delete(sessionId);
 		}
-	}
-	for (const [sessionId, entry] of diffExtractors) {
-		if (now - entry.lastAccess > EXTRACTOR_TTL_MS) {
+		for (const sessionId of diffToDelete) {
 			diffExtractors.delete(sessionId);
 		}
+	} finally {
+		cleanupInProgress = false;
 	}
 }
 
@@ -361,8 +387,12 @@ async function startConsumer() {
 				// Send to Dead Letter Queue for later analysis/retry
 				try {
 					const eventId =
-						rawBody && typeof rawBody === "object" && "event_id" in rawBody
-							? String((rawBody as Record<string, unknown>).event_id)
+						rawBody &&
+						typeof rawBody === "object" &&
+						!Array.isArray(rawBody) &&
+						"event_id" in rawBody &&
+						typeof rawBody.event_id === "string"
+							? rawBody.event_id
 							: `unknown-${Date.now()}`;
 
 					await kafka.sendEvent("ingestion.dead_letter", eventId, {
@@ -444,8 +474,14 @@ const server = createServer(async (req, res) => {
 
 				// DLQ Logic
 				try {
-					const bodyObj = rawBody as Record<string, unknown>;
-					const dlqKey = (bodyObj?.event_id as string) || "unknown";
+					const dlqKey =
+						rawBody &&
+						typeof rawBody === "object" &&
+						!Array.isArray(rawBody) &&
+						"event_id" in rawBody &&
+						typeof rawBody.event_id === "string"
+							? rawBody.event_id
+							: "unknown";
 
 					await kafka.sendEvent("ingestion.dead_letter", dlqKey, {
 						error: message,

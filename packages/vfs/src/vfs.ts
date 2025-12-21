@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import { promisify } from "node:util";
 import * as zlib from "node:zlib";
 
@@ -40,13 +41,39 @@ export class VirtualFileSystem {
 		this.cwd = "/";
 	}
 
-	// Basic CRUD (Simplified)
-	public exists(path: string): boolean {
-		return !!this.resolve(path);
+	/**
+	 * Sanitizes and normalizes a path to prevent path traversal attacks.
+	 * Ensures the resolved path stays within the virtual filesystem root.
+	 */
+	private sanitizePath(inputPath: string): string {
+		// Normalize the path to resolve ../ and ./ segments
+		const normalized = path.posix.normalize(inputPath);
+
+		// Ensure the path is absolute or make it relative to root
+		const absolutePath = normalized.startsWith("/") ? normalized : `/${normalized}`;
+
+		// Check for path traversal attempts
+		if (absolutePath.includes("..")) {
+			throw new Error(`Path traversal not allowed: ${inputPath}`);
+		}
+
+		// Ensure the path starts with / (stays within root)
+		if (!absolutePath.startsWith("/")) {
+			throw new Error(`Invalid path, must be within root: ${inputPath}`);
+		}
+
+		return absolutePath;
 	}
 
-	public mkdir(path: string): void {
-		const parts = this.splitPath(path);
+	// Basic CRUD (Simplified)
+	public exists(inputPath: string): boolean {
+		const sanitized = this.sanitizePath(inputPath);
+		return !!this.resolve(sanitized);
+	}
+
+	public mkdir(inputPath: string): void {
+		const sanitized = this.sanitizePath(inputPath);
+		const parts = this.splitPath(sanitized);
 		let current = this.root;
 
 		for (const part of parts) {
@@ -61,8 +88,9 @@ export class VirtualFileSystem {
 		}
 	}
 
-	public writeFile(path: string, content: string): void {
-		const parts = this.splitPath(path);
+	public writeFile(inputPath: string, content: string): void {
+		const sanitized = this.sanitizePath(inputPath);
+		const parts = this.splitPath(sanitized);
 		const fileName = parts.pop() || "";
 		if (!fileName) throw new Error("Invalid path");
 
@@ -84,15 +112,17 @@ export class VirtualFileSystem {
 		};
 	}
 
-	public readFile(path: string): string {
-		const node = this.resolve(path);
-		if (!node || node.type !== "file") throw new Error(`File not found: ${path}`);
+	public readFile(inputPath: string): string {
+		const sanitized = this.sanitizePath(inputPath);
+		const node = this.resolve(sanitized);
+		if (!node || node.type !== "file") throw new Error(`File not found: ${inputPath}`);
 		return node.content;
 	}
 
-	public readDir(path: string): string[] {
-		const node = this.resolve(path);
-		if (!node || node.type !== "directory") throw new Error(`Directory not found: ${path}`);
+	public readDir(inputPath: string): string[] {
+		const sanitized = this.sanitizePath(inputPath);
+		const node = this.resolve(sanitized);
+		if (!node || node.type !== "directory") throw new Error(`Directory not found: ${inputPath}`);
 		return Object.keys(node.children);
 	}
 

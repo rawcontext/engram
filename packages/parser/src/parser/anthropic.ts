@@ -8,6 +8,11 @@ import {
 
 export class AnthropicParser implements ParserStrategy {
 	parse(payload: unknown): StreamDelta | null {
+		// Type guard for payload
+		if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+			return null;
+		}
+
 		const p = payload as Record<string, unknown>;
 		// Anthropic Event Types
 		const type = p.type;

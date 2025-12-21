@@ -272,6 +272,9 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 	 * Map FalkorDB node to domain Session object.
 	 */
 	private mapToSession(node: FalkorNode<SessionNodeProps>): Session {
+		if (!node || !node.properties) {
+			throw new Error("Invalid node: node or properties is null/undefined");
+		}
 		const props = node.properties;
 		return {
 			id: props.id,

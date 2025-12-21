@@ -159,6 +159,9 @@ export class FalkorReasoningRepository extends FalkorBaseRepository implements R
 	 * Map FalkorDB node to domain Reasoning object.
 	 */
 	private mapToReasoning(node: FalkorNode<ReasoningNodeProps>, turnId: string): Reasoning {
+		if (!node || !node.properties) {
+			throw new Error("Invalid node: node or properties is null/undefined");
+		}
 		const props = node.properties;
 		return {
 			id: props.id,

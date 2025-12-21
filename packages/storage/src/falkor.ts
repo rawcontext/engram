@@ -152,10 +152,14 @@ export class FalkorClient implements GraphClient {
 	}
 
 	async disconnect(): Promise<void> {
-		if (this.db) {
-			await this.db.close();
+		try {
+			if (this.db) {
+				await this.db.close();
+			}
+		} finally {
 			this.db = null;
 			this.graph = null;
+			this.dbPromise = null;
 			this.connected = false;
 		}
 	}

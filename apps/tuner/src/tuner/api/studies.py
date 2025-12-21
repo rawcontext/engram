@@ -1,5 +1,6 @@
 """Study management endpoints."""
 
+import asyncio
 from datetime import datetime
 
 import optuna
@@ -47,7 +48,8 @@ async def create_study(request: Request, body: CreateStudyRequest) -> StudyRespo
     pruner = create_pruner(body.pruner)
 
     try:
-        study = optuna.create_study(
+        study = await asyncio.to_thread(
+            optuna.create_study,
             study_name=body.name,
             storage=storage,
             direction=directions if not isinstance(directions, list) else None,
@@ -58,9 +60,11 @@ async def create_study(request: Request, body: CreateStudyRequest) -> StudyRespo
         )
 
         # Store search space in user_attrs for retrieval during suggest
-        study.set_user_attr("search_space", [p.model_dump() for p in body.search_space])
-        study.set_user_attr("sampler", body.sampler)
-        study.set_user_attr("pruner", body.pruner)
+        await asyncio.to_thread(
+            study.set_user_attr, "search_space", [p.model_dump() for p in body.search_space]
+        )
+        await asyncio.to_thread(study.set_user_attr, "sampler", body.sampler)
+        await asyncio.to_thread(study.set_user_attr, "pruner", body.pruner)
 
     except optuna.exceptions.DuplicatedStudyError as e:
         raise HTTPException(
@@ -68,8 +72,11 @@ async def create_study(request: Request, body: CreateStudyRequest) -> StudyRespo
             detail=f"Study '{body.name}' already exists",
         ) from e
 
+    # Get study ID from storage using public API
+    study_id = await asyncio.to_thread(storage.get_study_id_from_name, study.study_name)
+
     return StudyResponse(
-        study_id=study._study_id,
+        study_id=study_id,
         study_name=study.study_name,
         direction=body.direction,
         n_trials=len(study.trials),
@@ -84,23 +91,29 @@ async def create_study(request: Request, body: CreateStudyRequest) -> StudyRespo
 async def list_studies(request: Request) -> list[StudySummary]:
     """List all studies."""
     storage = _get_storage(request)
-    summaries = storage.get_all_studies()
+    summaries = await asyncio.to_thread(storage.get_all_studies)
 
-    return [
-        StudySummary(
-            study_id=s._study_id,
-            study_name=s.study_name,
-            direction=(
-                [d.name.lower() for d in s.directions]
-                if len(s.directions) > 1
-                else s.directions[0].name.lower() if s.directions else "minimize"
-            ),
-            n_trials=s.n_trials,
-            best_value=None,  # Would require loading full study
-            datetime_start=s.datetime_start,
+    result = []
+    for s in summaries:
+        # Get study ID from storage using public API
+        study_id = await asyncio.to_thread(storage.get_study_id_from_name, s.study_name)
+        result.append(
+            StudySummary(
+                study_id=study_id,
+                study_name=s.study_name,
+                direction=(
+                    [d.name.lower() for d in s.directions]
+                    if len(s.directions) > 1
+                    else s.directions[0].name.lower()
+                    if s.directions
+                    else "minimize"
+                ),
+                n_trials=s.n_trials,
+                best_value=None,  # Would require loading full study
+                datetime_start=s.datetime_start,
+            )
         )
-        for s in summaries
-    ]
+    return result
 
 
 @router.get("/{study_name}", response_model=StudyResponse)
@@ -109,7 +122,7 @@ async def get_study(request: Request, study_name: str) -> StudyResponse:
     storage = _get_storage(request)
 
     try:
-        study = optuna.load_study(study_name=study_name, storage=storage)
+        study = await asyncio.to_thread(optuna.load_study, study_name=study_name, storage=storage)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -128,8 +141,11 @@ async def get_study(request: Request, study_name: str) -> StudyResponse:
             # No completed trials yet
             pass
 
+    # Get study ID from storage using public API
+    study_id = await asyncio.to_thread(storage.get_study_id_from_name, study.study_name)
+
     return StudyResponse(
-        study_id=study._study_id,
+        study_id=study_id,
         study_name=study.study_name,
         direction=(
             [d.name.lower() for d in study.directions]
@@ -151,8 +167,8 @@ async def delete_study(request: Request, study_name: str) -> None:
 
     try:
         # Verify study exists before deleting
-        _ = storage.get_study_id_from_name(study_name)
-        optuna.delete_study(study_name=study_name, storage=storage)
+        _ = await asyncio.to_thread(storage.get_study_id_from_name, study_name)
+        await asyncio.to_thread(optuna.delete_study, study_name=study_name, storage=storage)
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

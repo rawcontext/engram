@@ -109,7 +109,8 @@ export class ToolCallEventHandler implements EventHandler {
 				status: 'pending',
 				sequence_index: $sequenceIndex,
 				reasoning_sequence: $reasoningSequence,
-				vt_start: $now
+				vt_start: $now,
+				tt_start: $now
 			})
 			MERGE (t)-[:INVOKES]->(tc)
 			RETURN tc

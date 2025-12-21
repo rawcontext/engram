@@ -405,7 +405,7 @@ class SessionAwareRetriever:
                 top_k=self.config.final_top_k,
             )
 
-            # Map back to original results
+            # Map back to original results with bounds checking
             return [
                 SessionAwareSearchResult(
                     id=turns[r.original_index].id,
@@ -418,6 +418,7 @@ class SessionAwareRetriever:
                     reranker_score=r.score,
                 )
                 for r in reranked
+                if 0 <= r.original_index < len(turns)
             ]
         except Exception as e:
             logger.error(

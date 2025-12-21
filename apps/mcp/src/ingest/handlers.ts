@@ -109,10 +109,19 @@ export async function handleIngestEvent(c: Context, deps: IngestHandlerDeps) {
 					client: event.client,
 					session_id: event.session_id,
 					timestamp: event.timestamp,
-					tool_name: (event.data.tool_name as string) ?? "unknown",
-					tool_input: event.data.tool_input as Record<string, unknown>,
-					tool_output: event.data.tool_output as string,
-					status: event.data.status as "success" | "error",
+					tool_name: typeof event.data.tool_name === "string" ? event.data.tool_name : "unknown",
+					tool_input:
+						event.data.tool_input != null &&
+						typeof event.data.tool_input === "object" &&
+						!Array.isArray(event.data.tool_input)
+							? (event.data.tool_input as Record<string, unknown>)
+							: undefined,
+					tool_output:
+						typeof event.data.tool_output === "string" ? event.data.tool_output : undefined,
+					status:
+						event.data.status === "success" || event.data.status === "error"
+							? event.data.status
+							: undefined,
 					context: event.context,
 				});
 				break;
@@ -122,7 +131,7 @@ export async function handleIngestEvent(c: Context, deps: IngestHandlerDeps) {
 					client: event.client,
 					session_id: event.session_id,
 					timestamp: event.timestamp,
-					content: (event.data.content as string) ?? "",
+					content: typeof event.data.content === "string" ? event.data.content : "",
 					context: event.context,
 				});
 				break;
@@ -134,7 +143,7 @@ export async function handleIngestEvent(c: Context, deps: IngestHandlerDeps) {
 					session_id: event.session_id,
 					timestamp: event.timestamp,
 					event: event.event_type === "session_start" ? "start" : "end",
-					summary: event.data.summary as string | undefined,
+					summary: typeof event.data.summary === "string" ? event.data.summary : undefined,
 					context: event.context,
 				});
 				break;

@@ -14,9 +14,7 @@ class CreateStudyRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., min_length=1, max_length=256)
-    direction: Literal["maximize", "minimize"] | list[Literal["maximize", "minimize"]] = (
-        "maximize"
-    )
+    direction: Literal["maximize", "minimize"] | list[Literal["maximize", "minimize"]] = "maximize"
     search_space: list[SearchSpaceParameter]
     sampler: Literal["tpe", "gp", "random", "nsgaii", "qmc"] = "tpe"
     pruner: Literal["hyperband", "median", "none"] = "hyperband"

@@ -37,10 +37,33 @@ export class GraphMerger {
 		if (!Array.isArray(edgesResult)) return;
 
 		for (const row of edgesResult) {
-			const type = row[0] as string;
-			const isOutgoing = row[1] as boolean;
-			const neighborId = row[2] as string;
-			const props = (row[3] || {}) as QueryParams;
+			// Use proper type guards instead of unsafe casting
+			if (!Array.isArray(row) || row.length < 4) {
+				console.warn("[GraphMerger] Skipping invalid row - expected array with 4 elements");
+				continue;
+			}
+
+			const type = row[0];
+			const isOutgoing = row[1];
+			const neighborId = row[2];
+			const props = row[3];
+
+			// Validate types
+			if (typeof type !== "string") {
+				console.warn("[GraphMerger] Skipping row - type is not a string");
+				continue;
+			}
+			if (typeof isOutgoing !== "boolean") {
+				console.warn("[GraphMerger] Skipping row - isOutgoing is not a boolean");
+				continue;
+			}
+			if (typeof neighborId !== "string") {
+				console.warn("[GraphMerger] Skipping row - neighborId is not a string");
+				continue;
+			}
+
+			const edgeProps: QueryParams =
+				props && typeof props === "object" && !Array.isArray(props) ? (props as QueryParams) : {};
 
 			// Validate relationship type to prevent Cypher injection
 			validateRelationshipType(type);
@@ -61,7 +84,7 @@ export class GraphMerger {
                 `;
 			}
 
-			await this.client.query(createQuery, { targetId, neighborId, props });
+			await this.client.query(createQuery, { targetId, neighborId, props: edgeProps });
 		}
 
 		// 2. Delete source node (and its old edges)

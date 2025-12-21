@@ -119,9 +119,13 @@ export function createRedisPublisher() {
 	};
 
 	const disconnect = async () => {
-		if (client?.isOpen) {
-			await client.quit();
+		try {
+			if (client?.isOpen) {
+				await client.quit();
+			}
+		} finally {
 			client = null;
+			connectPromise = null;
 		}
 	};
 
@@ -202,14 +206,18 @@ export function createRedisSubscriber() {
 	};
 
 	const disconnect = async () => {
-		if (client?.isOpen) {
-			// Unsubscribe from all channels
-			for (const channel of subscriptions.keys()) {
-				await client.unsubscribe(channel);
+		try {
+			if (client?.isOpen) {
+				// Unsubscribe from all channels
+				for (const channel of subscriptions.keys()) {
+					await client.unsubscribe(channel);
+				}
+				subscriptions.clear();
+				await client.quit();
 			}
-			subscriptions.clear();
-			await client.quit();
+		} finally {
 			client = null;
+			subscriptions.clear();
 		}
 	};
 

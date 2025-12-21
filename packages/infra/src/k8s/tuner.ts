@@ -44,8 +44,12 @@ export const postgresSecret = k8sProvider
 				},
 				type: "Opaque",
 				stringData: {
-					POSTGRES_USER: "postgres",
-					POSTGRES_PASSWORD: pulumi.secret("postgres"), // Should be overridden in prod
+					POSTGRES_USER: pulumi
+						.secret(process.env.TUNER_POSTGRES_USER || "postgres")
+						.apply((v) => v),
+					POSTGRES_PASSWORD: pulumi.secret(
+						process.env.TUNER_POSTGRES_PASSWORD || "CHANGE_ME_IN_PRODUCTION",
+					),
 					POSTGRES_DB: "optuna",
 				},
 			},
@@ -229,7 +233,8 @@ export const tunerSecret = k8sProvider
 				type: "Opaque",
 				stringData: {
 					DATABASE_URL: pulumi.secret(
-						"postgresql://postgres:postgres@tuner-postgres.engram.svc.cluster.local:5432/optuna",
+						process.env.TUNER_DATABASE_URL ||
+							"postgresql://postgres:CHANGE_ME_IN_PRODUCTION@tuner-postgres.engram.svc.cluster.local:5432/optuna",
 					),
 				},
 			},
@@ -457,8 +462,30 @@ export const dashboardDeployment =
 									{
 										name: "dashboard",
 										image: "ghcr.io/optuna/optuna-dashboard:v0.17.0",
+										env: [
+											{
+												name: "POSTGRES_USER",
+												valueFrom: {
+													secretKeyRef: {
+														name: "tuner-postgres-credentials",
+														key: "POSTGRES_USER",
+													},
+												},
+											},
+											{
+												name: "POSTGRES_PASSWORD",
+												valueFrom: {
+													secretKeyRef: {
+														name: "tuner-postgres-credentials",
+														key: "POSTGRES_PASSWORD",
+													},
+												},
+											},
+										],
+										command: ["/bin/sh"],
 										args: [
-											"postgresql://postgres:postgres@tuner-postgres.engram.svc.cluster.local:5432/optuna",
+											"-c",
+											'optuna-dashboard "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@tuner-postgres.engram.svc.cluster.local:5432/optuna"',
 										],
 										ports: [
 											{
@@ -540,5 +567,6 @@ export const dashboardService = k8sProvider
 
 export const tunerEndpoint = "http://tuner.engram.svc.cluster.local:8000";
 export const dashboardEndpoint = "http://tuner-dashboard.engram.svc.cluster.local:8080";
-export const postgresEndpoint =
-	"postgresql://postgres:postgres@tuner-postgres.engram.svc.cluster.local:5432/optuna";
+export const postgresEndpoint = pulumi
+	.secret(process.env.TUNER_POSTGRES_USER || "postgres")
+	.apply((user) => `postgresql://${user}:***@tuner-postgres.engram.svc.cluster.local:5432/optuna`);

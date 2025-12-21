@@ -16,9 +16,7 @@ class Settings(BaseSettings):
     )
 
     # Database
-    database_url: PostgresDsn = PostgresDsn(
-        "postgresql://postgres:postgres@localhost:5432/optuna"
-    )
+    database_url: PostgresDsn = PostgresDsn("postgresql://postgres:postgres@localhost:5432/optuna")
 
     # Server
     host: str = "0.0.0.0"
