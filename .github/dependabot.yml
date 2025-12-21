@@ -1,310 +1,108 @@
-# Dependabot configuration for Engram monorepo
-# Docs: https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
 version: 2
 
 updates:
-  # ═══════════════════════════════════════════════════════════════════════════
-  # NPM - TypeScript Monorepo
-  # ═══════════════════════════════════════════════════════════════════════════
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "America/Los_Angeles"
+      timezone: "America/Chicago"
     open-pull-requests-limit: 15
     versioning-strategy: "increase"
-
-    # Delay updates to avoid buggy releases
     cooldown:
-      default-days: 3
+      default-days: 2
+      semver-minor-days: 4
       semver-major-days: 7
-      semver-minor-days: 2
-
-    # Skip test fixtures and benchmarks
-    exclude-paths:
-      - "packages/benchmark/fixtures/**"
-      - "**/test-fixtures/**"
-      - "**/testdata/**"
-
-    # Commit message format
     commit-message:
       prefix: "deps(npm)"
       prefix-development: "deps(npm-dev)"
       include: "scope"
-
-    # PR customization
     labels:
       - "dependencies"
       - "npm"
-
-    # Dependency groups - reduces PR noise
     groups:
-      # TypeScript & Build Tooling
-      typescript-tooling:
-        patterns:
-          - "typescript"
-          - "@typescript/*"
-          - "tsx"
-          - "tsup"
-          - "turbo"
-        update-types: ["minor", "patch"]
-
-      # Biome linting/formatting
-      biome:
-        patterns:
-          - "@biomejs/*"
-        update-types: ["minor", "patch"]
-
-      # Testing framework
-      vitest:
-        patterns:
-          - "vitest"
-          - "@vitest/*"
-          - "jsdom"
-        update-types: ["minor", "patch"]
-
-      # Schema validation
-      zod:
-        patterns:
-          - "zod"
-        update-types: ["minor", "patch"]
-
-      # Infrastructure clients (databases, messaging)
-      infrastructure-clients:
-        patterns:
-          - "ioredis"
-          - "@confluentinc/*"
-          - "kafkajs"
-          - "@qdrant/*"
-          - "falkordb"
-        update-types: ["minor", "patch"]
-
-      # MCP SDK
-      mcp:
-        patterns:
-          - "@modelcontextprotocol/*"
-        update-types: ["minor", "patch"]
-
-      # Logging & observability
-      observability:
-        patterns:
-          - "pino"
-          - "pino-*"
-        update-types: ["minor", "patch"]
-
-      # All other production dependencies (minor/patch only)
-      npm-prod-minor-patch:
+      production:
         dependency-type: "production"
         patterns:
           - "*"
-        update-types: ["minor", "patch"]
-        exclude-patterns:
-          - "typescript"
-          - "@typescript/*"
-          - "@biomejs/*"
-          - "vitest"
-          - "@vitest/*"
-          - "zod"
-          - "ioredis"
-          - "@confluentinc/*"
-          - "@qdrant/*"
-          - "falkordb"
-          - "@modelcontextprotocol/*"
-          - "pino*"
-
-      # All dev dependencies (minor/patch only)
-      npm-dev-minor-patch:
+      development:
         dependency-type: "development"
         patterns:
           - "*"
-        update-types: ["minor", "patch"]
-        exclude-patterns:
-          - "typescript"
-          - "@typescript/*"
-          - "@biomejs/*"
-          - "vitest"
-          - "@vitest/*"
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Python - Search Service (uv)
-  # ML-heavy service with embeddings, reranking, and vector search
-  # ═══════════════════════════════════════════════════════════════════════════
   - package-ecosystem: "uv"
     directory: "/apps/search"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "America/Los_Angeles"
+      timezone: "America/Chicago"
     open-pull-requests-limit: 10
-
-    # Extra conservative for ML packages
     cooldown:
-      default-days: 5
-      semver-major-days: 14
-      semver-minor-days: 3
-
+      default-days: 2
+      semver-minor-days: 4
+      semver-major-days: 7
     commit-message:
       prefix: "deps(search)"
       prefix-development: "deps(search-dev)"
       include: "scope"
-
     labels:
       - "dependencies"
       - "python"
       - "search"
-
     groups:
-      # PyTorch & ML core (update together for compatibility)
-      ml-core:
-        patterns:
-          - "torch"
-          - "torch*"
-          - "sentence-transformers"
-          - "transformers"
-          - "einops"
-        update-types: ["minor", "patch"]
-
-      # Reranking stack
-      reranking:
-        patterns:
-          - "rerankers"
-          - "rerankers[*]"
-          - "flashrank"
-          - "pylate"
-          - "litellm"
-        update-types: ["minor", "patch"]
-
-      # FastAPI web stack
-      fastapi-stack:
-        patterns:
-          - "fastapi"
-          - "uvicorn"
-          - "uvicorn[*]"
-          - "pydantic"
-          - "pydantic-settings"
-          - "starlette"
-        update-types: ["minor", "patch"]
-
-      # Infrastructure clients
-      infra-clients:
-        patterns:
-          - "qdrant-client"
-          - "aiokafka"
-          - "redis"
-          - "redis[*]"
-          - "httpx"
-        update-types: ["minor", "patch"]
-
-      # Observability
-      observability:
-        patterns:
-          - "structlog"
-          - "prometheus-client"
-        update-types: ["minor", "patch"]
-
-      # Dev dependencies
-      search-dev:
-        applies-to: version-updates
-        dependency-type: "development"
+      all:
         patterns:
           - "*"
-        update-types: ["minor", "patch"]
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Python - Tuner Service (uv)
-  # Hyperparameter optimization with Optuna
-  # ═══════════════════════════════════════════════════════════════════════════
   - package-ecosystem: "uv"
     directory: "/apps/tuner"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "America/Los_Angeles"
+      timezone: "America/Chicago"
     open-pull-requests-limit: 5
-
     cooldown:
-      default-days: 3
+      default-days: 2
+      semver-minor-days: 4
       semver-major-days: 7
-
     commit-message:
       prefix: "deps(tuner)"
       prefix-development: "deps(tuner-dev)"
       include: "scope"
-
     labels:
       - "dependencies"
       - "python"
       - "tuner"
-
     groups:
-      # Optuna stack
-      optuna:
-        patterns:
-          - "optuna"
-          - "optuna-*"
-        update-types: ["minor", "patch"]
-
-      # FastAPI web stack
-      fastapi-stack:
-        patterns:
-          - "fastapi"
-          - "uvicorn"
-          - "uvicorn[*]"
-          - "pydantic"
-          - "pydantic-settings"
-        update-types: ["minor", "patch"]
-
-      # Database
-      database:
-        patterns:
-          - "psycopg"
-          - "psycopg[*]"
-        update-types: ["minor", "patch"]
-
-      # Dev dependencies
-      tuner-dev:
-        applies-to: version-updates
-        dependency-type: "development"
+      all:
         patterns:
           - "*"
-        update-types: ["minor", "patch"]
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # GitHub Actions
-  # ═══════════════════════════════════════════════════════════════════════════
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "America/Los_Angeles"
-
+      timezone: "America/Chicago"
     cooldown:
-      default-days: 3
-
+      default-days: 2
+      semver-minor-days: 4
+      semver-major-days: 7
     commit-message:
       prefix: "ci"
       include: "scope"
-
     labels:
       - "dependencies"
       - "ci"
-
     groups:
-      # Group all actions together
-      actions:
+      all:
         patterns:
           - "*"
-        update-types: ["minor", "patch"]
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Docker - Base images in all app Dockerfiles
-  # ═══════════════════════════════════════════════════════════════════════════
   - package-ecosystem: "docker"
     directories:
       - "/apps/api"
@@ -318,22 +116,18 @@ updates:
       interval: "monthly"
       day: "monday"
       time: "06:00"
-      timezone: "America/Los_Angeles"
-
+      timezone: "America/Chicago"
     cooldown:
-      default-days: 7
-
+      default-days: 2
+      semver-minor-days: 4
+      semver-major-days: 7
     commit-message:
       prefix: "deps(docker)"
       include: "scope"
-
     labels:
       - "dependencies"
       - "docker"
-
     groups:
-      # Group all Docker base image updates together
-      base-images:
+      all:
         patterns:
           - "*"
-        update-types: ["minor", "patch"]
