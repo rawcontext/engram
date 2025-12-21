@@ -22,6 +22,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     multi-ecosystem-group: "infrastructure"
+    patterns: ["*"]
     schedule:
       interval: "weekly"
       day: "monday"
@@ -148,6 +149,7 @@ updates:
   - package-ecosystem: "uv"
     directory: "/apps/search"
     multi-ecosystem-group: "infrastructure"
+    patterns: ["*"]
     schedule:
       interval: "weekly"
       day: "monday"
@@ -235,6 +237,7 @@ updates:
   - package-ecosystem: "uv"
     directory: "/apps/tuner"
     multi-ecosystem-group: "infrastructure"
+    patterns: ["*"]
     schedule:
       interval: "weekly"
       day: "monday"
