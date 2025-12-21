@@ -1,11 +1,11 @@
-# engram-mcp
+# @engram/mcp
 
 Engram MCP server - intelligent memory for AI agents.
 
 ## Quick Start
 
 ```bash
-npx -y engram-mcp
+npx -y @engram/mcp
 ```
 
 ## Configuration
@@ -19,7 +19,7 @@ Connect to Engram Cloud for managed memory storage:
   "mcpServers": {
     "engram": {
       "command": "npx",
-      "args": ["-y", "engram-mcp"],
+      "args": ["-y", "@engram/mcp"],
       "env": {
         "ENGRAM_API_KEY": "engram_live_xxxx",
         "ENGRAM_API_URL": "https://api.example.com"
@@ -38,7 +38,7 @@ Run with local infrastructure (FalkorDB, Qdrant):
   "mcpServers": {
     "engram": {
       "command": "npx",
-      "args": ["-y", "engram-mcp"],
+      "args": ["-y", "@engram/mcp"],
       "env": {
         "ENGRAM_MODE": "local",
         "FALKORDB_URL": "redis://localhost:6379",
