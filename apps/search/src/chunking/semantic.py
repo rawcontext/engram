@@ -190,9 +190,7 @@ class SemanticChunker:
         text_without_code = self.CODE_BLOCK_PATTERN.sub(replace_code_block, text)
         return text_without_code, placeholders
 
-    def _restore_code_blocks(
-        self, chunks: list[str], placeholders: dict[str, str]
-    ) -> list[str]:
+    def _restore_code_blocks(self, chunks: list[str], placeholders: dict[str, str]) -> list[str]:
         """Restore code blocks from placeholders.
 
         Args:
@@ -264,9 +262,7 @@ class SemanticChunker:
         prev_embedding_idx = 0
         for i in range(1, len(embeddable_sentences)):
             # Compute cosine similarity
-            sim = self._cosine_similarity(
-                embeddings_array[prev_embedding_idx], embeddings_array[i]
-            )
+            sim = self._cosine_similarity(embeddings_array[prev_embedding_idx], embeddings_array[i])
 
             if sim < self.config.similarity_threshold:
                 # Similarity dropped - this is a breakpoint

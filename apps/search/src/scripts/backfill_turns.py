@@ -122,9 +122,7 @@ class TurnsBackfiller:
 
         # Execute graph query via Redis
         # FalkorDB uses GRAPH.QUERY command
-        result = await self._redis.execute_command(
-            "GRAPH.QUERY", "engram", query
-        )
+        result = await self._redis.execute_command("GRAPH.QUERY", "engram", query)
 
         # Parse FalkorDB response
         # Response format: [headers, [[row1], [row2], ...], stats]
@@ -264,9 +262,7 @@ class TurnsBackfiller:
 
 async def main() -> int:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Backfill turn embeddings from FalkorDB to Qdrant"
-    )
+    parser = argparse.ArgumentParser(description="Backfill turn embeddings from FalkorDB to Qdrant")
     parser.add_argument(
         "--dry-run",
         action="store_true",

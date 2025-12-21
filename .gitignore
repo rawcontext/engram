@@ -25,7 +25,9 @@ htmlcov/
 .beads/
 
 # Documentation (generated/local)
-docs/
+# Ignore all docs except deployment
+docs/*
+!docs/deployment/
 
 # Benchmark artifacts
 packages/benchmark/results/

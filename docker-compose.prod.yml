@@ -1,0 +1,192 @@
+name: engram
+
+services:
+  # ===================
+  # DATABASES
+  # ===================
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.1
+    command:
+      - redpanda start
+      - --smp 2
+      - --memory 2G
+      - --reserve-memory 0M
+      - --overprovisioned
+      - --node-id 0
+      - --check=false
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --set redpanda.group_new_member_join_timeout=120000
+      - --set redpanda.group_initial_rebalance_delay=10000
+    volumes:
+      - ./data/redpanda:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy: true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__ENABLE_TLS=false
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  falkordb:
+    image: falkordb/falkordb:latest
+    volumes:
+      - ./data/falkordb:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-engram}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./apps/api/src/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-engram}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ===================
+  # APPLICATIONS
+  # ===================
+  ingestion:
+    build:
+      context: .
+      dockerfile: apps/ingestion/Dockerfile
+    platform: linux/amd64
+    environment:
+      - NODE_ENV=production
+      - REDPANDA_BROKERS=redpanda:9092
+      - PORT=5001
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  memory:
+    build:
+      context: .
+      dockerfile: apps/memory/Dockerfile
+    platform: linux/amd64
+    environment:
+      - NODE_ENV=production
+      - REDPANDA_BROKERS=redpanda:9092
+      - FALKORDB_URL=redis://falkordb:6379
+      - REDIS_URL=redis://falkordb:6379
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  search:
+    build:
+      context: ./apps/search
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    ports:
+      - "5002:5002"
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-engram_memory}
+      - QDRANT_TURNS_COLLECTION=${QDRANT_TURNS_COLLECTION:-engram_turns}
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - REDIS_URL=redis://falkordb:6379
+      - HF_API_TOKEN=${HF_API_TOKEN}
+      - EMBEDDER_BACKEND=${EMBEDDER_BACKEND:-huggingface}
+      - EMBEDDER_DEVICE=${EMBEDDER_DEVICE:-cpu}
+      - EMBEDDER_TEXT_MODEL=${EMBEDDER_TEXT_MODEL:-BAAI/bge-small-en-v1.5}
+      - EMBEDDER_PRELOAD=${EMBEDDER_PRELOAD:-false}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000","http://localhost:5173","http://localhost:8080"]}
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:5002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    platform: linux/amd64
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-engram}
+      - SEARCH_URL=http://search:5002
+      - FALKORDB_URL=redis://falkordb:6379
+      - PORT=8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      search:
+        condition: service_started
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8080/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  tuner:
+    build:
+      context: ./apps/tuner
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/optuna
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000","http://localhost:5173","http://localhost:8080"]}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

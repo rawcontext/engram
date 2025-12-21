@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     try:
         storage = get_storage()
         app.state.storage = storage
-        print(f"Connected to Optuna storage: {settings.database_url.host}")
+        print(f"Connected to Optuna storage: {str(settings.database_url)}")
     except Exception as e:
         print(f"Warning: Could not connect to storage: {e}")
         app.state.storage = None

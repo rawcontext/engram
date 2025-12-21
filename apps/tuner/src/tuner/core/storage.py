@@ -18,8 +18,10 @@ def get_storage() -> "RDBStorage":
     Uses connection pooling for distributed optimization.
     """
     settings = get_settings()
+    # Convert Pydantic PostgresDsn to string using unicode()
+    db_url = str(settings.database_url)
     return optuna.storages.RDBStorage(
-        url=str(settings.database_url),
+        url=db_url,
         engine_kwargs={
             "pool_size": 20,
             "max_overflow": 40,

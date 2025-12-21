@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Literal, cast
+from typing import TYPE_CHECKING, Literal, Union, cast
 
 from src.config import Settings
 from src.embedders.base import BaseEmbedder
@@ -11,7 +11,14 @@ from src.embedders.colbert import ColBERTEmbedder
 from src.embedders.sparse import SparseEmbedder
 from src.embedders.text import TextEmbedder
 
+if TYPE_CHECKING:
+    from src.clients.huggingface import HuggingFaceEmbedder
+
 logger = logging.getLogger(__name__)
+
+# Type alias for embedders that can be returned by text/code methods
+TextOrHFEmbedder = Union[TextEmbedder, "HuggingFaceEmbedder"]
+CodeOrHFEmbedder = Union[CodeEmbedder, "HuggingFaceEmbedder"]
 
 EmbedderType = Literal["text", "code", "sparse", "colbert"]
 
@@ -41,39 +48,65 @@ class EmbedderFactory:
             "colbert": asyncio.Lock(),
         }
 
-    async def get_text_embedder(self) -> TextEmbedder:
+    async def get_text_embedder(self) -> TextOrHFEmbedder:
         """Get or create text embedder instance.
 
+        Returns backend-appropriate embedder based on settings.embedder_backend:
+        - 'local': Returns TextEmbedder (SentenceTransformer-based)
+        - 'huggingface': Returns HuggingFaceEmbedder (API-based)
+
         Returns:
-                TextEmbedder instance.
+            TextEmbedder or HuggingFaceEmbedder instance.
         """
         async with self._locks["text"]:
             if "text" not in self._embedders:
-                logger.info("Creating text embedder")
-                self._embedders["text"] = TextEmbedder(
-                    model_name=self.settings.embedder_text_model,
-                    device=self.settings.embedder_device,
-                    batch_size=self.settings.embedder_batch_size,
-                    cache_size=self.settings.embedder_cache_size,
-                )
-            return cast(TextEmbedder, self._embedders["text"])
+                if self.settings.embedder_backend == "huggingface":
+                    from src.clients.huggingface import HuggingFaceEmbedder
 
-    async def get_code_embedder(self) -> CodeEmbedder:
+                    logger.info("Creating HuggingFace text embedder")
+                    self._embedders["text"] = HuggingFaceEmbedder(
+                        model_id=self.settings.embedder_text_model,
+                        api_token=self.settings.hf_api_token,
+                    )
+                else:
+                    logger.info("Creating local text embedder")
+                    self._embedders["text"] = TextEmbedder(
+                        model_name=self.settings.embedder_text_model,
+                        device=self.settings.embedder_device,
+                        batch_size=self.settings.embedder_batch_size,
+                        cache_size=self.settings.embedder_cache_size,
+                    )
+            return self._embedders["text"]  # type: ignore[return-value]
+
+    async def get_code_embedder(self) -> CodeOrHFEmbedder:
         """Get or create code embedder instance.
 
+        Returns backend-appropriate embedder based on settings.embedder_backend:
+        - 'local': Returns CodeEmbedder (SentenceTransformer-based)
+        - 'huggingface': Returns HuggingFaceEmbedder (API-based)
+
         Returns:
-                CodeEmbedder instance.
+            CodeEmbedder or HuggingFaceEmbedder instance.
         """
         async with self._locks["code"]:
             if "code" not in self._embedders:
-                logger.info("Creating code embedder")
-                self._embedders["code"] = CodeEmbedder(
-                    model_name=self.settings.embedder_code_model,
-                    device=self.settings.embedder_device,
-                    batch_size=self.settings.embedder_batch_size,
-                    cache_size=self.settings.embedder_cache_size,
-                )
-            return cast(CodeEmbedder, self._embedders["code"])
+                if self.settings.embedder_backend == "huggingface":
+                    from src.clients.huggingface import HuggingFaceEmbedder
+
+                    logger.info("Creating HuggingFace code embedder")
+                    self._embedders["code"] = HuggingFaceEmbedder(
+                        model_id=self.settings.embedder_code_model,
+                        api_token=self.settings.hf_api_token,
+                    )
+                else:
+                    logger.info("Creating local code embedder")
+                    self._embedders["code"] = CodeEmbedder(
+                        model_name=self.settings.embedder_code_model,
+                        device=self.settings.embedder_device,
+                        batch_size=self.settings.embedder_batch_size,
+                        cache_size=self.settings.embedder_cache_size,
+                    )
+            return self._embedders["code"]  # type: ignore[return-value]
 
     async def get_sparse_embedder(self) -> SparseEmbedder:
         """Get or create sparse embedder instance.

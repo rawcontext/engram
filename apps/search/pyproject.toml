@@ -27,6 +27,7 @@ dependencies = [
     "redis[hiredis]>=7.1.0",
     # HTTP
     "httpx>=0.28.1",
+    "huggingface-hub[inference]>=0.20.0",
     # Logging
     "structlog>=25.5.0",
     # Metrics
@@ -93,6 +94,8 @@ disallow_untyped_defs = true
 module = [
     "aiokafka",
     "aiokafka.*",
+    "huggingface_hub",
+    "huggingface_hub.*",
     "sentence_transformers",
     "sentence_transformers.*",
     "torch",

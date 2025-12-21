@@ -9,7 +9,7 @@ dependencies = [
     "uvicorn[standard]>=0.38.0",
     "optuna>=4.6.0",
     "optuna-dashboard>=0.20.0",
-    "psycopg[binary]>=3.3.2",
+    "psycopg2-binary>=2.9.10",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
 ]

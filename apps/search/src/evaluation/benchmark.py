@@ -98,9 +98,7 @@ class BenchmarkConfig(BaseModel):
     fragment_collection: str = Field(
         default="engram_memory", description="Fragment-level collection name"
     )
-    turn_collection: str = Field(
-        default="engram_turns", description="Turn-level collection name"
-    )
+    turn_collection: str = Field(default="engram_turns", description="Turn-level collection name")
     test_queries: list[str] = Field(
         default_factory=lambda: DEFAULT_TEST_QUERIES,
         description="Test queries for evaluation",
@@ -181,9 +179,7 @@ class SearchQualityBenchmark:
 
             try:
                 # Run search on the specified collection
-                results = await self._search_collection(
-                    retriever, collection_name, query
-                )
+                results = await self._search_collection(retriever, collection_name, query)
                 latency_ms = (time.perf_counter() - start_time) * 1000
                 all_latencies.append(latency_ms)
 
@@ -312,9 +308,8 @@ class SearchQualityBenchmark:
         score_improvement = 0.0
         if fragment_metrics.avg_retrieval_score > 0:
             score_improvement = (
-                (turn_metrics.avg_retrieval_score - fragment_metrics.avg_retrieval_score)
-                / fragment_metrics.avg_retrieval_score
-            )
+                turn_metrics.avg_retrieval_score - fragment_metrics.avg_retrieval_score
+            ) / fragment_metrics.avg_retrieval_score
 
         reranking_improvement = 0.0
         if fragment_metrics.reranking_success_rate > 0:

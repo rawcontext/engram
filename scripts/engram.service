@@ -1,0 +1,26 @@
+# Engram systemd service unit
+# Install: sudo cp scripts/engram.service /etc/systemd/system/
+# Enable:  sudo systemctl daemon-reload && sudo systemctl enable engram
+# Start:   sudo systemctl start engram
+# Status:  sudo systemctl status engram
+
+[Unit]
+Description=Engram Memory System
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/engram
+ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
+ExecReload=/usr/bin/docker compose -f docker-compose.prod.yml restart
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+# Restart policy handled by Docker Compose (restart: unless-stopped)
+
+[Install]
+WantedBy=multi-user.target

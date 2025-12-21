@@ -4,6 +4,7 @@ Routes reranking requests to appropriate tier based on:
 - Explicit tier selection (fast, accurate, code, colbert, llm)
 - Automatic fallback on errors or timeouts
 - Rate limit handling for LLM tier
+- Backend selection (local vs huggingface) for accurate/code tiers
 """
 
 import asyncio
@@ -68,21 +69,42 @@ class RerankerRouter:
 
         reranker: BaseReranker
         if tier == "fast":
+            # Fast tier always uses local FlashRank (CPU-optimized, low latency)
             reranker = FlashRankReranker(
                 model_name=self.settings.reranker_fast_model,
             )
         elif tier == "accurate":
-            reranker = CrossEncoderReranker(
-                model_name=self.settings.reranker_accurate_model,
-                device=self.settings.embedder_device,
-                batch_size=self.settings.reranker_batch_size,
-            )
+            # Accurate tier supports HuggingFace backend
+            if self.settings.reranker_backend == "huggingface":
+                from src.clients.huggingface import HuggingFaceReranker
+
+                logger.info("Using HuggingFace reranker for accurate tier")
+                reranker = HuggingFaceReranker(
+                    model_id=self.settings.reranker_accurate_model,
+                    api_token=self.settings.hf_api_token,
+                )
+            else:
+                reranker = CrossEncoderReranker(
+                    model_name=self.settings.reranker_accurate_model,
+                    device=self.settings.embedder_device,
+                    batch_size=self.settings.reranker_batch_size,
+                )
         elif tier == "code":
-            reranker = CrossEncoderReranker(
-                model_name=self.settings.reranker_code_model,
-                device=self.settings.embedder_device,
-                batch_size=self.settings.reranker_batch_size,
-            )
+            # Code tier supports HuggingFace backend
+            if self.settings.reranker_backend == "huggingface":
+                from src.clients.huggingface import HuggingFaceReranker
+
+                logger.info("Using HuggingFace reranker for code tier")
+                reranker = HuggingFaceReranker(
+                    model_id=self.settings.reranker_code_model,
+                    api_token=self.settings.hf_api_token,
+                )
+            else:
+                reranker = CrossEncoderReranker(
+                    model_name=self.settings.reranker_code_model,
+                    device=self.settings.embedder_device,
+                    batch_size=self.settings.reranker_batch_size,
+                )
         elif tier == "colbert":
             reranker = ColBERTReranker(
                 model_name=self.settings.reranker_colbert_model,

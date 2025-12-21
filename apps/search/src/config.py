@@ -50,9 +50,7 @@ class Settings(BaseSettings):
     )
 
     # Redis (for consumer status publishing)
-    redis_url: str = Field(
-        default="redis://localhost:6379", description="Redis URL for pub/sub"
-    )
+    redis_url: str = Field(default="redis://localhost:6379", description="Redis URL for pub/sub")
 
     # Search defaults (to be used in Phase 4)
     search_default_limit: int = Field(default=10, description="Default search result limit")
@@ -89,6 +87,15 @@ class Settings(BaseSettings):
     embedder_cache_size: int = Field(default=10000, description="Embedding cache size (LRU)")
     embedder_cache_ttl: int = Field(default=3600, description="Embedding cache TTL in seconds")
     embedder_preload: bool = Field(default=True, description="Preload models during startup")
+
+    # Hugging Face
+    hf_api_token: str = Field(default="", description="Hugging Face API token")
+    embedder_backend: str = Field(
+        default="local", description="Embedder backend: local or huggingface"
+    )
+    reranker_backend: str = Field(
+        default="local", description="Reranker backend: local or huggingface"
+    )
 
     # Reranker settings (Phase 2b)
     reranker_fast_model: str = Field(
@@ -146,6 +153,25 @@ class Settings(BaseSettings):
                     raise ValueError("CORS origins must be a list")
                 return parsed
             return [origin.strip() for origin in v.split(",")]
+        return v
+
+    @field_validator("embedder_backend", "reranker_backend")
+    @classmethod
+    def validate_huggingface_backend(cls, v: str, info) -> str:
+        """Validate Hugging Face backend configuration.
+
+        Ensures HF_API_TOKEN is provided when using huggingface backend.
+        """
+        if v not in ["local", "huggingface"]:
+            raise ValueError(f"Backend must be 'local' or 'huggingface', got '{v}'")
+
+        # Check if HF_API_TOKEN is required
+        if v == "huggingface":
+            # Get the hf_api_token value from the values being set
+            hf_token = info.data.get("hf_api_token", "")
+            if not hf_token:
+                raise ValueError(f"{info.field_name}=huggingface requires HF_API_TOKEN to be set")
+
         return v
 
 

@@ -1,4 +1,4 @@
-"""Tests for Kafka and Redis client wrappers."""
+"""Tests for Kafka, Redis, and HuggingFace client wrappers."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -7,6 +7,7 @@ import pytest
 from src.clients import (
     ConsumerConfig,
     ConsumerStatusUpdate,
+    HuggingFaceReranker,
     KafkaClient,
     RedisPublisher,
     RedisSubscriber,
@@ -321,9 +322,7 @@ class TestRedisPublisherAdvanced:
             # Start two concurrent connects
             import asyncio
 
-            result1, result2 = await asyncio.gather(
-                publisher.connect(), publisher.connect()
-            )
+            result1, result2 = await asyncio.gather(publisher.connect(), publisher.connect())
 
             # Both should get the same client
             assert result1 == result2
@@ -538,3 +537,177 @@ class TestPydanticModels:
 
         assert config2.auto_offset_reset == "latest"
         assert config2.enable_auto_commit is False
+
+
+class TestHuggingFaceReranker:
+    """Tests for HuggingFaceReranker client."""
+
+    @pytest.mark.asyncio
+    async def test_rerank_async_success(self) -> None:
+        """Test async reranking with successful API response."""
+        reranker = HuggingFaceReranker(model_id="BAAI/bge-reranker-v2-m3", api_token="test-token")
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = [
+            {"index": 1, "score": 0.95},
+            {"index": 0, "score": 0.75},
+            {"index": 2, "score": 0.60},
+        ]
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client.post.return_value = mock_response
+            mock_client_class.return_value = mock_client
+
+            query = "What is machine learning?"
+            documents = ["ML is AI", "ML teaches computers", "Weather forecast"]
+
+            results = await reranker.rerank_async(query, documents)
+
+            # Verify results are sorted by score
+            assert len(results) == 3
+            assert results[0].score == 0.95
+            assert results[0].text == "ML teaches computers"
+            assert results[0].original_index == 1
+            assert results[1].score == 0.75
+            assert results[2].score == 0.60
+
+            # Verify API call
+            mock_client.post.assert_called_once()
+            call_args = mock_client.post.call_args
+            assert "BAAI/bge-reranker-v2-m3" in call_args[0][0]
+            payload = call_args[1]["json"]
+            assert payload["inputs"]["query"] == query
+            assert payload["inputs"]["texts"] == documents
+
+    @pytest.mark.asyncio
+    async def test_rerank_async_with_top_k(self) -> None:
+        """Test async reranking with top_k limit."""
+        reranker = HuggingFaceReranker(
+            model_id="jinaai/jina-reranker-v2-base-multilingual", api_token="test-token"
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = [
+            {"index": 2, "score": 0.98},
+            {"index": 0, "score": 0.85},
+            {"index": 1, "score": 0.72},
+        ]
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            mock_client.post.return_value = mock_response
+            mock_client_class.return_value = mock_client
+
+            results = await reranker.rerank_async("query", ["doc1", "doc2", "doc3"], top_k=2)
+
+            # Only top 2 results
+            assert len(results) == 2
+            assert results[0].score == 0.98
+            assert results[1].score == 0.85
+
+    @pytest.mark.asyncio
+    async def test_rerank_async_empty_documents(self) -> None:
+        """Test async reranking with empty document list."""
+        reranker = HuggingFaceReranker(model_id="BAAI/bge-reranker-v2-m3", api_token="test-token")
+
+        results = await reranker.rerank_async("query", [])
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_rerank_async_retry_on_503(self) -> None:
+        """Test async reranking retries on 503 errors."""
+        reranker = HuggingFaceReranker(
+            model_id="BAAI/bge-reranker-v2-m3",
+            api_token="test-token",
+            max_retries=3,
+            retry_delay=0.01,
+        )
+
+        mock_response_503 = MagicMock()
+        mock_response_503.status_code = 503
+        mock_response_503.raise_for_status.side_effect = Exception("503 Service Unavailable")
+
+        mock_response_ok = MagicMock()
+        mock_response_ok.json.return_value = [{"index": 0, "score": 0.9}]
+        mock_response_ok.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            # First call fails with 503, second succeeds
+            mock_client.post.side_effect = [
+                MagicMock(
+                    status_code=503,
+                    raise_for_status=MagicMock(
+                        side_effect=__import__("httpx").HTTPStatusError(
+                            "503",
+                            request=MagicMock(),
+                            response=MagicMock(status_code=503),
+                        )
+                    ),
+                ),
+                mock_response_ok,
+            ]
+            mock_client_class.return_value = mock_client
+
+            results = await reranker.rerank_async("query", ["doc"])
+
+            # Should eventually succeed
+            assert len(results) == 1
+            assert results[0].score == 0.9
+            # Should have called twice (1 failure + 1 success)
+            assert mock_client.post.call_count == 2
+
+    def test_rerank_sync_success(self) -> None:
+        """Test synchronous reranking."""
+        reranker = HuggingFaceReranker(model_id="BAAI/bge-reranker-v2-m3", api_token="test-token")
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = [
+            {"index": 0, "score": 0.88},
+        ]
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("httpx.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.__enter__.return_value = mock_client
+            mock_client.__exit__.return_value = None
+            mock_client.post.return_value = mock_response
+            mock_client_class.return_value = mock_client
+
+            results = reranker.rerank("test query", ["test doc"])
+
+            assert len(results) == 1
+            assert results[0].score == 0.88
+            assert results[0].text == "test doc"
+
+    def test_parse_response(self) -> None:
+        """Test response parsing."""
+        reranker = HuggingFaceReranker(model_id="BAAI/bge-reranker-v2-m3", api_token="test-token")
+
+        api_response = [
+            {"index": 2, "score": 0.95},
+            {"index": 0, "score": 0.80},
+            {"index": 1, "score": 0.65},
+        ]
+        documents = ["doc0", "doc1", "doc2"]
+
+        results = reranker._parse_response(api_response, documents)
+
+        # Should be sorted by score descending
+        assert len(results) == 3
+        assert results[0].score == 0.95
+        assert results[0].text == "doc2"
+        assert results[0].original_index == 2
+        assert results[1].score == 0.80
+        assert results[1].text == "doc0"
+        assert results[2].score == 0.65
+        assert results[2].text == "doc1"

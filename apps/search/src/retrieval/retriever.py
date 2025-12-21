@@ -911,8 +911,6 @@ class SearchRetriever:
             seen_ids.add(result.id)
             deduplicated.append(result)
 
-        logger.debug(
-            f"Deduplicated {len(results)} results to {len(deduplicated)}"
-        )
+        logger.debug(f"Deduplicated {len(results)} results to {len(deduplicated)}")
 
         return deduplicated
