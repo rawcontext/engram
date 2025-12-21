@@ -275,8 +275,8 @@ export const tunerDeployment =
 								containers: [
 									{
 										name: "tuner",
-										image: pulumi.interpolate`gcr.io/${gcpProject}/engram-tuner:latest`,
-										imagePullPolicy: "Always",
+										image: pulumi.interpolate`gcr.io/${gcpProject}/engram-tuner:v0.1.0`,
+										imagePullPolicy: "IfNotPresent",
 										ports: [
 											{
 												containerPort: 8000,
@@ -456,7 +456,7 @@ export const dashboardDeployment =
 								containers: [
 									{
 										name: "dashboard",
-										image: "ghcr.io/optuna/optuna-dashboard:latest",
+										image: "ghcr.io/optuna/optuna-dashboard:v0.17.0",
 										args: [
 											"postgresql://postgres:postgres@tuner-postgres.engram.svc.cluster.local:5432/optuna",
 										],

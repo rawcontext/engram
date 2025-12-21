@@ -93,7 +93,7 @@ async def list_studies(request: Request) -> list[StudySummary]:
             direction=(
                 [d.name.lower() for d in s.directions]
                 if len(s.directions) > 1
-                else s.directions[0].name.lower()
+                else s.directions[0].name.lower() if s.directions else "minimize"
             ),
             n_trials=s.n_trials,
             best_value=None,  # Would require loading full study

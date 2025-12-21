@@ -112,6 +112,11 @@ async def complete_trial(
     values = body.values if isinstance(body.values, list) else [body.values]
 
     # Report intermediate values if provided (for pruning)
+    if trial_id < 0 or trial_id >= len(study.trials):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trial {trial_id} not found in study '{study_name}'",
+        )
     trial = study.trials[trial_id]
     for step, value in body.intermediate_values.items():
         trial.report(value, step)
@@ -152,6 +157,13 @@ async def prune_trial(
     """Mark a trial as pruned (early stopped)."""
     storage = _get_storage(request)
     study = _load_study(storage, study_name)
+
+    # Validate trial_id exists
+    if trial_id < 0 or trial_id >= len(study.trials):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trial {trial_id} not found in study '{study_name}'",
+        )
 
     # Tell Optuna the trial was pruned
     study.tell(trial_id, state=optuna.trial.TrialState.PRUNED)

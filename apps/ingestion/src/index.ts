@@ -412,18 +412,24 @@ const server = createServer(async (req, res) => {
 			}
 		});
 
+		let aborted = false;
 		req.on("data", (chunk) => {
 			bodySize += chunk.length;
-			if (bodySize > MAX_BODY_SIZE) {
+			if (bodySize > MAX_BODY_SIZE && !aborted) {
+				aborted = true;
 				req.destroy();
 				res.writeHead(413, { "Content-Type": "application/json" });
 				res.end(JSON.stringify({ error: "Request body too large" }));
 				return;
 			}
-			body += chunk.toString();
+			if (!aborted) {
+				body += chunk.toString();
+			}
 		});
 
 		req.on("end", async () => {
+			// Abort if body was too large (response already sent)
+			if (aborted) return;
 			try {
 				rawBody = JSON.parse(body);
 				const rawEvent = RawStreamEventSchema.parse(rawBody);

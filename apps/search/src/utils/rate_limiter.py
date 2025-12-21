@@ -148,8 +148,26 @@ class SlidingWindowRateLimiter:
 
             # Check budget limit
             if total_cost + cost_cents > self.max_budget_cents:
-                oldest_timestamp = self._requests[0].timestamp if self._requests else current_time
-                retry_after = oldest_timestamp + self.window_seconds - current_time
+                # If the single request alone exceeds the budget, it can never succeed
+                if cost_cents > self.max_budget_cents:
+                    raise RateLimitError(
+                        f"Request cost ({cost_cents:.2f} cents) exceeds maximum budget "
+                        f"({self.max_budget_cents:.2f} cents per hour)",
+                        limit_type="budget",
+                        retry_after_seconds=0,  # Cannot retry - request is too expensive
+                    )
+
+                # Calculate when enough budget will be freed
+                # Find how much we need to free up
+                needed_budget = total_cost + cost_cents - self.max_budget_cents
+                freed_budget = 0.0
+                retry_after = 0.0
+
+                for req in self._requests:
+                    freed_budget += req.cost_cents
+                    if freed_budget >= needed_budget:
+                        retry_after = req.timestamp + self.window_seconds - current_time
+                        break
 
                 raise RateLimitError(
                     f"Budget limit exceeded: {total_cost + cost_cents:.2f}/"
