@@ -1,7 +1,26 @@
 import { createNodeLogger } from "@engram/logger";
 import { DiffExtractor, Redactor, ThinkingExtractor } from "@engram/parser";
-import { createKafkaClient } from "@engram/storage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Use vi.hoisted to create mocks that can be accessed in vi.mock factory
+const { mockSendEvent, mockKafkaClient } = vi.hoisted(() => {
+	const mockSendEvent = vi.fn(async () => {});
+	const mockKafkaClient = {
+		sendEvent: mockSendEvent,
+		getConsumer: vi.fn(),
+		connect: vi.fn(async () => {}),
+		disconnect: vi.fn(async () => {}),
+	};
+	return { mockSendEvent, mockKafkaClient };
+});
+
+// Mock @engram/storage at module level so createIngestionServer uses mocked Kafka
+vi.mock("@engram/storage", () => ({
+	createKafkaClient: vi.fn(() => mockKafkaClient),
+}));
+
+// Import after mock is set up
+import { createKafkaClient } from "@engram/storage";
 import {
 	cleanupStaleExtractors,
 	createIngestionProcessor,
@@ -10,13 +29,6 @@ import {
 	IngestionProcessor,
 	thinkingExtractors,
 } from "./index";
-
-// Mock Kafka Client
-const mockSendEvent = vi.fn(async () => {});
-const mockKafkaClient = {
-	sendEvent: mockSendEvent,
-	getConsumer: vi.fn(),
-};
 
 describe("Ingestion Service", () => {
 	beforeEach(() => {
