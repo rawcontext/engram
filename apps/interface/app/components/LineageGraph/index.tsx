@@ -5,14 +5,12 @@ import {
 	BackgroundVariant,
 	Controls,
 	MiniMap,
-	type Node,
 	ReactFlow,
 	useEdgesState,
 	useNodesState,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import "@xyflow/react/dist/style.css";
-import type { GraphNode } from "@lib/types";
 
 import { EmptyState } from "./EmptyState";
 import { GraphStats } from "./GraphStats";
@@ -22,7 +20,7 @@ import { useHighlightChain } from "./hooks";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 import { getRadialLayout } from "./layouts";
 import { NeuralNode } from "./NeuralNode";
-import type { LineageGraphProps } from "./types";
+import type { LineageGraphProps, NeuralGraphNode } from "./types";
 
 // Register custom node types
 const nodeTypes = {
@@ -46,7 +44,7 @@ export function LineageGraph({
 	highlightedNodeId,
 	onNodeHover,
 }: LineageGraphProps) {
-	const [nodes, setNodes, onNodesChange] = useNodesState([]);
+	const [nodes, setNodes, onNodesChange] = useNodesState<NeuralGraphNode>([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 	const lastDataKeyRef = useRef<string>("");
 
@@ -87,15 +85,15 @@ export function LineageGraph({
 		// Update ref to prevent re-processing same data
 		lastDataKeyRef.current = dataKey;
 
-		const initialNodes: Node[] = data.nodes.map((n) => ({
+		const initialNodes: NeuralGraphNode[] = data.nodes.map((n) => ({
 			id: n.id,
 			position: { x: 0, y: 0 },
 			data: {
 				label: n.label || n.id,
-				type: n.type,
+				type: n.type ?? "unknown",
 				...n,
 			},
-			type: "neural",
+			type: "neural" as const,
 		}));
 
 		// Create edges with animation
@@ -122,20 +120,21 @@ export function LineageGraph({
 			centerY,
 		);
 
-		setNodes(layoutedNodes);
+		// Layout functions preserve node structure, cast back to typed nodes
+		setNodes(layoutedNodes as NeuralGraphNode[]);
 		setEdges(layoutedEdges);
 	}, [dataKey, data, setNodes, setEdges]);
 
 	// Event handlers
 	const handleNodeClick = useCallback(
-		(_: React.MouseEvent, node: Node) => {
-			onNodeClick?.(node.data as unknown as GraphNode);
+		(_: React.MouseEvent, node: NeuralGraphNode) => {
+			onNodeClick?.(node.data);
 		},
 		[onNodeClick],
 	);
 
 	const handleNodeMouseEnter = useCallback(
-		(_: React.MouseEvent, node: Node) => {
+		(_: React.MouseEvent, node: NeuralGraphNode) => {
 			onNodeHover?.(node.id);
 		},
 		[onNodeHover],
@@ -146,8 +145,8 @@ export function LineageGraph({
 	}, [onNodeHover]);
 
 	// Minimap node color based on type
-	const minimapNodeColor = useCallback((node: Node) => {
-		const type = (node.data?.type as string)?.toLowerCase();
+	const minimapNodeColor = useCallback((node: NeuralGraphNode) => {
+		const type = node.data?.type?.toLowerCase();
 		switch (type) {
 			case "session":
 				return "rgb(226, 232, 240)"; // Silver/White
@@ -172,7 +171,10 @@ export function LineageGraph({
 	// Loading state
 	if (!data) {
 		return (
-			<div style={{ width: "100%", height: "100%", minHeight: "400px" }}>
+			<div
+				data-testid="lineage-graph-loading"
+				style={{ width: "100%", height: "100%", minHeight: "400px" }}
+			>
 				<LoadingSkeleton />
 			</div>
 		);
@@ -188,7 +190,10 @@ export function LineageGraph({
 	}
 
 	return (
-		<div style={{ width: "100%", height: "100%", minHeight: "500px", position: "relative" }}>
+		<div
+			data-testid="lineage-graph"
+			style={{ width: "100%", height: "100%", minHeight: "500px", position: "relative" }}
+		>
 			{/* Stats overlay */}
 			<GraphStats nodeCount={data.nodes.length} edgeCount={data.links.length} />
 
