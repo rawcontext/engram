@@ -33,7 +33,7 @@ export interface DecisionEngineDeps {
  * MCP tools have name, description, and inputSchema (JSON Schema).
  * We use passthrough schema since MCP tool schemas are defined at runtime.
  */
-function convertMcpToolsToAiSdk(
+export function convertMcpToolsToAiSdk(
 	mcpTools: Array<{ name: string; description?: string; inputSchema?: unknown }>,
 ): ToolSet {
 	const aiTools: ToolSet = {};
@@ -54,7 +54,7 @@ function convertMcpToolsToAiSdk(
  * Extract tool calls from AI SDK result, handling various formats.
  * The result.toolCalls contains { toolName, args } objects.
  */
-function extractToolCalls(result: { toolCalls?: unknown[] }): ToolCall[] {
+export function extractToolCalls(result: { toolCalls?: unknown[] }): ToolCall[] {
 	if (!result.toolCalls || !Array.isArray(result.toolCalls)) {
 		return [];
 	}
