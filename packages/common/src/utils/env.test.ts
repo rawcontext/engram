@@ -86,6 +86,16 @@ describe("env utilities", () => {
 			process.env.TEST_NUM = "1000000";
 			expect(envNum("TEST_NUM", 0)).toBe(1000000);
 		});
+
+		it("should truncate floats to integers", () => {
+			process.env.TEST_NUM = "42.7";
+			expect(envNum("TEST_NUM", 0)).toBe(42);
+		});
+
+		it("should return default for empty string", () => {
+			process.env.TEST_NUM = "";
+			expect(envNum("TEST_NUM", 123)).toBe(123);
+		});
 	});
 
 	describe("envFloat", () => {
@@ -117,6 +127,16 @@ describe("env utilities", () => {
 		it("should parse zero", () => {
 			process.env.TEST_FLOAT = "0.0";
 			expect(envFloat("TEST_FLOAT", 1.5)).toBe(0);
+		});
+
+		it("should handle very small floats", () => {
+			process.env.TEST_FLOAT = "0.00001";
+			expect(envFloat("TEST_FLOAT", 0)).toBe(0.00001);
+		});
+
+		it("should handle very large floats", () => {
+			process.env.TEST_FLOAT = "999999.999";
+			expect(envFloat("TEST_FLOAT", 0)).toBe(999999.999);
 		});
 	});
 

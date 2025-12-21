@@ -675,6 +675,56 @@ describe("Redis Storage", () => {
 
 			await expect(publisher.disconnect()).rejects.toThrow("Quit failed");
 		});
+
+		it("should reset connectPromise on publisher connection failure", async () => {
+			const publisher = createRedisPublisher();
+			mockConnect.mockRejectedValueOnce(new Error("First connection failed"));
+
+			// First connection attempt fails
+			await expect(publisher.connect()).rejects.toThrow("First connection failed");
+
+			// Reset mocks for successful retry
+			mockConnect.mockResolvedValueOnce(undefined);
+			mockIsOpen = false;
+
+			// Second connection attempt should succeed
+			await publisher.connect();
+			expect(mockConnect).toHaveBeenCalledTimes(2);
+		});
+
+		it("should reset state on publisher disconnect failure", async () => {
+			const publisher = createRedisPublisher();
+			mockQuit.mockRejectedValueOnce(new Error("Quit failed"));
+
+			await publisher.connect();
+			mockIsOpen = true;
+
+			// Disconnect will fail but should still reset state
+			await expect(publisher.disconnect()).rejects.toThrow("Quit failed");
+
+			// State should be reset despite error
+			mockIsOpen = false;
+			mockConnect.mockResolvedValueOnce(undefined);
+
+			// Should be able to reconnect
+			await publisher.connect();
+			expect(mockConnect).toHaveBeenCalled();
+		});
+
+		it("should reset state on subscriber disconnect failure", async () => {
+			const subscriber = createRedisSubscriber();
+
+			await subscriber.connect();
+			mockIsOpen = true;
+
+			// Simulate quit failure
+			mockQuit.mockRejectedValueOnce(new Error("Quit failed"));
+
+			await expect(subscriber.disconnect()).rejects.toThrow("Quit failed");
+
+			// State should be reset
+			mockIsOpen = false;
+		});
 	});
 
 	describe("Edge cases", () => {

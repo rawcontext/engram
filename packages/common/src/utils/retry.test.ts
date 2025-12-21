@@ -2,12 +2,16 @@
  * Tests for @engram/common/utils/retry
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RetryableErrors, withRetry } from "./retry";
 
 describe("withRetry", () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
 	});
 
 	it("should return result on success", async () => {
@@ -179,6 +183,62 @@ describe("withRetry", () => {
 
 		// Assert
 		expect(result).toBe("success");
+		expect(fn).toHaveBeenCalledTimes(2);
+	});
+
+	it("should throw last error if all retries exhausted", async () => {
+		// Arrange
+		const error1 = new Error("fail 1");
+		const error2 = new Error("fail 2");
+		const finalError = new Error("final fail");
+		const fn = vi
+			.fn()
+			.mockRejectedValueOnce(error1)
+			.mockRejectedValueOnce(error2)
+			.mockRejectedValue(finalError);
+
+		// Act
+		const promise = withRetry(fn, { maxRetries: 2 });
+		const timerPromise = vi.runAllTimersAsync();
+
+		// Assert
+		await expect(promise).rejects.toThrow("final fail");
+		await timerPromise;
+		expect(fn).toHaveBeenCalledTimes(3); // initial + 2 retries
+	});
+
+	it("should handle zero retries", async () => {
+		// Arrange
+		const error = new Error("immediate failure");
+		const fn = vi.fn().mockRejectedValue(error);
+
+		// Act
+		const promise = withRetry(fn, { maxRetries: 0 });
+		const timerPromise = vi.runAllTimersAsync();
+
+		// Assert
+		await expect(promise).rejects.toThrow("immediate failure");
+		await timerPromise;
+		expect(fn).toHaveBeenCalledTimes(1); // only initial attempt
+	});
+});
+
+describe("withRetry - real timers", () => {
+	it("should actually wait with real timers", async () => {
+		// Arrange
+		const start = Date.now();
+		const fn = vi.fn().mockRejectedValueOnce(new Error("fail")).mockResolvedValue("success");
+
+		// Act
+		const result = await withRetry(fn, {
+			initialDelayMs: 50,
+			jitter: 0,
+		});
+
+		// Assert
+		const elapsed = Date.now() - start;
+		expect(result).toBe("success");
+		expect(elapsed).toBeGreaterThanOrEqual(45); // Allow small variance
 		expect(fn).toHaveBeenCalledTimes(2);
 	});
 });

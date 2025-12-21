@@ -30,11 +30,11 @@ interface ExtractorEntry<T> {
 	extractor: T;
 	lastAccess: number;
 }
-const thinkingExtractors = new Map<string, ExtractorEntry<ThinkingExtractor>>();
-const diffExtractors = new Map<string, ExtractorEntry<DiffExtractor>>();
+export const thinkingExtractors = new Map<string, ExtractorEntry<ThinkingExtractor>>();
+export const diffExtractors = new Map<string, ExtractorEntry<DiffExtractor>>();
 
 // Session extractor TTL: 30 minutes of inactivity
-const EXTRACTOR_TTL_MS = 30 * 60 * 1000;
+export const EXTRACTOR_TTL_MS = 30 * 60 * 1000;
 
 // Mutex for extractor cleanup to prevent race conditions
 let cleanupInProgress = false;
@@ -44,7 +44,7 @@ let cleanupInProgress = false;
  * Runs periodically to remove extractors for inactive sessions.
  * Uses a mutex to prevent concurrent cleanup operations.
  */
-function cleanupStaleExtractors(): void {
+export function cleanupStaleExtractors(): void {
 	// Prevent concurrent cleanup operations
 	if (cleanupInProgress) {
 		return;
@@ -323,8 +323,11 @@ const kafka = createKafkaClient("ingestion-service");
 const processor = createIngestionProcessor({ kafkaClient: kafka, logger });
 export const processEvent = processor.processEvent.bind(processor);
 
-// Kafka Consumer
-async function startConsumer() {
+/**
+ * Start Kafka consumer for processing raw events.
+ * Exported for testing purposes.
+ */
+export async function startConsumer() {
 	const consumer = await kafka.getConsumer({ groupId: "ingestion-group" });
 	await consumer.subscribe({ topic: "raw_events", fromBeginning: false });
 
@@ -411,98 +414,106 @@ async function startConsumer() {
 	logger.info("Ingestion Service Kafka Consumer started");
 }
 
-// Start Consumer
-startConsumer().catch((err) => logger.error({ err }, "Consumer startup failed"));
+/**
+ * Create and configure the HTTP server.
+ * Exported for testing purposes.
+ */
+export function createIngestionServer(port = 5001, maxBodySize = 50 * 1024 * 1024) {
+	const server = createServer(async (req, res) => {
+		const url = new URL(req.url || "", `http://localhost:${port}`);
 
-// Simple HTTP Server (Node.js compatible)
-const PORT = 5001;
-// 50MB limit: LLM context windows are 200k+ tokens (~800KB text), plus JSON overhead
-// and full conversation histories can be several megabytes
-const MAX_BODY_SIZE = 50 * 1024 * 1024;
+		if (url.pathname === "/health") {
+			res.writeHead(200);
+			res.end("OK");
+			return;
+		}
 
-const server = createServer(async (req, res) => {
-	const url = new URL(req.url || "", `http://localhost:${PORT}`);
+		if (url.pathname === "/ingest" && req.method === "POST") {
+			let rawBody: unknown;
+			let body = "";
+			let bodySize = 0;
 
-	if (url.pathname === "/health") {
-		res.writeHead(200);
-		res.end("OK");
-		return;
-	}
-
-	if (url.pathname === "/ingest" && req.method === "POST") {
-		let rawBody: unknown;
-		let body = "";
-		let bodySize = 0;
-
-		req.on("error", (err) => {
-			logger.error({ err }, "Request stream error");
-			if (!res.headersSent) {
-				res.writeHead(500, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "Request stream error" }));
-			}
-		});
-
-		let aborted = false;
-		req.on("data", (chunk) => {
-			bodySize += chunk.length;
-			if (bodySize > MAX_BODY_SIZE && !aborted) {
-				aborted = true;
-				req.destroy();
-				res.writeHead(413, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "Request body too large" }));
-				return;
-			}
-			if (!aborted) {
-				body += chunk.toString();
-			}
-		});
-
-		req.on("end", async () => {
-			// Abort if body was too large (response already sent)
-			if (aborted) return;
-			try {
-				rawBody = JSON.parse(body);
-				const rawEvent = RawStreamEventSchema.parse(rawBody);
-
-				await processEvent(rawEvent);
-
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ status: "processed" }));
-			} catch (e: unknown) {
-				const message = e instanceof Error ? e.message : String(e);
-				logger.error({ err: e }, "Ingestion Error");
-
-				// DLQ Logic
-				try {
-					const dlqKey =
-						rawBody &&
-						typeof rawBody === "object" &&
-						!Array.isArray(rawBody) &&
-						"event_id" in rawBody &&
-						typeof rawBody.event_id === "string"
-							? rawBody.event_id
-							: "unknown";
-
-					await kafka.sendEvent("ingestion.dead_letter", dlqKey, {
-						error: message,
-						payload: rawBody,
-						timestamp: new Date().toISOString(),
-					});
-				} catch (dlqError) {
-					logger.error({ err: dlqError }, "Failed to send to DLQ");
+			req.on("error", (err) => {
+				logger.error({ err }, "Request stream error");
+				if (!res.headersSent) {
+					res.writeHead(500, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: "Request stream error" }));
 				}
+			});
 
-				res.writeHead(400, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: message }));
-			}
-		});
-		return;
-	}
+			let aborted = false;
+			req.on("data", (chunk) => {
+				bodySize += chunk.length;
+				if (bodySize > maxBodySize && !aborted) {
+					aborted = true;
+					req.destroy();
+					res.writeHead(413, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: "Request body too large" }));
+					return;
+				}
+				if (!aborted) {
+					body += chunk.toString();
+				}
+			});
 
-	res.writeHead(404);
-	res.end("Not Found");
-});
+			req.on("end", async () => {
+				// Abort if body was too large (response already sent)
+				if (aborted) return;
+				try {
+					rawBody = JSON.parse(body);
+					const rawEvent = RawStreamEventSchema.parse(rawBody);
 
-server.listen(PORT, () => {
-	logger.info({ port: PORT }, "Ingestion Service running");
-});
+					await processEvent(rawEvent);
+
+					res.writeHead(200, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ status: "processed" }));
+				} catch (e: unknown) {
+					const message = e instanceof Error ? e.message : String(e);
+					logger.error({ err: e }, "Ingestion Error");
+
+					// DLQ Logic
+					try {
+						const dlqKey =
+							rawBody &&
+							typeof rawBody === "object" &&
+							!Array.isArray(rawBody) &&
+							"event_id" in rawBody &&
+							typeof rawBody.event_id === "string"
+								? rawBody.event_id
+								: "unknown";
+
+						await kafka.sendEvent("ingestion.dead_letter", dlqKey, {
+							error: message,
+							payload: rawBody,
+							timestamp: new Date().toISOString(),
+						});
+					} catch (dlqError) {
+						logger.error({ err: dlqError }, "Failed to send to DLQ");
+					}
+
+					res.writeHead(400, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: message }));
+				}
+			});
+			return;
+		}
+
+		res.writeHead(404);
+		res.end("Not Found");
+	});
+
+	return server;
+}
+
+// Only start server and consumer if running as main module (not imported for testing)
+if (require.main === module || process.env.NODE_ENV === "production") {
+	// Start Consumer
+	startConsumer().catch((err) => logger.error({ err }, "Consumer startup failed"));
+
+	// Start HTTP Server
+	const PORT = 5001;
+	const server = createIngestionServer(PORT);
+	server.listen(PORT, () => {
+		logger.info({ port: PORT }, "Ingestion Service running");
+	});
+}

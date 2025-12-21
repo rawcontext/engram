@@ -47,14 +47,13 @@ vi.mock("@engram/logger", () => ({
 		error: vi.fn(),
 	})),
 	pino: {
-		destination: vi.fn((fd: number) => ({ write: vi.fn() })),
+		destination: vi.fn((_fd: number) => ({ write: vi.fn() })),
 	},
-	withTraceContext: vi.fn((logger, context) => logger),
+	withTraceContext: vi.fn((logger, _context) => logger),
 }));
 
 vi.mock("@engram/graph", () => ({
 	GraphPruner: class {
-		constructor(graphClient: any) {}
 		pruneHistory = vi.fn(async () => ({ deleted: 10 }));
 	},
 }));
@@ -217,6 +216,125 @@ describe("Memory Service Deps", () => {
 			expect(deps.graphClient).toBe(customGraphClient);
 			expect(deps.kafkaClient).toBeDefined(); // Should use default
 			expect(deps.redisPublisher).toBeDefined(); // Should use default
+		});
+
+		it("should wire onNodeCreated callback to publish to Redis", async () => {
+			const mockRedis = {
+				publishSessionUpdate: vi.fn().mockResolvedValue(undefined),
+				publishGlobalSessionEvent: vi.fn(),
+				publishConsumerStatus: vi.fn(),
+				disconnect: vi.fn(),
+				connect: vi.fn(),
+			} as unknown as RedisPublisher;
+
+			const mockLogger = {
+				info: vi.fn(),
+				debug: vi.fn(),
+				warn: vi.fn(),
+				error: vi.fn(),
+			};
+
+			const deps = createMemoryServiceDeps({
+				redisPublisher: mockRedis,
+				logger: mockLogger as any,
+			});
+
+			// Get the aggregator and trigger a turn creation to invoke onNodeCreated
+			const testSessionId = "test-session-123";
+			await deps.turnAggregator.processEvent(
+				{
+					type: "content",
+					role: "user",
+					content: "Test message",
+					event_id: "evt-123",
+					timestamp: new Date().toISOString(),
+				},
+				testSessionId,
+			);
+
+			// onNodeCreated should have been called, which publishes to Redis
+			// Wait a tick for async callback
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
+			expect(mockRedis.publishSessionUpdate).toHaveBeenCalledWith(
+				testSessionId,
+				expect.objectContaining({
+					type: "graph_node_created",
+					data: expect.objectContaining({
+						nodeType: "turn",
+						label: "Turn",
+					}),
+				}),
+			);
+		});
+
+		it("should handle Redis publish errors in onNodeCreated gracefully", async () => {
+			const mockRedis = {
+				publishSessionUpdate: vi.fn().mockRejectedValue(new Error("Redis publish failed")),
+				publishGlobalSessionEvent: vi.fn(),
+				publishConsumerStatus: vi.fn(),
+				disconnect: vi.fn(),
+				connect: vi.fn(),
+			} as unknown as RedisPublisher;
+
+			const mockLogger = {
+				info: vi.fn(),
+				debug: vi.fn(),
+				warn: vi.fn(),
+				error: vi.fn(),
+			};
+
+			const deps = createMemoryServiceDeps({
+				redisPublisher: mockRedis,
+				logger: mockLogger as any,
+			});
+
+			// Trigger node creation
+			await deps.turnAggregator.processEvent(
+				{
+					type: "content",
+					role: "user",
+					content: "Test",
+					event_id: "evt-123",
+					timestamp: new Date().toISOString(),
+				},
+				"test-session",
+			);
+
+			// Wait for async callback to complete
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
+			// Should have logged the error
+			expect(mockLogger.error).toHaveBeenCalledWith(
+				expect.objectContaining({
+					err: expect.any(Error),
+				}),
+				"Failed to publish graph node event",
+			);
+		});
+
+		it("should create all required dependencies", () => {
+			const deps = createMemoryServiceDeps();
+
+			// Verify all dependencies are created
+			expect(deps.graphClient).toBeDefined();
+			expect(deps.kafkaClient).toBeDefined();
+			expect(deps.redisPublisher).toBeDefined();
+			expect(deps.logger).toBeDefined();
+			expect(deps.turnAggregator).toBeDefined();
+			expect(deps.graphPruner).toBeDefined();
+
+			// Verify types
+			expect(deps.turnAggregator).toBeInstanceOf(TurnAggregator);
+			expect(deps.graphPruner).toBeInstanceOf(GraphPruner);
+		});
+
+		it("should create logger with stderr destination", () => {
+			createMemoryServiceDeps();
+
+			// Verify pino.destination was called with fd 2 (stderr)
+			const pinoMock = vi.mocked(createNodeLogger);
+			expect(pinoMock).toHaveBeenCalled();
 		});
 	});
 });

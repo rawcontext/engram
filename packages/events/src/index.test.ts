@@ -27,6 +27,12 @@ describe("Event Schemas", () => {
 			expect(ProviderEnum.parse("openai")).toBe("openai");
 			expect(ProviderEnum.parse("anthropic")).toBe("anthropic");
 			expect(ProviderEnum.parse("local_mock")).toBe("local_mock");
+			expect(ProviderEnum.parse("xai")).toBe("xai");
+			expect(ProviderEnum.parse("claude_code")).toBe("claude_code");
+			expect(ProviderEnum.parse("codex")).toBe("codex");
+			expect(ProviderEnum.parse("gemini")).toBe("gemini");
+			expect(ProviderEnum.parse("opencode")).toBe("opencode");
+			expect(ProviderEnum.parse("cline")).toBe("cline");
 		});
 
 		it("should reject invalid providers", () => {
@@ -78,6 +84,68 @@ describe("Event Schemas", () => {
 				payload: {},
 			};
 			expect(() => RawStreamEventSchema.parse(invalidEvent)).toThrow();
+		});
+
+		it("should apply default bitemporal fields", () => {
+			const validEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				ingest_timestamp: new Date().toISOString(),
+				provider: "openai",
+				payload: { some: "data" },
+			};
+			const parsed = RawStreamEventSchema.parse(validEvent);
+			expect(parsed.vt_start).toBeTypeOf("number");
+			expect(parsed.vt_end).toBe(253402300799000);
+			expect(parsed.tt_start).toBeTypeOf("number");
+			expect(parsed.tt_end).toBe(253402300799000);
+		});
+
+		it("should accept custom bitemporal fields", () => {
+			const validEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				ingest_timestamp: new Date().toISOString(),
+				provider: "openai",
+				payload: { some: "data" },
+				vt_start: 1000000,
+				vt_end: 2000000,
+				tt_start: 1000000,
+				tt_end: 2000000,
+			};
+			const parsed = RawStreamEventSchema.parse(validEvent);
+			expect(parsed.vt_start).toBe(1000000);
+			expect(parsed.vt_end).toBe(2000000);
+			expect(parsed.tt_start).toBe(1000000);
+			expect(parsed.tt_end).toBe(2000000);
+		});
+
+		it("should reject invalid provider in event", () => {
+			const invalidEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				ingest_timestamp: new Date().toISOString(),
+				provider: "invalid_provider",
+				payload: {},
+			};
+			expect(() => RawStreamEventSchema.parse(invalidEvent)).toThrow();
+		});
+
+		it("should accept headers with multiple keys", () => {
+			const validEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				ingest_timestamp: new Date().toISOString(),
+				provider: "anthropic",
+				payload: { some: "data" },
+				headers: {
+					"x-test": "true",
+					"x-api-version": "v1",
+					"content-type": "application/json",
+				},
+			};
+			const parsed = RawStreamEventSchema.parse(validEvent);
+			expect(parsed.headers).toEqual({
+				"x-test": "true",
+				"x-api-version": "v1",
+				"content-type": "application/json",
+			});
 		});
 	});
 
@@ -196,6 +264,138 @@ describe("Event Schemas", () => {
 			};
 			const parsed = ParsedStreamEventSchema.parse(validEvent);
 			expect(parsed.tool_call?.index).toBe(0);
+		});
+
+		it("should parse thought event", () => {
+			const validEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				original_event_id: "123e4567-e89b-12d3-a456-426614174001",
+				timestamp: new Date().toISOString(),
+				type: "thought",
+				thought: "thinking about the problem...",
+			};
+			const parsed = ParsedStreamEventSchema.parse(validEvent);
+			expect(parsed).toMatchObject(validEvent);
+		});
+
+		it("should parse control event", () => {
+			const validEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				original_event_id: "123e4567-e89b-12d3-a456-426614174001",
+				timestamp: new Date().toISOString(),
+				type: "control",
+			};
+			const parsed = ParsedStreamEventSchema.parse(validEvent);
+			expect(parsed).toMatchObject(validEvent);
+		});
+
+		it("should reject invalid role", () => {
+			const invalidEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				original_event_id: "123e4567-e89b-12d3-a456-426614174001",
+				timestamp: new Date().toISOString(),
+				type: "content",
+				role: "invalid_role",
+			};
+			expect(() => ParsedStreamEventSchema.parse(invalidEvent)).toThrow();
+		});
+
+		it("should parse event with all role types", () => {
+			const roles = ["user", "assistant", "system"] as const;
+			for (const role of roles) {
+				const validEvent = {
+					event_id: "123e4567-e89b-12d3-a456-426614174000",
+					original_event_id: "123e4567-e89b-12d3-a456-426614174001",
+					timestamp: new Date().toISOString(),
+					type: "content",
+					role,
+					content: "test",
+				};
+				const parsed = ParsedStreamEventSchema.parse(validEvent);
+				expect(parsed.role).toBe(role);
+			}
+		});
+
+		it("should parse diff event without file field", () => {
+			const validEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				original_event_id: "123e4567-e89b-12d3-a456-426614174001",
+				timestamp: new Date().toISOString(),
+				type: "diff",
+				diff: {
+					hunk: "@@ -1,1 +1,1 @@",
+				},
+			};
+			const parsed = ParsedStreamEventSchema.parse(validEvent);
+			expect(parsed.diff?.hunk).toBe("@@ -1,1 +1,1 @@");
+			expect(parsed.diff?.file).toBeUndefined();
+		});
+
+		it("should parse tool_call with minimal fields", () => {
+			const validEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				original_event_id: "123e4567-e89b-12d3-a456-426614174001",
+				timestamp: new Date().toISOString(),
+				type: "tool_call",
+				tool_call: {},
+			};
+			const parsed = ParsedStreamEventSchema.parse(validEvent);
+			expect(parsed.tool_call?.index).toBe(0);
+			expect(parsed.tool_call?.id).toBeUndefined();
+			expect(parsed.tool_call?.name).toBeUndefined();
+			expect(parsed.tool_call?.arguments_delta).toBeUndefined();
+		});
+
+		it("should parse event with metadata", () => {
+			const validEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				original_event_id: "123e4567-e89b-12d3-a456-426614174001",
+				timestamp: new Date().toISOString(),
+				type: "content",
+				metadata: {
+					model: "gpt-4",
+					temperature: 0.7,
+					custom_field: { nested: "value" },
+				},
+			};
+			const parsed = ParsedStreamEventSchema.parse(validEvent);
+			expect(parsed.metadata).toEqual({
+				model: "gpt-4",
+				temperature: 0.7,
+				custom_field: { nested: "value" },
+			});
+		});
+
+		it("should apply default bitemporal fields", () => {
+			const validEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				original_event_id: "123e4567-e89b-12d3-a456-426614174001",
+				timestamp: new Date().toISOString(),
+				type: "content",
+			};
+			const parsed = ParsedStreamEventSchema.parse(validEvent);
+			expect(parsed.vt_start).toBeTypeOf("number");
+			expect(parsed.vt_end).toBe(253402300799000);
+			expect(parsed.tt_start).toBeTypeOf("number");
+			expect(parsed.tt_end).toBe(253402300799000);
+		});
+
+		it("should accept custom bitemporal fields", () => {
+			const validEvent = {
+				event_id: "123e4567-e89b-12d3-a456-426614174000",
+				original_event_id: "123e4567-e89b-12d3-a456-426614174001",
+				timestamp: new Date().toISOString(),
+				type: "content",
+				vt_start: 1000000,
+				vt_end: 2000000,
+				tt_start: 1000000,
+				tt_end: 2000000,
+			};
+			const parsed = ParsedStreamEventSchema.parse(validEvent);
+			expect(parsed.vt_start).toBe(1000000);
+			expect(parsed.vt_end).toBe(2000000);
+			expect(parsed.tt_start).toBe(1000000);
+			expect(parsed.tt_end).toBe(2000000);
 		});
 	});
 });

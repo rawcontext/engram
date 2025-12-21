@@ -97,4 +97,56 @@ describe.skipIf(SKIP_INTEGRATION)("FalkorClient", () => {
 		await client2.disconnect();
 		expect(client2.isConnected()).toBe(false);
 	});
+
+	it("should wait for in-progress connection when connect called concurrently", async () => {
+		const client2 = createFalkorClient();
+
+		// Start two concurrent connect calls
+		const promise1 = client2.connect();
+		const promise2 = client2.connect();
+
+		// Both should resolve successfully
+		await Promise.all([promise1, promise2]);
+
+		expect(client2.isConnected()).toBe(true);
+
+		await client2.disconnect();
+	});
+
+	it("should auto-connect when query is called before connect", async () => {
+		const client2 = createFalkorClient();
+
+		// Query without explicit connect
+		await client2.query("CREATE (:AutoConnect {id: 'auto-test'})");
+
+		expect(client2.isConnected()).toBe(true);
+
+		// Cleanup
+		await client2.query("MATCH (n:AutoConnect {id: 'auto-test'}) DELETE n");
+		await client2.disconnect();
+	});
+
+	it("should handle empty query results", async () => {
+		const client2 = createFalkorClient();
+		await client2.connect();
+
+		const result = await client2.query("MATCH (n:NonExistentNode) RETURN n");
+
+		expect(Array.isArray(result)).toBe(true);
+		expect(result.length).toBe(0);
+
+		await client2.disconnect();
+	});
+
+	it("should return correct connection status with isConnected", async () => {
+		const client2 = createFalkorClient();
+
+		expect(client2.isConnected()).toBe(false);
+
+		await client2.connect();
+		expect(client2.isConnected()).toBe(true);
+
+		await client2.disconnect();
+		expect(client2.isConnected()).toBe(false);
+	});
 });

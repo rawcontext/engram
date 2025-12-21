@@ -187,4 +187,57 @@ describe("AnthropicParser", () => {
 		const result = parser.parse(event);
 		expect(result).toBeNull();
 	});
+
+	it("should handle message_start with missing usage.input_tokens", () => {
+		// Tests branch coverage on line 33: usage?.input_tokens || 0
+		const event = {
+			type: "message_start",
+			message: {
+				usage: {
+					input_tokens: 0,
+				},
+			},
+		};
+		const result = parser.parse(event);
+		expect(result).toEqual({
+			usage: { input: 0 },
+		});
+	});
+
+	it("should handle content_block_delta with text_delta type but missing text", () => {
+		// Tests edge case where delta.type matches but text is undefined
+		const event = {
+			type: "content_block_delta",
+			index: 0,
+			delta: {
+				type: "text_delta",
+			},
+		};
+		const result = parser.parse(event);
+		// Should still return the delta even with undefined text
+		expect(result).toEqual({
+			role: "assistant",
+			content: undefined,
+		});
+	});
+
+	it("should handle content_block_delta with input_json_delta but missing partial_json", () => {
+		// Tests edge case where delta.type matches but partial_json is undefined
+		const event = {
+			type: "content_block_delta",
+			index: 0,
+			delta: {
+				type: "input_json_delta",
+			},
+		};
+		const result = parser.parse(event);
+		// Should still return the delta even with undefined args
+		expect(result).toEqual({
+			role: "assistant",
+			toolCall: {
+				index: 0,
+				args: undefined,
+			},
+		});
+	});
 });

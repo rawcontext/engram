@@ -104,4 +104,95 @@ describe("GraphWriter", () => {
 			'Invalid relationship type: "invalid-type!"',
 		);
 	});
+
+	it("should write edge with custom properties", async () => {
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+
+		await writer.writeEdge("node-1", "node-2", "LINKS_TO", { weight: 5, label: "test" });
+
+		const call = mockFalkorClient.query.mock.calls[mockFalkorClient.query.mock.calls.length - 1];
+		expect(call[1]).toMatchObject({
+			fromId: "node-1",
+			toId: "node-2",
+			weight: 5,
+			label: "test",
+		});
+	});
+
+	it("should write edge with custom valid time", async () => {
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+		const customTime = 1234567890000;
+
+		await writer.writeEdge("node-1", "node-2", "LINKS_TO", {}, customTime);
+
+		const call = mockFalkorClient.query.mock.calls[mockFalkorClient.query.mock.calls.length - 1];
+		expect(call[1].vt_start).toBe(customTime);
+	});
+
+	it("should write node with custom valid time", async () => {
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+		const customTime = 1234567890000;
+		const data = { id: "node-1", labels: ["Test"], content: "test" };
+
+		await writer.writeNode("Test", data, customTime);
+
+		const call = mockFalkorClient.query.mock.calls[mockFalkorClient.query.mock.calls.length - 1];
+		expect(call[1].vt_start).toBe(customTime);
+	});
+
+	it("should throw on label that is too long", async () => {
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+		const invalidLabel = `A${"a".repeat(100)}`; // 101 characters
+		const data = { id: "node-1", labels: ["Test"], content: "test" };
+
+		await expect(writer.writeNode(invalidLabel, data)).rejects.toThrow(/Invalid label/);
+	});
+
+	it("should accept label at maximum length", async () => {
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+		const validLabel = `A${"a".repeat(99)}`; // Exactly 100 characters
+		const data = { id: "node-1", labels: ["Test"], content: "test" };
+
+		await writer.writeNode(validLabel, data);
+
+		expect(mockFalkorClient.query).toHaveBeenCalled();
+	});
+
+	it("should throw on relationship type that is too long", async () => {
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+		const invalidType = `A${"a".repeat(100)}`; // 101 characters
+
+		await expect(writer.writeEdge("node-1", "node-2", invalidType)).rejects.toThrow(
+			/Invalid relationship type/,
+		);
+	});
+
+	it("should accept relationship type at maximum length", async () => {
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+		const validType = `A${"a".repeat(99)}`; // Exactly 100 characters
+
+		await writer.writeEdge("node-1", "node-2", validType);
+
+		expect(mockFalkorClient.query).toHaveBeenCalled();
+	});
+
+	it("should update node with custom valid time", async () => {
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+		const customTime = 1234567890000;
+		const newData = { id: "node-1-v2", labels: ["Test"], content: "updated" };
+
+		await writer.updateNode("node-1-v1", "Test", newData, customTime);
+
+		const writeCall =
+			mockFalkorClient.query.mock.calls[mockFalkorClient.query.mock.calls.length - 2];
+		expect(writeCall[1].vt_start).toBe(customTime);
+	});
 });

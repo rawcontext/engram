@@ -760,6 +760,50 @@ describe("ContextAssembler", () => {
 				expect((error as SearchError).query?.length).toBeLessThanOrEqual(100);
 			}
 		});
+
+		it("should handle non-Error exceptions in graph query", async () => {
+			// Arrange
+			const graphClient = createMockGraphClient({
+				query: vi.fn().mockRejectedValue("string error"),
+			});
+
+			const assembler = createContextAssembler({
+				graphClient,
+				searchClient: null,
+			});
+
+			// Act & Assert
+			try {
+				await assembler.assembleContext("session-1", "Query");
+				expect.fail("Should have thrown");
+			} catch (error) {
+				expect(error).toBeInstanceOf(GraphOperationError);
+				// Cause should be undefined for non-Error exceptions
+				expect((error as GraphOperationError).cause).toBeUndefined();
+			}
+		});
+
+		it("should handle non-Error exceptions in search", async () => {
+			// Arrange
+			const searchClient = createMockSearchClient({
+				search: vi.fn().mockRejectedValue("string search error"),
+			});
+
+			const assembler = createContextAssembler({
+				graphClient: mockGraphClient,
+				searchClient,
+			});
+
+			// Act & Assert
+			try {
+				await assembler.assembleContext("session-1", "Query");
+				expect.fail("Should have thrown");
+			} catch (error) {
+				expect(error).toBeInstanceOf(SearchError);
+				// Cause should be undefined for non-Error exceptions
+				expect((error as SearchError).cause).toBeUndefined();
+			}
+		});
 	});
 
 	// =========================================================================

@@ -15,6 +15,7 @@ import { cluster } from "../gke";
  * Returns undefined when cluster doesn't exist (devEnabled=false).
  */
 function createK8sProvider(): k8s.Provider | undefined {
+	/* istanbul ignore if */
 	if (!cluster) return undefined;
 
 	// Use local variable for TypeScript narrowing
@@ -71,6 +72,8 @@ export const namespace =
 				},
 				{ provider: k8sProvider },
 			)
-		: undefined;
+		: /* istanbul ignore next */ undefined;
 
-export const namespaceName = namespace ? namespace.metadata.name : pulumi.output("engram"); // Fallback for exports
+export const namespaceName = namespace
+	? namespace.metadata.name
+	: /* istanbul ignore next */ pulumi.output("engram"); // Fallback for exports

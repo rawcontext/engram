@@ -410,4 +410,100 @@ describe("PostgresClient", () => {
 			expect(mockRelease).toHaveBeenCalled();
 		});
 	});
+
+	describe("Pool configuration", () => {
+		it("should configure pool with correct settings", () => {
+			const testClient = new PostgresClient({ url: "postgresql://user:pass@host:5432/db" });
+			expect(testClient).toBeInstanceOf(PostgresClient);
+		});
+	});
+
+	describe("Query edge cases", () => {
+		it("should handle queries with empty params", async () => {
+			await client.connect();
+
+			const mockResult = {
+				rows: [{ id: 1 }],
+				rowCount: 1,
+				command: "SELECT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockPoolQuery.mockResolvedValueOnce(mockResult);
+
+			const result = await client.query("SELECT * FROM users", []);
+
+			expect(mockPoolQuery).toHaveBeenCalledWith("SELECT * FROM users", []);
+			expect(result.rows).toEqual([{ id: 1 }]);
+		});
+
+		it("should handle queryOne with typed result", async () => {
+			await client.connect();
+
+			interface User {
+				id: number;
+				name: string;
+				email: string;
+			}
+
+			const mockResult = {
+				rows: [{ id: 1, name: "John", email: "john@example.com" }],
+				rowCount: 1,
+				command: "SELECT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockPoolQuery.mockResolvedValueOnce(mockResult);
+
+			const result = await client.queryOne<User>("SELECT * FROM users WHERE id = $1", [1]);
+
+			expect(result).toEqual({ id: 1, name: "John", email: "john@example.com" });
+		});
+
+		it("should handle queryMany with typed results", async () => {
+			await client.connect();
+
+			interface User {
+				id: number;
+				name: string;
+			}
+
+			const mockResult = {
+				rows: [
+					{ id: 1, name: "John" },
+					{ id: 2, name: "Jane" },
+				],
+				rowCount: 2,
+				command: "SELECT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockPoolQuery.mockResolvedValueOnce(mockResult);
+
+			const result = await client.queryMany<User>("SELECT * FROM users");
+
+			expect(result).toHaveLength(2);
+			expect(result[0].id).toBe(1);
+			expect(result[1].id).toBe(2);
+		});
+	});
+
+	describe("Connection errors", () => {
+		it("should throw on connect if pool.connect fails", async () => {
+			const errorClient = new PostgresClient({ url: "postgresql://localhost:5432/test" });
+			mockConnect.mockRejectedValueOnce(new Error("Connection refused"));
+
+			await expect(errorClient.connect()).rejects.toThrow("Connection refused");
+		});
+
+		it("should throw on disconnect if pool.end fails", async () => {
+			await client.connect();
+			mockEnd.mockRejectedValueOnce(new Error("End failed"));
+
+			await expect(client.disconnect()).rejects.toThrow("End failed");
+		});
+	});
 });

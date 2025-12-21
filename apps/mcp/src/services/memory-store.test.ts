@@ -235,5 +235,34 @@ describe("MemoryStore", () => {
 			// Should have auto-disconnected after operation
 			expect(mockGraphClient.disconnect).toHaveBeenCalled();
 		});
+
+		it("should not connect again if already connected", async () => {
+			await store.connect();
+			vi.clearAllMocks();
+
+			// Try to connect again
+			await store.connect();
+
+			// Should not have called connect again
+			expect(mockGraphClient.connect).not.toHaveBeenCalled();
+		});
+
+		it("should not disconnect if not connected", async () => {
+			// Store starts not connected, just call disconnect
+			await store.disconnect();
+
+			// Should not have called disconnect
+			expect(mockGraphClient.disconnect).not.toHaveBeenCalled();
+		});
+
+		it("should use default graphClient when not provided", () => {
+			const defaultStore = new MemoryStore();
+			expect(defaultStore).toBeDefined();
+		});
+
+		it("should use default logger when not provided", () => {
+			const defaultStore = new MemoryStore();
+			expect(defaultStore).toBeDefined();
+		});
 	});
 });

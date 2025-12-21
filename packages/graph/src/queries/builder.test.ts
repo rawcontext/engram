@@ -93,4 +93,45 @@ describe("QueryBuilder", () => {
 
 		expect(cypher).toBe("MATCH (n) RETURN n.id, n.name");
 	});
+
+	it("should handle only transaction time constraint", () => {
+		const qb = new QueryBuilder();
+		const { cypher, params } = qb.match("(n)").at(["n"], { tt: 2000 }).return("n").build();
+
+		expect(cypher).toContain("(n.tt_start <= $tt_0 AND n.tt_end > $tt_0)");
+		expect(cypher).not.toContain("vt_start");
+		expect(params).toEqual({ tt_0: 2000 });
+	});
+
+	it("should handle unique params for multiple aliases with same constraints", () => {
+		const qb = new QueryBuilder();
+		const { cypher, params } = qb
+			.match("(a)-[:REL]->(b)")
+			.at(["a", "b"], { vt: 1000, tt: 2000 })
+			.return("a, b")
+			.build();
+
+		// Should use unique parameter names for each alias
+		expect(cypher).toContain("(a.vt_start <= $vt_0 AND a.vt_end > $vt_0)");
+		expect(cypher).toContain("(a.tt_start <= $tt_1 AND a.tt_end > $tt_1)");
+		expect(cypher).toContain("(b.vt_start <= $vt_2 AND b.vt_end > $vt_2)");
+		expect(cypher).toContain("(b.tt_start <= $tt_3 AND b.tt_end > $tt_3)");
+		expect(params).toEqual({ vt_0: 1000, tt_1: 2000, vt_2: 1000, tt_3: 2000 });
+	});
+
+	it("should handle empty aliases array", () => {
+		const qb = new QueryBuilder();
+		const { cypher, params } = qb.match("(n)").at([], { tt: "current" }).return("n").build();
+
+		// Should not add any temporal constraints
+		expect(cypher).toBe("MATCH (n) RETURN n");
+		expect(params).toEqual({});
+	});
+
+	it("should build query without match clause", () => {
+		const qb = new QueryBuilder();
+		const { cypher } = qb.return("1").build();
+
+		expect(cypher).toBe("MATCH  RETURN 1");
+	});
 });

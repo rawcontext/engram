@@ -164,4 +164,51 @@ describe("GraphPruner", () => {
 		expect(result.deleted).toBe(3);
 		expect(result.batches).toBe(1);
 	});
+
+	it("should handle when delete query returns null or undefined deleted_count", async () => {
+		mockFalkorQuery
+			.mockResolvedValueOnce([{ nodeId: 1 }])
+			.mockResolvedValueOnce([{ deleted_count: null }])
+			.mockResolvedValueOnce([]);
+
+		const pruner = new GraphPruner(mockFalkorClient as unknown as FalkorClient);
+
+		const result = await pruner.pruneHistory({ retentionMs: 1000 });
+
+		expect(result.deleted).toBe(0);
+		expect(result.batches).toBe(1);
+	});
+
+	it("should handle null rows in archive query", async () => {
+		const mockBlobStore = {
+			save: vi.fn(async () => "file:///data/blobs/abc123"),
+			read: vi.fn(async () => ""),
+		};
+
+		// Archive query returns null
+		mockFalkorQuery.mockResolvedValueOnce(null as any).mockResolvedValueOnce([]);
+
+		const pruner = new GraphPruner(
+			mockFalkorClient as unknown as FalkorClient,
+			mockBlobStore as unknown as BlobStore,
+		);
+
+		const result = await pruner.pruneHistory({ retentionMs: 1000 });
+
+		expect(result.archived).toBe(0);
+		expect(result.deleted).toBe(0);
+		expect(result.archiveUri).toBeUndefined();
+		expect(mockBlobStore.save).not.toHaveBeenCalled();
+	});
+
+	it("should stop when no nodes returned in fetch batch", async () => {
+		mockFalkorQuery.mockResolvedValueOnce(null as any);
+
+		const pruner = new GraphPruner(mockFalkorClient as unknown as FalkorClient);
+
+		const result = await pruner.pruneHistory({ retentionMs: 1000 });
+
+		expect(result.deleted).toBe(0);
+		expect(result.batches).toBe(0);
+	});
 });

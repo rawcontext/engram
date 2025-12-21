@@ -21,7 +21,6 @@ vi.mock("@confluentinc/kafka-javascript", () => ({
 
 import {
 	ConsumerGroupStates,
-	type ConsumerGroupStatus,
 	checkConsumerGroups,
 	type WaitForConsumersConfig,
 	waitForConsumers,
@@ -59,7 +58,7 @@ describe("Consumer Readiness", () => {
 		});
 
 		it("should return success when all groups are ready", async () => {
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(null, [
 					{
 						groupId: "group1",
@@ -92,7 +91,7 @@ describe("Consumer Readiness", () => {
 
 		it("should poll until groups are ready", async () => {
 			let callCount = 0;
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callCount++;
 				if (callCount === 1) {
 					// First call: not ready
@@ -129,7 +128,7 @@ describe("Consumer Readiness", () => {
 		});
 
 		it("should timeout when groups are not ready in time", async () => {
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(null, [
 					{
 						groupId: "group1",
@@ -156,7 +155,7 @@ describe("Consumer Readiness", () => {
 
 		it("should handle describeGroups errors and continue polling", async () => {
 			let callCount = 0;
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callCount++;
 				if (callCount === 1) {
 					// First call: error
@@ -204,7 +203,7 @@ describe("Consumer Readiness", () => {
 		});
 
 		it("should use custom logger when provided", async () => {
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(null, [
 					{
 						groupId: "group1",
@@ -230,7 +229,7 @@ describe("Consumer Readiness", () => {
 		it("should use default brokers when not provided", async () => {
 			delete process.env.REDPANDA_BROKERS;
 
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(null, [
 					{
 						groupId: "group1",
@@ -250,7 +249,7 @@ describe("Consumer Readiness", () => {
 		});
 
 		it("should respect minMembers requirement", async () => {
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(null, [
 					{
 						groupId: "group1",
@@ -275,7 +274,7 @@ describe("Consumer Readiness", () => {
 		});
 
 		it("should handle groups with null members array", async () => {
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(null, [
 					{
 						groupId: "group1",
@@ -308,7 +307,7 @@ describe("Consumer Readiness", () => {
 			];
 
 			for (const state of states) {
-				mockDescribeGroups.mockImplementationOnce((groupIds, options, callback) => {
+				mockDescribeGroups.mockImplementationOnce((_groupIds, _options, callback) => {
 					callback(null, [
 						{
 							groupId: "group1",
@@ -335,7 +334,7 @@ describe("Consumer Readiness", () => {
 		});
 
 		it("should handle disconnect errors gracefully", async () => {
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(null, [
 					{
 						groupId: "group1",
@@ -382,7 +381,7 @@ describe("Consumer Readiness", () => {
 		});
 
 		it("should return status for all groups", async () => {
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(null, [
 					{
 						groupId: "group1",
@@ -417,7 +416,7 @@ describe("Consumer Readiness", () => {
 		});
 
 		it("should use custom brokers when provided", async () => {
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(null, [
 					{
 						groupId: "group1",
@@ -433,7 +432,7 @@ describe("Consumer Readiness", () => {
 		});
 
 		it("should disconnect even if describeGroups fails", async () => {
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(new Error("Failed"), []);
 			});
 
@@ -443,7 +442,7 @@ describe("Consumer Readiness", () => {
 		});
 
 		it("should handle groups with unknown state names", async () => {
-			mockDescribeGroups.mockImplementation((groupIds, options, callback) => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
 				callback(null, [
 					{
 						groupId: "group1",
@@ -456,6 +455,94 @@ describe("Consumer Readiness", () => {
 			const result = await checkConsumerGroups(["group1"]);
 
 			expect(result[0].stateName).toBe("UNKNOWN");
+		});
+
+		it("should handle non-Error poll errors", async () => {
+			let callCount = 0;
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
+				callCount++;
+				if (callCount === 1) {
+					// First call: string error (not Error instance)
+					callback("String error" as any, []);
+				} else {
+					// Second call: success
+					callback(null, [
+						{
+							groupId: "group1",
+							state: ConsumerGroupStates.STABLE,
+							members: [{ id: "member1" }],
+						},
+					]);
+				}
+			});
+
+			const logger = vi.fn();
+			const config: WaitForConsumersConfig = {
+				groupIds: ["group1"],
+				pollIntervalMs: 10,
+				timeoutMs: 5000,
+				logger,
+			};
+
+			const result = await waitForConsumers(config);
+
+			expect(result.success).toBe(true);
+			expect(logger).toHaveBeenCalledWith(expect.stringContaining("Poll error (retrying)"));
+			expect(logger).toHaveBeenCalledWith(expect.stringContaining("String error"));
+		});
+
+		it("should handle non-Error fatal errors", async () => {
+			mockConnect.mockImplementationOnce(() => {
+				throw "String fatal error";
+			});
+
+			const logger = vi.fn();
+			const config: WaitForConsumersConfig = {
+				groupIds: ["group1"],
+				logger,
+			};
+
+			const result = await waitForConsumers(config);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toBe("String fatal error");
+			expect(result.groups).toEqual([]);
+			expect(logger).toHaveBeenCalledWith(expect.stringContaining("Fatal error"));
+		});
+
+		it("should handle all non-ready groups in timeout message", async () => {
+			mockDescribeGroups.mockImplementation((_groupIds, _options, callback) => {
+				callback(null, [
+					{
+						groupId: "group1",
+						state: ConsumerGroupStates.PREPARING_REBALANCE,
+						members: [],
+					},
+					{
+						groupId: "group2",
+						state: ConsumerGroupStates.EMPTY,
+						members: [],
+					},
+					{
+						groupId: "group3",
+						state: ConsumerGroupStates.STABLE,
+						members: [{ id: "member1" }],
+					},
+				]);
+			});
+
+			const config: WaitForConsumersConfig = {
+				groupIds: ["group1", "group2", "group3"],
+				pollIntervalMs: 50,
+				timeoutMs: 100,
+			};
+
+			const result = await waitForConsumers(config);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain("group1");
+			expect(result.error).toContain("group2");
+			expect(result.error).not.toContain("group3"); // group3 is ready
 		});
 	});
 });

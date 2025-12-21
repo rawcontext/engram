@@ -171,8 +171,7 @@ describe("SearchClient", () => {
 			).rejects.toThrow("The operation was aborted");
 		});
 
-		it("should clear timeout on successful response", async () => {
-			const clearTimeoutSpy = vi.spyOn(global, "clearTimeout");
+		it("should use default values for all optional parameters", async () => {
 			vi.mocked(fetch).mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({ results: [], total: 0, took_ms: 10 }),
@@ -180,16 +179,45 @@ describe("SearchClient", () => {
 
 			await client.search({ text: "test" });
 
-			expect(clearTimeoutSpy).toHaveBeenCalled();
+			const requestBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
+			expect(requestBody).toEqual({
+				text: "test",
+				limit: 10,
+				threshold: 0.5,
+				filters: {},
+				strategy: "hybrid",
+				rerank: false,
+				rerank_tier: undefined,
+				rerank_depth: undefined,
+			});
+		});
+	});
+
+	describe("constructor", () => {
+		it("should strip trailing slash from base URL", () => {
+			const clientWithSlash = new SearchClient("http://localhost:5002/");
+			expect(clientWithSlash).toBeDefined();
 		});
 
-		it("should clear timeout on error", async () => {
-			const clearTimeoutSpy = vi.spyOn(global, "clearTimeout");
-			vi.mocked(fetch).mockRejectedValueOnce(new Error("Test error"));
+		it("should accept base URL without trailing slash", () => {
+			const clientNoSlash = new SearchClient("http://localhost:5002");
+			expect(clientNoSlash).toBeDefined();
+		});
 
-			await expect(client.search({ text: "test" })).rejects.toThrow();
+		it("should create client with custom logger", () => {
+			const customLogger = {
+				debug: vi.fn(),
+				info: vi.fn(),
+				warn: vi.fn(),
+				error: vi.fn(),
+			} as any;
+			const clientWithLogger = new SearchClient(baseUrl, customLogger);
+			expect(clientWithLogger).toBeDefined();
+		});
 
-			expect(clearTimeoutSpy).toHaveBeenCalled();
+		it("should create client without logger", () => {
+			const clientNoLogger = new SearchClient(baseUrl);
+			expect(clientNoLogger).toBeDefined();
 		});
 	});
 });

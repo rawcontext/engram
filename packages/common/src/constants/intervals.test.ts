@@ -61,6 +61,14 @@ describe("RetentionPeriods", () => {
 	it("should handle fractional days", () => {
 		expect(RetentionPeriods.toMs(0.5)).toBe(12 * 60 * 60 * 1000);
 	});
+
+	it("should handle negative days", () => {
+		expect(RetentionPeriods.toMs(-1)).toBe(-24 * 60 * 60 * 1000);
+	});
+
+	it("should handle large numbers", () => {
+		expect(RetentionPeriods.toMs(365)).toBe(365 * 24 * 60 * 60 * 1000);
+	});
 });
 
 describe("WebSocketIntervals", () => {

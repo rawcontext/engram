@@ -87,4 +87,62 @@ describe("SessionInitializer", () => {
 
 		expect(initializer).toBeInstanceOf(SessionInitializer);
 	});
+
+	it("should handle legacy FalkorClient constructor", async () => {
+		const mockQuery = vi.fn((query: string, _params: Record<string, unknown>) => {
+			if (query.includes("MATCH")) return Promise.resolve([]); // Not found
+			return Promise.resolve([["s"]]); // Created
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		// Use legacy constructor directly (passing FalkorClient, not deps object)
+		const initializer = new SessionInitializer(mockFalkor);
+		await initializer.ensureSession("legacy-session");
+
+		expect(mockQuery).toHaveBeenCalledTimes(2);
+	});
+
+	it("should handle non-array query results", async () => {
+		const mockQuery = vi.fn((_query: string, _params: Record<string, unknown>) => {
+			// Return non-array that is truthy (edge case)
+			return Promise.resolve("not-an-array");
+		});
+
+		const mockGraphClient = {
+			query: mockQuery,
+		} as unknown as GraphClient;
+
+		const initializer = new SessionInitializer({ graphClient: mockGraphClient });
+		await initializer.ensureSession("test-session");
+
+		// Should attempt to create session since check will fail
+		expect(mockQuery).toHaveBeenCalledTimes(2);
+	});
+
+	it("should include bitemporal fields when creating session", async () => {
+		let createdFields: any = null;
+		const mockQuery = vi.fn((query: string, params: Record<string, unknown>) => {
+			if (query.includes("MATCH")) return Promise.resolve([]); // Not found
+			if (query.includes("CREATE")) {
+				createdFields = params;
+				return Promise.resolve([["s"]]); // Created
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockGraphClient = {
+			query: mockQuery,
+		} as unknown as GraphClient;
+
+		const initializer = new SessionInitializer({ graphClient: mockGraphClient });
+		await initializer.ensureSession("bitemporal-session");
+
+		expect(createdFields).toBeDefined();
+		expect(createdFields.nowMs).toBeDefined();
+		expect(createdFields.maxDate).toBe(253402300799000);
+		expect(createdFields.id).toBe("bitemporal-session");
+	});
 });

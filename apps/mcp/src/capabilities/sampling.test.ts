@@ -254,6 +254,28 @@ describe("SamplingService", () => {
 
 			expect(result).toBeNull();
 		});
+
+		it("should filter out empty lines when parsing non-JSON", async () => {
+			service.enable();
+			mockServer.server.createMessage.mockResolvedValueOnce({
+				content: { type: "text", text: "- Fact 1\n\n- Fact 2\n   \n* Fact 3" },
+			});
+
+			const result = await service.extractFacts("Text with facts");
+
+			expect(result).toEqual(["Fact 1", "Fact 2", "Fact 3"]);
+		});
+
+		it("should return null when JSON array contains non-strings", async () => {
+			service.enable();
+			mockServer.server.createMessage.mockResolvedValueOnce({
+				content: { type: "text", text: '{"not": "an array"}' },
+			});
+
+			const result = await service.extractFacts("Text");
+
+			expect(result).toBeNull();
+		});
 	});
 
 	describe("createMessage edge cases", () => {

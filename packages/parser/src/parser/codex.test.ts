@@ -273,5 +273,39 @@ describe("CodexParser", () => {
 			// Even with extra fields, basic schema should pass
 			expect(result).not.toBeNull();
 		});
+
+		it("should handle item.completed with agent_message but undefined text", () => {
+			// agent_message with undefined text returns { content: undefined }
+			const payload = {
+				type: "item.completed",
+				item: {
+					id: "item_0",
+					type: "agent_message",
+					// text is undefined
+				},
+			};
+
+			const result = parser.parse(payload);
+			// Returns delta with undefined content
+			expect(result).toEqual({
+				type: "content",
+				role: "assistant",
+				content: undefined,
+			});
+		});
+
+		it("should return null for item.started with non-command type", () => {
+			// Tests line 161: return null for agent_message in item.started
+			const payload = {
+				type: "item.started",
+				item: {
+					id: "item_0",
+					type: "agent_message",
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
 	});
 });

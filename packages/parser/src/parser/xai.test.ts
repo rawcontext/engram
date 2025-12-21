@@ -62,4 +62,14 @@ describe("XAIParser", () => {
 		const result = parser.parse(payload);
 		expect(result).toBeNull();
 	});
+
+	it("should return base parser result when result exists but no reasoning", () => {
+		// Tests line 13: When base parser returns a result but xAI schema fails or has no reasoning
+		const payload = {
+			choices: [{ delta: { content: "Text", role: "assistant" } }],
+		};
+		const result = parser.parse(payload);
+		// Should return the base OpenAI parser result (includes role from delta)
+		expect(result).toEqual({ type: "content", content: "Text", role: "assistant" });
+	});
 });

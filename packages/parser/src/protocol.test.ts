@@ -31,6 +31,11 @@ describe("Protocol Detection", () => {
 		expect(detectProtocol({}, { object: "chat.completion.chunk", model_extra: {} })).toBe("openai");
 	});
 
+	it("should detect Azure OpenAI without model_extra (standard OpenAI path)", () => {
+		// Line 29-30: Tests the standard OpenAI path without model_extra
+		expect(detectProtocol({}, { object: "chat.completion.chunk" })).toBe("openai");
+	});
+
 	it("should return unknown for non-record types", () => {
 		expect(detectProtocol({}, "string")).toBe("unknown");
 		expect(detectProtocol({}, 123)).toBe("unknown");

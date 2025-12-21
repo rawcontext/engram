@@ -356,5 +356,102 @@ describe("OpenCodeParser", () => {
 			const result = parser.parse(payload);
 			expect(result).toBeNull();
 		});
+
+		it("should handle tool_use with missing callID", () => {
+			// Tests line 94: callID || ""
+			const payload = {
+				type: "tool_use",
+				sessionID: "ses_test",
+				part: {
+					type: "tool",
+					tool: "bash",
+					state: {
+						status: "completed",
+						input: { command: "ls" },
+					},
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.toolCall?.id).toBe("");
+		});
+
+		it("should handle tool_use with missing tool name", () => {
+			// Tests line 95: tool || ""
+			const payload = {
+				type: "tool_use",
+				sessionID: "ses_test",
+				part: {
+					type: "tool",
+					callID: "call-123",
+					state: {
+						status: "completed",
+					},
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.toolCall?.name).toBe("");
+		});
+
+		it("should handle step_finish without part", () => {
+			// Tests line 110: if (!part) return null
+			const payload = {
+				type: "step_finish",
+				sessionID: "ses_test",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle step_finish with session info extraction", () => {
+			// Tests lines 149-158: session info extraction in step_finish
+			const payload = {
+				type: "step_finish",
+				sessionID: "ses_test",
+				part: {
+					id: "prt_test",
+					messageID: "msg_test",
+					type: "step-finish",
+					tokens: {
+						input: 100,
+						output: 50,
+					},
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.session).toEqual({
+				id: "ses_test",
+				messageId: "msg_test",
+				partId: "prt_test",
+			});
+		});
+
+		it("should handle text event with all session info fields", () => {
+			// Tests lines 60-69: session info extraction with all fields
+			const payload = {
+				type: "text",
+				sessionID: "ses_test",
+				part: {
+					id: "prt_test",
+					messageID: "msg_test",
+					type: "text",
+					text: "Hello",
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.session).toEqual({
+				id: "ses_test",
+				messageId: "msg_test",
+				partId: "prt_test",
+			});
+		});
 	});
 });

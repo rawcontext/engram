@@ -205,6 +205,48 @@ describe("ToolRegistry", () => {
 	});
 
 	describe("cosineSimilarity edge cases", () => {
+		it("should return 0 for zero magnitude vectors", async () => {
+			const zeroVectorTool: Tool = {
+				name: "zero_vector_tool",
+				description: "Tool with zero vector",
+				parameters: {
+					type: "object",
+					properties: {},
+				},
+			};
+
+			// Create a mock search client that returns zero embeddings
+			const zeroVectorClient: SearchClient = {
+				search: vi.fn(),
+				embed: vi
+					.fn()
+					.mockResolvedValueOnce({
+						// Query embedding - also zeros
+						embedding: [0, 0, 0],
+						dimensions: 3,
+						embedder_type: "text",
+						took_ms: 10,
+					})
+					.mockResolvedValueOnce({
+						// Tool embedding - all zeros
+						embedding: [0, 0, 0],
+						dimensions: 3,
+						embedder_type: "text",
+						took_ms: 10,
+					}),
+				health: vi.fn(),
+			} as unknown as SearchClient;
+
+			const zeroRegistry = new ToolRegistry(zeroVectorClient);
+			zeroRegistry.register(zeroVectorTool);
+
+			// Should not throw, should return result with 0 similarity
+			const selected = await zeroRegistry.selectTools("test query", 1);
+
+			expect(selected).toHaveLength(1);
+			expect(selected[0].name).toBe("zero_vector_tool");
+		});
+
 		it("should throw error when vectors have different lengths", async () => {
 			// Create unique tools to avoid cache issues and force comparison
 			const uniqueTool1: Tool = {

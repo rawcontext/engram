@@ -371,5 +371,22 @@ describe("ClaudeCodeParser", () => {
 			const result = parser.parse(payload);
 			expect(result).toBeNull();
 		});
+
+		it("should extract session ID from result event", () => {
+			// Tests line 178-179: session extraction in result event
+			const payload = {
+				type: "result",
+				result: "Success",
+				session_id: "session-12345",
+				usage: {
+					input_tokens: 100,
+					output_tokens: 50,
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.session).toEqual({ id: "session-12345" });
+		});
 	});
 });

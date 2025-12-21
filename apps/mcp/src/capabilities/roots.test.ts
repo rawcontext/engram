@@ -168,6 +168,16 @@ describe("RootsService", () => {
 
 			expect(service.primaryProject).toBe("First");
 		});
+
+		it("should derive name from path when root has no name", async () => {
+			service.enable();
+			mockServer.server.listRoots.mockResolvedValueOnce({
+				roots: [{ uri: "file:///Users/test/my-project" }],
+			});
+			await service.refreshRoots();
+
+			expect(service.primaryProject).toBe("my-project");
+		});
 	});
 
 	describe("primaryWorkingDir", () => {
@@ -265,6 +275,16 @@ describe("RootsService", () => {
 			await service.refreshRoots();
 
 			expect(service.getProjectForPath("/Users/test/my-project/src")).toBe("My Project");
+		});
+
+		it("should derive project name from path when root has no name", async () => {
+			service.enable();
+			mockServer.server.listRoots.mockResolvedValueOnce({
+				roots: [{ uri: "file:///Users/test/my-project" }],
+			});
+			await service.refreshRoots();
+
+			expect(service.getProjectForPath("/Users/test/my-project/src")).toBe("my-project");
 		});
 	});
 

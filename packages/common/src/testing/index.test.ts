@@ -8,6 +8,7 @@ import {
 	createDeferred,
 	createTestBitemporalProps,
 	createTestBlobStore,
+	createTestConsumer,
 	createTestFileTouch,
 	// Mock factories
 	createTestGraphClient,
@@ -16,7 +17,9 @@ import {
 	createTestId,
 	createTestKafkaClient,
 	createTestKafkaMessage,
+	createTestLogger,
 	createTestObservation,
+	createTestProducer,
 	createTestReasoning,
 	createTestRedisPublisher,
 	// Fixture factories
@@ -107,6 +110,102 @@ describe("createTestBitemporalProps", () => {
 // =============================================================================
 // Mock Factory Tests
 // =============================================================================
+
+describe("createTestLogger", () => {
+	it("should create a mock logger with all standard levels", () => {
+		// Act
+		const logger = createTestLogger();
+
+		// Assert
+		expect(logger.trace).toBeDefined();
+		expect(logger.debug).toBeDefined();
+		expect(logger.info).toBeDefined();
+		expect(logger.warn).toBeDefined();
+		expect(logger.error).toBeDefined();
+		expect(logger.fatal).toBeDefined();
+		expect(logger.child).toBeDefined();
+		expect(logger.bindings).toBeDefined();
+		expect(logger.flush).toBeDefined();
+		expect(logger.isLevelEnabled).toBeDefined();
+		expect(logger.silent).toBeDefined();
+	});
+
+	it("should have working mock implementations", () => {
+		// Arrange
+		const logger = createTestLogger();
+
+		// Act
+		logger.info("test message");
+		logger.error("error message");
+		const childLogger = logger.child({ component: "test" });
+		const bindings = logger.bindings();
+		const isEnabled = logger.isLevelEnabled("info");
+
+		// Assert
+		expect(logger.info).toHaveBeenCalledWith("test message");
+		expect(logger.error).toHaveBeenCalledWith("error message");
+		expect(childLogger).toBe(logger); // mockReturnThis
+		expect(bindings).toEqual({});
+		expect(isEnabled).toBe(true);
+	});
+
+	it("should have info level by default", () => {
+		// Act
+		const logger = createTestLogger();
+
+		// Assert
+		expect(logger.level).toBe("info");
+	});
+});
+
+describe("createTestProducer", () => {
+	it("should create a mock producer with all required methods", () => {
+		// Act
+		const producer = createTestProducer();
+
+		// Assert
+		expect(producer.connect).toBeDefined();
+		expect(producer.disconnect).toBeDefined();
+		expect(producer.send).toBeDefined();
+	});
+
+	it("should allow overriding methods", async () => {
+		// Arrange
+		const customSend = vi.fn().mockResolvedValue(undefined);
+		const producer = createTestProducer({ send: customSend });
+
+		// Act
+		await producer.send({ topic: "test", messages: [] });
+
+		// Assert
+		expect(customSend).toHaveBeenCalledWith({ topic: "test", messages: [] });
+	});
+});
+
+describe("createTestConsumer", () => {
+	it("should create a mock consumer with all required methods", () => {
+		// Act
+		const consumer = createTestConsumer();
+
+		// Assert
+		expect(consumer.connect).toBeDefined();
+		expect(consumer.disconnect).toBeDefined();
+		expect(consumer.subscribe).toBeDefined();
+		expect(consumer.run).toBeDefined();
+	});
+
+	it("should allow overriding methods", async () => {
+		// Arrange
+		const customSubscribe = vi.fn().mockResolvedValue(undefined);
+		const consumer = createTestConsumer({ subscribe: customSubscribe });
+
+		// Act
+		await consumer.subscribe({ topic: "test-topic" });
+
+		// Assert
+		expect(customSubscribe).toHaveBeenCalledWith({ topic: "test-topic" });
+	});
+});
 
 describe("createTestGraphClient", () => {
 	it("should create a mock with all required methods", () => {
@@ -204,6 +303,20 @@ describe("createTestRedisPublisher", () => {
 		// Assert
 		expect(publisher.publishSessionUpdate).toHaveBeenCalledWith("session-123", event);
 	});
+
+	it("should allow overriding methods", async () => {
+		// Arrange
+		const customPublish = vi.fn().mockResolvedValue(undefined);
+		const publisher = createTestRedisPublisher({
+			publishSessionUpdate: customPublish,
+		});
+
+		// Act
+		await publisher.publishSessionUpdate("session-123", { type: "test" });
+
+		// Assert
+		expect(customPublish).toHaveBeenCalledWith("session-123", { type: "test" });
+	});
 });
 
 describe("createTestBlobStore", () => {
@@ -227,6 +340,21 @@ describe("createTestBlobStore", () => {
 		// Assert
 		expect(uri).toMatch(/^file:\/\//);
 		expect(content).toBe("");
+	});
+
+	it("should allow overriding methods", async () => {
+		// Arrange
+		const customLoad = vi.fn().mockResolvedValue("custom content");
+		const store = createTestBlobStore({
+			load: customLoad,
+		});
+
+		// Act
+		const content = await store.load("uri://test");
+
+		// Assert
+		expect(content).toBe("custom content");
+		expect(customLoad).toHaveBeenCalledWith("uri://test");
 	});
 });
 
@@ -362,6 +490,18 @@ describe("createTestReasoning", () => {
 		expect(reasoning.preview).toBe("Test reasoning content");
 		expect(reasoning.reasoning_type).toBe("unknown");
 	});
+
+	it("should allow overriding properties", () => {
+		// Act
+		const reasoning = createTestReasoning({
+			preview: "I need to read the file first",
+			reasoning_type: "planning",
+		});
+
+		// Assert
+		expect(reasoning.preview).toBe("I need to read the file first");
+		expect(reasoning.reasoning_type).toBe("planning");
+	});
 });
 
 describe("createTestFileTouch", () => {
@@ -374,6 +514,22 @@ describe("createTestFileTouch", () => {
 		expect(fileTouch.labels).toEqual(["FileTouch"]);
 		expect(fileTouch.file_path).toBe("test/file.ts");
 		expect(fileTouch.action).toBe("read");
+	});
+
+	it("should allow overriding properties", () => {
+		// Act
+		const fileTouch = createTestFileTouch({
+			file_path: "src/index.ts",
+			action: "edit",
+			lines_added: 10,
+			lines_removed: 5,
+		});
+
+		// Assert
+		expect(fileTouch.file_path).toBe("src/index.ts");
+		expect(fileTouch.action).toBe("edit");
+		expect(fileTouch.lines_added).toBe(10);
+		expect(fileTouch.lines_removed).toBe(5);
 	});
 });
 
@@ -388,6 +544,18 @@ describe("createTestObservation", () => {
 		expect(observation.tool_call_id).toMatch(/^toolu_/);
 		expect(observation.content).toBe("Test observation content");
 		expect(observation.is_error).toBe(false);
+	});
+
+	it("should allow overriding properties", () => {
+		// Act
+		const observation = createTestObservation({
+			content: "Error: File not found",
+			is_error: true,
+		});
+
+		// Assert
+		expect(observation.content).toBe("Error: File not found");
+		expect(observation.is_error).toBe(true);
 	});
 });
 
@@ -442,6 +610,17 @@ describe("createDeferred", () => {
 
 		// Assert
 		await expect(promise).rejects.toThrow("test error");
+	});
+
+	it("should handle rejection with non-Error objects", async () => {
+		// Arrange
+		const { promise, reject } = createDeferred<string>();
+
+		// Act
+		reject("string error");
+
+		// Assert
+		await expect(promise).rejects.toBe("string error");
 	});
 });
 

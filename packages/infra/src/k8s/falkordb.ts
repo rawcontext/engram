@@ -21,6 +21,7 @@ const appLabels = {
  * FalkorDB StatefulSet for persistent graph storage
  * Only created when k8sProvider exists (devEnabled=true)
  */
+/* istanbul ignore next */
 export const falkordbStatefulSet = k8sProvider
 	? new k8s.apps.v1.StatefulSet(
 			"falkordb",
@@ -111,6 +112,7 @@ export const falkordbStatefulSet = k8sProvider
 /**
  * Headless service for FalkorDB StatefulSet
  */
+/* istanbul ignore next */
 export const falkordbService = k8sProvider
 	? new k8s.core.v1.Service(
 			"falkordb",

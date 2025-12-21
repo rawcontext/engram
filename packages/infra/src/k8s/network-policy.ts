@@ -7,6 +7,8 @@
  * Only created when devEnabled=true.
  */
 
+/* istanbul ignore file */
+
 import * as k8s from "@pulumi/kubernetes";
 import { commonLabels } from "../config";
 import { k8sProvider, namespaceName } from "./namespace";

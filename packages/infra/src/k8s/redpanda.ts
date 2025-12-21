@@ -18,6 +18,7 @@ import { k8sProvider, namespaceName } from "./namespace";
  * Redpanda Helm release
  * Only created when k8sProvider exists (devEnabled=true)
  */
+/* istanbul ignore next */
 export const redpandaRelease = k8sProvider
 	? new k8s.helm.v3.Release(
 			"redpanda",

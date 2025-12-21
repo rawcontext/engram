@@ -158,6 +158,51 @@ describe("Blob Storage", () => {
 
 			expect(content).toBe("buffer content");
 		});
+
+		it("should reject filenames with platform-specific path separator", async () => {
+			const store = new FileSystemBlobStore(testDir);
+			const path = require("node:path");
+
+			// Create a filename with platform path separator
+			// This will be caught by the hash format validation on most platforms
+			const maliciousUri = `file://abc${path.sep}def`;
+			// Will throw either "Invalid blob filename format" or "Path traversal characters detected"
+			await expect(store.load(maliciousUri)).rejects.toThrow();
+		});
+
+		it("should reject URIs with path traversal after validation", async () => {
+			const store = new FileSystemBlobStore(testDir);
+
+			// Valid hash format but would resolve outside basePath
+			// This tests the defense-in-depth check at lines 67-74
+			const uri = `file://${testDir}/0000000000000000000000000000000000000000000000000000000000000000`;
+
+			// First save a valid file
+			await store.save("test content");
+
+			// Now try to load with manipulated path that still has valid hash format
+			// The path resolution checks should catch this
+			await expect(
+				store.load(
+					`file://${testDir}/../${testDir.split("/").pop()}/0000000000000000000000000000000000000000000000000000000000000000`,
+				),
+			).rejects.toThrow();
+		});
+
+		it("should handle URL-encoded paths correctly", async () => {
+			const store = new FileSystemBlobStore(testDir);
+
+			// Save content
+			const uri = await store.save("test content");
+
+			// Extract filename and URL-encode it
+			const filename = uri.split("/").pop();
+			const encodedUri = `file://${encodeURIComponent(testDir)}/${filename}`;
+
+			// Should decode and load correctly
+			const content = await store.load(encodedUri);
+			expect(content).toBe("test content");
+		});
 	});
 
 	describe("GCSBlobStore", () => {
@@ -242,6 +287,56 @@ describe("Blob Storage", () => {
 			expect(mockSave).toHaveBeenCalledWith("buffer test content", {
 				contentType: "application/json",
 			});
+		});
+
+		it("should re-throw StorageError from load without wrapping", async () => {
+			const { StorageError, ErrorCodes } = await import("@engram/common");
+			const store = new GCSBlobStore("test-bucket");
+
+			const originalError = new StorageError(
+				"Blob not found",
+				ErrorCodes.STORAGE_NOT_FOUND,
+				"gs://test-bucket/missing",
+				undefined,
+				"read",
+			);
+
+			mockExists.mockResolvedValueOnce([true]);
+			mockDownload.mockRejectedValueOnce(originalError);
+
+			// Should re-throw the StorageError without wrapping
+			const error = await store.load("gs://test-bucket/missing").catch((e) => e);
+			expect(error).toBeInstanceOf(StorageError);
+			expect(error.message).toBe("Blob not found");
+		});
+
+		it("should wrap non-StorageError load failures", async () => {
+			const store = new GCSBlobStore("test-bucket");
+			const genericError = new Error("Network timeout");
+
+			mockExists.mockResolvedValueOnce([true]);
+			mockDownload.mockRejectedValueOnce(genericError);
+
+			await expect(store.load("gs://test-bucket/somefile")).rejects.toThrow(
+				"Failed to read blob from GCS",
+			);
+		});
+
+		it("should handle save failure with non-Error cause", async () => {
+			const store = new GCSBlobStore("test-bucket");
+			mockSave.mockRejectedValueOnce("String error");
+
+			await expect(store.save("test")).rejects.toThrow("Failed to upload blob to GCS");
+		});
+
+		it("should handle load failure with non-Error cause", async () => {
+			const store = new GCSBlobStore("test-bucket");
+			mockExists.mockResolvedValueOnce([true]);
+			mockDownload.mockRejectedValueOnce("String error");
+
+			await expect(store.load("gs://test-bucket/file")).rejects.toThrow(
+				"Failed to read blob from GCS",
+			);
 		});
 	});
 

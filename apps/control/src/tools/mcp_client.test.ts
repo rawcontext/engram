@@ -40,6 +40,12 @@ describe("MCP Client", () => {
 			expect(tools[0].name).toBe("test-tool");
 		});
 
+		it("should create adapter with server args", async () => {
+			const adapter = new McpToolAdapter("node", ["server.js", "--port", "3000"]);
+			await adapter.connect();
+			expect(mockConnect).toHaveBeenCalled();
+		});
+
 		it("should call tool directly", async () => {
 			const adapter = new McpToolAdapter("echo");
 			await adapter.callTool("test-tool", { arg: 1 });
@@ -146,6 +152,39 @@ describe("MCP Client", () => {
 			);
 
 			consoleErrorSpy.mockRestore();
+		});
+
+		it("should clear toolMap before refreshing tools", async () => {
+			const multi = new MultiMcpAdapter();
+			const adapter = new McpToolAdapter("echo");
+			multi.addAdapter(adapter);
+
+			await multi.connectAll();
+
+			// toolMap should be populated
+			const result1 = await multi.callTool("test-tool", {});
+			expect(result1).toBeDefined();
+
+			// Refresh should clear and repopulate
+			await multi.refreshTools();
+
+			// Should still work after refresh
+			const result2 = await multi.callTool("test-tool", {});
+			expect(result2).toBeDefined();
+		});
+
+		it("should clear toolMap when disconnecting all", async () => {
+			const multi = new MultiMcpAdapter();
+			const adapter = new McpToolAdapter("echo");
+			multi.addAdapter(adapter);
+
+			await multi.connectAll();
+
+			// toolMap is populated
+			await multi.disconnectAll();
+
+			// After disconnect, toolMap should be cleared
+			await expect(multi.callTool("test-tool", {})).rejects.toThrow("not found");
 		});
 	});
 });

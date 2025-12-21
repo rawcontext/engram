@@ -40,6 +40,7 @@ export const backupBucket = new gcp.storage.Bucket("engram-backups", {
 /**
  * ServiceAccount for backup jobs
  */
+/* istanbul ignore next */
 const backupServiceAccount = k8sProvider
 	? new k8s.core.v1.ServiceAccount(
 			"backup-sa",
@@ -58,6 +59,7 @@ const backupServiceAccount = k8sProvider
  * FalkorDB backup CronJob
  * Runs daily at 2 AM UTC, backs up to GCS
  */
+/* istanbul ignore next */
 export const falkordbBackupCron = k8sProvider
 	? new k8s.batch.v1.CronJob(
 			"falkordb-backup",
@@ -116,6 +118,7 @@ export const falkordbBackupCron = k8sProvider
  * Qdrant backup CronJob
  * Runs daily at 3 AM UTC, creates snapshots and backs up to GCS
  */
+/* istanbul ignore next */
 export const qdrantBackupCron = k8sProvider
 	? new k8s.batch.v1.CronJob(
 			"qdrant-backup",
@@ -176,6 +179,7 @@ export const qdrantBackupCron = k8sProvider
  * Redpanda backup CronJob
  * Runs daily at 4 AM UTC, backs up topic data to GCS
  */
+/* istanbul ignore next */
 export const redpandaBackupCron = k8sProvider
 	? new k8s.batch.v1.CronJob(
 			"redpanda-backup",

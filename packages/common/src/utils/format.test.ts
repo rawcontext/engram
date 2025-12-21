@@ -267,6 +267,33 @@ describe("formatBytes", () => {
 		// Assert
 		expect(result).toBe("2 TB");
 	});
+
+	it("should handle extremely large values beyond TB", () => {
+		// Arrange - value much larger than TB to test bounds clamping
+		const extremelyLarge = 1024 * 1024 * 1024 * 1024 * 1024; // 1024 TB (1 PB)
+
+		// Act
+		const result = formatBytes(extremelyLarge);
+
+		// Assert
+		expect(result).toContain("TB"); // Should clamp to TB (max in sizes array)
+	});
+
+	it("should handle 1 byte", () => {
+		// Act
+		const result = formatBytes(1);
+
+		// Assert
+		expect(result).toBe("1 Bytes");
+	});
+
+	it("should handle decimal precision correctly", () => {
+		// Act
+		const result = formatBytes(1536, 0);
+
+		// Assert
+		expect(result).toBe("2 KB"); // Rounded up
+	});
 });
 
 describe("formatDuration", () => {
@@ -332,5 +359,21 @@ describe("formatDuration", () => {
 
 		// Assert
 		expect(result).toBe("999ms");
+	});
+
+	it("should handle exactly 60 seconds (1 minute)", () => {
+		// Act
+		const result = formatDuration(60000);
+
+		// Assert
+		expect(result).toBe("1m");
+	});
+
+	it("should format very long durations", () => {
+		// Act - 10 minutes 30 seconds
+		const result = formatDuration(630000);
+
+		// Assert
+		expect(result).toBe("10m 30s");
 	});
 });

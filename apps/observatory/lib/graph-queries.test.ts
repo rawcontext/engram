@@ -501,6 +501,139 @@ describe("graph-queries", () => {
 			expect(result.links[0].type).toBe("HAS_TURN");
 		});
 
+		it("should handle edges with type property instead of relationshipType", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+			const turnNode = createMockTurnNode(1);
+
+			mockQuery
+				.mockResolvedValueOnce([
+					{
+						s: sessionNode,
+						path_nodes: [
+							{
+								nodeId: 1,
+								nodeLabels: ["Session"],
+								nodeProps: sessionNode.properties,
+							},
+							{
+								nodeId: 11,
+								nodeLabels: ["Turn"],
+								nodeProps: turnNode.properties,
+							},
+						],
+						path_edges: [
+							{
+								id: 1,
+								type: "HAS_TURN", // Using 'type' as third fallback
+								srcNodeId: 1,
+								destNodeId: 11,
+								properties: {},
+							},
+						],
+					},
+				])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionLineage("session-123");
+
+			// Assert
+			expect(result.links.length).toBeGreaterThanOrEqual(1);
+			expect(result.links[0].type).toBe("HAS_TURN");
+		});
+
+		it("should handle edges with empty type as fallback", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+			const turnNode = createMockTurnNode(1);
+
+			mockQuery
+				.mockResolvedValueOnce([
+					{
+						s: sessionNode,
+						path_nodes: [
+							{
+								nodeId: 1,
+								nodeLabels: ["Session"],
+								nodeProps: sessionNode.properties,
+							},
+							{
+								nodeId: 11,
+								nodeLabels: ["Turn"],
+								nodeProps: turnNode.properties,
+							},
+						],
+						path_edges: [
+							{
+								id: 1,
+								// No relationshipType, relation, or type - should default to ""
+								srcNodeId: 1,
+								destNodeId: 11,
+								properties: {},
+							},
+						],
+					},
+				])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionLineage("session-123");
+
+			// Assert
+			expect(result.links.length).toBeGreaterThanOrEqual(1);
+			expect(result.links[0].type).toBe("");
+		});
+
+		it("should use default type when relType is missing from explicit edges", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+			const turnNode = createMockTurnNode(1);
+
+			mockQuery
+				.mockResolvedValueOnce([
+					{
+						s: sessionNode,
+						path_nodes: [
+							{
+								nodeId: 1,
+								nodeLabels: ["Session"],
+								nodeProps: sessionNode.properties,
+							},
+							{
+								nodeId: 11,
+								nodeLabels: ["Turn"],
+								nodeProps: turnNode.properties,
+							},
+						],
+						path_edges: [],
+					},
+				])
+				.mockResolvedValueOnce([
+					{
+						sourceId: "session-123",
+						targetId: "turn-1",
+						// No relType - should use default "HAS_TURN"
+					},
+				])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionLineage("session-123");
+
+			// Assert
+			expect(result.links.length).toBeGreaterThanOrEqual(1);
+			const hasTurnEdge = result.links.find(
+				(l) => l.source === "session-123" && l.target === "turn-1",
+			);
+			expect(hasTurnEdge?.type).toBe("HAS_TURN");
+		});
+
 		it("should handle nodes without id in properties", async () => {
 			// Arrange
 			const sessionNode = createMockSessionNode();
@@ -549,6 +682,241 @@ describe("graph-queries", () => {
 
 			// Assert
 			expect(result).toEqual<LineageData>({ nodes: [], links: [] });
+		});
+
+		it("should handle node without labels", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([
+					{
+						s: sessionNode,
+						path_nodes: [
+							{
+								nodeId: 1,
+								nodeLabels: ["Session"],
+								nodeProps: sessionNode.properties,
+							},
+							{
+								nodeId: 99,
+								nodeLabels: [], // Empty labels array
+								nodeProps: { id: "unlabeled-node" },
+							},
+						],
+						path_edges: [],
+					},
+				])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionLineage("session-123");
+
+			// Assert
+			const unlabeledNode = result.nodes.find((n) => n.id === "unlabeled-node");
+			expect(unlabeledNode?.label).toBe("Unknown");
+			expect(unlabeledNode?.type).toBe("unknown");
+		});
+
+		it("should skip edges with null or undefined values in path_edges", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+			const turnNode = createMockTurnNode(1);
+
+			mockQuery
+				.mockResolvedValueOnce([
+					{
+						s: sessionNode,
+						path_nodes: [
+							{
+								nodeId: 1,
+								nodeLabels: ["Session"],
+								nodeProps: sessionNode.properties,
+							},
+							{
+								nodeId: 11,
+								nodeLabels: ["Turn"],
+								nodeProps: turnNode.properties,
+							},
+						],
+						path_edges: [
+							null, // Null edge
+							createMockEdge(1, 11, "HAS_TURN"),
+							undefined, // Undefined edge
+						],
+					},
+				])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionLineage("session-123");
+
+			// Assert
+			// Should have skipped null/undefined edges
+			expect(result.links.length).toBeGreaterThanOrEqual(1);
+			expect(result.links[0].type).toBe("HAS_TURN");
+		});
+
+		it("should skip edges where source or target UUID cannot be resolved", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([
+					{
+						s: sessionNode,
+						path_nodes: [
+							{
+								nodeId: 1,
+								nodeLabels: ["Session"],
+								nodeProps: sessionNode.properties,
+							},
+						],
+						path_edges: [
+							{
+								id: 1,
+								relationshipType: "HAS_TURN",
+								sourceId: 1, // Valid source
+								destinationId: 999, // Invalid destination - not in internalIdToUuid map
+								properties: {},
+							},
+						],
+					},
+				])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionLineage("session-123");
+
+			// Assert
+			// Edge should be skipped because destinationId 999 has no UUID mapping
+			expect(result.links).toHaveLength(0);
+		});
+
+		it("should handle row without session node", async () => {
+			// Arrange
+			mockQuery
+				.mockResolvedValueOnce([
+					{
+						s: null, // No session node
+						path_nodes: null,
+						path_edges: null,
+					},
+				])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionLineage("session-123");
+
+			// Assert
+			expect(result.nodes).toHaveLength(0);
+			expect(result.links).toHaveLength(0);
+		});
+
+		it("should handle session node without properties", async () => {
+			// Arrange
+			const sessionWithoutProps = {
+				id: 1,
+				labels: ["Session"],
+				// No properties
+			};
+
+			mockQuery
+				.mockResolvedValueOnce([
+					{
+						s: sessionWithoutProps,
+						path_nodes: null,
+						path_edges: null,
+					},
+				])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionLineage("session-123");
+
+			// Assert
+			expect(result.nodes).toHaveLength(0);
+		});
+
+		it("should handle path node without nodeProps", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([
+					{
+						s: sessionNode,
+						path_nodes: [
+							{
+								nodeId: 1,
+								nodeLabels: ["Session"],
+								nodeProps: sessionNode.properties,
+							},
+							{
+								nodeId: 99,
+								nodeLabels: ["Turn"],
+								// No nodeProps
+							},
+						],
+						path_edges: [],
+					},
+				])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionLineage("session-123");
+
+			// Assert
+			// Should only have session node, not the node without nodeProps
+			expect(result.nodes).toHaveLength(1);
+			expect(result.nodes[0].id).toBe("session-123");
+		});
+
+		it("should skip explicit edges where sourceId or targetId is missing", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([
+					{
+						s: sessionNode,
+						path_nodes: [],
+						path_edges: [],
+					},
+				])
+				.mockResolvedValueOnce([
+					{
+						sourceId: null, // Missing source
+						targetId: "turn-1",
+						relType: "HAS_TURN",
+					},
+					{
+						sourceId: "session-123",
+						targetId: null, // Missing target
+						relType: "HAS_TURN",
+					},
+				])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionLineage("session-123");
+
+			// Assert
+			// Both edges should be skipped
+			expect(result.links).toHaveLength(0);
 		});
 	});
 
@@ -821,6 +1189,196 @@ describe("graph-queries", () => {
 			const toolCallEvents = result.timeline.filter((e) => e.type === "toolcall");
 			expect(toolCallEvents).toHaveLength(0);
 		});
+
+		it("should use fallback id for tool call when id is missing", async () => {
+			// Arrange
+			const turnNode = createMockTurnNode(1);
+			const toolCallNode = {
+				id: 201,
+				labels: ["ToolCall"],
+				properties: {
+					// No id property
+					tool_name: "Read",
+					tool_type: "file",
+					status: "success",
+					sequence_index: 1,
+				},
+			};
+
+			mockQuery
+				.mockResolvedValueOnce([{ t: turnNode }])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ turnId: "turn-1", tc: toolCallNode }]);
+
+			// Act
+			const result = await getSessionTimeline("session-123");
+
+			// Assert
+			const toolCallEvents = result.timeline.filter((e) => e.type === "toolcall");
+			expect(toolCallEvents).toHaveLength(1);
+			expect(toolCallEvents[0].id).toBe("turn-1-toolcall");
+		});
+
+		it("should handle turn without output_tokens", async () => {
+			// Arrange
+			const turnNode = createMockTurnNode(1, { output_tokens: null });
+
+			mockQuery
+				.mockResolvedValueOnce([{ t: turnNode }])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionTimeline("session-123");
+
+			// Assert
+			const responseEvents = result.timeline.filter((e) => e.type === "response");
+			expect(responseEvents).toHaveLength(1);
+			expect(responseEvents[0].tokenCount).toBe(0);
+		});
+
+		it("should handle turn with output_tokens as 0", async () => {
+			// Arrange
+			const turnNode = createMockTurnNode(1, { output_tokens: 0 });
+
+			mockQuery
+				.mockResolvedValueOnce([{ t: turnNode }])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionTimeline("session-123");
+
+			// Assert
+			const responseEvents = result.timeline.filter((e) => e.type === "response");
+			expect(responseEvents).toHaveLength(1);
+			expect(responseEvents[0].tokenCount).toBe(0);
+		});
+
+		it("should handle non-array results for reasoning query", async () => {
+			// Arrange
+			const turnNode = createMockTurnNode(1);
+
+			mockQuery
+				.mockResolvedValueOnce([{ t: turnNode }])
+				.mockResolvedValueOnce(null) // Non-array reasoning result
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionTimeline("session-123");
+
+			// Assert
+			const thinkingEvents = result.timeline.filter(
+				(e) => e.type === "thought" && String(e.content).includes("<thinking>"),
+			);
+			expect(thinkingEvents).toHaveLength(0);
+		});
+
+		it("should handle non-array results for toolcall query", async () => {
+			// Arrange
+			const turnNode = createMockTurnNode(1);
+
+			mockQuery
+				.mockResolvedValueOnce([{ t: turnNode }])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce(null); // Non-array toolcall result
+
+			// Act
+			const result = await getSessionTimeline("session-123");
+
+			// Assert
+			const toolCallEvents = result.timeline.filter((e) => e.type === "toolcall");
+			expect(toolCallEvents).toHaveLength(0);
+		});
+
+		it("should handle non-array turns result", async () => {
+			// Arrange
+			mockQuery
+				.mockResolvedValueOnce(null) // Non-array turns result
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionTimeline("session-123");
+
+			// Assert
+			expect(result.timeline).toHaveLength(0);
+		});
+
+		it("should handle reasoning node without properties", async () => {
+			// Arrange
+			const turnNode = createMockTurnNode(1);
+			const reasoningWithoutProps = {
+				id: 101,
+				labels: ["Reasoning"],
+				// No properties
+			};
+
+			mockQuery
+				.mockResolvedValueOnce([{ t: turnNode }])
+				.mockResolvedValueOnce([{ turnId: "turn-1", r: reasoningWithoutProps }])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionTimeline("session-123");
+
+			// Assert
+			const thinkingEvents = result.timeline.filter(
+				(e) => e.type === "thought" && String(e.content).includes("<thinking>"),
+			);
+			expect(thinkingEvents).toHaveLength(0);
+		});
+
+		it("should use fallback id for reasoning when id is missing", async () => {
+			// Arrange
+			const turnNode = createMockTurnNode(1);
+			const reasoningNode = {
+				id: 101,
+				labels: ["Reasoning"],
+				properties: {
+					// No id property
+					preview: "Test reasoning content",
+					sequence_index: 1,
+				},
+			};
+
+			mockQuery
+				.mockResolvedValueOnce([{ t: turnNode }])
+				.mockResolvedValueOnce([{ turnId: "turn-1", r: reasoningNode }])
+				.mockResolvedValueOnce([]);
+
+			// Act
+			const result = await getSessionTimeline("session-123");
+
+			// Assert
+			const thinkingEvents = result.timeline.filter(
+				(e) => e.type === "thought" && String(e.content).includes("<thinking>"),
+			);
+			expect(thinkingEvents).toHaveLength(1);
+			expect(thinkingEvents[0].id).toBe("turn-1-reasoning");
+		});
+
+		it("should handle toolcall node without properties", async () => {
+			// Arrange
+			const turnNode = createMockTurnNode(1);
+			const toolCallWithoutProps = {
+				id: 201,
+				labels: ["ToolCall"],
+				// No properties
+			};
+
+			mockQuery
+				.mockResolvedValueOnce([{ t: turnNode }])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ turnId: "turn-1", tc: toolCallWithoutProps }]);
+
+			// Act
+			const result = await getSessionTimeline("session-123");
+
+			// Assert
+			const toolCallEvents = result.timeline.filter((e) => e.type === "toolcall");
+			expect(toolCallEvents).toHaveLength(0);
+		});
 	});
 
 	// =========================================================================
@@ -1023,6 +1581,195 @@ describe("graph-queries", () => {
 			// Assert
 			expect(result.sessions).toHaveLength(0);
 		});
+
+		it("should handle missing started_at property", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode({ started_at: undefined });
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNode }])
+				.mockResolvedValueOnce([{ cnt: 1 }])
+				.mockResolvedValueOnce([{ preview: "test" }])
+				.mockResolvedValueOnce([{ total: 1 }]);
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.sessions[0].startedAt).toBe(0);
+		});
+
+		it("should handle missing title property", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode({ title: undefined });
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNode }])
+				.mockResolvedValueOnce([{ cnt: 1 }])
+				.mockResolvedValueOnce([{ preview: "test" }])
+				.mockResolvedValueOnce([{ total: 1 }]);
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.sessions[0].title).toBeNull();
+		});
+
+		it("should handle count result with numeric key", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNode }])
+				.mockResolvedValueOnce([{ 0: 5 }]) // Numeric key instead of cnt
+				.mockResolvedValueOnce([{ preview: "test" }])
+				.mockResolvedValueOnce([{ total: 1 }]);
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.sessions[0].eventCount).toBe(5);
+		});
+
+		it("should handle preview result with numeric key", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNode }])
+				.mockResolvedValueOnce([{ cnt: 1 }])
+				.mockResolvedValueOnce([{ 0: "Numeric preview" }]) // Numeric key instead of preview
+				.mockResolvedValueOnce([{ total: 1 }]);
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.sessions[0].preview).toBe("Numeric preview");
+		});
+
+		it("should handle total count with numeric key", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNode }])
+				.mockResolvedValueOnce([{ cnt: 1 }])
+				.mockResolvedValueOnce([{ preview: "test" }])
+				.mockResolvedValueOnce([{ 0: 10 }]); // Numeric key instead of total
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.pagination?.total).toBe(10);
+		});
+
+		it("should fallback to sessions.length when total is missing", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNode }])
+				.mockResolvedValueOnce([{ cnt: 1 }])
+				.mockResolvedValueOnce([{ preview: "test" }])
+				.mockResolvedValueOnce([{}]); // Empty result for total
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.pagination?.total).toBe(1); // Should fallback to sessions.length
+		});
+
+		it("should handle empty count result array", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNode }])
+				.mockResolvedValueOnce([]) // Empty count result
+				.mockResolvedValueOnce([{ preview: "test" }])
+				.mockResolvedValueOnce([{ total: 1 }]);
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.sessions[0].eventCount).toBe(0);
+		});
+
+		it("should handle empty preview result array", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNode }])
+				.mockResolvedValueOnce([{ cnt: 1 }])
+				.mockResolvedValueOnce([]) // Empty preview result
+				.mockResolvedValueOnce([{ total: 1 }]);
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.sessions[0].preview).toBeNull();
+		});
+
+		it("should handle null count result", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNode }])
+				.mockResolvedValueOnce(null) // Null count result
+				.mockResolvedValueOnce([{ preview: "test" }])
+				.mockResolvedValueOnce([{ total: 1 }]);
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.sessions[0].eventCount).toBe(0);
+		});
+
+		it("should handle null preview result", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNode }])
+				.mockResolvedValueOnce([{ cnt: 1 }])
+				.mockResolvedValueOnce(null) // Null preview result
+				.mockResolvedValueOnce([{ total: 1 }]);
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.sessions[0].preview).toBeNull();
+		});
+
+		it("should handle session node without properties", async () => {
+			// Arrange
+			const sessionNodeWithoutProps = {
+				id: 1,
+				labels: ["Session"],
+				// No properties
+			};
+
+			mockQuery
+				.mockResolvedValueOnce([{ s: sessionNodeWithoutProps }])
+				.mockResolvedValueOnce([{ total: 1 }]);
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.sessions).toHaveLength(0);
+		});
 	});
 
 	// =========================================================================
@@ -1175,6 +1922,118 @@ describe("graph-queries", () => {
 			mockQuery.mockResolvedValueOnce([
 				{ s: { id: 1, labels: ["Session"] }, eventCount: 0, lastEventAt: null },
 			]);
+
+			// Act
+			const result = await getSessionsForWebSocket();
+
+			// Assert
+			expect(result.active).toHaveLength(0);
+			expect(result.recent).toHaveLength(0);
+		});
+
+		it("should handle session without started_at", async () => {
+			// Arrange
+			const now = Date.now();
+			const sessionNode = {
+				id: 1,
+				labels: ["Session"],
+				properties: {
+					id: "session-1",
+					title: "Test",
+					user_id: "user-1",
+					// No started_at - should default to now
+				},
+			};
+
+			mockQuery.mockResolvedValueOnce([
+				{ s: sessionNode, eventCount: 5, lastEventAt: now - 30000 },
+			]);
+
+			// Act
+			const result = await getSessionsForWebSocket();
+
+			// Assert
+			expect(result.active).toHaveLength(1);
+			expect(result.active[0].startedAt).toBeGreaterThan(now - 1000); // Should be close to now
+		});
+
+		it("should handle session with title", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode({ title: "Custom Title" });
+
+			mockQuery.mockResolvedValueOnce([{ s: sessionNode, eventCount: 1, lastEventAt: Date.now() }]);
+
+			// Act
+			const result = await getSessionsForWebSocket();
+
+			// Assert
+			expect(result.active[0].title).toBe("Custom Title");
+		});
+
+		it("should handle session without title", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode({ title: null });
+
+			mockQuery.mockResolvedValueOnce([{ s: sessionNode, eventCount: 1, lastEventAt: Date.now() }]);
+
+			// Act
+			const result = await getSessionsForWebSocket();
+
+			// Assert
+			expect(result.active[0].title).toBeNull();
+		});
+
+		it("should handle session without user_id", async () => {
+			// Arrange
+			const sessionNode = {
+				id: 1,
+				labels: ["Session"],
+				properties: {
+					id: "session-1",
+					started_at: Date.now(),
+					last_event_at: Date.now(),
+					// No user_id
+				},
+			};
+
+			mockQuery.mockResolvedValueOnce([{ s: sessionNode, eventCount: 1, lastEventAt: Date.now() }]);
+
+			// Act
+			const result = await getSessionsForWebSocket();
+
+			// Assert
+			expect(result.active[0].userId).toBe("unknown");
+		});
+
+		it("should handle session without preview", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode({ preview: null });
+
+			mockQuery.mockResolvedValueOnce([{ s: sessionNode, eventCount: 1, lastEventAt: Date.now() }]);
+
+			// Act
+			const result = await getSessionsForWebSocket();
+
+			// Assert
+			expect(result.active[0].preview).toBeNull();
+		});
+
+		it("should handle session with eventCount of 0", async () => {
+			// Arrange
+			const sessionNode = createMockSessionNode();
+
+			mockQuery.mockResolvedValueOnce([{ s: sessionNode, eventCount: null, lastEventAt: null }]);
+
+			// Act
+			const result = await getSessionsForWebSocket();
+
+			// Assert
+			expect(result.active[0].eventCount).toBe(0);
+		});
+
+		it("should handle non-array result", async () => {
+			// Arrange
+			mockQuery.mockResolvedValueOnce(null);
 
 			// Act
 			const result = await getSessionsForWebSocket();

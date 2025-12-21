@@ -219,6 +219,21 @@ describe("ExecutionService", () => {
 			expect(result.success).toBe(false);
 			expect(result.error).toBeDefined();
 		});
+
+		it("should handle non-Error exceptions in applySearchReplace", async () => {
+			const mockPatchManager = {
+				applySearchReplace: vi.fn().mockImplementation(() => {
+					throw "string error";
+				}),
+			} as unknown as PatchManager;
+
+			const service = new ExecutionService({ patchManager: mockPatchManager });
+
+			const result = await service.applySearchReplace("/test.txt", "search", "replace");
+
+			expect(result.success).toBe(false);
+			expect(result.error).toBe("string error");
+		});
 	});
 
 	describe("listFilesAtTime", () => {
@@ -263,6 +278,50 @@ describe("ExecutionService", () => {
 
 			expect(result.success).toBe(false);
 			expect(result.error).toContain("Connection failed");
+		});
+
+		it("should handle non-Error exceptions in listFilesAtTime", async () => {
+			const mockGraphClient: GraphClient = {
+				connect: vi.fn().mockImplementation(() => {
+					throw "string error";
+				}),
+				disconnect: vi.fn().mockResolvedValue(undefined),
+				query: vi.fn().mockResolvedValue([]),
+				isConnected: vi.fn().mockReturnValue(false),
+			};
+			const rehydrator = new Rehydrator({ graphClient: mockGraphClient });
+			const timeTravelService = new TimeTravelService(rehydrator);
+			const service = new ExecutionService({
+				graphClient: mockGraphClient,
+				rehydrator,
+				timeTravelService,
+			});
+
+			const result = await service.listFilesAtTime("test-session", Date.now(), "/");
+
+			expect(result.success).toBe(false);
+			expect(result.error).toBe("string error");
+		});
+
+		it("should always disconnect graph client in finally block", async () => {
+			const disconnectMock = vi.fn().mockResolvedValue(undefined);
+			const mockGraphClient: GraphClient = {
+				connect: vi.fn().mockRejectedValue(new Error("Connection failed")),
+				disconnect: disconnectMock,
+				query: vi.fn().mockResolvedValue([]),
+				isConnected: vi.fn().mockReturnValue(false),
+			};
+			const rehydrator = new Rehydrator({ graphClient: mockGraphClient });
+			const timeTravelService = new TimeTravelService(rehydrator);
+			const service = new ExecutionService({
+				graphClient: mockGraphClient,
+				rehydrator,
+				timeTravelService,
+			});
+
+			await service.listFilesAtTime("test-session", Date.now(), "/");
+
+			expect(disconnectMock).toHaveBeenCalled();
 		});
 	});
 

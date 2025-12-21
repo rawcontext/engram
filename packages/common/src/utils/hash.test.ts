@@ -226,4 +226,43 @@ describe("hashObject", () => {
 		// Assert
 		expect(hash1).not.toBe(hash2);
 	});
+
+	it("should handle empty object", () => {
+		// Act
+		const hash = hashObject({});
+
+		// Assert
+		expect(hash).toHaveLength(64);
+	});
+
+	it("should handle empty array", () => {
+		// Act
+		const hash = hashObject([]);
+
+		// Assert
+		expect(hash).toHaveLength(64);
+	});
+
+	it("should handle boolean primitives", () => {
+		// Act
+		const trueHash = hashObject(true);
+		const falseHash = hashObject(false);
+
+		// Assert
+		expect(trueHash).toHaveLength(64);
+		expect(falseHash).toHaveLength(64);
+		expect(trueHash).not.toBe(falseHash);
+	});
+
+	it("should hash same object values consistently", () => {
+		// Arrange
+		const obj = { x: 10, y: 20 };
+
+		// Act
+		const hash1 = hashObject(obj);
+		const hash2 = hashObject({ y: 20, x: 10 }); // Different order
+
+		// Assert
+		expect(hash1).toBe(hash2);
+	});
 });

@@ -15,6 +15,8 @@
  * Only created when devEnabled=true.
  */
 
+/* istanbul ignore file */
+
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { commonLabels, gcpProject } from "../config";

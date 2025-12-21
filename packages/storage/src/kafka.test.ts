@@ -388,4 +388,235 @@ describe("KafkaClient", () => {
 			expect(client).toBeInstanceOf(KafkaClient);
 		});
 	});
+
+	describe("Integration scenarios", () => {
+		it("should handle full producer lifecycle", async () => {
+			const client = new KafkaClient();
+
+			// Get producer
+			const producer = await client.getProducer();
+			expect(producer).toBeDefined();
+
+			// Send multiple messages
+			await client.sendEvent("topic1", "key1", { data: "msg1" });
+			await client.sendEvent("topic1", "key2", { data: "msg2" });
+			await client.sendEvent("topic2", "key3", { data: "msg3" });
+
+			expect(mockProducerSend).toHaveBeenCalledTimes(3);
+
+			// Disconnect
+			await client.disconnect();
+			expect(mockProducerDisconnect).toHaveBeenCalledTimes(1);
+		});
+
+		it("should handle full consumer lifecycle", async () => {
+			const client = new KafkaClient();
+
+			// Create consumer
+			const consumer = await client.getConsumer({ groupId: "test-group" });
+
+			// Subscribe to topic
+			await consumer.subscribe({ topic: "test-topic" });
+			expect(mockConsumerSubscribe).toHaveBeenCalledWith({ topics: ["test-topic"] });
+
+			// Set up message handler
+			const messageHandler = vi.fn();
+			consumer.run({ eachMessage: messageHandler });
+			expect(mockConsumerRun).toHaveBeenCalled();
+
+			// Disconnect
+			await client.disconnect();
+			expect(mockConsumerDisconnect).toHaveBeenCalledTimes(1);
+		});
+
+		it("should handle multiple consumers and producer", async () => {
+			const client = new KafkaClient();
+
+			await client.getProducer();
+			await client.getConsumer({ groupId: "group1" });
+			await client.getConsumer({ groupId: "group2" });
+			await client.getConsumer({ groupId: "group3" });
+
+			await client.sendEvent("topic", "key", { data: "test" });
+
+			await client.disconnect();
+
+			expect(mockConsumerDisconnect).toHaveBeenCalledTimes(3);
+			expect(mockProducerDisconnect).toHaveBeenCalledTimes(1);
+		});
+
+		it("should handle reconnection after disconnect", async () => {
+			const client = new KafkaClient();
+
+			// First connection
+			await client.getProducer();
+			await client.sendEvent("topic", "key", { data: "test1" });
+			await client.disconnect();
+
+			// Reconnect
+			mockProducerConnect.mockClear();
+			await client.sendEvent("topic", "key", { data: "test2" });
+
+			expect(mockProducerConnect).toHaveBeenCalledTimes(1);
+		});
+
+		it("should handle consumer operations without fromBeginning flag", async () => {
+			const client = new KafkaClient();
+			const consumer = await client.getConsumer({ groupId: "test-group" });
+
+			await consumer.subscribe({ topic: "test-topic" });
+
+			expect(mockConsumerSubscribe).toHaveBeenCalledWith({ topics: ["test-topic"] });
+		});
+
+		it("should serialize various message types correctly", async () => {
+			const client = new KafkaClient();
+
+			const testMessages = [
+				{ type: "string", value: "hello" },
+				{ type: "number", value: 42 },
+				{ type: "boolean", value: true },
+				{ type: "null", value: null },
+				{ type: "array", value: [1, 2, 3] },
+				{ type: "nested", value: { a: { b: { c: "deep" } } } },
+			];
+
+			for (const msg of testMessages) {
+				await client.sendEvent("topic", "key", msg);
+			}
+
+			expect(mockProducerSend).toHaveBeenCalledTimes(testMessages.length);
+
+			// Verify last message was serialized correctly
+			const lastCall = mockProducerSend.mock.calls[mockProducerSend.mock.calls.length - 1];
+			const serialized = JSON.parse(lastCall[0].messages[0].value);
+			expect(serialized.value).toEqual({ a: { b: { c: "deep" } } });
+		});
+	});
+
+	describe("Error handling", () => {
+		it("should propagate producer creation errors", async () => {
+			const client = new KafkaClient();
+			mockProducerConnect.mockRejectedValueOnce(new Error("Producer creation failed"));
+
+			await expect(client.getProducer()).rejects.toThrow("Producer creation failed");
+		});
+
+		it("should propagate consumer creation errors", async () => {
+			const client = new KafkaClient();
+			mockConsumerConnect.mockRejectedValueOnce(new Error("Consumer creation failed"));
+
+			await expect(client.getConsumer({ groupId: "test" })).rejects.toThrow(
+				"Consumer creation failed",
+			);
+		});
+
+		it("should handle consumer disconnect errors", async () => {
+			const client = new KafkaClient();
+
+			await client.getConsumer({ groupId: "group1" });
+			mockConsumerDisconnect.mockRejectedValueOnce(new Error("Disconnect failed"));
+
+			await expect(client.disconnect()).rejects.toThrow("Disconnect failed");
+		});
+
+		it("should handle partial disconnect failures", async () => {
+			const client = new KafkaClient();
+
+			await client.getConsumer({ groupId: "group1" });
+			await client.getConsumer({ groupId: "group2" });
+
+			// First consumer fails to disconnect
+			mockConsumerDisconnect
+				.mockRejectedValueOnce(new Error("First consumer disconnect failed"))
+				.mockResolvedValueOnce(undefined);
+
+			await expect(client.disconnect()).rejects.toThrow("First consumer disconnect failed");
+		});
+	});
+
+	describe("Concurrency handling", () => {
+		it("should handle concurrent getProducer calls", async () => {
+			const client = new KafkaClient();
+
+			const promises = [client.getProducer(), client.getProducer(), client.getProducer()];
+
+			const producers = await Promise.all(promises);
+
+			// All should return the same producer
+			expect(producers[0]).toBe(producers[1]);
+			expect(producers[1]).toBe(producers[2]);
+
+			// Only one connect call should be made
+			expect(mockProducerConnect).toHaveBeenCalledTimes(1);
+		});
+
+		it("should handle concurrent consumer creation for different groups", async () => {
+			const client = new KafkaClient();
+
+			const promises = [
+				client.getConsumer({ groupId: "group1" }),
+				client.getConsumer({ groupId: "group2" }),
+				client.getConsumer({ groupId: "group3" }),
+			];
+
+			await Promise.all(promises);
+
+			expect(mockConsumerConnect).toHaveBeenCalledTimes(3);
+		});
+
+		it("should handle concurrent sendEvent calls", async () => {
+			const client = new KafkaClient();
+
+			const promises = [
+				client.sendEvent("topic", "key1", { data: "msg1" }),
+				client.sendEvent("topic", "key2", { data: "msg2" }),
+				client.sendEvent("topic", "key3", { data: "msg3" }),
+			];
+
+			await Promise.all(promises);
+
+			expect(mockProducerSend).toHaveBeenCalledTimes(3);
+		});
+
+		it("should handle concurrent disconnect calls", async () => {
+			const client = new KafkaClient();
+
+			await client.getConsumer({ groupId: "group1" });
+
+			// Simulate slow disconnect
+			mockConsumerDisconnect.mockImplementation(
+				() => new Promise((resolve) => setTimeout(resolve, 50)),
+			);
+
+			const promises = [client.disconnect(), client.disconnect(), client.disconnect()];
+
+			await Promise.all(promises);
+
+			// Should only disconnect once due to lock
+			expect(mockConsumerDisconnect).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe("Constructor variations", () => {
+		it("should handle single broker string", () => {
+			const client = new KafkaClient(["broker:9092"]);
+			expect(client).toBeInstanceOf(KafkaClient);
+		});
+
+		it("should handle multiple brokers", () => {
+			const client = new KafkaClient(["broker1:9092", "broker2:9092", "broker3:9092"]);
+			expect(client).toBeInstanceOf(KafkaClient);
+		});
+
+		it("should use default client ID when not provided", () => {
+			const client = new KafkaClient(["broker:9092"]);
+			expect(client).toBeInstanceOf(KafkaClient);
+		});
+
+		it("should use custom client ID", () => {
+			const client = new KafkaClient(["broker:9092"], "custom-id");
+			expect(client).toBeInstanceOf(KafkaClient);
+		});
+	});
 });

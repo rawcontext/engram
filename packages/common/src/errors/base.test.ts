@@ -48,7 +48,7 @@ describe("EngramError", () => {
 		expect(error.timestamp).toBeLessThanOrEqual(after);
 	});
 
-	it("should capture stack trace", () => {
+	it("should capture stack trace when available", () => {
 		// Act
 		const error = new EngramError("Test", "TEST_CODE");
 
@@ -57,6 +57,25 @@ describe("EngramError", () => {
 			expect(captureStackTraceSpy).toHaveBeenCalledWith(error, EngramError);
 		}
 		expect(error.stack).toBeDefined();
+	});
+
+	it("should handle missing Error.captureStackTrace", () => {
+		// Arrange
+		const originalCaptureStackTrace = Error.captureStackTrace;
+		// @ts-expect-error - Temporarily delete captureStackTrace for testing
+		delete Error.captureStackTrace;
+
+		// Act
+		const error = new EngramError("Test", "TEST_CODE");
+
+		// Assert
+		expect(error.message).toBe("Test");
+		expect(error.code).toBe("TEST_CODE");
+
+		// Cleanup
+		if (originalCaptureStackTrace) {
+			Error.captureStackTrace = originalCaptureStackTrace;
+		}
 	});
 
 	it("should serialize to JSON correctly", () => {

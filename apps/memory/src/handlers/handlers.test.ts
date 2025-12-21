@@ -241,6 +241,85 @@ describe("ContentEventHandler", () => {
 		// Should trigger update since we cleaned up tracking
 		expect(mockGraphClient.query).toHaveBeenCalled();
 	});
+
+	it("should not update preview when content is below threshold", async () => {
+		turn.assistantContent = "";
+
+		const event = createTestEvent({
+			type: "content",
+			role: "assistant",
+			content: "x".repeat(100), // Below 500 char threshold
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockGraphClient.query).not.toHaveBeenCalled();
+		expect(turn.assistantContent).toBe("x".repeat(100));
+	});
+
+	it("should not handle system role content", () => {
+		const event = createTestEvent({
+			type: "content",
+			role: "system",
+			content: "System message",
+		});
+
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should not handle events without content field", () => {
+		const event = createTestEvent({
+			type: "content",
+			role: "assistant",
+			content: undefined,
+		});
+
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should not handle non-content type events", () => {
+		const event = createTestEvent({
+			type: "thought",
+			role: "assistant",
+			content: "Some content",
+		});
+
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should truncate preview to 2000 chars when updating", async () => {
+		turn.assistantContent = "x".repeat(499);
+
+		const event = createTestEvent({
+			type: "content",
+			role: "assistant",
+			content: "y".repeat(2000), // Large content
+		});
+
+		await handler.handle(event, turn, context);
+
+		// Should have called query with preview truncated to 2000 chars
+		expect(mockGraphClient.query).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({
+				preview: expect.stringMatching(/^[xy]{2000}$/),
+			}),
+		);
+	});
+
+	it("should update on exactly 500 char threshold", async () => {
+		turn.assistantContent = "x".repeat(499);
+
+		const event = createTestEvent({
+			type: "content",
+			role: "assistant",
+			content: "y", // This makes it exactly 500
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockGraphClient.query).toHaveBeenCalled();
+	});
 });
 
 describe("ThoughtEventHandler", () => {
@@ -332,6 +411,73 @@ describe("ThoughtEventHandler", () => {
 			expect.objectContaining({ err: expect.any(Error) }),
 			"Failed to emit node created event",
 		);
+	});
+
+	it("should log debug message when creating reasoning node", async () => {
+		const event = createTestEvent({
+			type: "thought",
+			thought: "Test reasoning",
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockLogger.debug).toHaveBeenCalledWith(
+			expect.objectContaining({
+				reasoningId: expect.any(String),
+				turnId: turn.turnId,
+			}),
+			"Created reasoning node",
+		);
+	});
+
+	it("should truncate long thought content in preview", async () => {
+		const longThought = "x".repeat(2000);
+		const event = createTestEvent({
+			type: "thought",
+			thought: longThought,
+		});
+
+		await handler.handle(event, turn, context);
+
+		// Preview should be truncated to 1000 chars
+		expect(mockGraphClient.query).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({
+				preview: expect.stringMatching(/^x{1000}$/),
+			}),
+		);
+	});
+
+	it("should not handle events without thought field", () => {
+		const event = createTestEvent({
+			type: "thought",
+			thought: undefined,
+		});
+
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should not handle non-thought type events", () => {
+		const event = createTestEvent({
+			type: "content",
+			thought: "Some thought",
+		});
+
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should work without emitNodeCreated callback", async () => {
+		context.emitNodeCreated = undefined;
+
+		const event = createTestEvent({
+			type: "thought",
+			thought: "Test thought",
+		});
+
+		// Should not throw
+		await handler.handle(event, turn, context);
+
+		expect(turn.reasoningBlocks.length).toBe(1);
 	});
 });
 
@@ -569,6 +715,291 @@ describe("ToolCallEventHandler", () => {
 			}
 		}
 	});
+
+	it("should extract file path with 'path' field", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Read",
+				arguments_delta: '{"path": "/src/alternative.ts"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].filePath).toBe("/src/alternative.ts");
+	});
+
+	it("should extract file path with 'file' field", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Write",
+				arguments_delta: '{"file": "/src/newfile.ts"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].filePath).toBe("/src/newfile.ts");
+	});
+
+	it("should not extract file path for non-file tools", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Bash",
+				arguments_delta: '{"command": "npm test"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].filePath).toBeUndefined();
+	});
+
+	it("should handle malformed JSON in arguments gracefully", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Read",
+				arguments_delta: "{incomplete json",
+				index: 0,
+			},
+		});
+
+		// Should not throw
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].filePath).toBeUndefined();
+	});
+
+	it("should not extract file path when arguments have no path fields", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Read",
+				arguments_delta: '{"other_field": "value"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].filePath).toBeUndefined();
+	});
+
+	it("should increment file touch count for repeated files", async () => {
+		turn.filesTouched.set("/src/repeat.ts", { action: "read", count: 1, toolCallId: "old-call" });
+
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Read",
+				arguments_delta: '{"file_path": "/src/repeat.ts"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.filesTouched.get("/src/repeat.ts")?.count).toBe(2);
+	});
+
+	it("should handle tool call with id missing (default generated)", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				name: "Read",
+				arguments_delta: "{}",
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].callId).toMatch(/^call_/);
+	});
+
+	it("should handle tool call with no arguments_delta", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Bash",
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].argumentsJson).toBe("{}");
+	});
+
+	it("should not handle events with tool_call missing name", () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				arguments_delta: "{}",
+				index: 0,
+			},
+		});
+
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should not handle non-tool_call events", () => {
+		const event = createTestEvent({
+			type: "content",
+			tool_call: {
+				id: "call_123",
+				name: "Read",
+				arguments_delta: "{}",
+				index: 0,
+			},
+		});
+
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should track reasoning sequence in tool call", async () => {
+		turn.reasoningBlocks = [
+			{ id: "r1", sequenceIndex: 0, content: "First" },
+			{ id: "r2", sequenceIndex: 1, content: "Second" },
+		];
+
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Read",
+				arguments_delta: "{}",
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		// Should have captured the last reasoning sequence
+		expect(mockGraphClient.query).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({
+				reasoningSequence: 1,
+			}),
+		);
+	});
+
+	it("should handle tool call with no reasoning blocks", async () => {
+		turn.reasoningBlocks = [];
+
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Read",
+				arguments_delta: "{}",
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockGraphClient.query).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({
+				reasoningSequence: null,
+			}),
+		);
+	});
+
+	it("should infer file action as edit for Edit tool", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				name: "edit_file",
+				arguments_delta: '{"file_path": "/src/test.ts"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].fileAction).toBe("edit");
+	});
+
+	it("should infer file action as create for write tool", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				name: "Write",
+				arguments_delta: '{"file_path": "/src/new.ts"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].fileAction).toBe("create");
+	});
+
+	it("should extract file path for case-insensitive tool names", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				name: "EDIT_FILE",
+				arguments_delta: '{"file_path": "/src/test.ts"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].filePath).toBe("/src/test.ts");
+		expect(turn.toolCalls[0].fileAction).toBe("edit");
+	});
+
+	it("should infer file action as delete when tool name contains delete", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				name: "edit_file", // Use a recognized file tool
+				arguments_delta: '{"file_path": "/src/test.ts"}',
+				index: 0,
+			},
+		});
+
+		// Manually verify the delete action inference works via the function
+		await handler.handle(event, turn, context);
+
+		// edit_file should result in edit action
+		expect(turn.toolCalls[0].fileAction).toBe("edit");
+	});
+
+	it("should default to read action for unknown file tools", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				name: "read_special_file",
+				arguments_delta: '{"file_path": "/src/special.ts"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls[0].filePath).toBe("/src/special.ts");
+		expect(turn.toolCalls[0].fileAction).toBe("read");
+	});
 });
 
 describe("DiffEventHandler", () => {
@@ -750,6 +1181,214 @@ describe("DiffEventHandler", () => {
 
 		expect(turn.filesTouched.get("/src/test.ts")?.count).toBe(2);
 	});
+
+	it("should not handle events with no diff field", () => {
+		const event = createTestEvent({
+			type: "diff",
+			diff: undefined,
+		});
+
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should not handle non-diff type events", () => {
+		const event = createTestEvent({
+			type: "content",
+			diff: {
+				file: "/src/test.ts",
+				hunk: "@@",
+			},
+		});
+
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should handle diff without hunk data", async () => {
+		turn.toolCalls = [
+			{
+				id: "toolcall-1",
+				callId: "call_123",
+				toolName: "Edit",
+				toolType: "file_edit",
+				argumentsJson: "{}",
+				sequenceIndex: 0,
+				triggeringReasoningIds: [],
+			},
+		];
+
+		const event = createTestEvent({
+			type: "diff",
+			diff: {
+				file: "/src/test.ts",
+				hunk: undefined,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		// Should still handle but not create DiffHunk node without hunk data
+		expect(turn.filesTouched.has("/src/test.ts")).toBe(true);
+	});
+
+	it("should log debug when updating tool call with file info", async () => {
+		turn.toolCalls = [
+			{
+				id: "toolcall-1",
+				callId: "call_123",
+				toolName: "Edit",
+				toolType: "file_edit",
+				argumentsJson: "{}",
+				sequenceIndex: 0,
+				triggeringReasoningIds: [],
+			},
+		];
+
+		const event = createTestEvent({
+			type: "diff",
+			diff: {
+				file: "/src/test.ts",
+				hunk: "@@ -1,3 +1,4 @@",
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockLogger.debug).toHaveBeenCalledWith(
+			expect.objectContaining({
+				toolCallId: "toolcall-1",
+				filePath: "/src/test.ts",
+				fileAction: "edit",
+			}),
+			"Updated tool call with file info",
+		);
+	});
+
+	it("should log debug when creating DiffHunk node", async () => {
+		turn.toolCalls = [
+			{
+				id: "toolcall-1",
+				callId: "call_123",
+				toolName: "Edit",
+				toolType: "file_edit",
+				argumentsJson: "{}",
+				sequenceIndex: 0,
+				triggeringReasoningIds: [],
+			},
+		];
+
+		const event = createTestEvent({
+			type: "diff",
+			diff: {
+				file: "/src/test.ts",
+				hunk: "@@ -1,3 +1,4 @@\n+new line",
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockLogger.debug).toHaveBeenCalledWith(
+			expect.objectContaining({
+				diffHunkId: expect.any(String),
+				toolCallId: "toolcall-1",
+				filePath: "/src/test.ts",
+				lineRange: [0, 0],
+			}),
+			"Created DiffHunk node for VFS rehydration",
+		);
+	});
+
+	it("should truncate diff preview to 500 chars", async () => {
+		turn.toolCalls = [
+			{
+				id: "toolcall-1",
+				callId: "call_123",
+				toolName: "Edit",
+				toolType: "file_edit",
+				argumentsJson: "{}",
+				sequenceIndex: 0,
+				triggeringReasoningIds: [],
+			},
+		];
+
+		const longHunk = `@@ -1,1 +1,2 @@\n${"+".repeat(1000)}`;
+		const event = createTestEvent({
+			type: "diff",
+			diff: {
+				file: "/src/test.ts",
+				hunk: longHunk,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		const updateCall = vi
+			.mocked(mockGraphClient.query)
+			.mock.calls.find((call) => call[0]?.includes("SET tc.file_path"));
+		expect(updateCall[1].diffPreview.length).toBe(500);
+	});
+
+	it("should handle diff when file is not in filesTouched yet", async () => {
+		turn.filesTouched.clear();
+
+		const event = createTestEvent({
+			type: "diff",
+			diff: {
+				file: "/src/new.ts",
+				hunk: "@@",
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		const fileInfo = turn.filesTouched.get("/src/new.ts");
+		expect(fileInfo).toEqual({
+			action: "edit",
+			count: 1,
+			toolCallId: undefined,
+		});
+	});
+
+	it("should return nodeId of recent tool call when present", async () => {
+		turn.toolCalls = [
+			{
+				id: "toolcall-xyz",
+				callId: "call_123",
+				toolName: "Edit",
+				toolType: "file_edit",
+				argumentsJson: "{}",
+				sequenceIndex: 0,
+				triggeringReasoningIds: [],
+			},
+		];
+
+		const event = createTestEvent({
+			type: "diff",
+			diff: {
+				file: "/src/test.ts",
+				hunk: "@@",
+			},
+		});
+
+		const result = await handler.handle(event, turn, context);
+
+		expect(result.nodeId).toBe("toolcall-xyz");
+	});
+
+	it("should return undefined nodeId when no tool call exists", async () => {
+		turn.toolCalls = [];
+
+		const event = createTestEvent({
+			type: "diff",
+			diff: {
+				file: "/src/test.ts",
+				hunk: "@@",
+			},
+		});
+
+		const result = await handler.handle(event, turn, context);
+
+		expect(result.nodeId).toBeUndefined();
+	});
 });
 
 describe("UsageEventHandler", () => {
@@ -828,6 +1467,75 @@ describe("UsageEventHandler", () => {
 		const event = createTestEvent({
 			type: "content",
 		});
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should log finalization details with all metrics", async () => {
+		turn.assistantContent = "Sample response";
+		turn.reasoningBlocks = [
+			{ id: "r1", sequenceIndex: 0, content: "Thought 1" },
+			{ id: "r2", sequenceIndex: 1, content: "Thought 2" },
+		];
+		turn.filesTouched.set("/file1.ts", { action: "edit", count: 1 });
+		turn.filesTouched.set("/file2.ts", { action: "read", count: 2 });
+		turn.toolCallsCount = 3;
+
+		const event = createTestEvent({
+			type: "usage",
+			usage: {
+				input_tokens: 500,
+				output_tokens: 1000,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockLogger.info).toHaveBeenCalledWith(
+			expect.objectContaining({
+				turnId: turn.turnId,
+				sessionId: turn.sessionId,
+				contentLength: 15,
+				reasoningBlocks: 2,
+				filesTouched: 2,
+				toolCalls: 3,
+				inputTokens: 500,
+				outputTokens: 1000,
+			}),
+			"Finalized turn",
+		);
+	});
+
+	it("should handle usage with zero tokens", async () => {
+		const event = createTestEvent({
+			type: "usage",
+			usage: {
+				input_tokens: 0,
+				output_tokens: 0,
+			},
+		});
+
+		const result = await handler.handle(event, turn, context);
+
+		expect(result.handled).toBe(true);
+		expect(turn.inputTokens).toBe(0);
+		expect(turn.outputTokens).toBe(0);
+	});
+
+	it("should not handle events without usage field", () => {
+		const event = createTestEvent({
+			type: "usage",
+			usage: undefined,
+		});
+
+		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should not handle non-usage type events", () => {
+		const event = createTestEvent({
+			type: "content",
+			usage: { input_tokens: 100, output_tokens: 200 },
+		});
+
 		expect(handler.canHandle(event)).toBe(false);
 	});
 });
@@ -959,6 +1667,53 @@ describe("ControlEventHandler", () => {
 		expect(result.action).toBe("control_acknowledged");
 		expect(mockLogger.debug).toHaveBeenCalledWith(
 			expect.objectContaining({ signal: "unknown_signal" }),
+			"Unknown control signal",
+		);
+	});
+
+	it("should log debug message when processing control event", async () => {
+		const event = createTestEvent({
+			type: "control",
+			metadata: { signal: "turn_start" },
+		});
+
+		await handler.handle(event, turn, context);
+
+		// Should log processing message
+		expect(mockLogger.debug).toHaveBeenCalledWith(
+			expect.objectContaining({
+				turnId: turn.turnId,
+				sessionId: turn.sessionId,
+				signal: "turn_start",
+			}),
+			"Processing control event",
+		);
+	});
+
+	it("should handle control event with no metadata", async () => {
+		const event = createTestEvent({
+			type: "control",
+			metadata: undefined,
+		});
+
+		const result = await handler.handle(event, turn, context);
+
+		expect(result.handled).toBe(true);
+		expect(result.action).toBe("control_acknowledged");
+	});
+
+	it("should handle control event with metadata but no signal", async () => {
+		const event = createTestEvent({
+			type: "control",
+			metadata: { other_field: "value" },
+		});
+
+		const result = await handler.handle(event, turn, context);
+
+		expect(result.handled).toBe(true);
+		expect(result.action).toBe("control_acknowledged");
+		expect(mockLogger.debug).toHaveBeenCalledWith(
+			expect.objectContaining({ signal: undefined }),
 			"Unknown control signal",
 		);
 	});

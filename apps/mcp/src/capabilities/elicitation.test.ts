@@ -284,13 +284,17 @@ describe("ElicitationService", () => {
 			expect(result.accepted).toBe(false);
 		});
 
-		it("should handle errors gracefully", async () => {
+		it("should handle errors gracefully via rejection", async () => {
 			service.enable();
-			mockServer.server.elicitInput.mockResolvedValueOnce(new Error("Test error"));
+			mockServer.server.elicitInput.mockRejectedValueOnce(new Error("Test error"));
 
 			const result = await service.promptText("Test?");
 
 			expect(result.accepted).toBe(false);
+			expect(mockLogger.warn).toHaveBeenCalledWith(
+				expect.objectContaining({ error: expect.any(Error) }),
+				"Elicitation request failed",
+			);
 		});
 
 		it("should pass through title and placeholder options", async () => {
@@ -457,6 +461,39 @@ describe("ElicitationService", () => {
 
 			expect(result.accepted).toBe(false);
 			expect(mockLogger.warn).toHaveBeenCalled();
+		});
+	});
+
+	describe("promptText edge cases", () => {
+		it("should handle required field when required=false", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "accept",
+				content: { text: "test" },
+			});
+
+			await service.promptText("Enter:", { required: false });
+
+			expect(mockServer.server.elicitInput).toHaveBeenCalledWith(
+				expect.objectContaining({
+					requestedSchema: expect.objectContaining({
+						required: [],
+					}),
+				}),
+			);
+		});
+
+		it("should convert non-string text to string", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "accept",
+				content: { text: 123 },
+			});
+
+			const result = await service.promptText("Enter:");
+
+			expect(result.accepted).toBe(true);
+			expect(result.content?.text).toBe("123");
 		});
 	});
 });

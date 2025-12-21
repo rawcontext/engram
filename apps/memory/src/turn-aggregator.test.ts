@@ -123,6 +123,13 @@ describe("TurnAggregator", () => {
 			expect(aggregator).toBeInstanceOf(TurnAggregator);
 		});
 
+		it("should throw when using legacy constructor without logger", () => {
+			expect(() => {
+				// @ts-expect-error - Testing legacy constructor error path
+				new TurnAggregator(mockGraphClient);
+			}).toThrow("logger required for legacy constructor");
+		});
+
 		it("should use default handler registry when not provided", () => {
 			const deps: TurnAggregatorDeps = {
 				graphClient: mockGraphClient,
@@ -1053,6 +1060,41 @@ describe("TurnAggregator", () => {
 			expect(cleanupCalls.length).toBe(1);
 		});
 
+		it("should not cleanup turns that are already finalized", async () => {
+			const sessionId = uniqueSessionId("already-finalized");
+			const deps: TurnAggregatorDeps = {
+				graphClient: mockGraphClient,
+				logger: mockLogger,
+			};
+			const agg = new TurnAggregator(deps);
+
+			// Create a turn but don't start a second one (so it stays in activeTurns)
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "First" }),
+				sessionId,
+			);
+
+			// Manually finalize it by creating another turn
+			const session2 = uniqueSessionId("other");
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "Second" }),
+				session2,
+			);
+
+			vi.clearAllMocks();
+
+			// The first turn is already finalized because we started a new turn
+			// cleanupStaleTurns should still work on the second turn which is not finalized
+			await agg.cleanupStaleTurns(-1);
+
+			// Should cleanup the second session (not finalized), but not repeatedly
+			const cleanupCalls = vi
+				.mocked(mockLogger.info)
+				.mock.calls.filter((call: any[]) => call[1] === "Cleaned up stale turn");
+			// Should have at least one cleanup (for session2)
+			expect(cleanupCalls.length).toBeGreaterThanOrEqual(1);
+		});
+
 		it("should not cleanup recent turns", async () => {
 			const sessionId = uniqueSessionId("recent");
 			const deps: TurnAggregatorDeps = {
@@ -1213,6 +1255,34 @@ describe("TurnAggregator", () => {
 				}),
 				"Failed to finalize turn",
 			);
+		});
+
+		it("should guard against double finalization", async () => {
+			const sessionId = uniqueSessionId();
+			const deps: TurnAggregatorDeps = {
+				graphClient: mockGraphClient,
+				logger: mockLogger,
+			};
+			const agg = new TurnAggregator(deps);
+
+			// Create turn
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "Test" }),
+				sessionId,
+			);
+
+			// Create second turn to trigger finalization of first
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "Second" }),
+				sessionId,
+			);
+
+			const finalizeCalls = vi
+				.mocked(mockGraphClient.query)
+				.mock.calls.filter((call: any[]) => call[0]?.includes("SET t.assistant_preview"));
+
+			// Should only have finalized once
+			expect(finalizeCalls.length).toBe(1);
 		});
 
 		it("should handle error when emitting turn node created event", async () => {

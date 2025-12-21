@@ -343,5 +343,54 @@ describe("ClineParser", () => {
 			const result = parser.parse(payload);
 			expect(result).toBeNull();
 		});
+
+		it("should return null when say type is not handled", () => {
+			// Tests line 30: when data.type === "say" but sayType doesn't match known types
+			const payload = {
+				type: "say",
+				text: "Some text",
+				ts: 1765240785741,
+				say: "unknown_say_type",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should extract cost when present and non-zero in api_req_started", () => {
+			// Tests lines 77-79: cost extraction branch
+			const payload = {
+				type: "say",
+				text: JSON.stringify({
+					tokensIn: 100,
+					tokensOut: 50,
+					cost: 0.005,
+				}),
+				ts: 1765240785741,
+				say: "api_req_started",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.cost).toBe(0.005);
+		});
+
+		it("should extract cost when present and non-zero in api_req_finished", () => {
+			// Tests lines 118-120: cost extraction branch in api_req_finished
+			const payload = {
+				type: "say",
+				text: JSON.stringify({
+					tokensIn: 100,
+					tokensOut: 50,
+					cost: 0.005,
+				}),
+				ts: 1765240790000,
+				say: "api_req_finished",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.cost).toBe(0.005);
+		});
 	});
 });

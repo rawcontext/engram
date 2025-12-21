@@ -274,5 +274,18 @@ describe("GeminiParser", () => {
 			const result = parser.parse(payload);
 			expect(result).toBeNull();
 		});
+
+		it("should handle message event with role that is neither user nor assistant", () => {
+			// Tests line 85: return null when role is not user or assistant
+			const payload = {
+				type: "message",
+				timestamp: "2025-12-09T00:13:18.433Z",
+				role: "system",
+				content: "System message",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
 	});
 });

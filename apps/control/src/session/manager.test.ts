@@ -168,4 +168,85 @@ describe("SessionManager", () => {
 
 		manager.shutdown();
 	});
+
+	it("should not start cleanup job twice", () => {
+		const mockToolAdapter = {
+			listTools: vi.fn(async () => []),
+			callTool: vi.fn(async () => ({})),
+		};
+
+		const manager = new SessionManager({
+			toolAdapter: mockToolAdapter,
+		});
+
+		// Call private startCleanupJob method directly (it's called in constructor)
+		(manager as any).startCleanupJob();
+
+		// Should still only have one interval
+		expect((manager as any).cleanupInterval).toBeDefined();
+
+		manager.shutdown();
+	});
+
+	it("should accept injected dependencies", () => {
+		const mockToolAdapter = {
+			listTools: vi.fn(async () => []),
+			callTool: vi.fn(async () => ({})),
+		};
+
+		const mockContextAssembler = {
+			assembleContext: vi.fn(async () => "context"),
+		};
+
+		const mockGraphClient = {
+			connect: vi.fn(async () => {}),
+			disconnect: vi.fn(async () => {}),
+			query: vi.fn(async () => []),
+			isConnected: vi.fn(() => false),
+		};
+
+		const mockSessionInitializer = {
+			ensureSession: vi.fn(async () => {}),
+		};
+
+		const mockLogger = {
+			info: vi.fn(),
+			error: vi.fn(),
+			warn: vi.fn(),
+			debug: vi.fn(),
+		};
+
+		const manager = new SessionManager({
+			toolAdapter: mockToolAdapter,
+			contextAssembler: mockContextAssembler as any,
+			graphClient: mockGraphClient,
+			sessionInitializer: mockSessionInitializer,
+			logger: mockLogger as any,
+		});
+
+		expect(manager).toBeInstanceOf(SessionManager);
+
+		manager.shutdown();
+	});
+
+	it("should run cleanup at correct interval", async () => {
+		const mockToolAdapter = {
+			listTools: vi.fn(async () => []),
+			callTool: vi.fn(async () => ({})),
+		};
+
+		const manager = new SessionManager({
+			toolAdapter: mockToolAdapter,
+		});
+
+		await manager.handleInput("sess-1", "test");
+
+		// Advance time by less than cleanup interval (5 minutes)
+		vi.advanceTimersByTime(4 * 60 * 1000);
+
+		// Session should NOT be cleaned up yet
+		expect(mockStop).not.toHaveBeenCalled();
+
+		manager.shutdown();
+	});
 });

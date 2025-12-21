@@ -93,6 +93,17 @@ describe("GraphOperationError", () => {
 		expect(json).not.toHaveProperty("params");
 		expect(json.code).toBe(ErrorCodes.GRAPH_QUERY_FAILED);
 	});
+
+	it("should handle missing optional parameters", () => {
+		// Act
+		const error = new GraphOperationError("Query failed");
+
+		// Assert
+		expect(error.message).toBe("Query failed");
+		expect(error.query).toBeUndefined();
+		expect(error.cause).toBeUndefined();
+		expect(error.params).toBeUndefined();
+	});
 });
 
 describe("ParseError", () => {
@@ -142,6 +153,26 @@ describe("ParseError", () => {
 		expect(json.input).toBe("bad-input");
 		expect(json.expected).toBe("JSON object");
 	});
+
+	it("should handle undefined input", () => {
+		// Act
+		const error = new ParseError("Parse failed");
+
+		// Assert
+		expect(error.input).toBeUndefined();
+		expect(error.expected).toBeUndefined();
+	});
+
+	it("should include cause error", () => {
+		// Arrange
+		const causeError = new Error("JSON syntax error");
+
+		// Act
+		const error = new ParseError("Parse failed", "bad", causeError);
+
+		// Assert
+		expect(error.cause).toBe(causeError);
+	});
 });
 
 describe("ValidationError", () => {
@@ -182,6 +213,27 @@ describe("ValidationError", () => {
 		expect(json.value).toBe("a");
 		expect(json.constraint).toBe("min length 3");
 	});
+
+	it("should handle missing optional parameters", () => {
+		// Act
+		const error = new ValidationError("Validation failed");
+
+		// Assert
+		expect(error.field).toBeUndefined();
+		expect(error.value).toBeUndefined();
+		expect(error.constraint).toBeUndefined();
+	});
+
+	it("should include cause error", () => {
+		// Arrange
+		const causeError = new Error("Schema validation failed");
+
+		// Act
+		const error = new ValidationError("Invalid", "field", causeError);
+
+		// Assert
+		expect(error.cause).toBe(causeError);
+	});
 });
 
 describe("ContextAssemblyError", () => {
@@ -219,6 +271,26 @@ describe("ContextAssemblyError", () => {
 		expect(json2.hasPartialContext).toBe(false);
 		expect(json1.sessionId).toBe("sess-1");
 	});
+
+	it("should handle missing optional parameters", () => {
+		// Act
+		const error = new ContextAssemblyError("Assembly failed");
+
+		// Assert
+		expect(error.sessionId).toBeUndefined();
+		expect(error.partialContext).toBeUndefined();
+	});
+
+	it("should include cause error", () => {
+		// Arrange
+		const causeError = new Error("Timeout");
+
+		// Act
+		const error = new ContextAssemblyError("Failed", "sess-1", causeError);
+
+		// Assert
+		expect(error.cause).toBe(causeError);
+	});
 });
 
 describe("RehydrationError", () => {
@@ -242,6 +314,26 @@ describe("RehydrationError", () => {
 		const json = error.toJSON();
 		expect(json.entityId).toBe("ent-1");
 		expect(json.entityType).toBe("Turn");
+	});
+
+	it("should handle missing optional parameters", () => {
+		// Act
+		const error = new RehydrationError("Rehydration failed");
+
+		// Assert
+		expect(error.entityId).toBeUndefined();
+		expect(error.entityType).toBeUndefined();
+	});
+
+	it("should include cause error", () => {
+		// Arrange
+		const causeError = new Error("Data corrupted");
+
+		// Act
+		const error = new RehydrationError("Failed", "ent-1", causeError);
+
+		// Assert
+		expect(error.cause).toBe(causeError);
 	});
 });
 
@@ -317,6 +409,26 @@ describe("StorageError", () => {
 		expect(json.uri).toBe("file://path");
 		expect(json.operation).toBe("write");
 	});
+
+	it("should handle missing optional parameters", () => {
+		// Act
+		const error = new StorageError("Storage failed", ErrorCodes.STORAGE_READ_FAILED);
+
+		// Assert
+		expect(error.uri).toBeUndefined();
+		expect(error.operation).toBeUndefined();
+	});
+
+	it("should include cause error", () => {
+		// Arrange
+		const causeError = new Error("Network timeout");
+
+		// Act
+		const error = new StorageError("Failed", ErrorCodes.STORAGE_READ_FAILED, "uri", causeError);
+
+		// Assert
+		expect(error.cause).toBe(causeError);
+	});
 });
 
 describe("SearchError", () => {
@@ -390,5 +502,30 @@ describe("SearchError", () => {
 		const json = error.toJSON();
 		expect(json.query).toBe("search terms");
 		expect(json.operation).toBe("query");
+	});
+
+	it("should handle missing optional parameters", () => {
+		// Act
+		const error = new SearchError("Search failed", ErrorCodes.SEARCH_QUERY_FAILED);
+
+		// Assert
+		expect(error.query).toBeUndefined();
+		expect(error.operation).toBeUndefined();
+	});
+
+	it("should include cause error", () => {
+		// Arrange
+		const causeError = new Error("Embedding service down");
+
+		// Act
+		const error = new SearchError(
+			"Failed",
+			ErrorCodes.SEARCH_EMBEDDING_FAILED,
+			"query",
+			causeError,
+		);
+
+		// Assert
+		expect(error.cause).toBe(causeError);
 	});
 });

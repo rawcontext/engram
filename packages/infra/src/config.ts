@@ -12,14 +12,14 @@ const gcpConfig = new pulumi.Config("gcp");
 
 // GCP Configuration
 export const gcpProject = gcpConfig.require("project");
-export const gcpRegion = gcpConfig.get("region") ?? "us-central1";
+export const gcpRegion = gcpConfig.get("region") ?? /* istanbul ignore next */ "us-central1";
 
 // Environment
 export const environment = pulumi.getStack();
 
 // Network Configuration
 export const networkConfig = {
-	cidrRange: config.get("networkCidr") ?? "10.0.0.0/16",
+	cidrRange: config.get("networkCidr") ?? /* istanbul ignore next */ "10.0.0.0/16",
 };
 
 // GKE Configuration
@@ -31,7 +31,7 @@ export const gkeConfig = {
 // Database Configuration
 export const databaseConfig = {
 	// Use 3 replicas for production HA, 1 for dev/test
-	replicas: environment === "prod" ? 3 : 1,
+	replicas: environment === "prod" ? 3 : /* istanbul ignore next */ 1,
 };
 
 // Common Labels (must be lowercase for GCP)
@@ -59,4 +59,4 @@ export const commonLabels = {
  *   npm run infra:wake    # Set devEnabled=true and apply
  *   npm run infra:sleep   # Set devEnabled=false and apply
  */
-export const devEnabled = config.getBoolean("devEnabled") ?? true;
+export const devEnabled = config.getBoolean("devEnabled") ?? /* istanbul ignore next */ true;

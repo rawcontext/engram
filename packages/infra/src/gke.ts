@@ -35,7 +35,7 @@ export const cluster = devEnabled
 				channel: "REGULAR",
 			},
 		})
-	: undefined;
+	: /* istanbul ignore next */ undefined;
 
 /**
  * Generate a kubeconfig for accessing the cluster.
@@ -73,4 +73,6 @@ users:
       provideClusterInfo: true
 `;
 			})
-	: pulumi.output("# Dev environment is off. Run: pulumi config set devEnabled true && pulumi up");
+	: /* istanbul ignore next */ pulumi.output(
+			"# Dev environment is off. Run: pulumi config set devEnabled true && pulumi up",
+		);

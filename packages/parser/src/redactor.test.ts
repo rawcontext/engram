@@ -53,13 +53,13 @@ describe("Redactor", () => {
 	});
 
 	it("should redact GitHub tokens", () => {
-		expect(redactor.redact("ghp_" + "a".repeat(36))).toBe("[GITHUB_TOKEN_REDACTED]");
-		expect(redactor.redact("ghs_" + "a".repeat(36))).toBe("[GITHUB_TOKEN_REDACTED]");
-		expect(redactor.redact("ghu_" + "a".repeat(36))).toBe("[GITHUB_TOKEN_REDACTED]");
+		expect(redactor.redact(`ghp_${"a".repeat(36)}`)).toBe("[GITHUB_TOKEN_REDACTED]");
+		expect(redactor.redact(`ghs_${"a".repeat(36)}`)).toBe("[GITHUB_TOKEN_REDACTED]");
+		expect(redactor.redact(`ghu_${"a".repeat(36)}`)).toBe("[GITHUB_TOKEN_REDACTED]");
 	});
 
 	it("should redact Google API keys", () => {
-		expect(redactor.redact("AIzaSy" + "a".repeat(33))).toBe("[GOOGLE_API_KEY_REDACTED]");
+		expect(redactor.redact(`AIzaSy${"a".repeat(33)}`)).toBe("[GOOGLE_API_KEY_REDACTED]");
 	});
 
 	it("should redact JWT tokens", () => {
@@ -69,7 +69,7 @@ describe("Redactor", () => {
 	});
 
 	it("should redact NPM tokens", () => {
-		expect(redactor.redact("npm_" + "a".repeat(36))).toBe("[NPM_TOKEN_REDACTED]");
+		expect(redactor.redact(`npm_${"a".repeat(36)}`)).toBe("[NPM_TOKEN_REDACTED]");
 	});
 
 	it("should redact private keys", () => {
@@ -106,5 +106,25 @@ describe("Redactor", () => {
 		const input = "Email: test@example.com, SSN: 123-45-6789";
 		const result = redactor.redact(input);
 		expect(result).toBe("Email: [EMAIL], SSN: [SSN]");
+	});
+
+	it("should not redact sequences with more than 15 digits in a group", () => {
+		// Tests line 70: digitCount > 15 should not redact
+		// The regex pattern /\+?\d[\d\s().-]{6,18}\d/ can match up to 20 chars
+		// If we have 17+ digits, the first match will have > 15 digits
+		const text = "ID: 12345678901234567"; // 17 digits - exceeds valid phone range
+		expect(redactor.redact(text)).toBe(text);
+	});
+
+	it("should redact phone numbers with exactly 15 digits", () => {
+		// Tests line 67: digitCount === 15 should redact
+		const fifteenDigits = "+123456789012345"; // 15 digits
+		expect(redactor.redact(fifteenDigits)).toBe("[PHONE]");
+	});
+
+	it("should redact phone numbers with exactly 7 digits", () => {
+		// Tests line 67: digitCount === 7 should redact
+		const sevenDigits = "555-1234"; // 7 digits
+		expect(redactor.redact(`Call ${sevenDigits}`)).toBe("Call [PHONE]");
 	});
 });

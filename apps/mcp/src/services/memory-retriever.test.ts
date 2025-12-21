@@ -342,6 +342,50 @@ describe("MemoryRetriever", () => {
 		});
 	});
 
+	describe("graph results edge cases", () => {
+		it("should handle non-array graph results", async () => {
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+				results: [],
+				total: 0,
+				took_ms: 10,
+			});
+
+			// Return non-array result (null or other)
+			mockGraphClient.query.mockResolvedValueOnce(null);
+
+			const results = await retriever.recall("test query", 5);
+
+			expect(results).toHaveLength(0);
+		});
+
+		it("should use default type when payload type missing", async () => {
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+				results: [
+					{
+						id: "test-1",
+						score: 0.9,
+						rrf_score: null,
+						reranker_score: null,
+						rerank_tier: null,
+						degraded: false,
+						payload: {
+							node_id: "test-1",
+							content: "Content",
+							// No type field
+						},
+					},
+				],
+				total: 1,
+				took_ms: 50,
+			});
+			mockGraphClient.query.mockResolvedValueOnce([]);
+
+			const results = await retriever.recall("test query", 5);
+
+			expect(results[0].type).toBe("unknown");
+		});
+	});
+
 	describe("payload handling", () => {
 		it("should skip search results without node_id", async () => {
 			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
@@ -447,6 +491,48 @@ describe("MemoryRetriever", () => {
 			const results = await retriever.recall("test query", 5);
 
 			expect(results).toHaveLength(0);
+		});
+	});
+
+	describe("constructor options", () => {
+		it("should use provided search client", () => {
+			const customSearchClient = { search: vi.fn() } as unknown as SearchClient;
+			const customRetriever = new MemoryRetriever({
+				graphClient: mockGraphClient,
+				searchClient: customSearchClient,
+				logger: mockLogger,
+			});
+
+			expect(customRetriever).toBeDefined();
+		});
+
+		it("should create default search client when undefined", () => {
+			const defaultRetriever = new MemoryRetriever({
+				graphClient: mockGraphClient,
+				logger: mockLogger,
+			});
+
+			expect(defaultRetriever).toBeDefined();
+		});
+
+		it("should use custom searchUrl for default search client", () => {
+			const customRetriever = new MemoryRetriever({
+				graphClient: mockGraphClient,
+				logger: mockLogger,
+				searchUrl: "http://custom:9000",
+			});
+
+			expect(customRetriever).toBeDefined();
+		});
+
+		it("should use default graphClient when not provided", () => {
+			const defaultRetriever = new MemoryRetriever();
+			expect(defaultRetriever).toBeDefined();
+		});
+
+		it("should use default logger when not provided", () => {
+			const defaultRetriever = new MemoryRetriever();
+			expect(defaultRetriever).toBeDefined();
 		});
 	});
 });

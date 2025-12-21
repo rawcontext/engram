@@ -625,6 +625,110 @@ describe("FalkorSessionRepository", () => {
 				"Invalid node: node or properties is null/undefined",
 			);
 		});
+
+		it("should handle missing optional fields", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					s: {
+						id: 1,
+						labels: ["Session"],
+						properties: {
+							id: "sess-123",
+							user_id: "user-1",
+							started_at: 1700000000000,
+							agent_type: "claude-code",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+
+			const result = await repository.findById("sess-123");
+
+			expect(result).not.toBeNull();
+			expect(result?.externalId).toBeUndefined();
+			expect(result?.title).toBeUndefined();
+			expect(result?.provider).toBeUndefined();
+			expect(result?.workingDir).toBeUndefined();
+			expect(result?.gitRemote).toBeUndefined();
+			expect(result?.summary).toBeUndefined();
+			expect(result?.embedding).toBeUndefined();
+			expect(result?.metadata).toBeUndefined();
+		});
+
+		it("should handle session with all optional fields", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					s: {
+						id: 1,
+						labels: ["Session"],
+						properties: {
+							id: "sess-123",
+							external_id: "ext-456",
+							title: "Test Session",
+							user_id: "user-1",
+							provider: "anthropic",
+							started_at: 1700000000000,
+							working_dir: "/test",
+							git_remote: "git@github.com:test/test.git",
+							agent_type: "claude-code",
+							summary: "Test summary",
+							embedding: [0.1, 0.2],
+							metadata: JSON.stringify({ key: "value" }),
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+
+			const result = await repository.findById("sess-123");
+
+			expect(result).not.toBeNull();
+			expect(result?.externalId).toBe("ext-456");
+			expect(result?.title).toBe("Test Session");
+			expect(result?.provider).toBe("anthropic");
+			expect(result?.workingDir).toBe("/test");
+			expect(result?.gitRemote).toBe("git@github.com:test/test.git");
+			expect(result?.summary).toBe("Test summary");
+			expect(result?.embedding).toEqual([0.1, 0.2]);
+			expect(result?.metadata).toEqual({ key: "value" });
+		});
+	});
+
+	describe("create with minimal fields", () => {
+		it("should create session with only required fields", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					s: {
+						id: 1,
+						labels: ["Session"],
+						properties: {
+							id: expect.any(String),
+							user_id: "user-1",
+							started_at: expect.any(Number),
+							agent_type: "unknown",
+							vt_start: expect.any(Number),
+							vt_end: 253402300799000,
+							tt_start: expect.any(Number),
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+
+			const result = await repository.create({
+				userId: "user-1",
+			});
+
+			expect(result.userId).toBe("user-1");
+			expect(result.agentType).toBe("unknown");
+		});
 	});
 });
 
@@ -1100,6 +1204,154 @@ describe("FalkorTurnRepository", () => {
 				repository.update("non-existent", { assistantPreview: "Updated" }),
 			).rejects.toThrow("Turn not found: non-existent");
 		});
+
+		it("should include all optional fields when creating turn", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.create({
+				sessionId: "sess-123",
+				userContent: "Hello",
+				userContentHash: "abc123",
+				assistantPreview: "Hi there!",
+				assistantBlobRef: "blob://abc",
+				embedding: [0.1, 0.2, 0.3],
+				sequenceIndex: 0,
+				filesTouched: ["/test.ts"],
+				toolCallsCount: 2,
+				inputTokens: 100,
+				outputTokens: 50,
+				cacheReadTokens: 20,
+				cacheWriteTokens: 10,
+				reasoningTokens: 5,
+				costUsd: 0.01,
+				durationMs: 500,
+				gitCommit: "abc123def",
+			});
+
+			expect(result.assistantBlobRef).toBe("blob://abc");
+			expect(result.embedding).toEqual([0.1, 0.2, 0.3]);
+			expect(result.inputTokens).toBe(100);
+			expect(result.outputTokens).toBe(50);
+			expect(result.cacheReadTokens).toBe(20);
+			expect(result.cacheWriteTokens).toBe(10);
+			expect(result.reasoningTokens).toBe(5);
+			expect(result.costUsd).toBe(0.01);
+			expect(result.durationMs).toBe(500);
+			expect(result.gitCommit).toBe("abc123def");
+		});
+
+		it("should update all optional fields", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					t: {
+						id: 1,
+						labels: ["Turn"],
+						properties: {
+							id: "turn-123",
+							user_content: "Hello",
+							user_content_hash: "abc123",
+							assistant_preview: "Hi",
+							sequence_index: 0,
+							files_touched: [],
+							tool_calls_count: 0,
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+					sessionId: "sess-123",
+				},
+			]);
+
+			mockClient.query.mockResolvedValueOnce([{ count: 1 }]);
+			mockClient.query.mockResolvedValueOnce([]);
+			mockClient.query.mockResolvedValueOnce([]);
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.update("turn-123", {
+				assistantPreview: "Updated",
+				assistantBlobRef: "blob://new",
+				embedding: [0.5, 0.6],
+				filesTouched: ["/new.ts"],
+				toolCallsCount: 3,
+				inputTokens: 200,
+				outputTokens: 100,
+				cacheReadTokens: 30,
+				cacheWriteTokens: 15,
+				reasoningTokens: 10,
+				costUsd: 0.02,
+				durationMs: 1000,
+				gitCommit: "def456",
+			});
+
+			expect(result.assistantPreview).toBe("Updated");
+			expect(result.assistantBlobRef).toBe("blob://new");
+			expect(result.embedding).toEqual([0.5, 0.6]);
+			expect(result.filesTouched).toEqual(["/new.ts"]);
+			expect(result.toolCallsCount).toBe(3);
+			expect(result.inputTokens).toBe(200);
+			expect(result.outputTokens).toBe(100);
+			expect(result.cacheReadTokens).toBe(30);
+			expect(result.cacheWriteTokens).toBe(15);
+			expect(result.reasoningTokens).toBe(10);
+			expect(result.costUsd).toBe(0.02);
+			expect(result.durationMs).toBe(1000);
+			expect(result.gitCommit).toBe("def456");
+		});
+	});
+
+	describe("findById", () => {
+		it("should return null when turn not found", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.findById("non-existent");
+
+			expect(result).toBeNull();
+		});
+
+		it("should return turn with all fields", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					t: {
+						id: 1,
+						labels: ["Turn"],
+						properties: {
+							id: "turn-123",
+							user_content: "Hello",
+							user_content_hash: "abc123",
+							assistant_preview: "Hi",
+							assistant_blob_ref: "blob://abc",
+							embedding: [0.1, 0.2],
+							sequence_index: 0,
+							files_touched: ["/test.ts"],
+							tool_calls_count: 2,
+							input_tokens: 100,
+							output_tokens: 50,
+							cache_read_tokens: 20,
+							cache_write_tokens: 10,
+							reasoning_tokens: 5,
+							cost_usd: 0.01,
+							duration_ms: 500,
+							git_commit: "abc123",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+					sessionId: "sess-123",
+				},
+			]);
+
+			const result = await repository.findById("turn-123");
+
+			expect(result).not.toBeNull();
+			expect(result?.assistantBlobRef).toBe("blob://abc");
+			expect(result?.embedding).toEqual([0.1, 0.2]);
+			expect(result?.inputTokens).toBe(100);
+			expect(result?.gitCommit).toBe("abc123");
+		});
 	});
 
 	describe("mapToTurn", () => {
@@ -1280,6 +1532,84 @@ describe("FalkorReasoningRepository", () => {
 			const result = await repository.count("turn-123");
 
 			expect(result).toBe(3);
+		});
+	});
+
+	describe("findById", () => {
+		it("should return null when reasoning not found", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.findById("non-existent");
+
+			expect(result).toBeNull();
+		});
+
+		it("should return reasoning with all fields", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					r: {
+						id: 1,
+						labels: ["Reasoning"],
+						properties: {
+							id: "reason-1",
+							content_hash: "hash1",
+							preview: "Thinking...",
+							blob_ref: "blob://abc",
+							reasoning_type: "analysis",
+							sequence_index: 0,
+							embedding: [0.1, 0.2],
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+					turnId: "turn-123",
+				},
+			]);
+
+			const result = await repository.findById("reason-1");
+
+			expect(result).not.toBeNull();
+			expect(result?.blobRef).toBe("blob://abc");
+			expect(result?.embedding).toEqual([0.1, 0.2]);
+		});
+	});
+
+	describe("create with optional fields", () => {
+		it("should create reasoning with all optional fields", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.create({
+				turnId: "turn-123",
+				contentHash: "hash123",
+				preview: "Thinking...",
+				blobRef: "blob://xyz",
+				reasoningType: "analysis",
+				sequenceIndex: 0,
+				embedding: [0.5, 0.6, 0.7],
+			});
+
+			expect(result.blobRef).toBe("blob://xyz");
+			expect(result.embedding).toEqual([0.5, 0.6, 0.7]);
+		});
+	});
+
+	describe("count with default value", () => {
+		it("should return 0 when query returns empty", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.count("turn-123");
+
+			expect(result).toBe(0);
+		});
+
+		it("should return 0 when query returns null count", async () => {
+			mockClient.query.mockResolvedValueOnce([{ cnt: null }]);
+
+			const result = await repository.count("turn-123");
+
+			expect(result).toBe(0);
 		});
 	});
 
@@ -1650,6 +1980,102 @@ describe("FalkorToolCallRepository", () => {
 			const result = await repository.count("turn-123");
 
 			expect(result).toBe(4);
+		});
+	});
+
+	describe("findById", () => {
+		it("should return null when tool call not found", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.findById("non-existent");
+
+			expect(result).toBeNull();
+		});
+
+		it("should return tool call with all fields", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					tc: {
+						id: 1,
+						labels: ["ToolCall"],
+						properties: {
+							id: "tc-123",
+							call_id: "toolu_01ABC",
+							tool_name: "Read",
+							tool_type: "file_read",
+							arguments_json: '{"path": "/test.ts"}',
+							arguments_preview: "Read file /test.ts",
+							status: "success",
+							error_message: null,
+							sequence_index: 0,
+							reasoning_sequence: 0,
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+					turnId: "turn-123",
+				},
+			]);
+
+			const result = await repository.findById("tc-123");
+
+			expect(result).not.toBeNull();
+			expect(result?.argumentsPreview).toBe("Read file /test.ts");
+			expect(result?.reasoningSequence).toBe(0);
+		});
+	});
+
+	describe("create with optional fields", () => {
+		it("should create tool call with all optional fields", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.create({
+				turnId: "turn-123",
+				callId: "toolu_01XYZ",
+				toolName: "Bash",
+				toolType: "bash_exec",
+				argumentsJson: '{"command": "ls"}',
+				argumentsPreview: "Run ls",
+				status: "error",
+				errorMessage: "Failed to execute",
+				sequenceIndex: 0,
+				reasoningSequence: 1,
+			});
+
+			expect(result.argumentsPreview).toBe("Run ls");
+			expect(result.status).toBe("error");
+			expect(result.errorMessage).toBe("Failed to execute");
+			expect(result.reasoningSequence).toBe(1);
+		});
+	});
+
+	describe("findByTurn", () => {
+		it("should return empty array when no tool calls", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.findByTurn("turn-123");
+
+			expect(result).toHaveLength(0);
+		});
+	});
+
+	describe("count with default value", () => {
+		it("should return 0 when query returns empty", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.count("turn-123");
+
+			expect(result).toBe(0);
+		});
+
+		it("should return 0 when query returns null count", async () => {
+			mockClient.query.mockResolvedValueOnce([{ cnt: null }]);
+
+			const result = await repository.count("turn-123");
+
+			expect(result).toBe(0);
 		});
 	});
 

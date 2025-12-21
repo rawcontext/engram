@@ -166,6 +166,176 @@ describe("Ingest Handlers", () => {
 			expect(result.status).toBe(500);
 			expect(result.data.error).toBe("Processing failed");
 		});
+
+		it("should handle non-string tool_name in data", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				event_type: "tool_call",
+				timestamp: new Date().toISOString(),
+				data: {
+					tool_name: 123, // non-string
+				},
+			});
+
+			await handleIngestEvent(c, deps);
+
+			expect(mockGraphClient.query).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ toolName: "unknown" }),
+			);
+		});
+
+		it("should handle non-object tool_input", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				event_type: "tool_call",
+				timestamp: new Date().toISOString(),
+				data: {
+					tool_name: "Read",
+					tool_input: "not an object", // invalid type
+				},
+			});
+
+			await handleIngestEvent(c, deps);
+
+			expect(mockGraphClient.query).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ argsJson: "{}" }),
+			);
+		});
+
+		it("should handle array tool_input", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				event_type: "tool_call",
+				timestamp: new Date().toISOString(),
+				data: {
+					tool_name: "Read",
+					tool_input: ["array", "values"], // array, not object
+				},
+			});
+
+			await handleIngestEvent(c, deps);
+
+			expect(mockGraphClient.query).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ argsJson: "{}" }),
+			);
+		});
+
+		it("should handle non-string tool_output", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				event_type: "tool_call",
+				timestamp: new Date().toISOString(),
+				data: {
+					tool_name: "Read",
+					tool_output: { result: "object" }, // non-string
+				},
+			});
+
+			await handleIngestEvent(c, deps);
+
+			// Should be called but tool_output undefined
+			expect(mockGraphClient.query).toHaveBeenCalled();
+		});
+
+		it("should handle valid string tool_output", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				event_type: "tool_call",
+				timestamp: new Date().toISOString(),
+				data: {
+					tool_name: "Read",
+					tool_output: "File contents here", // valid string
+				},
+			});
+
+			await handleIngestEvent(c, deps);
+
+			expect(mockGraphClient.query).toHaveBeenCalled();
+		});
+
+		it("should handle invalid status value", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				event_type: "tool_call",
+				timestamp: new Date().toISOString(),
+				data: {
+					tool_name: "Read",
+					status: "invalid", // not success or error
+				},
+			});
+
+			await handleIngestEvent(c, deps);
+
+			expect(mockGraphClient.query).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ status: "success" }), // defaults to success
+			);
+		});
+
+		it("should handle non-string prompt content", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				event_type: "prompt",
+				timestamp: new Date().toISOString(),
+				data: {
+					content: 123, // non-string
+				},
+			});
+
+			await handleIngestEvent(c, deps);
+
+			expect(mockMemoryStore.createMemory).toHaveBeenCalledWith(
+				expect.objectContaining({ content: "" }),
+			);
+		});
+
+		it("should handle non-string session summary", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				event_type: "session_end",
+				timestamp: new Date().toISOString(),
+				data: {
+					summary: { obj: "value" }, // non-string
+				},
+			});
+
+			await handleIngestEvent(c, deps);
+
+			expect(mockGraphClient.query).toHaveBeenCalledWith(
+				expect.stringContaining("SET s.ended_at"),
+				expect.objectContaining({ summary: undefined }),
+			);
+		});
+
+		it("should handle valid string session summary", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				event_type: "session_end",
+				timestamp: new Date().toISOString(),
+				data: {
+					summary: "Completed task successfully", // valid string
+				},
+			});
+
+			await handleIngestEvent(c, deps);
+
+			expect(mockGraphClient.query).toHaveBeenCalledWith(
+				expect.stringContaining("SET s.ended_at"),
+				expect.objectContaining({ summary: "Completed task successfully" }),
+			);
+		});
 	});
 
 	describe("handleToolIngest", () => {
@@ -255,6 +425,23 @@ describe("Ingest Handlers", () => {
 			expect(result.status).toBe(400);
 			expect(result.data.error).toBe("Invalid tool event format");
 		});
+
+		it("should handle processing errors gracefully", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				timestamp: new Date().toISOString(),
+				tool_name: "Read",
+				status: "success",
+			});
+
+			mockGraphClient.query.mockRejectedValueOnce(new Error("Database error"));
+
+			const result = await handleToolIngest(c, deps);
+
+			expect(result.status).toBe(500);
+			expect(result.data.error).toBe("Processing failed");
+		});
 	});
 
 	describe("handlePromptIngest", () => {
@@ -290,6 +477,22 @@ describe("Ingest Handlers", () => {
 
 			expect(result.status).toBe(400);
 			expect(result.data.error).toBe("Invalid prompt event format");
+		});
+
+		it("should handle processing errors gracefully", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				timestamp: new Date().toISOString(),
+				content: "Test prompt",
+			});
+
+			mockMemoryStore.createMemory.mockRejectedValueOnce(new Error("Memory error"));
+
+			const result = await handlePromptIngest(c, deps);
+
+			expect(result.status).toBe(500);
+			expect(result.data.error).toBe("Processing failed");
 		});
 	});
 
@@ -388,6 +591,22 @@ describe("Ingest Handlers", () => {
 
 			expect(result.status).toBe(400);
 			expect(result.data.error).toBe("Invalid session event format");
+		});
+
+		it("should handle processing errors gracefully", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				timestamp: new Date().toISOString(),
+				event: "start",
+			});
+
+			mockGraphClient.query.mockRejectedValueOnce(new Error("Database error"));
+
+			const result = await handleSessionIngest(c, deps);
+
+			expect(result.status).toBe(500);
+			expect(result.data.error).toBe("Processing failed");
 		});
 	});
 });

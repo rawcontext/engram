@@ -98,6 +98,18 @@ describe("ToolRouter", () => {
 			expect(tools.length).toBeGreaterThanOrEqual(3);
 			expect(tools.map((t) => t.name)).toContain("read_file");
 		});
+
+		it("should use default description for MCP tools without description", async () => {
+			(mockMcpAdapter.listTools as ReturnType<typeof vi.fn>).mockResolvedValue([
+				{ name: "tool_without_desc" },
+			]);
+
+			const tools = await router.listTools();
+
+			const mcpTool = tools.find((t) => t.name === "tool_without_desc");
+			expect(mcpTool).toBeDefined();
+			expect(mcpTool?.description).toBe("Execute tool_without_desc");
+		});
 	});
 
 	describe("callTool - Execution Tools", () => {
@@ -219,6 +231,68 @@ describe("ToolRouter", () => {
 				await router.callTool(tool, { path: "/test", session_id: "s1", timestamp: 0 });
 				expect(mockMcpAdapter.callTool).not.toHaveBeenCalled();
 			}
+		});
+	});
+
+	describe("callTool - Execution Tools", () => {
+		it("should use default path for list_files_at_time when not provided", async () => {
+			const result = await router.callTool("list_files_at_time", {
+				session_id: "test-session",
+				timestamp: Date.now(),
+			});
+
+			expect(result.content).toBeDefined();
+			expect(mockMcpAdapter.callTool).not.toHaveBeenCalled();
+		});
+
+		it("should handle non-Error exceptions in get_filesystem_snapshot", async () => {
+			const mockExecutionService = {
+				...executionService,
+				getFilesystemState: vi.fn().mockImplementation(() => {
+					throw "string error";
+				}),
+			} as unknown as ExecutionService;
+
+			const errorRouter = new ToolRouter(mockExecutionService, mockMcpAdapter);
+
+			const result = await errorRouter.callTool("get_filesystem_snapshot", {
+				session_id: "test-session",
+				timestamp: Date.now(),
+			});
+
+			expect(result.isError).toBe(true);
+			expect(result.content[0].text).toContain("Error: string error");
+		});
+
+		it("should handle non-Error exceptions in get_zipped_snapshot", async () => {
+			const mockExecutionService = {
+				...executionService,
+				getZippedState: vi.fn().mockImplementation(() => {
+					throw "string error";
+				}),
+			} as unknown as ExecutionService;
+
+			const errorRouter = new ToolRouter(mockExecutionService, mockMcpAdapter);
+
+			const result = await errorRouter.callTool("get_zipped_snapshot", {
+				session_id: "test-session",
+				timestamp: Date.now(),
+			});
+
+			expect(result.isError).toBe(true);
+			expect(result.content[0].text).toContain("Error: string error");
+		});
+
+		it("should return error for unknown execution tool", async () => {
+			// Create a router with a custom execution tool names set that includes an unknown tool
+			const customRouter = new ToolRouter(executionService, mockMcpAdapter);
+			// Hack to add an unknown tool to the set
+			(customRouter as any).executionToolNames.add("unknown_execution_tool");
+
+			const result = await (customRouter as any).callExecutionTool("unknown_execution_tool", {});
+
+			expect(result.isError).toBe(true);
+			expect(result.content[0].text).toContain("Unknown execution tool");
 		});
 	});
 

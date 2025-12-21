@@ -67,14 +67,14 @@ describe("ApiKeyRepository", () => {
 			const result = await repo.findByHash("abc123hash");
 
 			expect(result).not.toBeNull();
-			expect(result!.id).toBe("key-uuid-123");
-			expect(result!.keyHash).toBe("abc123hash");
-			expect(result!.keyPrefix).toBe("engram_live_abcdefghij...");
-			expect(result!.keyType).toBe("live");
-			expect(result!.userId).toBe("user-123");
-			expect(result!.scopes).toEqual(["memory:read", "memory:write"]);
-			expect(result!.rateLimitRpm).toBe(60);
-			expect(result!.isActive).toBe(true);
+			expect(result?.id).toBe("key-uuid-123");
+			expect(result?.keyHash).toBe("abc123hash");
+			expect(result?.keyPrefix).toBe("engram_live_abcdefghij...");
+			expect(result?.keyType).toBe("live");
+			expect(result?.userId).toBe("user-123");
+			expect(result?.scopes).toEqual(["memory:read", "memory:write"]);
+			expect(result?.rateLimitRpm).toBe(60);
+			expect(result?.isActive).toBe(true);
 		});
 	});
 
@@ -121,7 +121,7 @@ describe("ApiKeyRepository", () => {
 			const result = await repo.validate("engram_live_abcdefghijklmnopqrstuvwxyz123456");
 
 			expect(result).not.toBeNull();
-			expect(result!.id).toBe("key-uuid-123");
+			expect(result?.id).toBe("key-uuid-123");
 
 			// Should fire-and-forget update last_used_at
 			await new Promise((r) => setTimeout(r, 10));

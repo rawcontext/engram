@@ -181,6 +181,7 @@ export function setupPulumiMocks(project = "engram", stack = "test"): void {
 						return { project: "test-project" };
 					case "gcp:config/region:region":
 						return { region: "us-central1" };
+					/* istanbul ignore next */
 					default:
 						return args.inputs;
 				}

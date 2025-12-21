@@ -213,4 +213,147 @@ describe("GraphMerger", () => {
 		expect(consoleLogSpy).toHaveBeenCalledWith("Merged node source-1 into target-1");
 		consoleLogSpy.mockRestore();
 	});
+
+	it("should handle non-object properties gracefully", async () => {
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return edge with null properties
+				return Promise.resolve([["LINKS_TO", true, "neighbor-123", null]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		const createCall = mockQuery.mock.calls[1];
+		expect(createCall[1]).toMatchObject({ props: {} });
+	});
+
+	it("should handle undefined properties", async () => {
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return edge with undefined properties
+				return Promise.resolve([["LINKS_TO", true, "neighbor-123", undefined]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		const createCall = mockQuery.mock.calls[1];
+		expect(createCall[1]).toMatchObject({ props: {} });
+	});
+
+	it("should handle string properties", async () => {
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return edge with string properties
+				return Promise.resolve([["LINKS_TO", true, "neighbor-123", "not-an-object"]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		const createCall = mockQuery.mock.calls[1];
+		expect(createCall[1]).toMatchObject({ props: {} });
+	});
+
+	it("should handle valid relationship types at the edge of regex", async () => {
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Valid edge case: exactly 100 characters
+				const validType = `A${"a".repeat(99)}`;
+				return Promise.resolve([[validType, true, "neighbor-123", {}]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		expect(mockQuery).toHaveBeenCalledTimes(3); // edges, create, delete
+	});
+
+	it("should throw on relationship type that is too long", async () => {
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Invalid: 101 characters (exceeds limit)
+				const invalidType = `A${"a".repeat(100)}`;
+				return Promise.resolve([[invalidType, true, "neighbor-123", {}]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+
+		await expect(merger.mergeNodes("target-1", "source-1")).rejects.toThrow(
+			/Invalid relationship type/,
+		);
+	});
+
+	it("should throw on relationship type with invalid characters", async () => {
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				return Promise.resolve([["INVALID-TYPE!", true, "neighbor-123", {}]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+
+		await expect(merger.mergeNodes("target-1", "source-1")).rejects.toThrow(
+			/Invalid relationship type/,
+		);
+	});
+
+	it("should handle multiple edges", async () => {
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				return Promise.resolve([
+					["LINKS_TO", true, "neighbor-1", { weight: 1 }],
+					["POINTS_TO", false, "neighbor-2", { label: "test" }],
+					["KNOWS", true, "neighbor-3", {}],
+				]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		// Should be called: 1 read + 3 creates + 1 delete = 5
+		expect(mockQuery).toHaveBeenCalledTimes(5);
+	});
 });

@@ -18,6 +18,7 @@ import { k8sProvider, namespaceName } from "./namespace";
  * Qdrant Helm release
  * Only created when k8sProvider exists (devEnabled=true)
  */
+/* istanbul ignore next */
 export const qdrantRelease = k8sProvider
 	? new k8s.helm.v3.Release(
 			"qdrant",

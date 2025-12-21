@@ -273,5 +273,190 @@ describe("Logger Package", () => {
 			// Callback should still be called but flush should be no-op
 			expect(callback).toHaveBeenCalled();
 		});
+
+		it("should handle destroy during flushing", () => {
+			const logger = createNodeLogger({ service: "test" });
+
+			// Start a flush with a slow callback
+			const flushCallback: (() => void) | null = null;
+			logger.flush?.((_err) => {
+				// This callback is called synchronously or async
+				if (flushCallback) flushCallback();
+			});
+
+			// Destroy while flushing (simulated)
+			expect(() => {
+				logger.destroy?.();
+			}).not.toThrow();
+		});
+
+		it("should handle flush without callback", () => {
+			const logger = createNodeLogger({ service: "test" });
+
+			// Should not throw when flushing without callback
+			expect(() => {
+				logger.flush?.();
+			}).not.toThrow();
+		});
+
+		it("should handle flush when not active", () => {
+			const logger = createNodeLogger({ service: "test" });
+			const callback = vi.fn();
+
+			// Destroy first
+			logger.destroy?.();
+
+			// Then flush
+			logger.flush?.(callback);
+
+			// Should call callback immediately
+			expect(callback).toHaveBeenCalledWith();
+		});
+
+		it("should drop all log levels after destroy", () => {
+			const logger = createNodeLogger({ service: "test", pretty: false });
+
+			logger.destroy?.();
+
+			// All of these should be silently dropped
+			expect(() => {
+				logger.trace("dropped");
+				logger.debug("dropped");
+				logger.info("dropped");
+				logger.warn("dropped");
+				logger.error("dropped");
+				logger.fatal("dropped");
+			}).not.toThrow();
+		});
+	});
+
+	describe("Environment and Configuration", () => {
+		it("should use production settings when environment is production", () => {
+			const logger = createNodeLogger({
+				service: "prod-service",
+				environment: "production",
+			});
+
+			expect(logger.bindings()).toMatchObject({
+				service: "prod-service",
+				environment: "production",
+			});
+		});
+
+		it("should disable pretty mode in production", () => {
+			const logger = createNodeLogger({
+				service: "prod-service",
+				environment: "production",
+			});
+
+			// Pretty mode should be disabled by default in production
+			expect(logger).toBeDefined();
+		});
+
+		it("should explicitly disable pretty mode", () => {
+			const logger = createNodeLogger({
+				service: "test-service",
+				environment: "development",
+				pretty: false,
+			});
+
+			expect(logger).toBeDefined();
+		});
+
+		it("should handle custom environment", () => {
+			const logger = createNodeLogger({
+				service: "test-service",
+				environment: "staging",
+			});
+
+			expect(logger.bindings()).toMatchObject({
+				environment: "staging",
+			});
+		});
+
+		it("should create logger without version", () => {
+			const originalVersion = process.env.npm_package_version;
+			delete process.env.npm_package_version;
+
+			const logger = createNodeLogger({
+				service: "test-service",
+			});
+
+			// Version should not be in bindings if not provided
+			const bindings = logger.bindings();
+			expect(bindings.version).toBeUndefined();
+
+			// Restore original value
+			if (originalVersion) {
+				process.env.npm_package_version = originalVersion;
+			}
+		});
+
+		it("should use NODE_ENV when environment not specified", () => {
+			const originalEnv = process.env.NODE_ENV;
+			process.env.NODE_ENV = "test";
+
+			const logger = createNodeLogger({
+				service: "test-service",
+			});
+
+			expect(logger.bindings()).toMatchObject({
+				environment: "test",
+			});
+
+			process.env.NODE_ENV = originalEnv;
+		});
+
+		it("should fallback to development when NODE_ENV not set", () => {
+			const originalEnv = process.env.NODE_ENV;
+			delete process.env.NODE_ENV;
+
+			const logger = createNodeLogger({
+				service: "test-service",
+			});
+
+			expect(logger.bindings()).toMatchObject({
+				environment: "development",
+			});
+
+			process.env.NODE_ENV = originalEnv;
+		});
+	});
+
+	describe("Formatters", () => {
+		it("should map trace level to TRACE", () => {
+			const logger = createNodeLogger({ service: "test", level: "trace" });
+
+			// Should not throw and level should be trace
+			expect(logger.level).toBe("trace");
+		});
+
+		it("should map fatal level to FATAL", () => {
+			const logger = createNodeLogger({ service: "test", level: "fatal" });
+
+			// Should not throw and level should be fatal (though this is unusual)
+			expect(logger.level).toBe("fatal");
+		});
+
+		it("should handle non-standard log level in formatters", () => {
+			const logger = createNodeLogger({ service: "test" });
+
+			// Fatal is a standard level, but tests the toUpperCase path
+			expect(() => {
+				logger.fatal("test fatal");
+			}).not.toThrow();
+		});
+	});
+
+	describe("Destination", () => {
+		it("should accept custom destination stream", () => {
+			const customDestination = {
+				write: vi.fn(),
+			};
+
+			const logger = createNodeLogger({ service: "test" }, customDestination as any);
+
+			expect(logger).toBeDefined();
+		});
 	});
 });
