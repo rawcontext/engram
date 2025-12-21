@@ -1,5 +1,5 @@
 {
-	"name": "interface",
+	"name": "observatory",
 	"version": "0.0.0",
 	"type": "module",
 	"dependencies": {
