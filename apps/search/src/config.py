@@ -38,6 +38,22 @@ class Settings(BaseSettings):
         default="redis://localhost:6379", description="FalkorDB connection URL"
     )
 
+    # Kafka (for turn indexing consumer)
+    kafka_bootstrap_servers: str = Field(
+        default="localhost:19092", description="Kafka bootstrap servers (comma-separated)"
+    )
+    kafka_consumer_enabled: bool = Field(
+        default=True, description="Enable Kafka consumer for turn indexing"
+    )
+    kafka_consumer_group: str = Field(
+        default="search-turns-indexer", description="Kafka consumer group ID"
+    )
+
+    # Redis (for consumer status publishing)
+    redis_url: str = Field(
+        default="redis://localhost:6379", description="Redis URL for pub/sub"
+    )
+
     # Search defaults (to be used in Phase 4)
     search_default_limit: int = Field(default=10, description="Default search result limit")
     search_max_limit: int = Field(default=100, description="Maximum search result limit")

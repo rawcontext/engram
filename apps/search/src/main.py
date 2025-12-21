@@ -1,5 +1,7 @@
 """Engram Search Service - FastAPI application entry point."""
 
+import asyncio
+import contextlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -8,9 +10,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api import router
-from src.clients import QdrantClientWrapper
+from src.clients import KafkaClient, QdrantClientWrapper
+from src.clients.redis import RedisPublisher
 from src.config import get_settings
 from src.embedders import EmbedderFactory
+from src.indexing.turns import TurnFinalizedConsumer, TurnFinalizedConsumerConfig, TurnsIndexer
 from src.rerankers import RerankerRouter
 from src.retrieval import SearchRetriever
 from src.retrieval.multi_query import MultiQueryRetriever
@@ -128,10 +132,57 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         )
         app.state.session_aware_retriever = session_aware_retriever
         logger.info("Session-aware retriever initialized")
+
+        # Start turn indexing consumer if enabled
+        if settings.kafka_consumer_enabled:
+            try:
+                # Create Kafka client
+                bootstrap_servers = [s.strip() for s in settings.kafka_bootstrap_servers.split(",")]
+                kafka_client = KafkaClient(bootstrap_servers=bootstrap_servers)
+                app.state.kafka_client = kafka_client
+
+                # Create Redis publisher for status updates
+                redis_publisher = RedisPublisher(settings.redis_url)
+                await redis_publisher.connect()
+                app.state.redis_publisher = redis_publisher
+
+                # Create turns indexer
+                turns_indexer = TurnsIndexer(
+                    qdrant_client=app.state.qdrant,
+                    embedder_factory=embedder_factory,
+                )
+                app.state.turns_indexer = turns_indexer
+
+                # Create and start consumer
+                consumer_config = TurnFinalizedConsumerConfig(
+                    group_id=settings.kafka_consumer_group,
+                )
+                turns_consumer = TurnFinalizedConsumer(
+                    kafka_client=kafka_client,
+                    indexer=turns_indexer,
+                    redis_publisher=redis_publisher,
+                    config=consumer_config,
+                )
+                app.state.turns_consumer = turns_consumer
+
+                # Start consumer as background task
+                consumer_task = asyncio.create_task(turns_consumer.start())
+                app.state.consumer_task = consumer_task
+                logger.info(
+                    f"Turn indexing consumer started (group: {settings.kafka_consumer_group})"
+                )
+            except Exception as e:
+                logger.error(f"Failed to start turn indexing consumer: {e}")
+                logger.warning("Service running without turn indexing")
+                app.state.turns_consumer = None
+        else:
+            logger.info("Turn indexing consumer disabled")
+            app.state.turns_consumer = None
     else:
         app.state.search_retriever = None
         app.state.multi_query_retriever = None
         app.state.session_aware_retriever = None
+        app.state.turns_consumer = None
         logger.warning("Retrievers not initialized (Qdrant unavailable)")
 
     # Preload models if configured
@@ -150,6 +201,36 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Shutdown: Cleanup resources
     logger.info("Shutting down Engram Search Service...")
+
+    # Stop turn indexing consumer
+    if hasattr(app.state, "turns_consumer") and app.state.turns_consumer is not None:
+        try:
+            await app.state.turns_consumer.stop()
+            logger.info("Turn indexing consumer stopped")
+        except Exception as e:
+            logger.error(f"Error stopping turn consumer: {e}")
+
+    # Cancel consumer task
+    if hasattr(app.state, "consumer_task") and app.state.consumer_task is not None:
+        app.state.consumer_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await app.state.consumer_task
+
+    # Close Redis publisher
+    if hasattr(app.state, "redis_publisher") and app.state.redis_publisher is not None:
+        try:
+            await app.state.redis_publisher.disconnect()
+            logger.info("Redis publisher closed")
+        except Exception as e:
+            logger.error(f"Error closing Redis publisher: {e}")
+
+    # Close Kafka client
+    if hasattr(app.state, "kafka_client") and app.state.kafka_client is not None:
+        try:
+            await app.state.kafka_client.close()
+            logger.info("Kafka client closed")
+        except Exception as e:
+            logger.error(f"Error closing Kafka client: {e}")
 
     # Unload embedder models
     if hasattr(app.state, "embedder_factory") and app.state.embedder_factory is not None:
@@ -221,7 +302,7 @@ def run() -> None:
     logger.info(f"Starting server on {settings.search_host}:{settings.search_port}")
 
     uvicorn.run(
-        "search.main:app",
+        "src.main:app",
         host=settings.search_host,
         port=settings.search_port,
         reload=settings.debug,
