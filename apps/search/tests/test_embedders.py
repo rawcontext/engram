@@ -229,67 +229,67 @@ class TestColBERTEmbedder:
 class TestEmbedderFactory:
     """Tests for EmbedderFactory."""
 
-    def test_factory_creates_text_embedder(self, settings: Settings) -> None:
+    async def test_factory_creates_text_embedder(self, settings: Settings) -> None:
         """Test factory creates text embedder."""
         factory = EmbedderFactory(settings)
-        embedder = factory.get_text_embedder()
+        embedder = await factory.get_text_embedder()
 
         assert isinstance(embedder, TextEmbedder)
         assert embedder.model_name == settings.embedder_text_model
 
-    def test_factory_creates_code_embedder(self, settings: Settings) -> None:
+    async def test_factory_creates_code_embedder(self, settings: Settings) -> None:
         """Test factory creates code embedder."""
         factory = EmbedderFactory(settings)
-        embedder = factory.get_code_embedder()
+        embedder = await factory.get_code_embedder()
 
         assert isinstance(embedder, CodeEmbedder)
         assert embedder.model_name == settings.embedder_code_model
 
-    def test_factory_creates_sparse_embedder(self, settings: Settings) -> None:
+    async def test_factory_creates_sparse_embedder(self, settings: Settings) -> None:
         """Test factory creates sparse embedder."""
         factory = EmbedderFactory(settings)
-        embedder = factory.get_sparse_embedder()
+        embedder = await factory.get_sparse_embedder()
 
         assert isinstance(embedder, SparseEmbedder)
         assert embedder.model_name == settings.embedder_sparse_model
 
-    def test_factory_creates_colbert_embedder(self, settings: Settings) -> None:
+    async def test_factory_creates_colbert_embedder(self, settings: Settings) -> None:
         """Test factory creates ColBERT embedder."""
         factory = EmbedderFactory(settings)
-        embedder = factory.get_colbert_embedder()
+        embedder = await factory.get_colbert_embedder()
 
         assert isinstance(embedder, ColBERTEmbedder)
         assert embedder.model_name == settings.embedder_colbert_model
 
-    def test_factory_singleton_pattern(self, settings: Settings) -> None:
+    async def test_factory_singleton_pattern(self, settings: Settings) -> None:
         """Test that factory returns same instance for same type."""
         factory = EmbedderFactory(settings)
 
-        embedder1 = factory.get_text_embedder()
-        embedder2 = factory.get_text_embedder()
+        embedder1 = await factory.get_text_embedder()
+        embedder2 = await factory.get_text_embedder()
 
         assert embedder1 is embedder2
 
-    def test_factory_get_embedder_by_type(self, settings: Settings) -> None:
+    async def test_factory_get_embedder_by_type(self, settings: Settings) -> None:
         """Test getting embedder by type string."""
         factory = EmbedderFactory(settings)
 
-        text_emb = factory.get_embedder("text")
-        code_emb = factory.get_embedder("code")
-        sparse_emb = factory.get_embedder("sparse")
-        colbert_emb = factory.get_embedder("colbert")
+        text_emb = await factory.get_embedder("text")
+        code_emb = await factory.get_embedder("code")
+        sparse_emb = await factory.get_embedder("sparse")
+        colbert_emb = await factory.get_embedder("colbert")
 
         assert isinstance(text_emb, TextEmbedder)
         assert isinstance(code_emb, CodeEmbedder)
         assert isinstance(sparse_emb, SparseEmbedder)
         assert isinstance(colbert_emb, ColBERTEmbedder)
 
-    def test_factory_invalid_type_raises_error(self, settings: Settings) -> None:
+    async def test_factory_invalid_type_raises_error(self, settings: Settings) -> None:
         """Test that invalid embedder type raises ValueError."""
         factory = EmbedderFactory(settings)
 
         with pytest.raises(ValueError, match="Invalid embedder type"):
-            factory.get_embedder("invalid")  # type: ignore
+            await factory.get_embedder("invalid")  # type: ignore
 
     async def test_factory_preload_all(self, settings: Settings) -> None:
         """Test preloading all embedders."""
@@ -309,8 +309,8 @@ class TestEmbedderFactory:
         factory = EmbedderFactory(settings)
 
         # Load some embedders
-        factory.get_text_embedder()
-        factory.get_code_embedder()
+        await factory.get_text_embedder()
+        await factory.get_code_embedder()
         assert len(factory) == 2
 
         # Unload all

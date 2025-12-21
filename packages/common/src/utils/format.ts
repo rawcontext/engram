@@ -96,12 +96,16 @@ export function truncateText(text: string, maxLength: number, ellipsis: string =
  */
 export function formatBytes(bytes: number, decimals: number = 2): string {
 	if (bytes === 0) return "0 Bytes";
+	if (bytes < 0) return formatBytes(Math.abs(bytes), decimals);
 
 	const k = 1024;
 	const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 	const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-	return `${Number.parseFloat((bytes / k ** i).toFixed(decimals))} ${sizes[i]}`;
+	// Clamp index to array bounds to handle very large values
+	const boundedIndex = Math.min(Math.max(0, i), sizes.length - 1);
+
+	return `${Number.parseFloat((bytes / k ** boundedIndex).toFixed(decimals))} ${sizes[boundedIndex]}`;
 }
 
 /**

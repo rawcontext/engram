@@ -65,17 +65,23 @@ export class SessionInitializer {
 		}
 
 		const now = new Date().toISOString();
+		const nowMs = Date.now();
+		const maxDate = 253402300799000; // Max bitemporal date (year 9999)
 		const createQuery = `
       CREATE (s:Session {
         id: $id,
         created_at: $now,
         updated_at: $now,
-        status: 'active'
+        status: 'active',
+        vt_start: $nowMs,
+        vt_end: $maxDate,
+        tt_start: $nowMs,
+        tt_end: $maxDate
       })
       RETURN s
     `;
 
-		await this.graphClient.query(createQuery, { id: sessionId, now });
+		await this.graphClient.query(createQuery, { id: sessionId, now, nowMs, maxDate });
 		this.logger.info({ sessionId }, "Created new Session");
 	}
 }

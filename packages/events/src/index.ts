@@ -21,6 +21,9 @@ export function generateEventId(): string {
 	return randomUUID();
 }
 
+/** Maximum timestamp for bitemporal fields (year 9999) */
+const MAX_BITEMPORAL_DATE = 253402300799000;
+
 export const RawStreamEventSchema = z.object({
 	event_id: z.string().uuid(),
 	ingest_timestamp: z.string().datetime(),
@@ -29,6 +32,11 @@ export const RawStreamEventSchema = z.object({
 	// We'll use z.record(z.string(), z.unknown()) to be explicit and compatible
 	payload: z.record(z.string(), z.unknown()),
 	headers: z.record(z.string(), z.string()).optional(),
+	// Bitemporal fields for time-travel support
+	vt_start: z.number().default(() => Date.now()),
+	vt_end: z.number().default(MAX_BITEMPORAL_DATE),
+	tt_start: z.number().default(() => Date.now()),
+	tt_end: z.number().default(MAX_BITEMPORAL_DATE),
 });
 
 export type RawStreamEvent = z.infer<typeof RawStreamEventSchema>;
@@ -62,6 +70,11 @@ export const ParsedStreamEventSchema = z.object({
 		})
 		.optional(),
 	metadata: z.record(z.string(), z.unknown()).optional(),
+	// Bitemporal fields for time-travel support
+	vt_start: z.number().default(() => Date.now()),
+	vt_end: z.number().default(MAX_BITEMPORAL_DATE),
+	tt_start: z.number().default(() => Date.now()),
+	tt_end: z.number().default(MAX_BITEMPORAL_DATE),
 });
 
 export type ParsedStreamEvent = z.infer<typeof ParsedStreamEventSchema>;

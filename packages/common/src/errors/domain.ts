@@ -84,11 +84,8 @@ export class GraphOperationError extends EngramError {
 	}
 
 	override toJSON(): Record<string, unknown> {
-		return {
-			...super.toJSON(),
-			query: this.query,
-			params: this.params,
-		};
+		// Note: query and params are intentionally excluded to prevent information disclosure
+		return super.toJSON();
 	}
 }
 

@@ -52,6 +52,7 @@ export class EngramError extends Error {
 
 	/**
 	 * Convert error to a plain object for logging/serialization.
+	 * Note: Stack traces are intentionally excluded to prevent information disclosure.
 	 */
 	toJSON(): Record<string, unknown> {
 		return {
@@ -59,12 +60,10 @@ export class EngramError extends Error {
 			message: this.message,
 			code: this.code,
 			timestamp: this.timestamp,
-			stack: this.stack,
 			cause: this.cause
 				? {
 						name: this.cause.name,
 						message: this.cause.message,
-						stack: this.cause.stack,
 					}
 				: undefined,
 		};

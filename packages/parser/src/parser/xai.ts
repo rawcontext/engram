@@ -17,20 +17,15 @@ export class XAIParser extends OpenAIParser {
 		const choice = p.choices?.[0];
 		const delta = choice?.delta;
 
-		if (!result && delta) {
-			result = {};
+		if (delta?.reasoning_content) {
+			// Create or extend result with proper StreamDelta type
+			result = {
+				...result,
+				thought: delta.reasoning_content,
+				type: "thought" as const,
+			};
 		}
 
-		if (!result) return null;
-
-		if (delta) {
-			// Check for reasoning_content (Grok 3 Mini / Reasoning models)
-			if (delta.reasoning_content) {
-				result.thought = delta.reasoning_content;
-				result.type = "thought";
-			}
-		}
-
-		return Object.keys(result).length > 0 ? result : null;
+		return result && Object.keys(result).length > 0 ? result : null;
 	}
 }

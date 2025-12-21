@@ -38,17 +38,17 @@ def mock_embedder_factory() -> MagicMock:
     # Mock text embedder
     text_embedder = MagicMock()
     text_embedder.embed = AsyncMock(return_value=[0.1] * 768)
-    factory.get_text_embedder.return_value = text_embedder
+    factory.get_text_embedder = AsyncMock(return_value=text_embedder)
 
     # Mock code embedder
     code_embedder = MagicMock()
     code_embedder.embed = AsyncMock(return_value=[0.2] * 768)
-    factory.get_code_embedder.return_value = code_embedder
+    factory.get_code_embedder = AsyncMock(return_value=code_embedder)
 
-    # Mock sparse embedder
+    # Mock sparse embedder (embed_sparse is sync, called via asyncio.to_thread)
     sparse_embedder = MagicMock()
-    sparse_embedder.embed_sparse.return_value = {1: 0.5, 10: 0.3, 100: 0.2}
-    factory.get_sparse_embedder.return_value = sparse_embedder
+    sparse_embedder.embed_sparse = MagicMock(return_value={1: 0.5, 10: 0.3, 100: 0.2})
+    factory.get_sparse_embedder = AsyncMock(return_value=sparse_embedder)
 
     return factory
 

@@ -12,8 +12,17 @@ export class Redactor {
 		// Secrets / Keys
 		OPENAI_KEY: /sk-[a-zA-Z0-9]{48}/g,
 		ANTHROPIC_KEY: /sk-ant-[a-zA-Z0-9-_]+/g,
-		AWS_KEY: /(?<![A-Z0-9])[A-Z0-9]{20}(?![A-Z0-9])/g, // Basic ID check, secrets are harder
-		GENERIC_SECRET: /[a-zA-Z0-9]{32,}/g, // High entropy strings (careful with this one)
+		AWS_ACCESS_KEY: /\bAKIA[0-9A-Z]{16}\b/g,
+		AWS_SECRET_KEY: /(?<![A-Za-z0-9/+])[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])/g,
+		GITHUB_TOKEN:
+			/\b(ghp_[a-zA-Z0-9]{36}|ghs_[a-zA-Z0-9]{36}|ghu_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{22,})\b/g,
+		GOOGLE_API_KEY: /\bAIzaSy[A-Za-z0-9_-]{33}\b/g,
+		JWT_TOKEN: /\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+		NPM_TOKEN: /\bnpm_[A-Za-z0-9]{36}\b/g,
+		PRIVATE_KEY: /-----BEGIN\s+(?:RSA\s+|EC\s+|OPENSSH\s+)?PRIVATE\s+KEY-----/g,
+		DATABASE_URL: /\b(postgres|postgresql|mysql|mongodb|redis):\/\/[^\s"']+/gi,
+		BEARER_TOKEN: /\bBearer\s+[A-Za-z0-9._\-]+\b/g,
+		PASSWORD_FIELD: /(?:password|passwd|pwd|secret)\s*[:=]\s*["']?[^\s"']+["']?/gi,
 	};
 
 	public redact(text: string): string {
@@ -29,9 +38,19 @@ export class Redactor {
 		// Credit Cards
 		redacted = redacted.replace(Redactor.PATTERNS.CREDIT_CARD, "[CREDIT_CARD]");
 
-		// Secrets
+		// Secrets and API Keys
 		redacted = redacted.replace(Redactor.PATTERNS.OPENAI_KEY, "[OPENAI_KEY_REDACTED]");
 		redacted = redacted.replace(Redactor.PATTERNS.ANTHROPIC_KEY, "[ANTHROPIC_KEY_REDACTED]");
+		redacted = redacted.replace(Redactor.PATTERNS.AWS_ACCESS_KEY, "[AWS_ACCESS_KEY_REDACTED]");
+		redacted = redacted.replace(Redactor.PATTERNS.AWS_SECRET_KEY, "[AWS_SECRET_KEY_REDACTED]");
+		redacted = redacted.replace(Redactor.PATTERNS.GITHUB_TOKEN, "[GITHUB_TOKEN_REDACTED]");
+		redacted = redacted.replace(Redactor.PATTERNS.GOOGLE_API_KEY, "[GOOGLE_API_KEY_REDACTED]");
+		redacted = redacted.replace(Redactor.PATTERNS.JWT_TOKEN, "[JWT_TOKEN_REDACTED]");
+		redacted = redacted.replace(Redactor.PATTERNS.NPM_TOKEN, "[NPM_TOKEN_REDACTED]");
+		redacted = redacted.replace(Redactor.PATTERNS.PRIVATE_KEY, "[PRIVATE_KEY_REDACTED]");
+		redacted = redacted.replace(Redactor.PATTERNS.DATABASE_URL, "[DATABASE_URL_REDACTED]");
+		redacted = redacted.replace(Redactor.PATTERNS.BEARER_TOKEN, "[BEARER_TOKEN_REDACTED]");
+		redacted = redacted.replace(Redactor.PATTERNS.PASSWORD_FIELD, "[PASSWORD_REDACTED]");
 
 		// Phones (using a ReDoS-safe pattern)
 		// Note: The original regex had nested optional groups causing catastrophic backtracking.
