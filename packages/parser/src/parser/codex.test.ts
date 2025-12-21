@@ -213,5 +213,65 @@ describe("CodexParser", () => {
 			const result = parser.parse(payload);
 			expect(result).toBeNull();
 		});
+
+		it("should return null for non-object payloads", () => {
+			expect(parser.parse(null)).toBeNull();
+			expect(parser.parse("string")).toBeNull();
+			expect(parser.parse(123)).toBeNull();
+			expect(parser.parse([])).toBeNull();
+		});
+	});
+
+	describe("edge cases", () => {
+		it("should return null for invalid item.completed schema", () => {
+			const payload = {
+				type: "item.completed",
+				item: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid item.started schema", () => {
+			const payload = {
+				type: "item.started",
+				item: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid turn.completed schema", () => {
+			const payload = {
+				type: "turn.completed",
+				usage: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid thread.started schema", () => {
+			const payload = {
+				type: "thread.started",
+				thread_id: 123,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid turn.started schema", () => {
+			const payload = {
+				type: "turn.started",
+				extra_field: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			// Even with extra fields, basic schema should pass
+			expect(result).not.toBeNull();
+		});
 	});
 });

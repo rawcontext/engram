@@ -132,6 +132,32 @@ describe("Blob Storage", () => {
 
 			expect(JSON.parse(content)).toEqual({ key: "value", nested: { array: [1, 2, 3] } });
 		});
+
+		it("should reject filenames with forward slashes", async () => {
+			const store = new FileSystemBlobStore(testDir);
+
+			// Try to load a URI with path traversal using forward slash in filename
+			const maliciousUri = "file://abc/def";
+			await expect(store.load(maliciousUri)).rejects.toThrow("Invalid blob filename format");
+		});
+
+		it("should reject filenames with backslashes", async () => {
+			const store = new FileSystemBlobStore(testDir);
+
+			// Try to load a URI with backslash
+			const maliciousUri = "file://abc\\def";
+			await expect(store.load(maliciousUri)).rejects.toThrow("Invalid blob filename format");
+		});
+
+		it("should handle Buffer input", async () => {
+			const store = new FileSystemBlobStore(testDir);
+			const buffer = Buffer.from("buffer content");
+
+			const uri = await store.save(buffer);
+			const content = await store.load(uri);
+
+			expect(content).toBe("buffer content");
+		});
 	});
 
 	describe("GCSBlobStore", () => {
@@ -204,6 +230,18 @@ describe("Blob Storage", () => {
 			const content = await store.load("gs://test-bucket/somefile");
 
 			expect(content).toBe("loaded content");
+		});
+
+		it("should handle Buffer input for save", async () => {
+			const store = new GCSBlobStore("test-bucket");
+			const buffer = Buffer.from("buffer test content");
+
+			const uri = await store.save(buffer);
+
+			expect(uri).toMatch(/^gs:\/\/test-bucket\/[a-f0-9]+$/);
+			expect(mockSave).toHaveBeenCalledWith("buffer test content", {
+				contentType: "application/json",
+			});
 		});
 	});
 

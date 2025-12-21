@@ -105,6 +105,40 @@ describe("ElicitationService", () => {
 				"Elicitation request failed",
 			);
 		});
+
+		it("should pass through custom title option", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "accept",
+				content: { confirmed: true },
+			});
+
+			await service.confirm("Proceed?", { title: "Custom Title" });
+
+			expect(mockServer.server.elicitInput).toHaveBeenCalledWith({
+				message: "Proceed?",
+				requestedSchema: expect.objectContaining({
+					properties: {
+						confirmed: expect.objectContaining({
+							title: "Custom Title",
+						}),
+					},
+				}),
+			});
+		});
+
+		it("should convert non-boolean confirmed value to boolean", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "accept",
+				content: { confirmed: "yes" },
+			});
+
+			const result = await service.confirm("Confirm?");
+
+			expect(result.accepted).toBe(true);
+			expect(result.content?.confirmed).toBe(true);
+		});
 	});
 
 	describe("select", () => {
@@ -158,6 +192,39 @@ describe("ElicitationService", () => {
 				},
 			});
 		});
+
+		it("should return rejected when user declines", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "decline",
+			});
+
+			const result = await service.select("Choose one:", options);
+
+			expect(result.accepted).toBe(false);
+		});
+
+		it("should return rejected when no selected value", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "accept",
+				content: {},
+			});
+
+			const result = await service.select("Choose one:", options);
+
+			expect(result.accepted).toBe(false);
+		});
+
+		it("should handle errors gracefully", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockRejectedValueOnce(new Error("Test error"));
+
+			const result = await service.select("Choose:", options);
+
+			expect(result.accepted).toBe(false);
+			expect(mockLogger.warn).toHaveBeenCalled();
+		});
 	});
 
 	describe("promptText", () => {
@@ -192,6 +259,65 @@ describe("ElicitationService", () => {
 			expect(result.accepted).toBe(true);
 			expect(result.content?.text).toBe("");
 		});
+
+		it("should handle missing text content gracefully", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "accept",
+				content: {},
+			});
+
+			const result = await service.promptText("Enter name:");
+
+			expect(result.accepted).toBe(true);
+			expect(result.content?.text).toBe("");
+		});
+
+		it("should handle decline action", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "decline",
+			});
+
+			const result = await service.promptText("Enter name:");
+
+			expect(result.accepted).toBe(false);
+		});
+
+		it("should handle errors gracefully", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce(new Error("Test error"));
+
+			const result = await service.promptText("Test?");
+
+			expect(result.accepted).toBe(false);
+		});
+
+		it("should pass through title and placeholder options", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "accept",
+				content: { text: "test" },
+			});
+
+			await service.promptText("Enter:", {
+				title: "Custom Title",
+				placeholder: "Placeholder text",
+			});
+
+			expect(mockServer.server.elicitInput).toHaveBeenCalledWith({
+				message: "Enter:",
+				requestedSchema: expect.objectContaining({
+					properties: {
+						text: {
+							type: "string",
+							title: "Custom Title",
+							description: "Placeholder text",
+						},
+					},
+				}),
+			});
+		});
 	});
 
 	describe("selectMemory", () => {
@@ -218,6 +344,46 @@ describe("ElicitationService", () => {
 
 			expect(result.accepted).toBe(true);
 			expect(result.content?.selectedId).toBe("mem-2");
+		});
+
+		it("should return rejected when select not accepted", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "decline",
+			});
+
+			const result = await service.selectMemory("Choose a memory:", memories);
+
+			expect(result.accepted).toBe(false);
+		});
+
+		it("should truncate long preview in labels", async () => {
+			service.enable();
+			const longMemory = {
+				id: "mem-long",
+				preview: "A".repeat(100),
+				type: "context",
+			};
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "accept",
+				content: { selected: "mem-long" },
+			});
+
+			await service.selectMemory("Choose:", [longMemory]);
+
+			expect(mockServer.server.elicitInput).toHaveBeenCalledWith(
+				expect.objectContaining({
+					requestedSchema: expect.objectContaining({
+						properties: {
+							selected: expect.objectContaining({
+								enumNames: expect.arrayContaining([
+									expect.stringMatching(/^context: .{50}\.\.\.$/),
+								]),
+							}),
+						},
+					}),
+				}),
+			);
 		});
 	});
 
@@ -256,6 +422,41 @@ describe("ElicitationService", () => {
 					message: "⚠️ Delete files\n\nAll files will be removed",
 				}),
 			);
+		});
+
+		it("should return rejected when user declines", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "decline",
+			});
+
+			const result = await service.confirmDestructive("Delete data", "Cannot undo");
+
+			expect(result.accepted).toBe(false);
+		});
+
+		it("should convert non-boolean flags to boolean", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockResolvedValueOnce({
+				action: "accept",
+				content: { confirmed: 1, understood: "yes" },
+			});
+
+			const result = await service.confirmDestructive("Delete", "Details");
+
+			expect(result.accepted).toBe(true);
+			expect(result.content?.confirmed).toBe(true);
+			expect(result.content?.understood).toBe(true);
+		});
+
+		it("should handle errors gracefully", async () => {
+			service.enable();
+			mockServer.server.elicitInput.mockRejectedValueOnce(new Error("Test error"));
+
+			const result = await service.confirmDestructive("Delete", "Cannot undo");
+
+			expect(result.accepted).toBe(false);
+			expect(mockLogger.warn).toHaveBeenCalled();
 		});
 	});
 });

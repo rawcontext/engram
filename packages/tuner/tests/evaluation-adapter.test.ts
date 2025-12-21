@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BenchmarkReport } from "../src/executor/benchmark-types.js";
 import type { TrialConfig } from "../src/executor/config-mapper.js";
 import {
+	evaluateWithBenchmark,
 	mapBenchmarkToTrialMetrics,
 	mapTrialToBenchmarkConfig,
 } from "../src/executor/evaluation-adapter.js";
@@ -310,5 +314,340 @@ describe("mapBenchmarkToTrialMetrics", () => {
 		expect(result.p95Latency).toBe(0);
 		expect(result.p99Latency).toBe(0);
 		expect(result.abstentionF1).toBe(0);
+	});
+
+	it("should handle missing retrieval metrics", () => {
+		const report: any = {
+			timestamp: new Date().toISOString(),
+			dataset_path: "/test/dataset.json",
+			total_instances: 100,
+			metrics: {
+				overall: { total: 100, correct: 50, accuracy: 0.5 },
+				by_ability: {
+					IE: { total: 20, correct: 10, accuracy: 0.5 },
+					MR: { total: 20, correct: 10, accuracy: 0.5 },
+					TR: { total: 20, correct: 10, accuracy: 0.5 },
+					KU: { total: 20, correct: 10, accuracy: 0.5 },
+					ABS: { total: 20, correct: 10, accuracy: 0.5 },
+				},
+				// No retrieval metrics
+			},
+		};
+
+		const result = mapBenchmarkToTrialMetrics(report);
+
+		expect(result.ndcg).toBe(0);
+		expect(result.mrr).toBe(0);
+		expect(result.hitRate).toBe(0);
+		expect(result.recall).toBe(0);
+	});
+
+	it("should handle missing abstention metrics", () => {
+		const report: any = {
+			timestamp: new Date().toISOString(),
+			dataset_path: "/test/dataset.json",
+			total_instances: 100,
+			metrics: {
+				overall: { total: 100, correct: 50, accuracy: 0.5 },
+				by_ability: {
+					IE: { total: 20, correct: 10, accuracy: 0.5 },
+					MR: { total: 20, correct: 10, accuracy: 0.5 },
+					TR: { total: 20, correct: 10, accuracy: 0.5 },
+					KU: { total: 20, correct: 10, accuracy: 0.5 },
+					ABS: { total: 20, correct: 10, accuracy: 0.5 },
+				},
+				retrieval: {
+					turn_recall: 0.8,
+					session_recall: 0.9,
+					recall_at_k: { 1: 0.7, 5: 0.8, 10: 0.9 },
+					ndcg_at_k: { 10: 0.75 },
+					mrr: 0.72,
+				},
+				// No abstention metrics
+			},
+		};
+
+		const result = mapBenchmarkToTrialMetrics(report);
+
+		expect(result.abstentionPrecision).toBe(0);
+		expect(result.abstentionRecall).toBe(0);
+		expect(result.abstentionF1).toBe(0);
+	});
+});
+
+// NOTE: evaluateWithBenchmark involves spawning child processes which is difficult to test
+// in a unit test environment. The function is primarily tested via integration tests.
+describe.skip("evaluateWithBenchmark", () => {
+	let tmpDir: string;
+
+	beforeEach(async () => {
+		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "benchmark-test-"));
+	});
+
+	afterEach(async () => {
+		try {
+			await fs.rm(tmpDir, { recursive: true, force: true });
+		} catch {
+			// Ignore cleanup errors
+		}
+	});
+
+	const baseTrialConfig: TrialConfig = {
+		reranker: { enabled: true, defaultTier: "accurate", depth: 30 },
+		search: { minScore: { hybrid: 0.5 } },
+		abstention: { minRetrievalScore: 0.3 },
+	};
+
+	it("should throw when benchmark CLI spawning fails", async () => {
+		vi.mock("node:child_process", () => ({
+			spawn: () => {
+				throw new Error("spawn ENOENT");
+			},
+		}));
+
+		await expect(
+			evaluateWithBenchmark(baseTrialConfig, {
+				dataset: "/test/dataset.json",
+			}),
+		).rejects.toThrow();
+	});
+
+	it("should throw when dataset is not a string", async () => {
+		const invalidConfig = {
+			...baseTrialConfig,
+		};
+
+		await expect(
+			evaluateWithBenchmark(invalidConfig, {
+				dataset: null as any,
+			}),
+		).rejects.toThrow("dataset must be a string");
+	});
+
+	it("should throw when rerankTier is not a string", async () => {
+		const invalidConfig: TrialConfig = {
+			reranker: { defaultTier: 123 as any },
+			search: {},
+			abstention: {},
+		};
+
+		await expect(
+			evaluateWithBenchmark(invalidConfig, {
+				dataset: "/test/dataset.json",
+			}),
+		).rejects.toThrow("rerankTier must be a string");
+	});
+
+	it("should handle progress callbacks", async () => {
+		const progressUpdates: Array<{ stage: string; percent: number }> = [];
+
+		const mockSpawn = vi.fn(() => {
+			const EventEmitter = require("node:events");
+			const proc = new EventEmitter();
+			proc.stdout = new EventEmitter();
+			proc.stderr = new EventEmitter();
+
+			setTimeout(() => {
+				proc.stdout.emit("data", Buffer.from("Embedding: 50%"));
+				proc.stdout.emit("data", Buffer.from("Evaluation: 75%"));
+				proc.emit("close", 0);
+			}, 10);
+
+			return proc;
+		});
+
+		vi.mock("node:child_process", () => ({
+			spawn: mockSpawn,
+		}));
+
+		// Create a test report file
+		const reportPath = path.join(tmpDir, "report_test.json");
+		const report = createBenchmarkReport({
+			accuracy: 0.8,
+			recallAt1: 0.7,
+			recallAt5: 0.8,
+			recallAt10: 0.9,
+			ndcgAt10: 0.75,
+			mrr: 0.72,
+			abstentionPrecision: 0.8,
+			abstentionRecall: 0.7,
+			abstentionF1: 0.74,
+			p50Latency: 50,
+			p95Latency: 100,
+			p99Latency: 150,
+			totalDurationMs: 5000,
+		});
+
+		await fs.writeFile(reportPath, JSON.stringify(report));
+
+		// Mock fs.promises.readdir to return our report
+		const originalReaddir = fs.readdir;
+		vi.spyOn(fs, "readdir").mockResolvedValue(["report_test.json"] as any);
+
+		try {
+			await evaluateWithBenchmark(baseTrialConfig, {
+				dataset: "/test/dataset.json",
+				onProgress: (stage, pct) => {
+					progressUpdates.push({ stage, percent: pct });
+				},
+			});
+
+			expect(progressUpdates.length).toBeGreaterThan(0);
+		} finally {
+			vi.spyOn(fs, "readdir").mockRestore();
+		}
+	});
+
+	it("should handle benchmark process errors", async () => {
+		const mockSpawn = vi.fn(() => {
+			const EventEmitter = require("node:events");
+			const proc = new EventEmitter();
+			proc.stdout = new EventEmitter();
+			proc.stderr = new EventEmitter();
+
+			setTimeout(() => {
+				proc.emit("error", new Error("Command not found"));
+			}, 10);
+
+			return proc;
+		});
+
+		vi.mock("node:child_process", () => ({
+			spawn: mockSpawn,
+		}));
+
+		await expect(
+			evaluateWithBenchmark(baseTrialConfig, {
+				dataset: "/test/dataset.json",
+			}),
+		).rejects.toThrow("Failed to spawn engram-benchmark CLI");
+	});
+
+	it("should handle non-zero exit code", async () => {
+		const mockSpawn = vi.fn(() => {
+			const EventEmitter = require("node:events");
+			const proc = new EventEmitter();
+			proc.stdout = new EventEmitter();
+			proc.stderr = new EventEmitter();
+
+			setTimeout(() => {
+				proc.stderr.emit("data", Buffer.from("Error: Something went wrong"));
+				proc.emit("close", 1);
+			}, 10);
+
+			return proc;
+		});
+
+		vi.mock("node:child_process", () => ({
+			spawn: mockSpawn,
+		}));
+
+		await expect(
+			evaluateWithBenchmark(baseTrialConfig, {
+				dataset: "/test/dataset.json",
+			}),
+		).rejects.toThrow("exited with code 1");
+	});
+
+	it("should throw when no JSON report found", async () => {
+		const mockSpawn = vi.fn(() => {
+			const EventEmitter = require("node:events");
+			const proc = new EventEmitter();
+			proc.stdout = new EventEmitter();
+			proc.stderr = new EventEmitter();
+
+			setTimeout(() => {
+				proc.emit("close", 0);
+			}, 10);
+
+			return proc;
+		});
+
+		vi.mock("node:child_process", () => ({
+			spawn: mockSpawn,
+		}));
+
+		// Mock readdir to return no JSON files
+		vi.spyOn(fs, "readdir").mockResolvedValue(["other.txt"] as any);
+
+		try {
+			await expect(
+				evaluateWithBenchmark(baseTrialConfig, {
+					dataset: "/test/dataset.json",
+				}),
+			).rejects.toThrow("No JSON report found");
+		} finally {
+			vi.spyOn(fs, "readdir").mockRestore();
+		}
+	});
+
+	it("should throw when JSON parsing fails", async () => {
+		const mockSpawn = vi.fn(() => {
+			const EventEmitter = require("node:events");
+			const proc = new EventEmitter();
+			proc.stdout = new EventEmitter();
+			proc.stderr = new EventEmitter();
+
+			setTimeout(() => {
+				proc.emit("close", 0);
+			}, 10);
+
+			return proc;
+		});
+
+		vi.mock("node:child_process", () => ({
+			spawn: mockSpawn,
+		}));
+
+		// Create invalid JSON file
+		const reportPath = path.join(tmpDir, "report_invalid.json");
+		await fs.writeFile(reportPath, "{ invalid json }");
+
+		vi.spyOn(fs, "readdir").mockResolvedValue(["report_invalid.json"] as any);
+
+		try {
+			await expect(
+				evaluateWithBenchmark(baseTrialConfig, {
+					dataset: "/test/dataset.json",
+				}),
+			).rejects.toThrow("Failed to parse benchmark report JSON");
+		} finally {
+			vi.spyOn(fs, "readdir").mockRestore();
+		}
+	});
+
+	it("should throw when JSON is not an object", async () => {
+		const mockSpawn = vi.fn(() => {
+			const EventEmitter = require("node:events");
+			const proc = new EventEmitter();
+			proc.stdout = new EventEmitter();
+			proc.stderr = new EventEmitter();
+
+			setTimeout(() => {
+				proc.emit("close", 0);
+			}, 10);
+
+			return proc;
+		});
+
+		vi.mock("node:child_process", () => ({
+			spawn: mockSpawn,
+		}));
+
+		// Create JSON array instead of object
+		const reportPath = path.join(tmpDir, "report_array.json");
+		await fs.writeFile(reportPath, "[]");
+
+		vi.spyOn(fs, "readdir").mockResolvedValue(["report_array.json"] as any);
+
+		try {
+			await expect(
+				evaluateWithBenchmark(baseTrialConfig, {
+					dataset: "/test/dataset.json",
+				}),
+			).rejects.toThrow("Invalid benchmark report: expected an object");
+		} finally {
+			vi.spyOn(fs, "readdir").mockRestore();
+		}
 	});
 });

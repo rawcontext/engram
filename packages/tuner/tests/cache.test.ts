@@ -227,5 +227,76 @@ describe("EvaluationCache", () => {
 
 			expect(result).toEqual(metrics);
 		});
+
+		it("should handle file read errors in get", async () => {
+			// Try to get a key that doesn't exist - should return null
+			const result = await cache.get({ nonexistent: true });
+			expect(result).toBeNull();
+		});
+
+		it("should handle corrupted cache files in has", async () => {
+			const params = { test: 1 };
+			await cache.set(params, { ndcg: 0.5 });
+
+			// Corrupt the cache file by writing invalid JSON
+			const { join } = await import("node:path");
+			const { writeFile } = await import("node:fs/promises");
+			const { createHash } = await import("node:crypto");
+
+			const key = createHash("md5").update(JSON.stringify(params)).digest("hex");
+			const corruptedPath = join(TEST_CACHE_DIR, `${key}.json`);
+
+			await writeFile(corruptedPath, "{ corrupt json");
+
+			// has should return false for corrupted files
+			const result = await cache.has(params);
+			expect(result).toBe(false);
+		});
+
+		it("should handle version mismatch in has", async () => {
+			const params = { test: 1 };
+
+			// Write cache entry with wrong version
+			const { join } = await import("node:path");
+			const { writeFile, mkdir } = await import("node:fs/promises");
+			const { createHash } = await import("node:crypto");
+
+			await mkdir(TEST_CACHE_DIR, { recursive: true });
+
+			const key = createHash("md5").update(JSON.stringify(params)).digest("hex");
+			const cachePath = join(TEST_CACHE_DIR, `${key}.json`);
+
+			await writeFile(
+				cachePath,
+				JSON.stringify({
+					params,
+					metrics: { ndcg: 0.5 },
+					timestamp: new Date().toISOString(),
+					version: 999,
+				}),
+			);
+
+			// has should return false for wrong version
+			const result = await cache.has(params);
+			expect(result).toBe(false);
+
+			// get should also return null for wrong version
+			const getResult = await cache.get(params);
+			expect(getResult).toBeNull();
+		});
+
+		it("should handle getStats when cache dir does not exist", async () => {
+			const newCache = new EvaluationCache(".nonexistent-cache-dir");
+			const stats = await newCache.getStats();
+
+			expect(stats.entries).toBe(0);
+			expect(stats.hits).toBe(0);
+			expect(stats.misses).toBe(0);
+		});
+
+		it("should handle clear when cache dir does not exist", async () => {
+			const newCache = new EvaluationCache(".nonexistent-cache-dir-2");
+			await expect(newCache.clear()).resolves.not.toThrow();
+		});
 	});
 });

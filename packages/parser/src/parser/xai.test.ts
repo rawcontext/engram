@@ -31,4 +31,35 @@ describe("XAIParser", () => {
 		expect(result?.thought).toBe("Logic");
 		expect(result?.content).toBe("Result");
 	});
+
+	it("should return base parser result when xAI schema validation fails", () => {
+		const payload = {
+			choices: [{ delta: { content: "Hello" }, invalid_field: "causes schema fail" }],
+			invalid_top: true,
+		};
+		const result = parser.parse(payload);
+		// Should fall back to OpenAI parsing
+		expect(result?.content).toBe("Hello");
+	});
+
+	it("should return null when both parsers fail", () => {
+		const payload = {
+			invalid: "structure",
+		};
+		const result = parser.parse(payload);
+		expect(result).toBeNull();
+	});
+
+	it("should handle empty payload", () => {
+		const result = parser.parse({});
+		expect(result).toBeNull();
+	});
+
+	it("should handle payload with no reasoning_content", () => {
+		const payload = {
+			choices: [{ delta: {} }],
+		};
+		const result = parser.parse(payload);
+		expect(result).toBeNull();
+	});
 });

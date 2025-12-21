@@ -319,4 +319,40 @@ describe("InMemoryFileSystem", () => {
 			expect(fs.exists("/dir/subdir")).toBe(true);
 		});
 	});
+
+	describe("edge cases", () => {
+		it("should handle Buffer content with byteLength calculation", () => {
+			fs.mkdir("/dir");
+			const buffer = Buffer.from("test content");
+			fs.writeFile("/dir/binary.bin", buffer);
+
+			const stats = fs.stat("/dir/binary.bin");
+			expect(stats.size).toBe(buffer.length);
+		});
+
+		it("should throw ENOTDIR when creating directory in file path", () => {
+			fs.mkdir("/dir");
+			fs.writeFile("/dir/file", "content");
+			expect(() => fs.mkdir("/dir/file/subdir", { recursive: true })).toThrow("ENOTDIR");
+		});
+
+		it("should handle async variants consistently", async () => {
+			await fs.mkdirAsync("/dir");
+			await fs.writeFileAsync("/dir/file.txt", "content");
+			const content = await fs.readFileAsync("/dir/file.txt");
+			expect(content).toBe("content");
+
+			const entries = await fs.readDirAsync("/dir");
+			expect(entries).toEqual(["file.txt"]);
+
+			const stats = await fs.statAsync("/dir/file.txt");
+			expect(stats.isFile()).toBe(true);
+
+			await fs.unlinkAsync("/dir/file.txt");
+			expect(fs.exists("/dir/file.txt")).toBe(false);
+
+			await fs.rmdirAsync("/dir");
+			expect(fs.exists("/dir")).toBe(false);
+		});
+	});
 });

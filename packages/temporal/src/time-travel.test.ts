@@ -37,4 +37,37 @@ describe("TimeTravelService", () => {
 		const files = await service.listFiles("session-1", 1000, "/");
 		expect(files).toEqual(["test.txt"]);
 	});
+
+	it("listFiles should return empty array when path doesn't exist", async () => {
+		const errorVFS = new VirtualFileSystem();
+		errorVFS.readDir = vi.fn(() => {
+			throw new Error("Directory not found");
+		});
+
+		const errorRehydrator = {
+			rehydrate: vi.fn(async () => errorVFS),
+		} as unknown as Rehydrator;
+
+		const errorService = new TimeTravelService(errorRehydrator);
+		const files = await errorService.listFiles("session-1", 1000, "/nonexistent");
+
+		expect(files).toEqual([]);
+	});
+
+	it("listFiles should default to root path when not specified", async () => {
+		const files = await service.listFiles("session-1", 1000);
+		expect(mockVFS.readDir).toHaveBeenCalledWith("/");
+		expect(files).toEqual(["test.txt"]);
+	});
+
+	it("getFilesystemState should pass through different session IDs", async () => {
+		await service.getFilesystemState("different-session", 2000);
+		expect(mockRehydrator.rehydrate).toHaveBeenCalledWith("different-session", 2000);
+	});
+
+	it("getZippedState should handle different timestamps", async () => {
+		const buffer = await service.getZippedState("session-2", 5000);
+		expect(mockRehydrator.rehydrate).toHaveBeenCalledWith("session-2", 5000);
+		expect(Buffer.isBuffer(buffer)).toBe(true);
+	});
 });

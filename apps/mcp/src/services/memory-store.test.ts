@@ -171,6 +171,14 @@ describe("MemoryStore", () => {
 				expect.objectContaining({ limit: 10 }),
 			);
 		});
+
+		it("should return empty array when result is not an array", async () => {
+			mockGraphClient.query.mockResolvedValueOnce(null);
+
+			const memories = await store.listMemories();
+
+			expect(memories).toEqual([]);
+		});
 	});
 
 	describe("deleteMemory", () => {
@@ -192,6 +200,40 @@ describe("MemoryStore", () => {
 			const result = await store.deleteMemory("nonexistent");
 
 			expect(result).toBe(false);
+		});
+	});
+
+	describe("connection management", () => {
+		it("should connect and disconnect", async () => {
+			await store.connect();
+			expect(mockGraphClient.connect).toHaveBeenCalled();
+
+			await store.disconnect();
+			expect(mockGraphClient.disconnect).toHaveBeenCalled();
+		});
+
+		it("should not disconnect connection that was already connected", async () => {
+			// Simulate already connected state
+			await store.connect();
+			vi.clearAllMocks();
+
+			// Create memory with already-connected store
+			mockGraphClient.query.mockResolvedValueOnce([]);
+			mockGraphClient.query.mockResolvedValueOnce([]);
+			await store.createMemory({ content: "test" });
+
+			// Should not have disconnected
+			expect(mockGraphClient.disconnect).not.toHaveBeenCalled();
+		});
+
+		it("should auto-disconnect if connection was initiated by operation", async () => {
+			// Store starts not connected
+			mockGraphClient.query.mockResolvedValueOnce([]);
+
+			const memory = await store.getMemory("test-id");
+
+			// Should have auto-disconnected after operation
+			expect(mockGraphClient.disconnect).toHaveBeenCalled();
 		});
 	});
 });

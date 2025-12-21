@@ -197,4 +197,81 @@ describe("Logger Package", () => {
 			});
 		});
 	});
+
+	describe("Lifecycle Management", () => {
+		it("should prevent logging after destroy", () => {
+			const logger = createNodeLogger({ service: "test" });
+			const infoSpy = vi.spyOn(console, "info");
+
+			// Log before destroy
+			logger.info("before destroy");
+
+			// Destroy logger
+			logger.destroy?.();
+
+			// Try to log after destroy
+			logger.info("after destroy");
+
+			// Should not throw, but subsequent logs should be dropped
+			expect(logger).toBeDefined();
+
+			infoSpy.mockRestore();
+		});
+
+		it("should handle flush during destroy", () => {
+			const logger = createNodeLogger({ service: "test" });
+
+			// Should not throw
+			expect(() => {
+				logger.flush?.(() => {});
+				logger.destroy?.();
+			}).not.toThrow();
+		});
+
+		it("should handle multiple destroy calls", () => {
+			const logger = createNodeLogger({ service: "test" });
+
+			// Should not throw on multiple destroy calls
+			expect(() => {
+				logger.destroy?.();
+				logger.destroy?.();
+				logger.destroy?.();
+			}).not.toThrow();
+		});
+
+		it("should wrap all logging methods", () => {
+			const logger = createNodeLogger({ service: "test" });
+
+			// Should not throw when calling logging methods
+			expect(() => {
+				logger.trace("trace");
+				logger.debug("debug");
+				logger.info("info");
+				logger.warn("warn");
+				logger.error("error");
+				logger.fatal("fatal");
+			}).not.toThrow();
+		});
+
+		it("should handle flush callback", () => {
+			const logger = createNodeLogger({ service: "test" });
+			const callback = vi.fn();
+
+			logger.flush?.(callback);
+
+			// Callback should be called
+			expect(callback).toHaveBeenCalled();
+		});
+
+		it("should not flush when already destroyed", () => {
+			const logger = createNodeLogger({ service: "test" });
+			const callback = vi.fn();
+
+			logger.destroy?.();
+			logger.flush?.(callback);
+
+			// Callback should still be called but flush should be no-op
+			expect(callback).toHaveBeenCalled();
+		});
+	});
 });

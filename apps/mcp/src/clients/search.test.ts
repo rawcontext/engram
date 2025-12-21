@@ -158,5 +158,38 @@ describe("SearchClient", () => {
 				}),
 			).rejects.toThrow("Network error");
 		});
+
+		it("should handle timeout", async () => {
+			// Mock fetch to reject with an abort error (simulating timeout)
+			const abortError = new DOMException("The operation was aborted", "AbortError");
+			vi.mocked(fetch).mockRejectedValueOnce(abortError);
+
+			await expect(
+				client.search({
+					text: "test query",
+				}),
+			).rejects.toThrow("The operation was aborted");
+		});
+
+		it("should clear timeout on successful response", async () => {
+			const clearTimeoutSpy = vi.spyOn(global, "clearTimeout");
+			vi.mocked(fetch).mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ results: [], total: 0, took_ms: 10 }),
+			} as Response);
+
+			await client.search({ text: "test" });
+
+			expect(clearTimeoutSpy).toHaveBeenCalled();
+		});
+
+		it("should clear timeout on error", async () => {
+			const clearTimeoutSpy = vi.spyOn(global, "clearTimeout");
+			vi.mocked(fetch).mockRejectedValueOnce(new Error("Test error"));
+
+			await expect(client.search({ text: "test" })).rejects.toThrow();
+
+			expect(clearTimeoutSpy).toHaveBeenCalled();
+		});
 	});
 });

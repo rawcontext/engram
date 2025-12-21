@@ -5,12 +5,14 @@ import { McpToolAdapter, MultiMcpAdapter } from "./mcp_client";
 const mockConnect = vi.fn(async () => {});
 const mockListTools = vi.fn(async () => ({ tools: [{ name: "test-tool" }] }));
 const mockCallTool = vi.fn(async () => ({ content: [] }));
+const mockClose = vi.fn(async () => {});
 
 vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
 	Client: class {
 		connect = mockConnect;
 		listTools = mockListTools;
 		callTool = mockCallTool;
+		close = mockClose;
 	},
 }));
 
@@ -45,6 +47,33 @@ describe("MCP Client", () => {
 				name: "test-tool",
 				arguments: { arg: 1 },
 			});
+		});
+
+		it("should disconnect successfully", async () => {
+			const adapter = new McpToolAdapter("echo");
+			await adapter.connect();
+			expect(mockConnect).toHaveBeenCalled();
+
+			await adapter.disconnect();
+			expect(mockClose).toHaveBeenCalled();
+		});
+
+		it("should handle disconnect errors gracefully", async () => {
+			mockClose.mockRejectedValueOnce(new Error("Close failed"));
+
+			const adapter = new McpToolAdapter("echo");
+			await adapter.connect();
+
+			await expect(adapter.disconnect()).resolves.not.toThrow();
+		});
+
+		it("should not disconnect if not connected", async () => {
+			mockClose.mockClear();
+
+			const adapter = new McpToolAdapter("echo");
+			await adapter.disconnect();
+
+			expect(mockClose).not.toHaveBeenCalled();
 		});
 	});
 
@@ -83,6 +112,40 @@ describe("MCP Client", () => {
 		it("should throw if tool not found", async () => {
 			const multi = new MultiMcpAdapter();
 			await expect(multi.callTool("missing", {})).rejects.toThrow("not found");
+		});
+
+		it("should disconnect all adapters", async () => {
+			const multi = new MultiMcpAdapter();
+			const adapter1 = new McpToolAdapter("echo");
+			const adapter2 = new McpToolAdapter("cat");
+
+			multi.addAdapter(adapter1);
+			multi.addAdapter(adapter2);
+			await multi.connectAll();
+
+			mockClose.mockClear();
+			await multi.disconnectAll();
+
+			expect(mockClose).toHaveBeenCalledTimes(2);
+		});
+
+		it("should handle refreshTools errors gracefully", async () => {
+			const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+			mockListTools.mockRejectedValueOnce(new Error("Failed to list tools"));
+
+			const multi = new MultiMcpAdapter();
+			const adapter = new McpToolAdapter("echo");
+			multi.addAdapter(adapter);
+
+			await multi.connectAll();
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				"Failed to list tools from adapter",
+				expect.any(Error),
+			);
+
+			consoleErrorSpy.mockRestore();
 		});
 	});
 });

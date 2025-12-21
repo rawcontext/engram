@@ -203,4 +203,72 @@ describe("ToolRegistry", () => {
 			expect(selected).toHaveLength(3); // All tools since we only have 3
 		});
 	});
+
+	describe("cosineSimilarity edge cases", () => {
+		it("should throw error when vectors have different lengths", async () => {
+			// Create unique tools to avoid cache issues and force comparison
+			const uniqueTool1: Tool = {
+				name: "unique_test_tool_1",
+				description: "First unique test tool",
+				parameters: {
+					type: "object",
+					properties: {
+						arg: { type: "string" },
+					},
+					required: ["arg"],
+				},
+			};
+
+			const uniqueTool2: Tool = {
+				name: "unique_test_tool_2",
+				description: "Second unique test tool",
+				parameters: {
+					type: "object",
+					properties: {
+						arg: { type: "string" },
+					},
+					required: ["arg"],
+				},
+			};
+
+			// Create a mock search client that returns embeddings of different sizes
+			// The query embedding will be compared against each tool embedding
+			const badMockSearchClient: SearchClient = {
+				search: vi.fn(),
+				embed: vi
+					.fn()
+					.mockResolvedValueOnce({
+						// Query embedding (called first)
+						embedding: [1, 2, 3],
+						dimensions: 3,
+						embedder_type: "text",
+						took_ms: 10,
+					})
+					.mockResolvedValueOnce({
+						// Tool 1 embedding - different length from query!
+						embedding: [1, 2, 3, 4, 5],
+						dimensions: 5,
+						embedder_type: "text",
+						took_ms: 10,
+					})
+					.mockResolvedValueOnce({
+						// Tool 2 embedding
+						embedding: [1, 2, 3, 4, 5, 6],
+						dimensions: 6,
+						embedder_type: "text",
+						took_ms: 10,
+					}),
+				health: vi.fn(),
+			} as unknown as SearchClient;
+
+			const badRegistry = new ToolRegistry(badMockSearchClient);
+			badRegistry.register(uniqueTool1);
+			badRegistry.register(uniqueTool2);
+
+			// Request 1 tool but have 2 registered to force comparison
+			await expect(badRegistry.selectTools("test query", 1)).rejects.toThrow(
+				"Vectors must have the same length",
+			);
+		});
+	});
 });

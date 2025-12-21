@@ -276,4 +276,177 @@ describe("MemoryRetriever", () => {
 			expect(mockGraphClient.connect).toHaveBeenCalled();
 		});
 	});
+
+	describe("without search client", () => {
+		it("should work without search client", async () => {
+			const retrieverNoSearch = new MemoryRetriever({
+				graphClient: mockGraphClient,
+				searchClient: null, // Explicitly disable search client
+				logger: mockLogger,
+			});
+
+			mockGraphClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						properties: {
+							id: "graph-1",
+							content: "Graph only result",
+							type: "insight",
+							vt_start: Date.now(),
+							source: "user",
+						},
+					},
+				},
+			]);
+
+			const results = await retrieverNoSearch.recall("test query", 5);
+
+			expect(results).toHaveLength(1);
+			expect(results[0].id).toBe("graph-1");
+		});
+	});
+
+	describe("type filter handling", () => {
+		it("should skip type filter for turn in graph query", async () => {
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+				results: [],
+				total: 0,
+				took_ms: 10,
+			});
+			mockGraphClient.query.mockResolvedValueOnce([]);
+
+			await retriever.recall("test query", 5, { type: "turn" });
+
+			// Graph query should NOT include type filter for "turn"
+			expect(mockGraphClient.query).toHaveBeenCalledWith(
+				expect.not.stringContaining("m.type = $type"),
+				expect.any(Object),
+			);
+		});
+
+		it("should handle undefined search type filter", async () => {
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+				results: [],
+				total: 0,
+				took_ms: 10,
+			});
+			mockGraphClient.query.mockResolvedValueOnce([]);
+
+			await retriever.recall("test query", 5);
+
+			expect(mockSearchClient.search).toHaveBeenCalledWith(
+				expect.objectContaining({
+					filters: expect.objectContaining({ type: undefined }),
+				}),
+			);
+		});
+	});
+
+	describe("payload handling", () => {
+		it("should skip search results without node_id", async () => {
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+				results: [
+					{
+						id: "missing-node-id",
+						score: 0.9,
+						rrf_score: null,
+						reranker_score: null,
+						rerank_tier: null,
+						degraded: false,
+						payload: {
+							content: "Result without node_id",
+							type: "context",
+						},
+					},
+				],
+				total: 1,
+				took_ms: 50,
+			});
+			mockGraphClient.query.mockResolvedValueOnce([]);
+
+			const results = await retriever.recall("test query", 5);
+
+			expect(results).toHaveLength(0);
+		});
+
+		it("should skip search results without content", async () => {
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+				results: [
+					{
+						id: "missing-content",
+						score: 0.9,
+						rrf_score: null,
+						reranker_score: null,
+						rerank_tier: null,
+						degraded: false,
+						payload: {
+							node_id: "node-1",
+							type: "context",
+						},
+					},
+				],
+				total: 1,
+				took_ms: 50,
+			});
+			mockGraphClient.query.mockResolvedValueOnce([]);
+
+			const results = await retriever.recall("test query", 5);
+
+			expect(results).toHaveLength(0);
+		});
+
+		it("should handle search result without timestamp", async () => {
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+				results: [
+					{
+						id: "no-timestamp",
+						score: 0.9,
+						rrf_score: null,
+						reranker_score: null,
+						rerank_tier: null,
+						degraded: false,
+						payload: {
+							node_id: "node-1",
+							content: "Content",
+							type: "context",
+						},
+					},
+				],
+				total: 1,
+				took_ms: 50,
+			});
+			mockGraphClient.query.mockResolvedValueOnce([]);
+
+			const results = await retriever.recall("test query", 5);
+
+			expect(results).toHaveLength(1);
+			expect(results[0].created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+		});
+	});
+
+	describe("graph result handling", () => {
+		it("should skip graph results without id", async () => {
+			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+				results: [],
+				total: 0,
+				took_ms: 10,
+			});
+
+			mockGraphClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						properties: {
+							content: "Memory without ID",
+							type: "context",
+							vt_start: Date.now(),
+						},
+					},
+				},
+			]);
+
+			const results = await retriever.recall("test query", 5);
+
+			expect(results).toHaveLength(0);
+		});
+	});
 });

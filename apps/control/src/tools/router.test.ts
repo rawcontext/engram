@@ -133,6 +133,93 @@ describe("ToolRouter", () => {
 			expect(result.isError).toBe(true);
 			expect(result.content[0].text).toContain("Error:");
 		});
+
+		it("should route list_files_at_time to ExecutionService", async () => {
+			const result = await router.callTool("list_files_at_time", {
+				session_id: "test-session",
+				timestamp: Date.now(),
+				path: "/custom/path",
+			});
+
+			expect(result.content).toBeDefined();
+			expect(mockMcpAdapter.callTool).not.toHaveBeenCalled();
+		});
+
+		it("should route get_filesystem_snapshot to ExecutionService", async () => {
+			const result = await router.callTool("get_filesystem_snapshot", {
+				session_id: "test-session",
+				timestamp: Date.now(),
+			});
+
+			expect(result.content).toBeDefined();
+			expect(result.content[0].text).toContain("root");
+			expect(result.content[0].text).toContain("timestamp");
+			expect(mockMcpAdapter.callTool).not.toHaveBeenCalled();
+		});
+
+		it("should handle get_filesystem_snapshot errors", async () => {
+			const mockExecutionService = {
+				...executionService,
+				getFilesystemState: vi.fn().mockRejectedValue(new Error("Failed to get state")),
+			} as unknown as ExecutionService;
+
+			const errorRouter = new ToolRouter(mockExecutionService, mockMcpAdapter);
+
+			const result = await errorRouter.callTool("get_filesystem_snapshot", {
+				session_id: "test-session",
+				timestamp: Date.now(),
+			});
+
+			expect(result.isError).toBe(true);
+			expect(result.content[0].text).toContain("Error: Failed to get state");
+		});
+
+		it("should route get_zipped_snapshot to ExecutionService", async () => {
+			const result = await router.callTool("get_zipped_snapshot", {
+				session_id: "test-session",
+				timestamp: Date.now(),
+			});
+
+			expect(result.content).toBeDefined();
+			expect(result.content[0].text).toContain("Zipped snapshot");
+			expect(result.content[0].text).toContain("bytes");
+			expect(mockMcpAdapter.callTool).not.toHaveBeenCalled();
+		});
+
+		it("should handle get_zipped_snapshot errors", async () => {
+			const mockExecutionService = {
+				...executionService,
+				getZippedState: vi.fn().mockRejectedValue(new Error("Failed to zip")),
+			} as unknown as ExecutionService;
+
+			const errorRouter = new ToolRouter(mockExecutionService, mockMcpAdapter);
+
+			const result = await errorRouter.callTool("get_zipped_snapshot", {
+				session_id: "test-session",
+				timestamp: Date.now(),
+			});
+
+			expect(result.isError).toBe(true);
+			expect(result.content[0].text).toContain("Error: Failed to zip");
+		});
+
+		it("should handle execution tools by calling specific handlers", async () => {
+			// Test that all known execution tools are properly handled
+			const executionTools = [
+				"read_file",
+				"apply_patch",
+				"list_files_at_time",
+				"get_filesystem_snapshot",
+				"get_zipped_snapshot",
+			];
+
+			// All these tools should be handled without going to MCP
+			for (const tool of executionTools) {
+				mockMcpAdapter.callTool = vi.fn();
+				await router.callTool(tool, { path: "/test", session_id: "s1", timestamp: 0 });
+				expect(mockMcpAdapter.callTool).not.toHaveBeenCalled();
+			}
+		});
 	});
 
 	describe("callTool - MCP Tools", () => {

@@ -213,6 +213,46 @@ describe("Redis Storage", () => {
 			});
 		});
 
+		describe("publishConsumerStatus", () => {
+			it("should publish consumer_ready event", async () => {
+				const publisher = createRedisPublisher();
+
+				await publisher.publishConsumerStatus("consumer_ready", "test-group", "service-1");
+
+				expect(mockPublish).toHaveBeenCalledTimes(1);
+				const [channel, message] = mockPublish.mock.calls[0];
+				expect(channel).toBe("consumers:status");
+
+				const parsed = JSON.parse(message);
+				expect(parsed.type).toBe("consumer_ready");
+				expect(parsed.groupId).toBe("test-group");
+				expect(parsed.serviceId).toBe("service-1");
+				expect(typeof parsed.timestamp).toBe("number");
+			});
+
+			it("should publish consumer_disconnected event", async () => {
+				const publisher = createRedisPublisher();
+
+				await publisher.publishConsumerStatus("consumer_disconnected", "test-group", "service-2");
+
+				const [, message] = mockPublish.mock.calls[0];
+				const parsed = JSON.parse(message);
+				expect(parsed.type).toBe("consumer_disconnected");
+				expect(parsed.groupId).toBe("test-group");
+				expect(parsed.serviceId).toBe("service-2");
+			});
+
+			it("should publish consumer_heartbeat event", async () => {
+				const publisher = createRedisPublisher();
+
+				await publisher.publishConsumerStatus("consumer_heartbeat", "test-group", "service-3");
+
+				const [, message] = mockPublish.mock.calls[0];
+				const parsed = JSON.parse(message);
+				expect(parsed.type).toBe("consumer_heartbeat");
+			});
+		});
+
 		describe("disconnect", () => {
 			it("should disconnect when connected", async () => {
 				const publisher = createRedisPublisher();
@@ -489,6 +529,89 @@ describe("Redis Storage", () => {
 				await subscriber.subscribe("session-1", callback);
 
 				expect(mockSubscribe).toHaveBeenCalled();
+			});
+		});
+
+		describe("subscribeToConsumerStatus", () => {
+			it("should subscribe to consumer status channel", async () => {
+				const subscriber = createRedisSubscriber();
+				const callback = vi.fn();
+
+				await subscriber.subscribeToConsumerStatus(callback);
+
+				expect(mockSubscribe).toHaveBeenCalledWith("consumers:status", expect.any(Function));
+			});
+
+			it("should receive consumer status updates", async () => {
+				const subscriber = createRedisSubscriber();
+				const callback = vi.fn();
+
+				let messageHandler: (message: string) => void;
+				mockSubscribe.mockImplementationOnce((_channel, handler) => {
+					messageHandler = handler;
+					return Promise.resolve();
+				});
+
+				await subscriber.subscribeToConsumerStatus(callback);
+
+				const statusUpdate = {
+					type: "consumer_ready",
+					groupId: "test-group",
+					serviceId: "service-1",
+					timestamp: Date.now(),
+				};
+
+				messageHandler?.(JSON.stringify(statusUpdate));
+
+				expect(callback).toHaveBeenCalledWith(statusUpdate);
+			});
+
+			it("should handle consumer_disconnected event", async () => {
+				const subscriber = createRedisSubscriber();
+				const callback = vi.fn();
+
+				let messageHandler: (message: string) => void;
+				mockSubscribe.mockImplementationOnce((_channel, handler) => {
+					messageHandler = handler;
+					return Promise.resolve();
+				});
+
+				await subscriber.subscribeToConsumerStatus(callback);
+
+				const statusUpdate = {
+					type: "consumer_disconnected",
+					groupId: "test-group",
+					serviceId: "service-2",
+					timestamp: Date.now(),
+				};
+
+				messageHandler?.(JSON.stringify(statusUpdate));
+
+				expect(callback).toHaveBeenCalledWith(statusUpdate);
+			});
+
+			it("should handle consumer_heartbeat event", async () => {
+				const subscriber = createRedisSubscriber();
+				const callback = vi.fn();
+
+				let messageHandler: (message: string) => void;
+				mockSubscribe.mockImplementationOnce((_channel, handler) => {
+					messageHandler = handler;
+					return Promise.resolve();
+				});
+
+				await subscriber.subscribeToConsumerStatus(callback);
+
+				const statusUpdate = {
+					type: "consumer_heartbeat",
+					groupId: "test-group",
+					serviceId: "service-3",
+					timestamp: Date.now(),
+				};
+
+				messageHandler?.(JSON.stringify(statusUpdate));
+
+				expect(callback).toHaveBeenCalledWith(statusUpdate);
 			});
 		});
 	});

@@ -186,5 +186,106 @@ describe("PatchManager", () => {
 			pm.applyUnifiedDiff("/file.txt", patch);
 			expect(vfs.readFile("/file.txt")).toBe("a\nB\nc\nd\ne\nF\ng\nh");
 		});
+
+		it("should handle empty file creation with special syntax", () => {
+			const vfs = new VirtualFileSystem();
+			const pm = new PatchManager(vfs);
+
+			const patch = `--- /dev/null
++++ empty.txt
+@@ -0,0 +1,3 @@
++line1
++line2
++line3`;
+
+			pm.applyUnifiedDiff("/empty.txt", patch);
+			expect(vfs.readFile("/empty.txt").trim()).toBe("line1\nline2\nline3");
+		});
+
+		it("should handle patch with context lines", () => {
+			const vfs = new VirtualFileSystem();
+			vfs.writeFile("/file.txt", "line1\nline2\nline3\nline4\nline5");
+			const pm = new PatchManager(vfs);
+
+			const patch = `--- file.txt
++++ file.txt
+@@ -2,3 +2,3 @@
+ line2
+-line3
++modified
+ line4`;
+
+			pm.applyUnifiedDiff("/file.txt", patch);
+			expect(vfs.readFile("/file.txt")).toBe("line1\nline2\nmodified\nline4\nline5");
+		});
+
+		it("should throw on non-file-not-found errors when reading", () => {
+			const vfs = new VirtualFileSystem();
+			vfs.writeFile("/file.txt", "content");
+
+			// Create a mock VFS that throws a different error
+			vfs.readFile = () => {
+				const error = new Error("Permission denied");
+				throw error;
+			};
+
+			const pm = new PatchManager(vfs);
+
+			const patch = `--- file.txt
++++ file.txt
+@@ -1,1 +1,1 @@
+-content
++new content`;
+
+			expect(() => pm.applyUnifiedDiff("/file.txt", patch)).toThrow("Permission denied");
+		});
+	});
+
+	describe("applySearchReplace concurrency", () => {
+		it("should serialize operations on the same file", async () => {
+			const vfs = new VirtualFileSystem();
+			vfs.writeFile("/file.txt", "original");
+			const pm = new PatchManager(vfs);
+
+			const operations = [
+				pm.applySearchReplace("/file.txt", "original", "first"),
+				pm.applySearchReplace("/file.txt", "first", "second"),
+				pm.applySearchReplace("/file.txt", "second", "third"),
+			];
+
+			await Promise.all(operations);
+
+			expect(vfs.readFile("/file.txt")).toBe("third");
+		});
+
+		it("should allow parallel operations on different files", async () => {
+			const vfs = new VirtualFileSystem();
+			vfs.writeFile("/file1.txt", "original1");
+			vfs.writeFile("/file2.txt", "original2");
+			vfs.writeFile("/file3.txt", "original3");
+			const pm = new PatchManager(vfs);
+
+			await Promise.all([
+				pm.applySearchReplace("/file1.txt", "original1", "modified1"),
+				pm.applySearchReplace("/file2.txt", "original2", "modified2"),
+				pm.applySearchReplace("/file3.txt", "original3", "modified3"),
+			]);
+
+			expect(vfs.readFile("/file1.txt")).toBe("modified1");
+			expect(vfs.readFile("/file2.txt")).toBe("modified2");
+			expect(vfs.readFile("/file3.txt")).toBe("modified3");
+		});
+
+		it("should clean up locks after operation completes", async () => {
+			const vfs = new VirtualFileSystem();
+			vfs.writeFile("/file.txt", "content");
+			const pm = new PatchManager(vfs);
+
+			await pm.applySearchReplace("/file.txt", "content", "new");
+			// Lock should be cleaned up after first operation
+			await pm.applySearchReplace("/file.txt", "new", "final");
+
+			expect(vfs.readFile("/file.txt")).toBe("final");
+		});
 	});
 });

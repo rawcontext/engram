@@ -131,6 +131,41 @@ describe("Ingest Handlers", () => {
 
 			expect(result.status).toBe(400);
 		});
+
+		it("should accept valid response event", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-456",
+				event_type: "response",
+				timestamp: new Date().toISOString(),
+				data: {
+					content: "Here is the fix",
+				},
+			});
+
+			const result = await handleIngestEvent(c, deps);
+
+			expect(result.data.status).toBe("accepted");
+		});
+
+		it("should handle processing errors gracefully", async () => {
+			const c = createTestContext({
+				client: "claude-code",
+				session_id: "session-123",
+				event_type: "tool_call",
+				timestamp: new Date().toISOString(),
+				data: {
+					tool_name: "Read",
+				},
+			});
+
+			mockGraphClient.query.mockRejectedValueOnce(new Error("Database error"));
+
+			const result = await handleIngestEvent(c, deps);
+
+			expect(result.status).toBe(500);
+			expect(result.data.error).toBe("Processing failed");
+		});
 	});
 
 	describe("handleToolIngest", () => {
@@ -174,12 +209,18 @@ describe("Ingest Handlers", () => {
 		it("should categorize tool types correctly", async () => {
 			const testCases = [
 				{ toolName: "Read", expectedType: "file_read" },
+				{ toolName: "cat", expectedType: "file_read" },
 				{ toolName: "Write", expectedType: "file_write" },
 				{ toolName: "Edit", expectedType: "file_write" },
 				{ toolName: "Bash", expectedType: "bash_exec" },
+				{ toolName: "exec", expectedType: "bash_exec" },
 				{ toolName: "Grep", expectedType: "file_grep" },
+				{ toolName: "search", expectedType: "file_grep" },
 				{ toolName: "Glob", expectedType: "file_glob" },
+				{ toolName: "find", expectedType: "file_glob" },
 				{ toolName: "WebFetch", expectedType: "web_fetch" },
+				{ toolName: "web_search", expectedType: "web_fetch" },
+				{ toolName: "fetch", expectedType: "web_fetch" },
 				{ toolName: "mcp__some_tool", expectedType: "mcp" },
 				{ toolName: "UnknownTool", expectedType: "unknown" },
 			];
@@ -314,6 +355,8 @@ describe("Ingest Handlers", () => {
 				{ client: "Codex CLI", expected: "codex" },
 				{ client: "gemini-cli", expected: "gemini-cli" },
 				{ client: "cursor", expected: "cursor" },
+				{ client: "aider", expected: "aider" },
+				{ client: "opencode", expected: "opencode" },
 				{ client: "unknown-client", expected: "unknown" },
 			];
 

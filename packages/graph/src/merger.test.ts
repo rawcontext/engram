@@ -30,4 +30,187 @@ describe("GraphMerger", () => {
 		const deleteCall = mockQuery.mock.calls[2];
 		expect(deleteCall[0]).toContain("DETACH DELETE s");
 	});
+
+	it("should handle incoming edges", async () => {
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return one incoming edge (isOutgoing = false)
+				return Promise.resolve([["POINTS_TO", false, "neighbor-456", { label: "test" }]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		const createCall = mockQuery.mock.calls[1];
+		expect(createCall[0]).toContain("MERGE (n)-[r:POINTS_TO]->(t)");
+	});
+
+	it("should handle non-array result from edges query", async () => {
+		const mockQuery = vi.fn(async (query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return non-array result (code returns early)
+				return "not-an-array" as any;
+			}
+			return [];
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		// Only one call - edge query returns early on non-array
+		expect(mockQuery).toHaveBeenCalledTimes(1);
+	});
+
+	it("should skip invalid rows with insufficient elements", async () => {
+		const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return row with insufficient elements
+				return Promise.resolve([["INVALID", true]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining("Skipping invalid row"));
+		consoleWarnSpy.mockRestore();
+	});
+
+	it("should skip rows with invalid type", async () => {
+		const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return row with non-string type
+				return Promise.resolve([[123, true, "neighbor-123", {}]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining("type is not a string"));
+		consoleWarnSpy.mockRestore();
+	});
+
+	it("should skip rows with invalid isOutgoing", async () => {
+		const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return row with non-boolean isOutgoing
+				return Promise.resolve([["LINKS_TO", "not-boolean", "neighbor-123", {}]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		expect(consoleWarnSpy).toHaveBeenCalledWith(
+			expect.stringContaining("isOutgoing is not a boolean"),
+		);
+		consoleWarnSpy.mockRestore();
+	});
+
+	it("should skip rows with invalid neighborId", async () => {
+		const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return row with non-string neighborId
+				return Promise.resolve([["LINKS_TO", true, 999, {}]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		expect(consoleWarnSpy).toHaveBeenCalledWith(
+			expect.stringContaining("neighborId is not a string"),
+		);
+		consoleWarnSpy.mockRestore();
+	});
+
+	it("should throw on invalid relationship type", async () => {
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return edge with invalid relationship type
+				return Promise.resolve([["123_INVALID", true, "neighbor-123", {}]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+
+		await expect(merger.mergeNodes("target-1", "source-1")).rejects.toThrow(
+			'Invalid relationship type: "123_INVALID"',
+		);
+	});
+
+	it("should handle edge properties as array", async () => {
+		const mockQuery = vi.fn((query: string, _params: any) => {
+			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
+				// Return edge with array as properties (should use empty object)
+				return Promise.resolve([["LINKS_TO", true, "neighbor-123", [1, 2, 3]]]);
+			}
+			return Promise.resolve([]);
+		});
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		const createCall = mockQuery.mock.calls[1];
+		expect(createCall[1]).toMatchObject({ props: {} });
+	});
+
+	it("should log merge completion", async () => {
+		const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const mockQuery = vi.fn(async () => []);
+
+		const mockFalkor = {
+			query: mockQuery,
+		} as unknown as FalkorClient;
+
+		const merger = new GraphMerger(mockFalkor);
+		await merger.mergeNodes("target-1", "source-1");
+
+		expect(consoleLogSpy).toHaveBeenCalledWith("Merged node source-1 into target-1");
+		consoleLogSpy.mockRestore();
+	});
 });

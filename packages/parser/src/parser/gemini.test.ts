@@ -182,5 +182,97 @@ describe("GeminiParser", () => {
 			const result = parser.parse(payload);
 			expect(result).toBeNull();
 		});
+
+		it("should return null for non-object payloads", () => {
+			expect(parser.parse(null)).toBeNull();
+			expect(parser.parse("string")).toBeNull();
+			expect(parser.parse(123)).toBeNull();
+			expect(parser.parse([])).toBeNull();
+		});
+	});
+
+	describe("edge cases", () => {
+		it("should handle init event without model/session_id", () => {
+			const payload = {
+				type: "init",
+				timestamp: "2025-12-09T00:13:15.893Z",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.type).toBe("content");
+			expect(result?.content).toContain("[Session Init]");
+		});
+
+		it("should handle result event without timing", () => {
+			const payload = {
+				type: "result",
+				status: "success",
+				stats: {
+					total_tokens: 100,
+					input_tokens: 80,
+					output_tokens: 20,
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.usage).toEqual({ input: 80, output: 20, total: 100 });
+			expect(result?.timing).toBeUndefined();
+		});
+
+		it("should return null for invalid init event schema", () => {
+			const payload = {
+				type: "init",
+				timestamp: 123,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid message event schema", () => {
+			const payload = {
+				type: "message",
+				timestamp: "2025-12-09T00:13:18.433Z",
+				role: "invalid_role",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid tool_use event schema", () => {
+			const payload = {
+				type: "tool_use",
+				timestamp: "2025-12-09T00:13:37.764Z",
+				tool_name: 123,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid tool_result event schema", () => {
+			const payload = {
+				type: "tool_result",
+				timestamp: "2025-12-09T00:13:37.793Z",
+				tool_id: 123,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid result event schema", () => {
+			const payload = {
+				type: "result",
+				timestamp: "2025-12-09T00:13:18.434Z",
+				status: 123,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
 	});
 });

@@ -1168,6 +1168,82 @@ describe("TurnAggregator", () => {
 				"Finalized turn",
 			);
 		});
+
+		it("should handle finalization errors and reset flag", async () => {
+			const sessionId = uniqueSessionId();
+			const mockGraph = createTestGraphClient();
+
+			// Make query fail during finalization
+			let callCount = 0;
+			vi.mocked(mockGraph.query).mockImplementation(async (query: string) => {
+				callCount++;
+				// Only fail on the finalization query (which happens on second turn start)
+				if (callCount > 1 && query.includes("SET t.assistant_preview")) {
+					throw new Error("Finalization query failed");
+				}
+				return [];
+			});
+
+			const mockLog = createTestLogger();
+			const agg = new TurnAggregator({
+				graphClient: mockGraph,
+				logger: mockLog,
+			});
+
+			// Create first turn
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "First" }),
+				sessionId,
+			);
+
+			// Trigger finalization with second turn - should catch error
+			try {
+				await agg.processEvent(
+					createTestEvent({ type: "content", role: "user", content: "Second" }),
+					sessionId,
+				);
+			} catch (e) {
+				// Expected to throw
+			}
+
+			// Should have logged error
+			expect(mockLog.error).toHaveBeenCalledWith(
+				expect.objectContaining({
+					err: expect.any(Error),
+				}),
+				"Failed to finalize turn",
+			);
+		});
+
+		it("should handle error when emitting turn node created event", async () => {
+			const sessionId = uniqueSessionId();
+			const mockLog = createTestLogger();
+			const errorCallback: NodeCreatedCallback = () => {
+				throw new Error("Emit failed");
+			};
+
+			const agg = new TurnAggregator({
+				graphClient: createTestGraphClient(),
+				logger: mockLog,
+				onNodeCreated: errorCallback,
+			});
+
+			// Create turn - should catch emit error
+			await agg.processEvent(
+				createTestEvent({ type: "content", role: "user", content: "Test" }),
+				sessionId,
+			);
+
+			// Wait for async callback to complete
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
+			expect(mockLog.error).toHaveBeenCalledWith(
+				expect.objectContaining({
+					err: expect.any(Error),
+				}),
+				"Failed to emit node created event",
+			);
+		});
 	});
 
 	describe("getHandlerRegistry", () => {

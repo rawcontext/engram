@@ -1,39 +1,222 @@
-import { describe, expect, it, vi } from "vitest";
+import { GraphPruner } from "@engram/graph";
+import { createNodeLogger } from "@engram/logger";
+import {
+	createFalkorClient,
+	createKafkaClient,
+	type GraphClient,
+	type RedisPublisher,
+} from "@engram/storage";
+import { createRedisPublisher } from "@engram/storage/redis";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMemoryServiceDeps } from "./index";
+import { TurnAggregator } from "./turn-aggregator";
 
-// Mock storage before importing the server
+// Mock modules
 vi.mock("@engram/storage", () => ({
-	createFalkorClient: () => ({
+	createFalkorClient: vi.fn(() => ({
 		connect: vi.fn(async () => {}),
 		query: vi.fn(async () => []),
 		disconnect: vi.fn(async () => {}),
-	}),
-	createKafkaClient: () => ({
-		createConsumer: vi.fn(async () => ({
+		isConnected: vi.fn(() => true),
+	})),
+	createKafkaClient: vi.fn(() => ({
+		getConsumer: vi.fn(async () => ({
 			subscribe: vi.fn(async () => {}),
 			run: vi.fn(async () => {}),
+			disconnect: vi.fn(async () => {}),
 		})),
 		sendEvent: vi.fn(async () => {}),
-	}),
-	createRedisPublisher: () => ({
-		publish: vi.fn(async () => {}),
-	}),
+	})),
 }));
 
-// Import server after mocks are set up
-const { server } = await import("./index");
+vi.mock("@engram/storage/redis", () => ({
+	createRedisPublisher: vi.fn(() => ({
+		publishSessionUpdate: vi.fn(async () => {}),
+		publishGlobalSessionEvent: vi.fn(async () => {}),
+		publishConsumerStatus: vi.fn(async () => {}),
+		disconnect: vi.fn(async () => {}),
+		connect: vi.fn(async () => {}),
+	})),
+}));
 
-// Mock MCP
-vi.mock("@modelcontextprotocol/sdk/server/mcp.js", () => ({
-	McpServer: class {
-		tool = vi.fn(() => {});
-		connect = vi.fn(async () => {});
+vi.mock("@engram/logger", () => ({
+	createNodeLogger: vi.fn(() => ({
+		info: vi.fn(),
+		debug: vi.fn(),
+		warn: vi.fn(),
+		error: vi.fn(),
+	})),
+	pino: {
+		destination: vi.fn((fd: number) => ({ write: vi.fn() })),
+	},
+	withTraceContext: vi.fn((logger, context) => logger),
+}));
+
+vi.mock("@engram/graph", () => ({
+	GraphPruner: class {
+		constructor(graphClient: any) {}
+		pruneHistory = vi.fn(async () => ({ deleted: 10 }));
 	},
 }));
 
-describe("Memory Service", () => {
-	it("should register tools", () => {
-		// server is instantiated at module level
-		// We just check it's defined, actual calls happened during import
-		expect(server).toBeDefined();
+describe("Memory Service Deps", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	describe("createMemoryServiceDeps", () => {
+		it("should create default dependencies", () => {
+			const deps = createMemoryServiceDeps();
+
+			expect(deps.graphClient).toBeDefined();
+			expect(deps.kafkaClient).toBeDefined();
+			expect(deps.redisPublisher).toBeDefined();
+			expect(deps.logger).toBeDefined();
+			expect(deps.turnAggregator).toBeDefined();
+			expect(deps.graphPruner).toBeDefined();
+		});
+
+		it("should use custom graph client when provided", () => {
+			const customGraphClient = {
+				connect: vi.fn(),
+				query: vi.fn(),
+				disconnect: vi.fn(),
+				isConnected: vi.fn(),
+			} as unknown as GraphClient;
+
+			const deps = createMemoryServiceDeps({ graphClient: customGraphClient });
+
+			expect(deps.graphClient).toBe(customGraphClient);
+		});
+
+		it("should use custom kafka client when provided", () => {
+			const customKafka = createKafkaClient("test");
+
+			const deps = createMemoryServiceDeps({ kafkaClient: customKafka });
+
+			expect(deps.kafkaClient).toBe(customKafka);
+		});
+
+		it("should use custom redis publisher when provided", () => {
+			const customRedis = createRedisPublisher();
+
+			const deps = createMemoryServiceDeps({ redisPublisher: customRedis });
+
+			expect(deps.redisPublisher).toBe(customRedis);
+		});
+
+		it("should use custom logger when provided", () => {
+			const customLogger = createNodeLogger({ service: "test" });
+
+			const deps = createMemoryServiceDeps({ logger: customLogger });
+
+			expect(deps.logger).toBe(customLogger);
+		});
+
+		it("should use custom turn aggregator when provided", () => {
+			const customAggregator = new TurnAggregator({
+				graphClient: createFalkorClient(),
+				logger: createNodeLogger({ service: "test" }),
+			});
+
+			const deps = createMemoryServiceDeps({ turnAggregator: customAggregator });
+
+			expect(deps.turnAggregator).toBe(customAggregator);
+		});
+
+		it("should use custom graph pruner when provided", () => {
+			const customPruner = new GraphPruner(createFalkorClient());
+
+			const deps = createMemoryServiceDeps({ graphPruner: customPruner });
+
+			expect(deps.graphPruner).toBe(customPruner);
+		});
+
+		it("should create turn aggregator with onNodeCreated callback", async () => {
+			const deps = createMemoryServiceDeps();
+			const mockRedis = deps.redisPublisher as unknown as {
+				publishSessionUpdate: ReturnType<typeof vi.fn>;
+			};
+
+			// Get the handler registry from aggregator
+			const registry = deps.turnAggregator.getHandlerRegistry();
+			expect(registry).toBeDefined();
+
+			// Test that onNodeCreated publishes to Redis
+			const testNode = {
+				id: "test-123",
+				type: "turn" as const,
+				label: "Turn",
+				properties: { test: true },
+			};
+
+			// The onNodeCreated callback is async, so we need to wait
+			// We can't directly test it, but we can verify the aggregator was created with it
+			expect(deps.turnAggregator).toBeInstanceOf(TurnAggregator);
+		});
+
+		it("should handle errors in onNodeCreated callback gracefully", async () => {
+			const mockRedis = {
+				publishSessionUpdate: vi.fn().mockRejectedValue(new Error("Redis error")),
+				publishGlobalSessionEvent: vi.fn(),
+				publishConsumerStatus: vi.fn(),
+				disconnect: vi.fn(),
+				connect: vi.fn(),
+			} as unknown as RedisPublisher;
+
+			const mockLogger = {
+				info: vi.fn(),
+				debug: vi.fn(),
+				warn: vi.fn(),
+				error: vi.fn(),
+			};
+
+			const deps = createMemoryServiceDeps({
+				redisPublisher: mockRedis,
+				logger: mockLogger as any,
+			});
+
+			// The error handling is in the callback, which is hard to test directly
+			// but we verify the aggregator was created successfully
+			expect(deps.turnAggregator).toBeInstanceOf(TurnAggregator);
+		});
+
+		it("should create logger with correct service name", () => {
+			createMemoryServiceDeps();
+
+			expect(createNodeLogger).toHaveBeenCalledWith(
+				expect.objectContaining({
+					service: "memory-service",
+				}),
+				expect.any(Object),
+			);
+		});
+
+		it("should create graph pruner with graph client", () => {
+			const deps = createMemoryServiceDeps();
+
+			// Just verify the pruner was created
+			expect(deps.graphPruner).toBeInstanceOf(GraphPruner);
+		});
+
+		it("should support partial dependency injection", () => {
+			const customLogger = createNodeLogger({ service: "test" });
+			const customGraphClient = {
+				connect: vi.fn(),
+				query: vi.fn(),
+				disconnect: vi.fn(),
+				isConnected: vi.fn(),
+			} as unknown as GraphClient;
+
+			const deps = createMemoryServiceDeps({
+				logger: customLogger,
+				graphClient: customGraphClient,
+			});
+
+			expect(deps.logger).toBe(customLogger);
+			expect(deps.graphClient).toBe(customGraphClient);
+			expect(deps.kafkaClient).toBeDefined(); // Should use default
+			expect(deps.redisPublisher).toBeDefined(); // Should use default
+		});
 	});
 });

@@ -536,4 +536,110 @@ describe("ExecutionService", () => {
 			expect(service.logger).toBe(mockLogger);
 		});
 	});
+
+	describe("replayToolCall", () => {
+		it("should replay a tool call successfully", async () => {
+			const mockGraphClient: GraphClient = {
+				connect: vi.fn().mockResolvedValue(undefined),
+				disconnect: vi.fn().mockResolvedValue(undefined),
+				query: vi.fn().mockResolvedValue([]),
+				isConnected: vi.fn().mockReturnValue(true),
+			};
+
+			const mockReplayEngine = {
+				replay: vi.fn().mockResolvedValue({
+					success: true,
+					matches: true,
+					originalOutput: "original",
+					replayOutput: "original",
+				}),
+			};
+
+			const service = new ExecutionService({
+				graphClient: mockGraphClient,
+				replayEngine: mockReplayEngine as any,
+			});
+
+			const result = await service.replayToolCall("session-123", "event-456");
+
+			expect(result.success).toBe(true);
+			expect(result.data).toBeDefined();
+			expect(result.data).toContain("matches");
+			expect(mockGraphClient.connect).toHaveBeenCalled();
+			expect(mockGraphClient.disconnect).toHaveBeenCalled();
+		});
+
+		it("should handle replay failures", async () => {
+			const mockGraphClient: GraphClient = {
+				connect: vi.fn().mockResolvedValue(undefined),
+				disconnect: vi.fn().mockResolvedValue(undefined),
+				query: vi.fn().mockResolvedValue([]),
+				isConnected: vi.fn().mockReturnValue(true),
+			};
+
+			const mockReplayEngine = {
+				replay: vi.fn().mockResolvedValue({
+					success: false,
+					error: "Replay failed",
+				}),
+			};
+
+			const service = new ExecutionService({
+				graphClient: mockGraphClient,
+				replayEngine: mockReplayEngine as any,
+			});
+
+			const result = await service.replayToolCall("session-123", "event-456");
+
+			expect(result.success).toBe(false);
+			expect(result.error).toBe("Replay failed");
+		});
+
+		it("should handle replay exceptions", async () => {
+			const mockGraphClient: GraphClient = {
+				connect: vi.fn().mockResolvedValue(undefined),
+				disconnect: vi.fn().mockResolvedValue(undefined),
+				query: vi.fn().mockResolvedValue([]),
+				isConnected: vi.fn().mockReturnValue(true),
+			};
+
+			const mockReplayEngine = {
+				replay: vi.fn().mockRejectedValue(new Error("Replay exception")),
+			};
+
+			const service = new ExecutionService({
+				graphClient: mockGraphClient,
+				replayEngine: mockReplayEngine as any,
+			});
+
+			const result = await service.replayToolCall("session-123", "event-456");
+
+			expect(result.success).toBe(false);
+			expect(result.error).toBe("Replay exception");
+			expect(mockGraphClient.disconnect).toHaveBeenCalled();
+		});
+
+		it("should handle non-Error exceptions in replay", async () => {
+			const mockGraphClient: GraphClient = {
+				connect: vi.fn().mockResolvedValue(undefined),
+				disconnect: vi.fn().mockResolvedValue(undefined),
+				query: vi.fn().mockResolvedValue([]),
+				isConnected: vi.fn().mockReturnValue(true),
+			};
+
+			const mockReplayEngine = {
+				replay: vi.fn().mockRejectedValue("string error"),
+			};
+
+			const service = new ExecutionService({
+				graphClient: mockGraphClient,
+				replayEngine: mockReplayEngine as any,
+			});
+
+			const result = await service.replayToolCall("session-123", "event-456");
+
+			expect(result.success).toBe(false);
+			expect(result.error).toBe("string error");
+		});
+	});
 });

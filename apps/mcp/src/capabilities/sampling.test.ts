@@ -234,5 +234,40 @@ describe("SamplingService", () => {
 				"Failed to parse enrichment response",
 			);
 		});
+
+		it("should return null when no response", async () => {
+			service.enable();
+			mockServer.server.createMessage.mockResolvedValueOnce(null as any);
+
+			const result = await service.enrichMemory("Memory content");
+
+			expect(result).toBeNull();
+		});
+	});
+
+	describe("extractFacts edge cases", () => {
+		it("should return null when no response", async () => {
+			service.enable();
+			mockServer.server.createMessage.mockResolvedValueOnce(null as any);
+
+			const result = await service.extractFacts("Text");
+
+			expect(result).toBeNull();
+		});
+	});
+
+	describe("createMessage edge cases", () => {
+		it("should handle non-text response content", async () => {
+			service.enable();
+			mockServer.server.createMessage.mockResolvedValueOnce({
+				content: { type: "image" },
+				model: "test-model",
+			});
+
+			const result = await service.createMessage("test");
+
+			expect(result?.text).toBe("");
+			expect(result?.model).toBe("test-model");
+		});
 	});
 });

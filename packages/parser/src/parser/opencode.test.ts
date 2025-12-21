@@ -246,5 +246,115 @@ describe("OpenCodeParser", () => {
 			const result = parser.parse(payload);
 			expect(result).toBeNull();
 		});
+
+		it("should return null for non-object payloads", () => {
+			expect(parser.parse(null)).toBeNull();
+			expect(parser.parse("string")).toBeNull();
+			expect(parser.parse(123)).toBeNull();
+			expect(parser.parse([])).toBeNull();
+		});
+	});
+
+	describe("edge cases", () => {
+		it("should handle text event without timing", () => {
+			const payload = {
+				type: "text",
+				sessionID: "ses_test",
+				part: {
+					type: "text",
+					text: "Hello",
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.content).toBe("Hello");
+			expect(result?.timing).toBeUndefined();
+		});
+
+		it("should handle text event without session info", () => {
+			const payload = {
+				type: "text",
+				part: {
+					type: "text",
+					text: "Hello",
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.content).toBe("Hello");
+			expect(result?.session).toBeUndefined();
+		});
+
+		it("should handle step_finish with minimal fields", () => {
+			const payload = {
+				type: "step_finish",
+				sessionID: "ses_test",
+				part: {
+					type: "step-finish",
+					tokens: {
+						input: 100,
+						output: 50,
+					},
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.usage).toEqual({
+				input: 100,
+				output: 50,
+				reasoning: 0,
+				cacheRead: undefined,
+				cacheWrite: undefined,
+			});
+			expect(result?.cost).toBeUndefined();
+			expect(result?.gitSnapshot).toBeUndefined();
+		});
+
+		it("should handle invalid text event schema", () => {
+			const payload = {
+				type: "text",
+				timestamp: "invalid",
+				part: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle invalid tool_use event schema", () => {
+			const payload = {
+				type: "tool_use",
+				timestamp: "invalid",
+				part: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle invalid step_finish event schema", () => {
+			const payload = {
+				type: "step_finish",
+				timestamp: "invalid",
+				part: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle invalid step_start event schema", () => {
+			const payload = {
+				type: "step_start",
+				timestamp: "invalid",
+				part: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
 	});
 });

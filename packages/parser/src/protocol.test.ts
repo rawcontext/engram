@@ -22,4 +22,18 @@ describe("Protocol Detection", () => {
 		expect(detectProtocol({}, {})).toBe("unknown");
 		expect(detectProtocol({}, null)).toBe("unknown");
 	});
+
+	it("should return unknown for array bodyChunk", () => {
+		expect(detectProtocol({}, [])).toBe("unknown");
+	});
+
+	it("should detect Azure OpenAI from body chunk", () => {
+		expect(detectProtocol({}, { object: "chat.completion.chunk", model_extra: {} })).toBe("openai");
+	});
+
+	it("should return unknown for non-record types", () => {
+		expect(detectProtocol({}, "string")).toBe("unknown");
+		expect(detectProtocol({}, 123)).toBe("unknown");
+		expect(detectProtocol({}, true)).toBe("unknown");
+	});
 });

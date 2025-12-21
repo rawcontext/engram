@@ -348,9 +348,10 @@ function categorizeToolType(toolName: string): string {
 	if (name.includes("read") || name.includes("cat")) return "file_read";
 	if (name.includes("write") || name.includes("edit")) return "file_write";
 	if (name.includes("bash") || name.includes("exec")) return "bash_exec";
+	// Check web before search - web_search should be web_fetch, not file_grep
+	if (name.includes("web") || name.includes("fetch")) return "web_fetch";
 	if (name.includes("grep") || name.includes("search")) return "file_grep";
 	if (name.includes("glob") || name.includes("find")) return "file_glob";
-	if (name.includes("web") || name.includes("fetch")) return "web_fetch";
 	if (name.includes("mcp")) return "mcp";
 
 	return "unknown";

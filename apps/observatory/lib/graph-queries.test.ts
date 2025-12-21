@@ -1010,6 +1010,19 @@ describe("graph-queries", () => {
 			// Assert
 			expect(result.pagination?.hasMore).toBe(false); // 0 + 1 < 1 is false
 		});
+
+		it("should handle non-array result from query", async () => {
+			// Arrange
+			mockQuery
+				.mockResolvedValueOnce(null) // Non-array sessions result
+				.mockResolvedValueOnce([{ total: 0 }]);
+
+			// Act
+			const result = await getAllSessions({});
+
+			// Assert
+			expect(result.sessions).toHaveLength(0);
+		});
 	});
 
 	// =========================================================================

@@ -90,4 +90,101 @@ describe("AnthropicParser", () => {
 		const event = { type: "ping" };
 		expect(parser.parse(event)).toBeNull();
 	});
+
+	it("should return null for non-object payloads", () => {
+		expect(parser.parse(null)).toBeNull();
+		expect(parser.parse("string")).toBeNull();
+		expect(parser.parse(123)).toBeNull();
+		expect(parser.parse([])).toBeNull();
+	});
+
+	it("should include role in message_start when present", () => {
+		const event = {
+			type: "message_start",
+			message: {
+				role: "assistant",
+				usage: { input_tokens: 100 },
+			},
+		};
+		const result = parser.parse(event);
+		expect(result).toEqual({
+			usage: { input: 100 },
+			role: "assistant",
+		});
+	});
+
+	it("should return null for malformed message_start", () => {
+		const event = {
+			type: "message_start",
+			message: "invalid",
+		};
+		expect(parser.parse(event)).toBeNull();
+	});
+
+	it("should return null for content_block_start with invalid schema", () => {
+		const event = {
+			type: "content_block_start",
+			index: "invalid",
+		};
+		expect(parser.parse(event)).toBeNull();
+	});
+
+	it("should return null for content_block_start with text type", () => {
+		const event = {
+			type: "content_block_start",
+			index: 0,
+			content_block: {
+				type: "text",
+				text: "Hello",
+			},
+		};
+		const result = parser.parse(event);
+		expect(result).toBeNull();
+	});
+
+	it("should return null for content_block_delta with invalid schema", () => {
+		const event = {
+			type: "content_block_delta",
+			index: "invalid",
+		};
+		expect(parser.parse(event)).toBeNull();
+	});
+
+	it("should parse message_delta with only usage", () => {
+		const event = {
+			type: "message_delta",
+			usage: { output_tokens: 50 },
+		};
+		const result = parser.parse(event);
+		expect(result).toEqual({
+			usage: { output: 50 },
+		});
+	});
+
+	it("should parse message_delta with only stop_reason", () => {
+		const event = {
+			type: "message_delta",
+			delta: { stop_reason: "max_tokens" },
+		};
+		const result = parser.parse(event);
+		expect(result).toEqual({
+			stopReason: "max_tokens",
+		});
+	});
+
+	it("should return null for message_delta with invalid schema", () => {
+		const event = {
+			type: "message_delta",
+			usage: "invalid",
+		};
+		expect(parser.parse(event)).toBeNull();
+	});
+
+	it("should return null for message_delta with neither usage nor stop_reason", () => {
+		const event = {
+			type: "message_delta",
+		};
+		const result = parser.parse(event);
+		expect(result).toBeNull();
+	});
 });

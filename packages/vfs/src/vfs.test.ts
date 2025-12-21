@@ -283,5 +283,71 @@ describe("VirtualFileSystem", () => {
 			// Gzip should significantly compress repetitive data
 			expect(snapshot.length).toBeLessThan(repetitiveContent.length);
 		});
+
+		it("should throw on invalid JSON snapshot", async () => {
+			const vfs = new VirtualFileSystem();
+			const { promisify } = await import("node:util");
+			const { gzip } = await import("node:zlib");
+			const gzipAsync = promisify(gzip);
+
+			const invalidSnapshot = await gzipAsync("not valid json");
+
+			await expect(vfs.loadSnapshot(invalidSnapshot)).rejects.toThrow("Failed to parse snapshot");
+		});
+
+		it("should throw on snapshot with non-directory root", async () => {
+			const vfs = new VirtualFileSystem();
+			const { promisify } = await import("node:util");
+			const { gzip } = await import("node:zlib");
+			const gzipAsync = promisify(gzip);
+
+			const invalidRoot = JSON.stringify({ type: "file", name: "root", content: "invalid" });
+			const invalidSnapshot = await gzipAsync(invalidRoot);
+
+			await expect(vfs.loadSnapshot(invalidSnapshot)).rejects.toThrow(
+				"Invalid snapshot format: root must be a directory node",
+			);
+		});
+	});
+
+	describe("sanitizePath", () => {
+		it("should normalize paths with ../", () => {
+			const vfs = new VirtualFileSystem();
+			// Path normalization should resolve ../
+			vfs.mkdir("/foo/bar");
+			vfs.writeFile("/foo/bar/../test.txt", "content");
+			expect(vfs.readFile("/foo/test.txt")).toBe("content");
+		});
+
+		it("should handle paths without leading slash", () => {
+			const vfs = new VirtualFileSystem();
+			vfs.writeFile("relative/path.txt", "content");
+			expect(vfs.readFile("/relative/path.txt")).toBe("content");
+		});
+
+		it("should handle root path", () => {
+			const vfs = new VirtualFileSystem();
+			vfs.mkdir("/");
+			expect(vfs.exists("/")).toBe(true);
+		});
+	});
+
+	describe("edge cases", () => {
+		it("should handle writing to a path where parent is a file", () => {
+			const vfs = new VirtualFileSystem();
+			vfs.writeFile("/file.txt", "content");
+			expect(() => vfs.writeFile("/file.txt/subfile", "content")).toThrow();
+		});
+
+		it("should handle reading dir on a file", () => {
+			const vfs = new VirtualFileSystem();
+			vfs.writeFile("/file.txt", "content");
+			expect(() => vfs.readDir("/file.txt")).toThrow("Directory not found");
+		});
+
+		it("should handle exists on nested non-existent path", () => {
+			const vfs = new VirtualFileSystem();
+			expect(vfs.exists("/a/b/c/d/e/f")).toBe(false);
+		});
 	});
 });

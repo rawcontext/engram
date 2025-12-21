@@ -149,4 +149,19 @@ describe("GraphPruner", () => {
 		// Blob store should not be called if no nodes to archive
 		expect(mockBlobStore.save).not.toHaveBeenCalled();
 	});
+
+	it("should handle deleted_count as first row element when not an object property", async () => {
+		// This tests the fallback path: firstRow?.[0] when deleted_count property doesn't exist
+		mockFalkorQuery
+			.mockResolvedValueOnce([{ nodeId: 1 }])
+			.mockResolvedValueOnce([[3]]) // Returns count as array element
+			.mockResolvedValueOnce([]);
+
+		const pruner = new GraphPruner(mockFalkorClient as unknown as FalkorClient);
+
+		const result = await pruner.pruneHistory({ retentionMs: 1000 });
+
+		expect(result.deleted).toBe(3);
+		expect(result.batches).toBe(1);
+	});
 });

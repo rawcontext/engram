@@ -1,6 +1,6 @@
-import type { FalkorClient } from "@engram/storage";
+import type { FalkorClient, GraphClient } from "@engram/storage";
 import { describe, expect, it, vi } from "vitest";
-import { SessionInitializer } from "./initializer";
+import { createSessionInitializer, SessionInitializer } from "./initializer";
 
 describe("SessionInitializer", () => {
 	it("should create a session if it does not exist", async () => {
@@ -34,5 +34,57 @@ describe("SessionInitializer", () => {
 
 		expect(mockQuery).toHaveBeenCalledTimes(1);
 		expect(mockQuery.mock.calls[0][0]).toContain("MATCH");
+	});
+
+	it("should create with default dependencies when no args provided", () => {
+		const initializer = new SessionInitializer();
+
+		expect(initializer).toBeInstanceOf(SessionInitializer);
+	});
+
+	it("should create with new deps object constructor", async () => {
+		const mockGraphClient: GraphClient = {
+			connect: vi.fn(),
+			disconnect: vi.fn(),
+			query: vi.fn().mockResolvedValue([["existing"]]),
+			isConnected: vi.fn().mockReturnValue(true),
+		};
+
+		const mockLogger = {
+			info: vi.fn(),
+			error: vi.fn(),
+			warn: vi.fn(),
+			debug: vi.fn(),
+		};
+
+		const initializer = new SessionInitializer({
+			graphClient: mockGraphClient,
+			logger: mockLogger,
+		});
+
+		await initializer.ensureSession("test-session");
+
+		expect(mockGraphClient.query).toHaveBeenCalled();
+	});
+
+	it("should create via factory function", () => {
+		const initializer = createSessionInitializer();
+
+		expect(initializer).toBeInstanceOf(SessionInitializer);
+	});
+
+	it("should create via factory function with deps", () => {
+		const mockGraphClient: GraphClient = {
+			connect: vi.fn(),
+			disconnect: vi.fn(),
+			query: vi.fn(),
+			isConnected: vi.fn(),
+		};
+
+		const initializer = createSessionInitializer({
+			graphClient: mockGraphClient,
+		});
+
+		expect(initializer).toBeInstanceOf(SessionInitializer);
 	});
 });

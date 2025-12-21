@@ -173,6 +173,32 @@ describe("BaseTagExtractor", () => {
 		});
 	});
 
+	describe("buffer size limits", () => {
+		it("should throw error when buffer exceeds max size", () => {
+			const extractor = new TestExtractor();
+			const longChunk = "a".repeat(1024 * 1024 + 1);
+
+			expect(() => extractor.process(longChunk)).toThrow(/Buffer size exceeded/);
+		});
+
+		it("should respect custom maxBufferSize", () => {
+			class SmallBufferExtractor extends BaseTagExtractor<"thought"> {
+				protected readonly config: TagExtractorConfig<"thought"> = {
+					openTag: "[START]",
+					closeTag: "[END]",
+					fieldName: "thought",
+					maxBufferSize: 100,
+				};
+			}
+
+			const extractor = new SmallBufferExtractor();
+			const longChunk = "a".repeat(101);
+
+			expect(() => extractor.process(longChunk)).toThrow(/Buffer size exceeded/);
+			expect(() => extractor.process(longChunk)).toThrow(/100/);
+		});
+	});
+
 	describe("flush functionality", () => {
 		it("should return empty delta when buffer is empty", () => {
 			const extractor = new TestExtractor();

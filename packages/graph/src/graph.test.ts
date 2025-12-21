@@ -85,4 +85,23 @@ describe("GraphWriter", () => {
 		expect(call[0]).toContain("SET n.tt_end = $t");
 		expect(call[1]).toHaveProperty("id", "node-1");
 	});
+
+	it("should throw on invalid node label", async () => {
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+		const data = { id: "node-1", labels: ["Test"], content: "test" };
+
+		await expect(writer.writeNode("123_Invalid", data)).rejects.toThrow(
+			'Invalid label: "123_Invalid"',
+		);
+	});
+
+	it("should throw on invalid relationship type", async () => {
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+
+		await expect(writer.writeEdge("node-1", "node-2", "invalid-type!")).rejects.toThrow(
+			'Invalid relationship type: "invalid-type!"',
+		);
+	});
 });

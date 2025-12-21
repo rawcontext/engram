@@ -183,4 +183,55 @@ describe("NodeFileSystem", () => {
 			expect(stats.isFile()).toBe(true);
 		});
 	});
+
+	describe("path traversal protection", () => {
+		it("should prevent path traversal with ..", () => {
+			expect(() => nodeFs.readFile("../../../etc/passwd")).toThrow("Path traversal detected");
+		});
+
+		it("should prevent path traversal with absolute paths outside base", () => {
+			expect(() => nodeFs.readFile("/etc/passwd")).toThrow("Path traversal detected");
+		});
+
+		it("should allow files within base directory", () => {
+			const filePath = path.join(testDir, "safe.txt");
+			fs.writeFileSync(filePath, "safe content");
+			expect(nodeFs.readFile(filePath)).toBe("safe content");
+		});
+
+		it("should prevent traversal in writeFile", () => {
+			expect(() => nodeFs.writeFile("../../../tmp/malicious.txt", "bad")).toThrow(
+				"Path traversal detected",
+			);
+		});
+
+		it("should prevent traversal in mkdir", () => {
+			expect(() => nodeFs.mkdir("../../../tmp/baddir")).toThrow("Path traversal detected");
+		});
+
+		it("should prevent traversal in exists", () => {
+			expect(() => nodeFs.exists("../../../etc")).toThrow("Path traversal detected");
+		});
+
+		it("should prevent traversal in readDir", () => {
+			expect(() => nodeFs.readDir("../../../etc")).toThrow("Path traversal detected");
+		});
+
+		it("should prevent traversal in unlink", () => {
+			expect(() => nodeFs.unlink("../../../tmp/file.txt")).toThrow("Path traversal detected");
+		});
+
+		it("should prevent traversal in rmdir", () => {
+			expect(() => nodeFs.rmdir("../../../tmp/dir")).toThrow("Path traversal detected");
+		});
+
+		it("should prevent traversal in stat", () => {
+			expect(() => nodeFs.stat("../../../etc/passwd")).toThrow("Path traversal detected");
+		});
+
+		it("should allow access to base directory itself", () => {
+			const stats = nodeFs.stat(testDir);
+			expect(stats.isDirectory()).toBe(true);
+		});
+	});
 });

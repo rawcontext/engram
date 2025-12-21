@@ -1,7 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { ParsedStreamEventSchema, ProviderEnum, RawStreamEventSchema } from "./index";
+import {
+	generateEventId,
+	ParsedStreamEventSchema,
+	ProviderEnum,
+	RawStreamEventSchema,
+} from "./index";
 
 describe("Event Schemas", () => {
+	describe("generateEventId", () => {
+		it("should generate valid UUID v4", () => {
+			const eventId = generateEventId();
+			expect(eventId).toMatch(
+				/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+			);
+		});
+
+		it("should generate unique IDs", () => {
+			const id1 = generateEventId();
+			const id2 = generateEventId();
+			expect(id1).not.toBe(id2);
+		});
+	});
+
 	describe("ProviderEnum", () => {
 		it("should accept valid providers", () => {
 			expect(ProviderEnum.parse("openai")).toBe("openai");

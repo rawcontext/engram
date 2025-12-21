@@ -22,7 +22,7 @@ export interface RecallResult {
 
 export interface MemoryRetrieverOptions {
 	graphClient?: GraphClient;
-	searchClient?: SearchClient;
+	searchClient?: SearchClient | null; // null = no search client, undefined = use default
 	logger?: Logger;
 	searchUrl?: string;
 }
@@ -49,11 +49,17 @@ export class MemoryRetriever {
 
 	constructor(options?: MemoryRetrieverOptions) {
 		this.graphClient = options?.graphClient ?? createFalkorClient();
-		const searchUrl = options?.searchUrl ?? "http://localhost:5002";
-		this.searchClient =
-			options?.searchClient ??
-			new SearchClient(searchUrl, options?.logger ?? createLogger({ component: "SearchClient" }));
 		this.logger = options?.logger ?? createLogger({ component: "MemoryRetriever" });
+
+		// Handle searchClient: null = disabled, undefined = use default
+		if (options?.searchClient === null) {
+			this.searchClient = null;
+		} else if (options?.searchClient !== undefined) {
+			this.searchClient = options.searchClient;
+		} else {
+			const searchUrl = options?.searchUrl ?? "http://localhost:5002";
+			this.searchClient = new SearchClient(searchUrl, this.logger);
+		}
 	}
 
 	async connect(): Promise<void> {

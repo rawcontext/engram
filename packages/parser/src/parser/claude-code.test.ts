@@ -233,5 +233,143 @@ describe("ClaudeCodeParser", () => {
 			const result = parser.parse(payload);
 			expect(result).toBeNull();
 		});
+
+		it("should return null for non-object payloads", () => {
+			expect(parser.parse(null)).toBeNull();
+			expect(parser.parse("string")).toBeNull();
+			expect(parser.parse(123)).toBeNull();
+			expect(parser.parse([])).toBeNull();
+		});
+	});
+
+	describe("edge cases", () => {
+		it("should handle assistant message with empty content array", () => {
+			const payload = {
+				type: "assistant",
+				message: {
+					role: "assistant",
+					content: [],
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.content).toBeUndefined();
+		});
+
+		it("should handle assistant message with no content", () => {
+			const payload = {
+				type: "assistant",
+				message: {
+					role: "assistant",
+					usage: {
+						input_tokens: 100,
+						output_tokens: 50,
+					},
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.usage).toBeDefined();
+		});
+
+		it("should handle system event with user subtype", () => {
+			const payload = {
+				type: "system",
+				subtype: "user",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid assistant schema", () => {
+			const payload = {
+				type: "assistant",
+				message: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid tool_use schema", () => {
+			const payload = {
+				type: "tool_use",
+				tool_use: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid tool_result schema", () => {
+			const payload = {
+				type: "tool_result",
+				tool_result: "invalid",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid result schema", () => {
+			const payload = {
+				type: "result",
+				result: 123,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid system schema", () => {
+			const payload = {
+				type: "system",
+				subtype: 123,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle result with cost and timing", () => {
+			const payload = {
+				type: "result",
+				result: "Success",
+				total_cost_usd: 0.005,
+				duration_ms: 5000,
+				duration_api_ms: 4500,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.cost).toBe(0.005);
+			expect(result?.timing?.duration).toBe(5000);
+		});
+
+		it("should handle result with only api duration", () => {
+			const payload = {
+				type: "result",
+				result: "Success",
+				duration_api_ms: 4500,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.timing?.duration).toBe(4500);
+		});
+
+		it("should handle system hook_response without stdout", () => {
+			const payload = {
+				type: "system",
+				subtype: "hook_response",
+				hook_name: "test-hook",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
 	});
 });

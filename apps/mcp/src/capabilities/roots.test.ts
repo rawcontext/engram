@@ -312,4 +312,26 @@ describe("RootsService", () => {
 			expect(service.buildProjectFilter()).toEqual(["P1", "P2"]);
 		});
 	});
+
+	describe("notification handling", () => {
+		it("should trigger refresh when roots list changed notification received", async () => {
+			service.enable();
+
+			// Get the notification handler that was registered
+			const notificationHandler = mockServer.server.setNotificationHandler.mock.calls[0][1];
+
+			// Mock the listRoots for the refresh triggered by notification
+			mockServer.server.listRoots.mockResolvedValueOnce({
+				roots: [{ uri: "file:///new-root", name: "New" }],
+			});
+
+			// Trigger the notification handler
+			await notificationHandler();
+
+			// Should have called listRoots
+			expect(mockServer.server.listRoots).toHaveBeenCalled();
+			expect(service.roots).toHaveLength(1);
+			expect(service.roots[0].name).toBe("New");
+		});
+	});
 });

@@ -236,5 +236,112 @@ describe("ClineParser", () => {
 			const result = parser.parse(payload);
 			expect(result).toBeNull();
 		});
+
+		it("should return null for invalid schema", () => {
+			const payload = {
+				type: "say",
+				say: 123,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+	});
+
+	describe("edge cases", () => {
+		it("should handle api_req_started with cost but no tokens", () => {
+			const payload = {
+				type: "say",
+				text: JSON.stringify({
+					tokensIn: 0,
+					tokensOut: 0,
+					cost: 0.001,
+				}),
+				ts: 1765240785741,
+				say: "api_req_started",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle api_req_started with zero cost", () => {
+			const payload = {
+				type: "say",
+				text: JSON.stringify({
+					tokensIn: 100,
+					tokensOut: 50,
+					cost: 0,
+				}),
+				ts: 1765240785741,
+				say: "api_req_started",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.cost).toBeUndefined();
+		});
+
+		it("should handle api_req_finished with zero cost", () => {
+			const payload = {
+				type: "say",
+				text: JSON.stringify({
+					tokensIn: 100,
+					tokensOut: 50,
+					cost: 0,
+				}),
+				ts: 1765240790000,
+				say: "api_req_finished",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.cost).toBeUndefined();
+		});
+
+		it("should handle api_req_started with failed schema validation", () => {
+			const payload = {
+				type: "say",
+				text: JSON.stringify({
+					tokensIn: "invalid",
+					tokensOut: 50,
+				}),
+				ts: 1765240785741,
+				say: "api_req_started",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle api_req_finished with failed schema validation", () => {
+			const payload = {
+				type: "say",
+				text: JSON.stringify({
+					tokensIn: "invalid",
+					tokensOut: 50,
+				}),
+				ts: 1765240790000,
+				say: "api_req_finished",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle tool event with failed schema validation", () => {
+			const payload = {
+				type: "say",
+				text: JSON.stringify({
+					id: 123,
+					tool: "some_tool",
+				}),
+				ts: 1765240785741,
+				say: "tool",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
 	});
 });

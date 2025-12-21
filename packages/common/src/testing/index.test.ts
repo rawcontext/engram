@@ -506,6 +506,40 @@ describe("expectToReject", () => {
 		expect(thrownError).toBeDefined();
 		expect(thrownError?.message).toContain("Expected RangeError but got TypeError");
 	});
+
+	it("should fail when error message does not match string pattern", async () => {
+		// Arrange
+		const promise = Promise.reject(new Error("unexpected message"));
+
+		// Act
+		let thrownError: Error | undefined;
+		try {
+			await expectToReject(promise, Error, "expected pattern");
+		} catch (error) {
+			thrownError = error as Error;
+		}
+
+		// Assert
+		expect(thrownError).toBeDefined();
+		expect(thrownError?.message).toContain("does not match expected pattern");
+	});
+
+	it("should fail when error message does not match regex pattern", async () => {
+		// Arrange
+		const promise = Promise.reject(new Error("error without numbers"));
+
+		// Act
+		let thrownError: Error | undefined;
+		try {
+			await expectToReject(promise, Error, /\d+/);
+		} catch (error) {
+			thrownError = error as Error;
+		}
+
+		// Assert
+		expect(thrownError).toBeDefined();
+		expect(thrownError?.message).toContain("does not match expected pattern");
+	});
 });
 
 describe("spyOnConsole", () => {

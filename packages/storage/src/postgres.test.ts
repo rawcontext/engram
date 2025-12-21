@@ -1,0 +1,413 @@
+import type pg from "pg";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Hoist mocks so they're available before the module is loaded
+const { mockQuery, mockConnect, mockRelease, mockEnd, mockPoolQuery } = vi.hoisted(() => ({
+	mockQuery: vi.fn(),
+	mockConnect: vi.fn(),
+	mockRelease: vi.fn(),
+	mockEnd: vi.fn(),
+	mockPoolQuery: vi.fn(),
+}));
+
+vi.mock("pg", () => {
+	class MockPool {
+		connect = mockConnect;
+		query = mockPoolQuery;
+		end = mockEnd;
+	}
+
+	return {
+		default: {
+			Pool: MockPool,
+		},
+	};
+});
+
+import { PostgresClient } from "./postgres";
+
+const mockClient = {
+	query: mockQuery,
+	release: mockRelease,
+};
+
+describe("PostgresClient", () => {
+	let client: PostgresClient;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockConnect.mockResolvedValue(mockClient);
+		mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+		mockPoolQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+		client = new PostgresClient({ url: "postgresql://localhost:5432/test" });
+	});
+
+	afterEach(() => {
+		vi.clearAllMocks();
+	});
+
+	describe("connect", () => {
+		it("should connect successfully", async () => {
+			await client.connect();
+
+			expect(mockConnect).toHaveBeenCalledTimes(1);
+			expect(mockClient.query).toHaveBeenCalledWith("SELECT 1");
+			expect(mockRelease).toHaveBeenCalledTimes(1);
+			expect(client.isConnected()).toBe(true);
+		});
+
+		it("should be idempotent when already connected", async () => {
+			await client.connect();
+			mockConnect.mockClear();
+			mockClient.query.mockClear();
+
+			await client.connect();
+
+			expect(mockConnect).not.toHaveBeenCalled();
+			expect(mockClient.query).not.toHaveBeenCalled();
+		});
+
+		it("should release client even if query fails", async () => {
+			mockClient.query.mockRejectedValueOnce(new Error("Connection failed"));
+
+			await expect(client.connect()).rejects.toThrow("Connection failed");
+
+			expect(mockRelease).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe("disconnect", () => {
+		it("should disconnect successfully", async () => {
+			await client.connect();
+			await client.disconnect();
+
+			expect(mockEnd).toHaveBeenCalledTimes(1);
+			expect(client.isConnected()).toBe(false);
+		});
+
+		it("should be idempotent when not connected", async () => {
+			await client.disconnect();
+
+			expect(mockEnd).not.toHaveBeenCalled();
+			expect(client.isConnected()).toBe(false);
+		});
+
+		it("should be idempotent when already disconnected", async () => {
+			await client.connect();
+			await client.disconnect();
+			mockEnd.mockClear();
+
+			await client.disconnect();
+
+			expect(mockEnd).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("query", () => {
+		it("should execute a query successfully", async () => {
+			await client.connect();
+
+			const mockResult = {
+				rows: [{ id: 1, name: "test" }],
+				rowCount: 1,
+				command: "SELECT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockPoolQuery.mockResolvedValueOnce(mockResult);
+
+			const result = await client.query("SELECT * FROM users");
+
+			expect(mockPoolQuery).toHaveBeenCalledWith("SELECT * FROM users", undefined);
+			expect(result.rows).toEqual([{ id: 1, name: "test" }]);
+			expect(result.rowCount).toBe(1);
+		});
+
+		it("should execute a query with parameters", async () => {
+			await client.connect();
+
+			const mockResult = {
+				rows: [{ id: 1 }],
+				rowCount: 1,
+				command: "SELECT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockPoolQuery.mockResolvedValueOnce(mockResult);
+
+			await client.query("SELECT * FROM users WHERE id = $1", [1]);
+
+			expect(mockPoolQuery).toHaveBeenCalledWith("SELECT * FROM users WHERE id = $1", [1]);
+		});
+
+		it("should throw when not connected", async () => {
+			await expect(client.query("SELECT 1")).rejects.toThrow("PostgresClient is not connected");
+		});
+	});
+
+	describe("queryOne", () => {
+		it("should return first row when results exist", async () => {
+			await client.connect();
+
+			const mockResult = {
+				rows: [
+					{ id: 1, name: "first" },
+					{ id: 2, name: "second" },
+				],
+				rowCount: 2,
+				command: "SELECT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockPoolQuery.mockResolvedValueOnce(mockResult);
+
+			const result = await client.queryOne("SELECT * FROM users");
+
+			expect(result).toEqual({ id: 1, name: "first" });
+		});
+
+		it("should return null when no results", async () => {
+			await client.connect();
+
+			const mockResult = {
+				rows: [],
+				rowCount: 0,
+				command: "SELECT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockPoolQuery.mockResolvedValueOnce(mockResult);
+
+			const result = await client.queryOne("SELECT * FROM users WHERE id = $1", [999]);
+
+			expect(result).toBeNull();
+		});
+
+		it("should work with parameters", async () => {
+			await client.connect();
+
+			const mockResult = {
+				rows: [{ id: 5, name: "test" }],
+				rowCount: 1,
+				command: "SELECT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockPoolQuery.mockResolvedValueOnce(mockResult);
+
+			const result = await client.queryOne<{ id: number; name: string }>(
+				"SELECT * FROM users WHERE id = $1",
+				[5],
+			);
+
+			expect(result).toEqual({ id: 5, name: "test" });
+		});
+	});
+
+	describe("queryMany", () => {
+		it("should return all rows", async () => {
+			await client.connect();
+
+			const mockResult = {
+				rows: [
+					{ id: 1, name: "first" },
+					{ id: 2, name: "second" },
+					{ id: 3, name: "third" },
+				],
+				rowCount: 3,
+				command: "SELECT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockPoolQuery.mockResolvedValueOnce(mockResult);
+
+			const result = await client.queryMany("SELECT * FROM users");
+
+			expect(result).toHaveLength(3);
+			expect(result).toEqual([
+				{ id: 1, name: "first" },
+				{ id: 2, name: "second" },
+				{ id: 3, name: "third" },
+			]);
+		});
+
+		it("should return empty array when no results", async () => {
+			await client.connect();
+
+			const mockResult = {
+				rows: [],
+				rowCount: 0,
+				command: "SELECT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockPoolQuery.mockResolvedValueOnce(mockResult);
+
+			const result = await client.queryMany("SELECT * FROM users WHERE 1=0");
+
+			expect(result).toEqual([]);
+		});
+	});
+
+	describe("transaction", () => {
+		it("should execute transaction successfully", async () => {
+			await client.connect();
+
+			const result = await client.transaction(async (txClient) => {
+				expect(txClient).toBe(mockClient);
+				return "success";
+			});
+
+			expect(mockConnect).toHaveBeenCalled();
+			expect(mockClient.query).toHaveBeenCalledWith("BEGIN");
+			expect(mockClient.query).toHaveBeenCalledWith("COMMIT");
+			expect(mockRelease).toHaveBeenCalled();
+			expect(result).toBe("success");
+		});
+
+		it("should rollback on error", async () => {
+			await client.connect();
+
+			const testError = new Error("Transaction failed");
+
+			await expect(
+				client.transaction(async () => {
+					throw testError;
+				}),
+			).rejects.toThrow("Transaction failed");
+
+			expect(mockClient.query).toHaveBeenCalledWith("BEGIN");
+			expect(mockClient.query).toHaveBeenCalledWith("ROLLBACK");
+			expect(mockRelease).toHaveBeenCalled();
+		});
+
+		it("should release client even if rollback fails", async () => {
+			await client.connect();
+
+			mockClient.query.mockImplementation((sql: string) => {
+				if (sql === "ROLLBACK") {
+					return Promise.reject(new Error("Rollback failed"));
+				}
+				return Promise.resolve({ rows: [], rowCount: 0 });
+			});
+
+			await expect(
+				client.transaction(async () => {
+					throw new Error("Transaction error");
+				}),
+			).rejects.toThrow("Rollback failed");
+
+			expect(mockRelease).toHaveBeenCalled();
+		});
+
+		it("should throw when not connected", async () => {
+			await expect(
+				client.transaction(async () => {
+					return "test";
+				}),
+			).rejects.toThrow("PostgresClient is not connected");
+		});
+
+		it("should support nested operations", async () => {
+			await client.connect();
+
+			const mockInsertResult = {
+				rows: [{ id: 1 }],
+				rowCount: 1,
+				command: "INSERT",
+				oid: 0,
+				fields: [],
+			} as pg.QueryResult;
+
+			mockClient.query
+				.mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
+				.mockResolvedValueOnce(mockInsertResult) // INSERT
+				.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // COMMIT
+
+			const result = await client.transaction(async (txClient) => {
+				const insertResult = await txClient.query(
+					"INSERT INTO users (name) VALUES ($1) RETURNING id",
+					["test"],
+				);
+				return insertResult.rows[0].id;
+			});
+
+			expect(result).toBe(1);
+			expect(mockClient.query).toHaveBeenCalledWith("BEGIN");
+			expect(mockClient.query).toHaveBeenCalledWith(
+				"INSERT INTO users (name) VALUES ($1) RETURNING id",
+				["test"],
+			);
+			expect(mockClient.query).toHaveBeenCalledWith("COMMIT");
+		});
+	});
+
+	describe("isConnected", () => {
+		it("should return false when not connected", () => {
+			expect(client.isConnected()).toBe(false);
+		});
+
+		it("should return true when connected", async () => {
+			await client.connect();
+			expect(client.isConnected()).toBe(true);
+		});
+
+		it("should return false after disconnect", async () => {
+			await client.connect();
+			await client.disconnect();
+			expect(client.isConnected()).toBe(false);
+		});
+	});
+
+	describe("healthCheck", () => {
+		it("should return true when connection is healthy", async () => {
+			await client.connect();
+
+			mockConnect.mockResolvedValueOnce(mockClient);
+			mockClient.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+			const isHealthy = await client.healthCheck();
+
+			expect(isHealthy).toBe(true);
+			expect(mockClient.query).toHaveBeenCalledWith("SELECT 1");
+			expect(mockRelease).toHaveBeenCalled();
+		});
+
+		it("should return false when not connected", async () => {
+			const isHealthy = await client.healthCheck();
+
+			expect(isHealthy).toBe(false);
+		});
+
+		it("should return false and set connected to false on health check failure", async () => {
+			await client.connect();
+
+			mockConnect.mockResolvedValueOnce(mockClient);
+			mockClient.query.mockRejectedValueOnce(new Error("Connection lost"));
+
+			const isHealthy = await client.healthCheck();
+
+			expect(isHealthy).toBe(false);
+			expect(client.isConnected()).toBe(false);
+			expect(mockRelease).toHaveBeenCalled();
+		});
+
+		it("should release client even if query fails", async () => {
+			await client.connect();
+
+			mockConnect.mockResolvedValueOnce(mockClient);
+			mockClient.query.mockRejectedValueOnce(new Error("Query failed"));
+
+			await client.healthCheck();
+
+			expect(mockRelease).toHaveBeenCalled();
+		});
+	});
+});

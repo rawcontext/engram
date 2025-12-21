@@ -11,6 +11,7 @@
 
 import { describe, expect, it } from "vitest";
 import * as infra from "./k8s";
+import "./k8s/index"; // Import index to get coverage
 import { getResource, getResourcesByType } from "./testing";
 
 describe("Kubernetes Infrastructure", () => {
@@ -339,6 +340,127 @@ describe("Kubernetes Infrastructure", () => {
 				>;
 				expect(labels?.["managed-by"]).toBe("pulumi");
 			}
+		});
+	});
+
+	describe("Backups", () => {
+		it("should create backup bucket", () => {
+			const bucket = getResource("gcp:storage/bucket:Bucket", "engram-backups");
+			expect(bucket).toBeDefined();
+		});
+
+		it("should create backup service account", () => {
+			const sa = getResource("kubernetes:core/v1:ServiceAccount", "backup-sa");
+			expect(sa).toBeDefined();
+		});
+
+		it("should create FalkorDB backup CronJob", () => {
+			const cron = getResource("kubernetes:batch/v1:CronJob", "falkordb-backup");
+			expect(cron).toBeDefined();
+		});
+
+		it("should create Qdrant backup CronJob", () => {
+			const cron = getResource("kubernetes:batch/v1:CronJob", "qdrant-backup");
+			expect(cron).toBeDefined();
+		});
+
+		it("should create Redpanda backup CronJob", () => {
+			const cron = getResource("kubernetes:batch/v1:CronJob", "redpanda-backup");
+			expect(cron).toBeDefined();
+		});
+	});
+
+	describe("NetworkPolicies", () => {
+		it("should create FalkorDB network policy", () => {
+			const netpol = getResource(
+				"kubernetes:networking.k8s.io/v1:NetworkPolicy",
+				"falkordb-netpol",
+			);
+			expect(netpol).toBeDefined();
+		});
+
+		it("should create Qdrant network policy", () => {
+			const netpol = getResource("kubernetes:networking.k8s.io/v1:NetworkPolicy", "qdrant-netpol");
+			expect(netpol).toBeDefined();
+		});
+
+		it("should create Redpanda network policy", () => {
+			const netpol = getResource(
+				"kubernetes:networking.k8s.io/v1:NetworkPolicy",
+				"redpanda-netpol",
+			);
+			expect(netpol).toBeDefined();
+		});
+
+		it("should create default deny ingress policy", () => {
+			const netpol = getResource(
+				"kubernetes:networking.k8s.io/v1:NetworkPolicy",
+				"default-deny-ingress",
+			);
+			expect(netpol).toBeDefined();
+		});
+	});
+
+	describe("RBAC", () => {
+		it("should create memory service account and role", () => {
+			const sa = getResource("kubernetes:core/v1:ServiceAccount", "memory-sa");
+			const role = getResource("kubernetes:rbac.authorization.k8s.io/v1:Role", "memory-role");
+			const binding = getResource(
+				"kubernetes:rbac.authorization.k8s.io/v1:RoleBinding",
+				"memory-rolebinding",
+			);
+			expect(sa).toBeDefined();
+			expect(role).toBeDefined();
+			expect(binding).toBeDefined();
+		});
+
+		it("should create ingestion service account and role", () => {
+			const sa = getResource("kubernetes:core/v1:ServiceAccount", "ingestion-sa");
+			const role = getResource("kubernetes:rbac.authorization.k8s.io/v1:Role", "ingestion-role");
+			const binding = getResource(
+				"kubernetes:rbac.authorization.k8s.io/v1:RoleBinding",
+				"ingestion-rolebinding",
+			);
+			expect(sa).toBeDefined();
+			expect(role).toBeDefined();
+			expect(binding).toBeDefined();
+		});
+
+		it("should create search service account and role", () => {
+			const sa = getResource("kubernetes:core/v1:ServiceAccount", "search-sa");
+			const role = getResource("kubernetes:rbac.authorization.k8s.io/v1:Role", "search-role");
+			const binding = getResource(
+				"kubernetes:rbac.authorization.k8s.io/v1:RoleBinding",
+				"search-rolebinding",
+			);
+			expect(sa).toBeDefined();
+			expect(role).toBeDefined();
+			expect(binding).toBeDefined();
+		});
+
+		it("should create mcp service account and role", () => {
+			const sa = getResource("kubernetes:core/v1:ServiceAccount", "mcp-sa");
+			const role = getResource("kubernetes:rbac.authorization.k8s.io/v1:Role", "mcp-role");
+			const binding = getResource(
+				"kubernetes:rbac.authorization.k8s.io/v1:RoleBinding",
+				"mcp-rolebinding",
+			);
+			expect(sa).toBeDefined();
+			expect(role).toBeDefined();
+			expect(binding).toBeDefined();
+		});
+
+		it("should create backup cluster role and binding", () => {
+			const clusterRole = getResource(
+				"kubernetes:rbac.authorization.k8s.io/v1:ClusterRole",
+				"backup-clusterrole",
+			);
+			const binding = getResource(
+				"kubernetes:rbac.authorization.k8s.io/v1:ClusterRoleBinding",
+				"backup-clusterrolebinding",
+			);
+			expect(clusterRole).toBeDefined();
+			expect(binding).toBeDefined();
 		});
 	});
 });
