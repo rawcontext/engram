@@ -40,7 +40,7 @@ export const withTelemetry =
 			// Note: userId might not be easily accessible here without re-running auth()
 			// We rely on downstream/upstream to set it or just log what we have.
 			// If we really needed userId, we'd put this inside the auth block.
-			trackUsage(req, res?.status || 500, duration);
+			trackUsage(req, res.status, duration);
 		}
 		return res;
 	};

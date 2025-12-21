@@ -37,21 +37,14 @@ export async function requireRole(requiredRole: UserRole) {
 	const userRole = metadata?.role;
 
 	if (userRole !== requiredRole && userRole !== UserRole.ADMIN) {
-		// Admin supersedes all? Or strict RBAC?
-		// Let's assume Admin has access to everything for now, or strictly check.
-		// For safety, let's match strictly or check hierarchy.
-		if (requiredRole === UserRole.ADMIN && userRole !== UserRole.ADMIN) {
+		// User is not admin and doesn't have required role
+		if (requiredRole === UserRole.ADMIN) {
 			throw new ForbiddenError(
 				`User role '${userRole}' does not match required role '${requiredRole}'`,
 			);
 		}
 
-		// If user is admin, allow?
-		if (userRole === UserRole.ADMIN) return;
-
-		if (userRole !== requiredRole) {
-			throw new ForbiddenError("Insufficient permissions");
-		}
+		throw new ForbiddenError("Insufficient permissions");
 	}
 }
 

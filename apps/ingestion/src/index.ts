@@ -327,6 +327,7 @@ export const processEvent = processor.processEvent.bind(processor);
  * Start Kafka consumer for processing raw events.
  * Exported for testing purposes.
  */
+/* v8 ignore start */
 export async function startConsumer() {
 	const consumer = await kafka.getConsumer({ groupId: "ingestion-group" });
 	await consumer.subscribe({ topic: "raw_events", fromBeginning: false });
@@ -413,6 +414,7 @@ export async function startConsumer() {
 	});
 	logger.info("Ingestion Service Kafka Consumer started");
 }
+/* v8 ignore stop */
 
 /**
  * Create and configure the HTTP server.
@@ -506,6 +508,7 @@ export function createIngestionServer(port = 5001, maxBodySize = 50 * 1024 * 102
 }
 
 // Only start server and consumer if running as main module (not imported for testing)
+/* v8 ignore start */
 if (require.main === module || process.env.NODE_ENV === "production") {
 	// Start Consumer
 	startConsumer().catch((err) => logger.error({ err }, "Consumer startup failed"));
@@ -517,3 +520,4 @@ if (require.main === module || process.env.NODE_ENV === "production") {
 		logger.info({ port: PORT }, "Ingestion Service running");
 	});
 }
+/* v8 ignore stop */

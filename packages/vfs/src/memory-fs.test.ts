@@ -336,6 +336,19 @@ describe("InMemoryFileSystem", () => {
 			expect(() => fs.mkdir("/dir/file/subdir", { recursive: true })).toThrow("ENOTDIR");
 		});
 
+		it("should throw ENOTDIR when parent is a file (non-recursive mkdir)", () => {
+			fs.mkdir("/dir");
+			fs.writeFile("/dir/file", "content");
+			// Trying to create a child of a file should throw ENOTDIR (parent is not a directory)
+			expect(() => fs.mkdir("/dir/file/child")).toThrow("ENOTDIR");
+		});
+
+		it("should throw ENOTDIR when parent is a file (writeFile)", () => {
+			fs.mkdir("/dir");
+			fs.writeFile("/dir/file", "content");
+			expect(() => fs.writeFile("/dir/file/nested.txt", "nested")).toThrow("ENOTDIR");
+		});
+
 		it("should handle async variants consistently", async () => {
 			await fs.mkdirAsync("/dir");
 			await fs.writeFileAsync("/dir/file.txt", "content");

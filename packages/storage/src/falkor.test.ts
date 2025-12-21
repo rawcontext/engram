@@ -149,4 +149,59 @@ describe.skipIf(SKIP_INTEGRATION)("FalkorClient", () => {
 		await client2.disconnect();
 		expect(client2.isConnected()).toBe(false);
 	});
+
+	it("should handle connection failure and reset state for retry (lines 115-116)", async () => {
+		const client2 = createFalkorClient();
+		const { FalkorDB } = await import("falkordb");
+
+		// Mock FalkorDB.connect to fail once, then succeed
+		const originalConnect = FalkorDB.connect;
+		let attemptCount = 0;
+
+		FalkorDB.connect = vi.fn(async (...args: any[]) => {
+			attemptCount++;
+			if (attemptCount === 1) {
+				throw new Error("Connection failed on first attempt");
+			}
+			return originalConnect(...args);
+		});
+
+		// First connection attempt should fail
+		await expect(client2.connect()).rejects.toThrow("Connection failed on first attempt");
+		expect(client2.isConnected()).toBe(false);
+
+		// Second attempt should succeed because dbPromise was reset
+		await client2.connect();
+		expect(client2.isConnected()).toBe(true);
+
+		// Cleanup
+		await client2.disconnect();
+		FalkorDB.connect = originalConnect;
+	});
+
+	it("should use default port 6379 when URL has no port (line 85)", async () => {
+		const { FalkorClient } = await import("./falkor");
+
+		// Create client with URL without explicit port
+		const clientNoPort = new FalkorClient("redis://localhost");
+
+		// Access the private connectionConfig to verify (for test only)
+		const config = (clientNoPort as any).connectionConfig;
+		expect(config.port).toBe(6379);
+
+		await clientNoPort.disconnect();
+	});
+
+	it("should use explicit port from URL when provided", async () => {
+		const { FalkorClient } = await import("./falkor");
+
+		// Create client with explicit port
+		const clientWithPort = new FalkorClient("redis://localhost:7000");
+
+		// Access the private connectionConfig to verify (for test only)
+		const config = (clientWithPort as any).connectionConfig;
+		expect(config.port).toBe(7000);
+
+		await clientWithPort.disconnect();
+	});
 });

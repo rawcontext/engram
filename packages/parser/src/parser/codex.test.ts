@@ -307,5 +307,35 @@ describe("CodexParser", () => {
 			const result = parser.parse(payload);
 			expect(result).toBeNull();
 		});
+
+		it("should return null for item.completed with unknown command_execution status", () => {
+			// Tests line 94: return null when status is neither completed nor in_progress
+			const payload = {
+				type: "item.completed",
+				item: {
+					id: "item_1",
+					type: "command_execution",
+					command: "/bin/zsh -lc ls",
+					aggregated_output: "",
+					exit_code: null,
+					status: "unknown_status",
+				},
+			};
+
+			const result = parser.parse(payload);
+			// Should hit the fallback - returns tool_call
+			expect(result).not.toBeNull();
+			expect(result?.type).toBe("tool_call");
+		});
+
+		it("should return null for item.started without item", () => {
+			// Tests line 104/161: item.started with missing item
+			const payload = {
+				type: "item.started",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
 	});
 });

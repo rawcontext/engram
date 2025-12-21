@@ -91,14 +91,12 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions =
 		onRetry,
 	} = options;
 
-	let lastError: unknown;
+	let attempt = 0;
 
-	for (let attempt = 0; attempt <= maxRetries; attempt++) {
+	while (true) {
 		try {
 			return await fn();
 		} catch (error) {
-			lastError = error;
-
 			// Check if we've exhausted retries
 			if (attempt >= maxRetries) {
 				throw error;
@@ -125,11 +123,11 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions =
 
 			// Wait before retrying
 			await sleep(delayMs);
+
+			// Increment attempt counter
+			attempt++;
 		}
 	}
-
-	// This should never be reached, but TypeScript needs it
-	throw lastError;
 }
 
 /**

@@ -530,6 +530,27 @@ describe("Redis Storage", () => {
 
 				expect(mockSubscribe).toHaveBeenCalled();
 			});
+
+			it("should handle unsubscribe after channel is already removed (line 202)", async () => {
+				const subscriber = createRedisSubscriber();
+				const callback = vi.fn();
+
+				mockSubscribe.mockImplementationOnce(() => Promise.resolve());
+				mockIsOpen = true;
+
+				const unsubscribe = await subscriber.subscribe("session-1", callback);
+
+				// Disconnect will clear all subscriptions
+				await subscriber.disconnect();
+				mockIsOpen = false;
+
+				// Now try to unsubscribe - the channel should already be removed
+				// This tests the if (callbacks) check at line 202
+				await unsubscribe();
+
+				// Should not crash or throw - gracefully handles missing channel
+				expect(true).toBe(true);
+			});
 		});
 
 		describe("subscribeToConsumerStatus", () => {

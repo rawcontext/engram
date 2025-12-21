@@ -152,6 +152,16 @@ describe("NodeFileSystem", () => {
 			await nodeFs.rmdirAsync(dirPath);
 			expect(fs.existsSync(dirPath)).toBe(false);
 		});
+
+		it("should remove directory recursively async", async () => {
+			const dirPath = path.join(testDir, "async-nonempty");
+			fs.mkdirSync(dirPath);
+			fs.writeFileSync(path.join(dirPath, "file.txt"), "content");
+			fs.mkdirSync(path.join(dirPath, "subdir"));
+
+			await nodeFs.rmdirAsync(dirPath, { recursive: true });
+			expect(fs.existsSync(dirPath)).toBe(false);
+		});
 	});
 
 	describe("stat / statAsync", () => {
@@ -181,6 +191,14 @@ describe("NodeFileSystem", () => {
 			fs.writeFileSync(filePath, "async");
 			const stats = await nodeFs.statAsync(filePath);
 			expect(stats.isFile()).toBe(true);
+		});
+
+		it("should return directory stats async", async () => {
+			const dirPath = path.join(testDir, "async-statdir");
+			fs.mkdirSync(dirPath);
+			const stats = await nodeFs.statAsync(dirPath);
+			expect(stats.isDirectory()).toBe(true);
+			expect(stats.isFile()).toBe(false);
 		});
 	});
 

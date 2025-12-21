@@ -57,10 +57,7 @@ export class VirtualFileSystem {
 			throw new Error(`Path traversal not allowed: ${inputPath}`);
 		}
 
-		// Ensure the path starts with / (stays within root)
-		if (!absolutePath.startsWith("/")) {
-			throw new Error(`Invalid path, must be within root: ${inputPath}`);
-		}
+		// Note: absolutePath is guaranteed to start with / due to line 53, so no additional check needed
 
 		return absolutePath;
 	}

@@ -259,4 +259,133 @@ describe("Rehydrator", () => {
 		});
 		expect(rehydrator2).toBeDefined();
 	});
+
+	it("should create rehydrator with only blobStore in deps (uses default graphClient)", () => {
+		const customBlobStore = {
+			load: vi.fn(async () => "{}"),
+			save: vi.fn(async () => "blob://ref"),
+		};
+
+		const rehydrator = new Rehydrator({
+			blobStore: customBlobStore,
+		});
+
+		expect(rehydrator).toBeDefined();
+	});
+
+	it("should handle non-Error exception when JSON parsing fails", async () => {
+		const mockSnapshot = ["blob-ref-invalid", 1000];
+		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
+
+		// Mock JSON.parse to throw a non-Error value
+		const originalParse = JSON.parse;
+		const parseSpy = vi.spyOn(JSON, "parse");
+		let parseCallCount = 0;
+		parseSpy.mockImplementation((text: string) => {
+			parseCallCount++;
+			// Let any initial calls succeed (for test setup)
+			// Then throw a non-Error value for the VFS snapshot parsing
+			if (parseCallCount === 1) {
+				throw "non-error string"; // This triggers the false branch of instanceof Error
+			}
+			return originalParse(text);
+		});
+
+		mockBlobStoreLoad.mockResolvedValueOnce("not valid json or gzip");
+
+		await expect(rehydrator.rehydrate("session-1")).rejects.toThrow("Failed to load VFS snapshot");
+
+		parseSpy.mockRestore();
+	});
+
+	it("should handle non-Error exception when patch application fails", async () => {
+		mockFalkorQuery.mockResolvedValueOnce([]); // No snapshot
+
+		// Mix of valid and invalid patches  to ensure not all fail
+		const mockDiffs = [
+			{
+				file_path: "/valid.txt",
+				// Valid patch that creates a new file
+				patch_content: "@@ -0,0 +1,1 @@\n+valid content",
+				vt_start: 1000,
+			},
+			{
+				file_path: "/file.txt",
+				// Malformed patch that will cause an error
+				patch_content: "@@ -1,1 +1,1 @@\n",
+				vt_start: 2000,
+			},
+		];
+		mockFalkorQuery.mockResolvedValueOnce(mockDiffs);
+
+		// This should not throw because not all patches fail
+		// The error handling for non-Error exceptions is tested indirectly
+		// (PatchManager may throw Error objects, but the code path handles both cases)
+		const vfs = await rehydrator.rehydrate("session-1");
+		expect(vfs).toBeDefined();
+		// Verify the valid patch was applied (patch adds a newline)
+		expect(vfs.readFile("/valid.txt")).toBe("valid content\n");
+	});
+
+	it("should handle when diff query returns non-array", async () => {
+		mockFalkorQuery
+			.mockResolvedValueOnce([]) // No snapshot
+			.mockResolvedValueOnce(null); // Diff query returns null instead of array
+
+		const vfs = await rehydrator.rehydrate("session-1");
+		expect(vfs).toBeDefined();
+		// Should return empty VFS since no patches were applied
+		expect(vfs.root.children).toEqual({});
+	});
+
+	it("should handle when diff query returns undefined", async () => {
+		mockFalkorQuery
+			.mockResolvedValueOnce([]) // No snapshot
+			.mockResolvedValueOnce(undefined); // Diff query returns undefined
+
+		const vfs = await rehydrator.rehydrate("session-1");
+		expect(vfs).toBeDefined();
+		expect(vfs.root.children).toEqual({});
+	});
+
+	it("should convert non-Error exceptions to Error objects when patch fails", async () => {
+		// Import VFS module to spy on PatchManager
+		const vfs = await import("@engram/vfs");
+
+		// Spy on applyUnifiedDiff
+		const spy = vi.spyOn(vfs.PatchManager.prototype, "applyUnifiedDiff");
+
+		// First patch succeeds, second throws non-Error
+		spy
+			.mockImplementationOnce(() => {
+				// First call succeeds - don't throw
+				return;
+			})
+			.mockImplementationOnce(() => {
+				// Second call throws a non-Error value
+				throw 42; // Throws a number, not an Error
+			});
+
+		mockFalkorQuery.mockResolvedValueOnce([]); // No snapshot
+
+		const mockDiffs = [
+			{
+				file_path: "/file1.txt",
+				patch_content: "@@ -0,0 +1,1 @@\n+content1",
+				vt_start: 1000,
+			},
+			{
+				file_path: "/file2.txt",
+				patch_content: "@@ -0,0 +1,1 @@\n+content2",
+				vt_start: 2000,
+			},
+		];
+		mockFalkorQuery.mockResolvedValueOnce(mockDiffs);
+
+		// Should not throw because only one patch failed
+		const result = await rehydrator.rehydrate("session-1");
+		spy.mockRestore();
+
+		expect(result).toBeDefined();
+	});
 });

@@ -13,7 +13,7 @@ import type { FalkorClient } from "@engram/storage";
 import { ReplayEngine } from "./replay";
 
 describe("ReplayEngine", () => {
-	let mockFalkorQuery: ReturnType<typeof mock>;
+	let mockFalkorQuery: ReturnType<typeof vi.fn>;
 	let mockFalkor: FalkorClient;
 	let engine: ReplayEngine;
 
@@ -26,7 +26,6 @@ describe("ReplayEngine", () => {
 	});
 
 	it("should return error when event not found", async () => {
-		// All queries return empty
 		mockFalkorQuery.mockResolvedValue([]);
 
 		const result = await engine.replay("session-1", "event-1");
@@ -36,10 +35,6 @@ describe("ReplayEngine", () => {
 	});
 
 	it("should replay a tool call event", async () => {
-		// First call: fetchToolCallEvent query returns the tool call
-		// Second call: rehydrator's snapshot query returns empty
-		// Third call: rehydrator's diff query returns empty
-		// Note: Using write_file because read_file would fail with empty VFS
 		mockFalkorQuery
 			.mockResolvedValueOnce([
 				{
@@ -49,40 +44,16 @@ describe("ReplayEngine", () => {
 					result: JSON.stringify({ success: true }),
 					vt_start: 1000,
 				},
-			]) // tool call event
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]); // diffs
+			])
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
 
 		const result = await engine.replay("session-1", "event-1");
 
 		expect(result.success).toBe(true);
 	});
 
-	it("should mock Date.now during replay", async () => {
-		const originalNow = Date.now();
-
-		// Setup mock to return a tool call
-		mockFalkorQuery
-			.mockResolvedValueOnce([
-				{
-					id: "event-1",
-					name: "unknown_tool",
-					arguments: "{}",
-					result: null,
-					vt_start: 5000,
-				},
-			]) // tool call
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]); // diffs
-
-		await engine.replay("session-1", "event-1");
-
-		// Date.now should be restored after replay
-		expect(Date.now()).toBeGreaterThanOrEqual(originalNow);
-	});
-
 	it("should compare outputs correctly", async () => {
-		// Setup for a write_file tool with matching output
 		mockFalkorQuery
 			.mockResolvedValueOnce([
 				{
@@ -92,9 +63,9 @@ describe("ReplayEngine", () => {
 					result: JSON.stringify({ success: true }),
 					vt_start: 1000,
 				},
-			]) // tool call
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]); // diffs
+			])
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
 
 		const result = await engine.replay("session-1", "event-1");
 
@@ -103,19 +74,18 @@ describe("ReplayEngine", () => {
 	});
 
 	it("should detect mismatched outputs", async () => {
-		// Setup where original result differs from replay
 		mockFalkorQuery
 			.mockResolvedValueOnce([
 				{
 					id: "event-1",
 					name: "write_file",
 					arguments: JSON.stringify({ path: "/new.txt", content: "test" }),
-					result: JSON.stringify({ success: false }), // Different from actual replay (which returns { success: true })
+					result: JSON.stringify({ success: false }),
 					vt_start: 1000,
 				},
-			]) // tool call
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]); // diffs
+			])
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
 
 		const result = await engine.replay("session-1", "event-1");
 
@@ -123,8 +93,31 @@ describe("ReplayEngine", () => {
 		expect(result.matches).toBe(false);
 	});
 
-	// NOTE: read_file replay testing is complex because it requires setting up
-	// a VFS state with the file already present. This is better tested via integration tests.
+	it("should handle read_file tool", async () => {
+		mockFalkorQuery
+			.mockResolvedValueOnce([
+				{
+					id: "event-1",
+					name: "read_file",
+					arguments: JSON.stringify({ path: "/test.txt" }),
+					result: JSON.stringify({ content: "hello" }),
+					vt_start: 1000,
+				},
+			])
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([
+				{
+					file_path: "/test.txt",
+					patch_content:
+						"--- /dev/null\n+++ b/test.txt\n@@ -0,0 +1 @@\n+hello\n\\ No newline at end of file",
+				},
+			]);
+
+		const result = await engine.replay("session-1", "event-1");
+
+		expect(result.success).toBe(true);
+		expect(result.replayOutput).toEqual({ content: "hello" });
+	});
 
 	it("should handle list_directory tool", async () => {
 		mockFalkorQuery
@@ -137,8 +130,8 @@ describe("ReplayEngine", () => {
 					vt_start: 1000,
 				},
 			])
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]); // diffs
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
 
 		const result = await engine.replay("session-1", "event-1");
 
@@ -156,8 +149,8 @@ describe("ReplayEngine", () => {
 					vt_start: 1000,
 				},
 			])
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]); // diffs
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
 
 		const result = await engine.replay("session-1", "event-1");
 
@@ -176,8 +169,8 @@ describe("ReplayEngine", () => {
 					vt_start: 1000,
 				},
 			])
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]); // diffs
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
 
 		const result = await engine.replay("session-1", "event-1");
 
@@ -195,8 +188,8 @@ describe("ReplayEngine", () => {
 					vt_start: 1000,
 				},
 			])
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]); // diffs
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
 
 		const result = await engine.replay("session-1", "event-1");
 
@@ -204,7 +197,22 @@ describe("ReplayEngine", () => {
 		expect(result.error).toBeDefined();
 	});
 
-	it("should use deterministic providers for tool execution", async () => {
+	it("should handle JSON.stringify errors in compareOutputs", async () => {
+		// Spy on JSON.stringify to make it throw
+		const originalStringify = JSON.stringify;
+		const stringifySpy = vi.spyOn(JSON, "stringify");
+
+		let callCount = 0;
+		stringifySpy.mockImplementation((...args) => {
+			callCount++;
+			// Let the first few calls succeed (for event.result parsing and mock setup)
+			// Then throw on the comparison call
+			if (callCount <= 3) {
+				return originalStringify(...args);
+			}
+			throw new Error("Cannot stringify circular structure");
+		});
+
 		mockFalkorQuery
 			.mockResolvedValueOnce([
 				{
@@ -212,51 +220,128 @@ describe("ReplayEngine", () => {
 					name: "write_file",
 					arguments: JSON.stringify({ path: "/test.txt", content: "test" }),
 					result: JSON.stringify({ success: true }),
-					vt_start: 12345,
+					vt_start: 1000,
 				},
 			])
-			.mockResolvedValueOnce([]) // snapshot
-			.mockResolvedValueOnce([]); // diffs
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
+
+		const result = await engine.replay("session-1", "event-1");
+
+		// Restore the original
+		stringifySpy.mockRestore();
+
+		// Should succeed but matches should be false due to stringify error
+		expect(result.success).toBe(true);
+		expect(result.matches).toBe(false);
+	});
+
+	it("should use fallback when arguments is undefined", async () => {
+		mockFalkorQuery
+			.mockResolvedValueOnce([
+				{
+					id: "event-1",
+					name: "unknown_tool", // Use unknown tool which doesn't validate args
+					arguments: undefined, // This will trigger the || "{}" branch
+					result: JSON.stringify({ output: "something" }),
+					vt_start: 1000,
+				},
+			])
+			.mockResolvedValueOnce([]) // snapshot query
+			.mockResolvedValueOnce([]); // diff query
 
 		const result = await engine.replay("session-1", "event-1");
 
 		expect(result.success).toBe(true);
-		// The deterministic providers should be created with vt_start = 12345
+		expect(result.replayOutput).toHaveProperty("error");
+	});
+
+	it("should handle non-Error exceptions in replay", async () => {
+		// Mock rehydrate to throw a non-Error value
+		// @ts-expect-error - accessing private property for testing
+		const mockRehydrate = vi.spyOn(engine.rehydrator, "rehydrate");
+		mockRehydrate.mockRejectedValueOnce("string error");
+
+		mockFalkorQuery.mockResolvedValueOnce([
+			{
+				id: "event-1",
+				name: "write_file",
+				arguments: JSON.stringify({ path: "/test.txt", content: "test" }),
+				result: JSON.stringify({ success: true }),
+				vt_start: 1000,
+			},
+		]);
+
+		const result = await engine.replay("session-1", "event-1");
+
+		mockRehydrate.mockRestore();
+
+		expect(result.success).toBe(false);
+		expect(result.error).toBe("string error");
+	});
+
+	it("should handle when both original and replay outputs are null", async () => {
+		// Mock executeTool to return null
+		const mockExecuteTool = vi.spyOn(engine as any, "executeTool");
+		mockExecuteTool.mockResolvedValueOnce(null);
+
+		mockFalkorQuery
+			.mockResolvedValueOnce([
+				{
+					id: "event-1",
+					name: "some_tool",
+					arguments: JSON.stringify({}),
+					result: null, // originalOutput will be null
+					vt_start: 1000,
+				},
+			])
+			.mockResolvedValueOnce([]) // snapshot query
+			.mockResolvedValueOnce([]); // diff query
+
+		const result = await engine.replay("session-1", "event-1");
+
+		mockExecuteTool.mockRestore();
+
+		expect(result.success).toBe(true);
+		expect(result.matches).toBe(true); // Both null, so they match
+		expect(result.originalOutput).toBe(null);
+		expect(result.replayOutput).toBe(null);
 	});
 });
 
-describe("Deterministic Providers", () => {
-	it("createSeededRandom should generate consistent values", () => {
-		// Access the internal function by re-implementing it
-		function createSeededRandom(seed: number): () => number {
-			let state = seed;
-			return () => {
-				state = (state * 1103515245 + 12345) & 0x7fffffff;
-				return state / 0x7fffffff;
-			};
+describe("compareOutputs edge cases", () => {
+	function compareOutputs(original: unknown, replay: unknown): boolean {
+		if (original === null && replay === null) return true;
+		if (original === null || replay === null) return false;
+
+		try {
+			return JSON.stringify(original) === JSON.stringify(replay);
+		} catch {
+			return false;
 		}
+	}
 
-		const random1 = createSeededRandom(12345);
-		const random2 = createSeededRandom(12345);
-
-		// Same seed should produce same sequence
-		expect(random1()).toBe(random2());
-		expect(random1()).toBe(random2());
-		expect(random1()).toBe(random2());
+	it("should return true when both outputs are null", () => {
+		expect(compareOutputs(null, null)).toBe(true);
 	});
 
-	it("createSeededRandom should generate different values for different seeds", () => {
-		function createSeededRandom(seed: number): () => number {
-			let state = seed;
-			return () => {
-				state = (state * 1103515245 + 12345) & 0x7fffffff;
-				return state / 0x7fffffff;
-			};
-		}
+	it("should return false when only original is null", () => {
+		expect(compareOutputs(null, { data: "value" })).toBe(false);
+	});
 
-		const random1 = createSeededRandom(12345);
-		const random2 = createSeededRandom(54321);
+	it("should return false when only replay is null", () => {
+		expect(compareOutputs({ data: "value" }, null)).toBe(false);
+	});
 
-		expect(random1()).not.toBe(random2());
+	it("should return false when JSON.stringify throws on circular reference", () => {
+		const circular: Record<string, unknown> = { a: 1 };
+		circular.self = circular;
+
+		expect(compareOutputs(circular, { a: 1 })).toBe(false);
+	});
+
+	it("should return false when JSON.stringify throws on BigInt", () => {
+		const withBigInt = { value: BigInt(123) };
+		expect(compareOutputs(withBigInt, { value: 123 })).toBe(false);
 	});
 });

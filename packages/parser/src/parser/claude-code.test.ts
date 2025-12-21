@@ -388,5 +388,152 @@ describe("ClaudeCodeParser", () => {
 			expect(result).not.toBeNull();
 			expect(result?.session).toEqual({ id: "session-12345" });
 		});
+
+		it("should handle result event with cache metrics in usage", () => {
+			// Tests lines 155-162: cache metrics extraction
+			const payload = {
+				type: "result",
+				result: "Success",
+				usage: {
+					input_tokens: 100,
+					output_tokens: 50,
+					cache_read_input_tokens: 200,
+					cache_creation_input_tokens: 150,
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.usage).toEqual({
+				input: 100,
+				output: 50,
+				cacheRead: 200,
+				cacheWrite: 150,
+			});
+		});
+
+		it("should return null for result event without result or usage", () => {
+			// Tests line 182: return empty delta when neither result nor usage
+			const payload = {
+				type: "result",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle system init event without model or session", () => {
+			// Tests lines 198-207: system init without optional fields
+			const payload = {
+				type: "system",
+				subtype: "init",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.type).toBe("content");
+			expect(result?.model).toBeUndefined();
+			expect(result?.session).toBeUndefined();
+		});
+
+		it("should return null for assistant message with no extractable data", () => {
+			// Tests line 97: Object.keys(delta).length === 0
+			const payload = {
+				type: "assistant",
+				message: {
+					// No content, usage, role, stop_reason, or model
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for tool_result without tool_result object", () => {
+			// Tests line 127: !toolResult
+			const payload = {
+				type: "tool_result",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle result with usage having zero tokens", () => {
+			// Tests lines 157-158: input_tokens || 0, output_tokens || 0
+			const payload = {
+				type: "result",
+				result: "Success",
+				usage: {
+					input_tokens: 0,
+					output_tokens: 0,
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.usage).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+		});
+
+		it("should handle payload with non-string type field", () => {
+			// Tests line 31: typeof payload.type !== "string"
+			const payload = {
+				type: 123,
+				message: {
+					role: "assistant",
+					content: [{ type: "text", text: "Hello" }],
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle assistant message with undefined message field", () => {
+			// Tests line 40: !message
+			const payload = {
+				type: "assistant",
+				message: undefined,
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle text content block without text field", () => {
+			// Tests line 54: block.text || ""
+			const payload = {
+				type: "assistant",
+				message: {
+					role: "assistant",
+					content: [{ type: "text" }], // No text field
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			// When text is undefined, the empty string from .join("") is set, but if no text blocks have content, content is undefined
+			// Actually, the .join("") creates an empty string, but then it's only set if textContent is truthy
+			// So this should be undefined, not ""
+			expect(result?.content).toBeUndefined();
+		});
+
+		it("should handle assistant message with usage having undefined token fields", () => {
+			// Tests lines 80-81: input_tokens || 0, output_tokens || 0
+			const payload = {
+				type: "assistant",
+				message: {
+					role: "assistant",
+					content: [{ type: "text", text: "Hello" }],
+					usage: {
+						// input_tokens and output_tokens are undefined
+					},
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.usage).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+		});
 	});
 });

@@ -8,21 +8,6 @@ vi.mock("@clerk/nextjs/server", () => ({
 	auth: vi.fn(),
 }));
 
-/**
- * NOTE: Lines 50-52 in rbac.ts are dead code and cannot be covered by tests.
- *
- * Analysis:
- * The outer condition at line 39 is: `if (userRole !== requiredRole && userRole !== UserRole.ADMIN)`
- * This means the block only executes when BOTH conditions are true:
- *   1. userRole !== requiredRole
- *   2. userRole !== UserRole.ADMIN
- *
- * Inside this block at line 50, there's a check: `if (userRole === UserRole.ADMIN)`
- * This can NEVER be true because condition 2 above guarantees userRole !== UserRole.ADMIN.
- *
- * Therefore, lines 50-52 are unreachable with any valid input.
- * Coverage achieved: 96.87% statements, 90.9% branches (the maximum possible without removing the dead code).
- */
 describe("RBAC", () => {
 	describe("requireRole", () => {
 		it("should allow matching role", async () => {
@@ -34,6 +19,44 @@ describe("RBAC", () => {
 			} as any);
 
 			await expect(requireRole(UserRole.USER)).resolves.toBeUndefined();
+		});
+
+		it("should throw ForbiddenError when non-admin tries to access admin role with specific message", async () => {
+			vi.mocked(auth).mockResolvedValue({
+				userId: "user_123",
+				sessionClaims: {
+					metadata: { role: "user" },
+				},
+			} as any);
+
+			await expect(requireRole(UserRole.ADMIN)).rejects.toThrow(ForbiddenError);
+			try {
+				await requireRole(UserRole.ADMIN);
+			} catch (e) {
+				expect(e).toBeInstanceOf(ForbiddenError);
+				expect((e as ForbiddenError).message).toBe(
+					"User role 'user' does not match required role 'admin'",
+				);
+			}
+		});
+
+		it("should throw ForbiddenError when system user tries to access admin role", async () => {
+			vi.mocked(auth).mockResolvedValue({
+				userId: "system_123",
+				sessionClaims: {
+					metadata: { role: "system" },
+				},
+			} as any);
+
+			await expect(requireRole(UserRole.ADMIN)).rejects.toThrow(ForbiddenError);
+			try {
+				await requireRole(UserRole.ADMIN);
+			} catch (e) {
+				expect(e).toBeInstanceOf(ForbiddenError);
+				expect((e as ForbiddenError).message).toBe(
+					"User role 'system' does not match required role 'admin'",
+				);
+			}
 		});
 
 		it("should deny non-matching role", async () => {

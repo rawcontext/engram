@@ -157,7 +157,7 @@ const TURN_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 let pruningIntervalId: NodeJS.Timeout | null = null;
 let turnCleanupIntervalId: NodeJS.Timeout | null = null;
 
-function startPruningJob(): NodeJS.Timeout {
+export function startPruningJob(): NodeJS.Timeout {
 	// Start the periodic job
 	pruningIntervalId = setInterval(async () => {
 		try {
@@ -172,7 +172,7 @@ function startPruningJob(): NodeJS.Timeout {
 	return pruningIntervalId;
 }
 
-function startTurnCleanupJob(): NodeJS.Timeout {
+export function startTurnCleanupJob(): NodeJS.Timeout {
 	// Clean up stale turns every 5 minutes (turns inactive for 30 mins)
 	turnCleanupIntervalId = setInterval(async () => {
 		try {
@@ -187,7 +187,7 @@ function startTurnCleanupJob(): NodeJS.Timeout {
 /**
  * Clear all interval timers - call on shutdown
  */
-function clearAllIntervals(): void {
+export function clearAllIntervals(): void {
 	if (pruningIntervalId) {
 		clearInterval(pruningIntervalId);
 		pruningIntervalId = null;
@@ -199,7 +199,7 @@ function clearAllIntervals(): void {
 }
 
 // Kafka Consumer for Persistence
-async function startPersistenceConsumer() {
+export async function startPersistenceConsumer() {
 	const consumer = await kafka.getConsumer({ groupId: "memory-group" });
 	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
 

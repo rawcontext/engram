@@ -309,5 +309,187 @@ describe("Memory Routes", () => {
 
 			expect(res.status).toBe(400);
 		});
+
+		it("should pass files parameter", async () => {
+			const mockMemoryService = {
+				getContext: vi.fn().mockResolvedValue([]),
+			};
+
+			const app = createApp(mockMemoryService);
+			await app.request("/memory/context", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ task: "Task", files: ["file1.ts", "file2.ts"] }),
+			});
+
+			expect(mockMemoryService.getContext).toHaveBeenCalledWith(
+				"Task",
+				["file1.ts", "file2.ts"],
+				"medium",
+			);
+		});
+
+		it("should return 400 for empty task", async () => {
+			const mockMemoryService = { getContext: vi.fn() };
+			const app = createApp(mockMemoryService);
+
+			const res = await app.request("/memory/context", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ task: "" }),
+			});
+
+			expect(res.status).toBe(400);
+		});
+	});
+
+	describe("Error handling", () => {
+		it("should handle service error in remember endpoint", async () => {
+			const mockLogger = {
+				debug: vi.fn(),
+				info: vi.fn(),
+				warn: vi.fn(),
+				error: vi.fn(),
+			};
+
+			const mockMemoryService = {
+				remember: vi.fn().mockRejectedValue(new Error("Service error")),
+			};
+
+			const app = new Hono();
+			app.use("*", async (c, next) => {
+				c.set("apiKey", mockApiKeyContext);
+				await next();
+			});
+			app.route(
+				"/memory",
+				createMemoryRoutes({ memoryService: mockMemoryService, logger: mockLogger as any }),
+			);
+
+			// Add error handler to catch thrown errors
+			app.onError((err, c) => {
+				return c.json({ error: err.message }, 500);
+			});
+
+			const res = await app.request("/memory/remember", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ content: "test" }),
+			});
+
+			expect(res.status).toBe(500);
+			expect(mockLogger.error).toHaveBeenCalled();
+		});
+
+		it("should handle service error in recall endpoint", async () => {
+			const mockLogger = {
+				debug: vi.fn(),
+				info: vi.fn(),
+				warn: vi.fn(),
+				error: vi.fn(),
+			};
+
+			const mockMemoryService = {
+				recall: vi.fn().mockRejectedValue(new Error("Service error")),
+			};
+
+			const app = new Hono();
+			app.use("*", async (c, next) => {
+				c.set("apiKey", mockApiKeyContext);
+				await next();
+			});
+			app.route(
+				"/memory",
+				createMemoryRoutes({ memoryService: mockMemoryService, logger: mockLogger as any }),
+			);
+
+			// Add error handler to catch thrown errors
+			app.onError((err, c) => {
+				return c.json({ error: err.message }, 500);
+			});
+
+			const res = await app.request("/memory/recall", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ query: "test" }),
+			});
+
+			expect(res.status).toBe(500);
+			expect(mockLogger.error).toHaveBeenCalled();
+		});
+
+		it("should handle service error in query endpoint", async () => {
+			const mockLogger = {
+				debug: vi.fn(),
+				info: vi.fn(),
+				warn: vi.fn(),
+				error: vi.fn(),
+			};
+
+			const mockMemoryService = {
+				query: vi.fn().mockRejectedValue(new Error("Service error")),
+			};
+
+			const app = new Hono();
+			app.use("*", async (c, next) => {
+				c.set("apiKey", mockApiKeyContext);
+				await next();
+			});
+			app.route(
+				"/memory",
+				createMemoryRoutes({ memoryService: mockMemoryService, logger: mockLogger as any }),
+			);
+
+			// Add error handler to catch thrown errors
+			app.onError((err, c) => {
+				return c.json({ error: err.message }, 500);
+			});
+
+			const res = await app.request("/memory/query", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ cypher: "MATCH (n) RETURN n" }),
+			});
+
+			expect(res.status).toBe(500);
+			expect(mockLogger.error).toHaveBeenCalled();
+		});
+
+		it("should handle service error in context endpoint", async () => {
+			const mockLogger = {
+				debug: vi.fn(),
+				info: vi.fn(),
+				warn: vi.fn(),
+				error: vi.fn(),
+			};
+
+			const mockMemoryService = {
+				getContext: vi.fn().mockRejectedValue(new Error("Service error")),
+			};
+
+			const app = new Hono();
+			app.use("*", async (c, next) => {
+				c.set("apiKey", mockApiKeyContext);
+				await next();
+			});
+			app.route(
+				"/memory",
+				createMemoryRoutes({ memoryService: mockMemoryService, logger: mockLogger as any }),
+			);
+
+			// Add error handler to catch thrown errors
+			app.onError((err, c) => {
+				return c.json({ error: err.message }, 500);
+			});
+
+			const res = await app.request("/memory/context", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ task: "test task" }),
+			});
+
+			expect(res.status).toBe(500);
+			expect(mockLogger.error).toHaveBeenCalled();
+		});
 	});
 });

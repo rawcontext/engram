@@ -41,4 +41,11 @@ describe("Protocol Detection", () => {
 		expect(detectProtocol({}, 123)).toBe("unknown");
 		expect(detectProtocol({}, true)).toBe("unknown");
 	});
+
+	it("should detect Azure OpenAI with model_extra", () => {
+		// Tests line 29-30: Azure OpenAI specific branch
+		expect(
+			detectProtocol({}, { object: "chat.completion.chunk", model_extra: { key: "value" } }),
+		).toBe("openai");
+	});
 });

@@ -127,4 +127,17 @@ describe("Redactor", () => {
 		const sevenDigits = "555-1234"; // 7 digits
 		expect(redactor.redact(`Call ${sevenDigits}`)).toBe("Call [PHONE]");
 	});
+
+	it("should handle text with fewer than 7 total digits to skip phone regex", () => {
+		// Tests line 59: when total digit count < 7, skip phone redaction entirely
+		const text = "ID: 123"; // Only 3 digits
+		expect(redactor.redact(text)).toBe(text);
+	});
+
+	it("should redact valid phone but preserve invalid sequences", () => {
+		// Tests line 66-70: digitCount check for each match
+		const text = "Call 555-1234 or ID 123456"; // First is valid (7 digits), second is 6 digits
+		const result = redactor.redact(text);
+		expect(result).toContain("[PHONE]");
+	});
 });

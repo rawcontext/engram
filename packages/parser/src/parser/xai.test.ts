@@ -72,4 +72,23 @@ describe("XAIParser", () => {
 		// Should return the base OpenAI parser result (includes role from delta)
 		expect(result).toEqual({ type: "content", content: "Text", role: "assistant" });
 	});
+
+	it("should return null when xAI schema fails and base parser returns null", () => {
+		// Tests line 13 with result=null path
+		const payload = {
+			choices: [],
+		};
+		const result = parser.parse(payload);
+		expect(result).toBeNull();
+	});
+
+	it("should handle xAI schema validation failure", () => {
+		// Tests line 12-13: when XAIChunkSchema.safeParse fails
+		const payload = {
+			choices: "invalid",
+		};
+		const result = parser.parse(payload);
+		// Base parser should also fail, returning null
+		expect(result).toBeNull();
+	});
 });

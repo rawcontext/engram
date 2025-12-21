@@ -20,33 +20,10 @@ interface ReplayResult {
 }
 
 /**
- * Time and random providers for dependency injection.
- * Used to make replay deterministic without polluting globals.
- */
-export interface DeterministicProviders {
-	now: () => number;
-	random: () => number;
-}
-
-/**
- * Create a seeded pseudo-random number generator.
- * Uses LCG (Linear Congruential Generator) for reproducibility.
- */
-function createSeededRandom(seed: number): () => number {
-	let state = seed;
-	return () => {
-		state = (state * 1103515245 + 12345) & 0x7fffffff;
-		return state / 0x7fffffff;
-	};
-}
-
-/**
- * Deterministic Replay Engine
+ * Replay Engine
  *
- * Replays tool executions with the exact same state as the original execution.
- * Used for debugging, verification, and understanding past agent decisions.
- *
- * Note: Uses dependency injection for time/random to avoid global pollution.
+ * Replays tool executions by rehydrating VFS state and re-executing.
+ * Used for debugging and verification of past agent decisions.
  */
 export class ReplayEngine {
 	private rehydrator: Rehydrator;
@@ -79,16 +56,13 @@ export class ReplayEngine {
 			// 2. Rehydrate VFS to the state just before this event
 			const vfs = await this.rehydrator.rehydrate(sessionId, event.vt_start - 1);
 
-			// 3. Create deterministic providers (no global mutation!)
-			const providers = this.createDeterministicProviders(event.vt_start);
-
-			// 4. Parse tool arguments
+			// 3. Parse tool arguments
 			const args = JSON.parse(event.arguments || "{}");
 
-			// 5. Execute tool with rehydrated state and deterministic providers
-			const replayOutput = await this.executeTool(event.name, args, vfs, providers);
+			// 4. Execute tool with rehydrated state
+			const replayOutput = await this.executeTool(event.name, args, vfs);
 
-			// 6. Compare with original output
+			// 5. Compare with original output
 			const originalOutput = event.result ? JSON.parse(event.result) : null;
 			const matches = this.compareOutputs(originalOutput, replayOutput);
 
@@ -147,30 +121,13 @@ export class ReplayEngine {
 	}
 
 	/**
-	 * Create deterministic providers for replay.
-	 * Uses dependency injection instead of global mutation to avoid
-	 * cross-contamination with concurrent replays or other operations.
-	 */
-	private createDeterministicProviders(timestamp: number): DeterministicProviders {
-		return {
-			now: () => timestamp,
-			random: createSeededRandom(timestamp),
-		};
-	}
-
-	/**
 	 * Execute a tool with the given arguments and VFS state.
-	 * This is a simplified implementation - in production, would use MCP or tool registry.
-	 *
-	 * @param providers - Deterministic time/random providers for reproducibility
 	 */
 	private async executeTool(
 		toolName: string,
 		args: Record<string, unknown>,
 		vfs: VirtualFileSystem,
-		_providers?: DeterministicProviders, // Reserved for tools that need time/random
 	): Promise<unknown> {
-		// Built-in tool implementations for replay
 		switch (toolName) {
 			case "read_file": {
 				const path = args.path as string;
@@ -187,7 +144,6 @@ export class ReplayEngine {
 				return { entries: vfs.readDir(path) };
 			}
 			default:
-				// For unknown tools, return a placeholder indicating replay not supported
 				return {
 					error: `Tool '${toolName}' replay not implemented`,
 					args,
@@ -197,13 +153,11 @@ export class ReplayEngine {
 
 	/**
 	 * Compare original and replay outputs for equality.
-	 * Handles both primitive and object comparisons.
 	 */
 	private compareOutputs(original: unknown, replay: unknown): boolean {
 		if (original === null && replay === null) return true;
 		if (original === null || replay === null) return false;
 
-		// Deep equality check via JSON serialization
 		try {
 			return JSON.stringify(original) === JSON.stringify(replay);
 		} catch {

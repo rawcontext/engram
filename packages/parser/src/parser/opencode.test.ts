@@ -453,5 +453,37 @@ describe("OpenCodeParser", () => {
 				partId: "prt_test",
 			});
 		});
+
+		it("should handle payload with non-string type field", () => {
+			// Tests line 29: typeof payload.type !== "string"
+			const payload = {
+				type: 123,
+				part: {
+					type: "text",
+					text: "Hello",
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should handle step_finish without session info", () => {
+			// Tests line 152: when sessionID, messageID, and partId are all falsy
+			const payload = {
+				type: "step_finish",
+				part: {
+					type: "step-finish",
+					tokens: {
+						input: 100,
+						output: 50,
+					},
+				},
+			};
+
+			const result = parser.parse(payload);
+			expect(result).not.toBeNull();
+			expect(result?.session).toBeUndefined();
+		});
 	});
 });

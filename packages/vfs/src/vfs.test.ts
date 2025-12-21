@@ -330,6 +330,22 @@ describe("VirtualFileSystem", () => {
 			vfs.mkdir("/");
 			expect(vfs.exists("/")).toBe(true);
 		});
+
+		it("should throw on path traversal with .. that escapes root", () => {
+			const vfs = new VirtualFileSystem();
+			// Paths that go beyond root will still have .. after normalization
+			expect(() => vfs.writeFile("../../../etc/passwd", "malicious")).toThrow(
+				"Path traversal not allowed",
+			);
+		});
+
+		it("should convert relative paths to absolute paths", () => {
+			const vfs = new VirtualFileSystem();
+			// Verify that relative paths are converted to absolute paths correctly
+			vfs.writeFile("relative/path.txt", "content");
+			expect(vfs.exists("/relative/path.txt")).toBe(true);
+			expect(vfs.readFile("/relative/path.txt")).toBe("content");
+		});
 	});
 
 	describe("edge cases", () => {
@@ -337,6 +353,32 @@ describe("VirtualFileSystem", () => {
 			const vfs = new VirtualFileSystem();
 			vfs.writeFile("/file.txt", "content");
 			expect(() => vfs.writeFile("/file.txt/subfile", "content")).toThrow();
+		});
+
+		it("should throw when parent is not a directory", () => {
+			const vfs = new VirtualFileSystem();
+			// Create a file first
+			vfs.writeFile("/file.txt", "content");
+
+			// Now directly manipulate the root to create a broken state for testing
+			// This simulates the defensive check on line 104
+			const originalMkdir = vfs.mkdir.bind(vfs);
+			vfs.mkdir = (inputPath: string): void => {
+				// Call original mkdir
+				originalMkdir(inputPath);
+				// Then corrupt the state by replacing directory with a file
+				if (inputPath === "/parent") {
+					(vfs.root.children as any).parent = {
+						type: "file",
+						name: "parent",
+						content: "corrupted",
+						lastModified: Date.now(),
+					};
+				}
+			};
+
+			// This should trigger the "Not a directory" error on line 104
+			expect(() => vfs.writeFile("/parent/child.txt", "content")).toThrow("Not a directory");
 		});
 
 		it("should handle reading dir on a file", () => {

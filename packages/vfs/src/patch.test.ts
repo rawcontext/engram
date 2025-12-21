@@ -144,6 +144,23 @@ describe("PatchManager", () => {
 			expect(() => pm.applyUnifiedDiff("/file.txt", patch)).toThrow("Invalid hunk");
 		});
 
+		it("should throw when patch content does not match file", () => {
+			const vfs = new VirtualFileSystem();
+			vfs.writeFile("/file.txt", "first line\nsecond line\nthird line");
+			const pm = new PatchManager(vfs);
+
+			// This patch has valid line numbers but wrong content
+			const patch = `--- file.txt
++++ file.txt
+@@ -1,3 +1,3 @@
+ wrong line
+-second line
++modified
+ third line`;
+
+			expect(() => pm.applyUnifiedDiff("/file.txt", patch)).toThrow("Failed to apply patch");
+		});
+
 		it("should catch off-by-one errors in diff boundaries", () => {
 			const vfs = new VirtualFileSystem();
 			vfs.writeFile("/file.txt", "line1\nline2");

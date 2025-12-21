@@ -32,11 +32,41 @@ describe("Interface Lib", () => {
 			expect(res.init.status).toBe(200);
 		});
 
+		it("should return success response with custom status", () => {
+			const res = apiSuccess({ foo: "bar" }, 201) as unknown as MockedResponse;
+			expect(res.body.success).toBe(true);
+			expect(res.init.status).toBe(201);
+		});
+
+		it("should return success response with meta", () => {
+			const res = apiSuccess({ foo: "bar" }, 200, {
+				total: 10,
+				page: 1,
+			}) as unknown as MockedResponse;
+			expect(res.body.success).toBe(true);
+			expect((res.body as any).meta).toEqual({ total: 10, page: 1 });
+		});
+
 		it("should return error response", () => {
 			const res = apiError("Failed", "ERR_01", 400) as unknown as MockedResponse;
 			expect(res.body.success).toBe(false);
 			expect(res.body.error?.message).toBe("Failed");
 			expect(res.init.status).toBe(400);
+		});
+
+		it("should return error response with default code and status", () => {
+			const res = apiError("Internal error") as unknown as MockedResponse;
+			expect(res.body.success).toBe(false);
+			expect(res.body.error?.code).toBe("INTERNAL_ERROR");
+			expect(res.init.status).toBe(500);
+		});
+
+		it("should return error response with details", () => {
+			const res = apiError("Validation failed", "VALIDATION_ERROR", 422, {
+				fields: ["email", "password"],
+			}) as unknown as MockedResponse;
+			expect(res.body.success).toBe(false);
+			expect((res.body.error as any).details).toEqual({ fields: ["email", "password"] });
 		});
 	});
 

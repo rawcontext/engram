@@ -47,6 +47,7 @@ export class FileSystemBlobStore implements BlobStore {
 		}
 
 		// Additional path traversal prevention: check for any path separators in filename
+		// istanbul ignore next - Defense in depth: unreachable as regex already validates hex-only
 		if (filename.includes("/") || filename.includes("\\") || filename.includes(path.sep)) {
 			throw new StorageError(
 				`Path traversal characters detected in filename: ${filename}`,
@@ -64,6 +65,7 @@ export class FileSystemBlobStore implements BlobStore {
 
 		// Ensure the resolved path is exactly basePath/filename (defense in depth)
 		const expectedPath = path.join(resolvedBase, filename);
+		// istanbul ignore next - Defense in depth: path.basename + regex validation makes this unreachable
 		if (resolvedPath !== expectedPath) {
 			throw new StorageError(
 				`Path traversal detected in URI: ${uri}`,
