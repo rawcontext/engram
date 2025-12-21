@@ -67,10 +67,8 @@ export class IngestionProcessor {
 	 */
 	constructor(deps?: IngestionProcessorDeps);
 	/** @deprecated Use IngestionProcessorDeps object instead */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	constructor(kafkaClient: any);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	constructor(depsOrKafka?: IngestionProcessorDeps | any) {
+	constructor(kafkaClient: ReturnType<typeof createKafkaClient>);
+	constructor(depsOrKafka?: IngestionProcessorDeps | ReturnType<typeof createKafkaClient>) {
 		if (depsOrKafka === undefined) {
 			// No args: use defaults
 			this.kafkaClient = createKafkaClient("ingestion-service");
@@ -94,8 +92,8 @@ export class IngestionProcessor {
 					base: { component: "processor" },
 				});
 		} else {
-			// Legacy: kafkaClient directly
-			this.kafkaClient = depsOrKafka;
+			// Legacy: kafkaClient directly (type assertion safe - if not deps, must be KafkaClient)
+			this.kafkaClient = depsOrKafka as ReturnType<typeof createKafkaClient>;
 			this.redactor = new Redactor();
 			this.logger = createNodeLogger({
 				service: "ingestion-service",

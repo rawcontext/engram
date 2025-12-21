@@ -14,14 +14,14 @@ from pydantic import BaseModel, Field
 
 from engram_benchmark.longmemeval.types import ParsedInstance
 
+TemporalRefType = Literal["absolute", "relative", "duration"]
+
 
 class TemporalReference(BaseModel):
     """A temporal reference found in a question."""
 
     text: str = Field(description="Original temporal text (e.g., 'last week')")
-    type: Literal["absolute", "relative", "duration"] = Field(
-        description="Type of temporal reference"
-    )
+    type: TemporalRefType = Field(description="Type of temporal reference")
     parsed_date: datetime | None = Field(
         default=None,
         description="Parsed datetime (if absolute or relative)",
@@ -60,7 +60,7 @@ class TemporalQueryEnhancer:
     """
 
     # Common temporal patterns
-    TEMPORAL_PATTERNS = [
+    TEMPORAL_PATTERNS: list[tuple[str, TemporalRefType]] = [
         # Relative dates
         (r"last\s+(week|month|year)", "relative"),
         (r"this\s+(week|month|year)", "relative"),
@@ -154,7 +154,7 @@ class TemporalQueryEnhancer:
                 refs.append(
                     TemporalReference(
                         text=text,
-                        type=ref_type,  # type: ignore
+                        type=ref_type,
                         parsed_date=parsed_date,
                         days_offset=days_offset,
                     )

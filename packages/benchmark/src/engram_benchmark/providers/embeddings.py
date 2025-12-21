@@ -15,8 +15,8 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-import torch  # type: ignore
-from sentence_transformers import SentenceTransformer  # type: ignore
+import torch
+from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 

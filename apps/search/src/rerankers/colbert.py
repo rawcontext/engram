@@ -50,7 +50,7 @@ class ColBERTReranker(BaseReranker):
         logger.info(f"Initializing ColBERT reranker with model: {model_name}")
 
         # Lazy import to avoid issues at module load
-        from pylate import models, rank  # type: ignore
+        from pylate import models, rank
 
         self._rank_module = rank
 

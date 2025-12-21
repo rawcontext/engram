@@ -8,8 +8,16 @@ Classifies queries to determine:
 
 import re
 from dataclasses import dataclass
+from typing import TypedDict
 
 from src.retrieval.types import QueryComplexity, SearchStrategy
+
+
+class ClassifyDict(TypedDict):
+    """Return type for classify method."""
+
+    strategy: SearchStrategy
+    alpha: float
 
 
 @dataclass
@@ -57,7 +65,7 @@ class QueryClassifier:
     )
     CODE_SYNTAX_PATTERN = re.compile(r"[a-zA-Z0-9_]+\(.*\)|[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+")
 
-    def classify(self, query: str) -> dict[str, SearchStrategy | float]:
+    def classify(self, query: str) -> ClassifyDict:
         """Classify query into search strategy with alpha weight.
 
         Heuristic classification:
@@ -173,8 +181,8 @@ class QueryClassifier:
         classification = self.classify(query)
 
         return ClassificationResult(
-            strategy=classification["strategy"],  # type: ignore
-            alpha=classification["alpha"],  # type: ignore
+            strategy=classification["strategy"],
+            alpha=classification["alpha"],
             complexity=complexity,
             features=features,
             score=score,

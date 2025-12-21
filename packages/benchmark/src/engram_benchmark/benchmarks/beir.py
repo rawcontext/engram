@@ -174,7 +174,7 @@ class BEIRBenchmark:
             ImportError: If beir is not installed
         """
         try:
-            from sentence_transformers import SentenceTransformer  # type: ignore
+            from sentence_transformers import SentenceTransformer
         except ImportError as e:
             raise ImportError(
                 "beir is not installed. Install with: pip install 'engram-benchmark[mteb]'"
@@ -229,10 +229,10 @@ class BEIRBenchmark:
             ImportError: If beir is not installed
         """
         try:
-            from beir import util  # type: ignore
-            from beir.datasets.data_loader import GenericDataLoader  # type: ignore
-            from beir.retrieval.evaluation import EvaluateRetrieval  # type: ignore
-            from beir.retrieval.search.dense import DenseRetrievalExactSearch  # type: ignore
+            from beir import util
+            from beir.datasets.data_loader import GenericDataLoader
+            from beir.retrieval.evaluation import EvaluateRetrieval
+            from beir.retrieval.search.dense import DenseRetrievalExactSearch
         except ImportError as e:
             raise ImportError(
                 "beir is not installed. Install with: pip install 'engram-benchmark[mteb]'"

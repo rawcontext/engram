@@ -60,10 +60,8 @@ const RERANKER_MODEL = "Xenova/bge-reranker-base";
  * @response SearchResponseSchema
  */
 export const POST = async (req: Request) => {
-	return validate(SearchRequestSchema as unknown as z.ZodSchema<unknown>)(req, async (data) => {
-		const { query, limit, filters, settings, rerank, rerankTier, rerankDepth } = data as z.infer<
-			typeof SearchRequestSchema
-		>;
+	return validate(SearchRequestSchema)(req, async (data) => {
+		const { query, limit, filters, settings, rerank, rerankTier, rerankDepth } = data;
 
 		const startTime = performance.now();
 

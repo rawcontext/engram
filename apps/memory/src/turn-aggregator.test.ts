@@ -1,8 +1,9 @@
+import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
 import type { ParsedStreamEvent } from "@engram/events";
-import type { Logger } from "@engram/logger";
 import type { GraphClient } from "@engram/storage";
+import type { Mock } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { EventHandler, HandlerContext, HandlerResult } from "./handlers";
+import type { EventHandler, EventHandlerRegistry, HandlerContext, HandlerResult } from "./handlers";
 import {
 	type NodeCreatedCallback,
 	type StreamEventInput,
@@ -16,27 +17,14 @@ function uniqueSessionId(prefix = "session"): string {
 	return `${prefix}-${Date.now()}-${++testCounter}`;
 }
 
-// Mock GraphClient
-function createMockGraphClient(): GraphClient {
-	return {
-		connect: vi.fn().mockResolvedValue(undefined),
-		disconnect: vi.fn().mockResolvedValue(undefined),
-		query: vi.fn().mockResolvedValue([]),
-		isConnected: vi.fn().mockReturnValue(true),
-	} as unknown as GraphClient;
-}
-
-// Mock Logger
-function createMockLogger(): Logger {
-	return {
-		debug: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
-		child: vi.fn().mockReturnThis(),
-		fatal: vi.fn(),
-		trace: vi.fn(),
-	} as unknown as Logger;
+/**
+ * Mock EventHandlerRegistry type for testing.
+ * Extends the real class interface with mock function properties.
+ */
+interface MockEventHandlerRegistry extends EventHandlerRegistry {
+	register: Mock;
+	getHandler: Mock;
+	getHandlers: Mock;
 }
 
 // Mock EventHandler
@@ -53,8 +41,8 @@ function createMockHandler(
 }
 
 // Mock EventHandlerRegistry
-function createMockRegistry(handlers: EventHandler[] = []) {
-	return {
+function createMockRegistry(handlers: EventHandler[] = []): MockEventHandlerRegistry {
+	const mock = {
 		register: vi.fn(),
 		getHandler: vi.fn((event: ParsedStreamEvent) => handlers.find((h) => h.canHandle(event))),
 		getHandlers: vi.fn((event: ParsedStreamEvent) => handlers.filter((h) => h.canHandle(event))),
@@ -65,6 +53,8 @@ function createMockRegistry(handlers: EventHandler[] = []) {
 			return [...new Set(handlers.map((h) => h.eventType))];
 		},
 	};
+	// Cast to the interface - the mock satisfies the shape required by TurnAggregator
+	return mock as unknown as MockEventHandlerRegistry;
 }
 
 // Helper to create test events
@@ -80,14 +70,14 @@ function createTestEvent(overrides: Partial<StreamEventInput>): StreamEventInput
 
 describe("TurnAggregator", () => {
 	let mockGraphClient: GraphClient;
-	let mockLogger: Logger;
+	let mockLogger: ReturnType<typeof createTestLogger>;
 	let mockNodeCreated: NodeCreatedCallback;
 	let aggregator: TurnAggregator;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockGraphClient = createMockGraphClient();
-		mockLogger = createMockLogger();
+		mockGraphClient = createTestGraphClient();
+		mockLogger = createTestLogger();
 		mockNodeCreated = vi.fn();
 	});
 
@@ -112,7 +102,7 @@ describe("TurnAggregator", () => {
 			const deps: TurnAggregatorDeps = {
 				graphClient: mockGraphClient,
 				logger: mockLogger,
-				handlerRegistry: mockRegistry as any,
+				handlerRegistry: mockRegistry,
 			};
 
 			aggregator = new TurnAggregator(deps);
@@ -217,7 +207,7 @@ describe("TurnAggregator", () => {
 				await aggregator.processEvent(event2, sessionId);
 
 				// Verify second turn has incremented sequence index
-				const calls = (mockGraphClient.query as any).mock.calls;
+				const calls = vi.mocked(mockGraphClient.query).mock.calls;
 				const createCalls = calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 				expect(createCalls.length).toBe(2);
 				expect(createCalls[0][1].sequenceIndex).toBe(0);
@@ -274,7 +264,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -305,7 +295,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -322,7 +312,7 @@ describe("TurnAggregator", () => {
 
 				await agg.processEvent(event, sessionId);
 
-				const handleCall = (handler.handle as any).mock.calls[0];
+				const handleCall = vi.mocked(handler.handle).mock.calls[0];
 				expect(handleCall[0].event_id).toBeDefined();
 				expect(handleCall[0].event_id.length).toBeGreaterThan(0);
 			});
@@ -335,7 +325,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -352,7 +342,7 @@ describe("TurnAggregator", () => {
 
 				await agg.processEvent(event, sessionId);
 
-				const handleCall = (handler.handle as any).mock.calls[0];
+				const handleCall = vi.mocked(handler.handle).mock.calls[0];
 				expect(handleCall[0].timestamp).toBeDefined();
 			});
 
@@ -364,7 +354,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -384,7 +374,7 @@ describe("TurnAggregator", () => {
 
 				await agg.processEvent(event, sessionId);
 
-				const handleCall = (handler.handle as any).mock.calls[0];
+				const handleCall = vi.mocked(handler.handle).mock.calls[0];
 				const toolCall = handleCall[0].tool_call;
 				expect(toolCall.id).toMatch(/^call_/);
 				expect(toolCall.arguments_delta).toBe("{}");
@@ -399,7 +389,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -419,7 +409,7 @@ describe("TurnAggregator", () => {
 
 				await agg.processEvent(event, sessionId);
 
-				const handleCall = (handler.handle as any).mock.calls[0];
+				const handleCall = vi.mocked(handler.handle).mock.calls[0];
 				expect(handleCall[0].diff.hunk).toBe("");
 			});
 
@@ -436,9 +426,9 @@ describe("TurnAggregator", () => {
 
 				// Should log that no active turn exists (because invalid role won't start turn)
 				// But content is present, so it creates a turn with placeholder
-				const createCalls = (mockGraphClient.query as any).mock.calls.filter((call: any[]) =>
-					call[0]?.includes("CREATE (t:Turn"),
-				);
+				const createCalls = vi
+					.mocked(mockGraphClient.query)
+					.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 				// The content triggers auto-creation with placeholder
 				expect(createCalls.length).toBe(1);
 				expect(createCalls[0][1].userContent).toBe("[No user message captured]");
@@ -457,7 +447,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -490,7 +480,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -527,7 +517,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -552,13 +542,13 @@ describe("TurnAggregator", () => {
 			it("should catch and log handler errors", async () => {
 				const sessionId = uniqueSessionId();
 				const errorHandler = createMockHandler("content", () => true);
-				(errorHandler.handle as any).mockRejectedValue(new Error("Handler failed"));
+				vi.mocked(errorHandler.handle).mockRejectedValue(new Error("Handler failed"));
 				const mockRegistry = createMockRegistry([errorHandler]);
 
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -598,7 +588,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -635,7 +625,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -668,7 +658,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -695,7 +685,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -725,7 +715,7 @@ describe("TurnAggregator", () => {
 				const deps: TurnAggregatorDeps = {
 					graphClient: mockGraphClient,
 					logger: mockLogger,
-					handlerRegistry: mockRegistry as any,
+					handlerRegistry: mockRegistry,
 				};
 				const agg = new TurnAggregator(deps);
 
@@ -768,9 +758,9 @@ describe("TurnAggregator", () => {
 				);
 
 				// Verify both sessions have their own turns
-				const createCalls = (mockGraphClient.query as any).mock.calls.filter((call: any[]) =>
-					call[0]?.includes("CREATE (t:Turn"),
-				);
+				const createCalls = vi
+					.mocked(mockGraphClient.query)
+					.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 
 				expect(createCalls.length).toBe(2);
 				expect(createCalls[0][1].sessionId).toBe(sessionId1);
@@ -834,7 +824,7 @@ describe("TurnAggregator", () => {
 				);
 
 				// Check that query includes NEXT edge logic
-				const queryCalls = (mockGraphClient.query as any).mock.calls;
+				const queryCalls = vi.mocked(mockGraphClient.query).mock.calls;
 				const createTurnCall = queryCalls.find((call: any[]) =>
 					call[0]?.includes("MERGE (p)-[:NEXT]->(t)"),
 				);
@@ -852,9 +842,9 @@ describe("TurnAggregator", () => {
 
 				await aggregator.processEvent(event, sessionId);
 
-				const createCall = (mockGraphClient.query as any).mock.calls.find((call: any[]) =>
-					call[0]?.includes("CREATE (t:Turn"),
-				);
+				const createCall = vi
+					.mocked(mockGraphClient.query)
+					.mock.calls.find((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 				expect(createCall[1].userContent.length).toBeLessThanOrEqual(10000);
 			});
 
@@ -899,9 +889,12 @@ describe("TurnAggregator", () => {
 				);
 
 				// Session-2 should start at index 0
-				const session2Call = (mockGraphClient.query as any).mock.calls.find(
-					(call: any[]) => call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === sessionId2,
-				);
+				const session2Call = vi
+					.mocked(mockGraphClient.query)
+					.mock.calls.find(
+						(call: any[]) =>
+							call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === sessionId2,
+					);
 				expect(session2Call[1].sequenceIndex).toBe(0);
 			});
 		});
@@ -917,7 +910,7 @@ describe("TurnAggregator", () => {
 				graphClient: mockGraphClient,
 				logger: mockLogger,
 				onNodeCreated: mockNodeCreated,
-				handlerRegistry: mockRegistry as any,
+				handlerRegistry: mockRegistry,
 			};
 			const agg = new TurnAggregator(deps);
 
@@ -933,7 +926,7 @@ describe("TurnAggregator", () => {
 				sessionId,
 			);
 
-			const handleCall = (handler.handle as any).mock.calls[0];
+			const handleCall = vi.mocked(handler.handle).mock.calls[0];
 			const context = handleCall[2] as HandlerContext;
 
 			expect(context.sessionId).toBe(sessionId);
@@ -952,7 +945,7 @@ describe("TurnAggregator", () => {
 				graphClient: mockGraphClient,
 				logger: mockLogger,
 				onNodeCreated: mockNodeCreated,
-				handlerRegistry: mockRegistry as any,
+				handlerRegistry: mockRegistry,
 			};
 			const agg = new TurnAggregator(deps);
 
@@ -968,7 +961,7 @@ describe("TurnAggregator", () => {
 				sessionId,
 			);
 
-			const handleCall = (handler.handle as any).mock.calls[0];
+			const handleCall = vi.mocked(handler.handle).mock.calls[0];
 			const context = handleCall[2] as HandlerContext;
 
 			// Call emitNodeCreated via context
@@ -1052,9 +1045,11 @@ describe("TurnAggregator", () => {
 			await agg.cleanupStaleTurns(-1);
 
 			// Check that our specific session was cleaned up (module-level state may have others)
-			const cleanupCalls = (mockLogger.info as any).mock.calls.filter(
-				(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
-			);
+			const cleanupCalls = vi
+				.mocked(mockLogger.info)
+				.mock.calls.filter(
+					(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
+				);
 			expect(cleanupCalls.length).toBe(1);
 		});
 
@@ -1076,9 +1071,11 @@ describe("TurnAggregator", () => {
 			await agg.cleanupStaleTurns(1000 * 60 * 60); // 1 hour
 
 			// Should NOT have cleaned up this specific session
-			const cleanupCalls = (mockLogger.info as any).mock.calls.filter(
-				(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
-			);
+			const cleanupCalls = vi
+				.mocked(mockLogger.info)
+				.mock.calls.filter(
+					(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
+				);
 			expect(cleanupCalls.length).toBe(0);
 		});
 
@@ -1100,9 +1097,11 @@ describe("TurnAggregator", () => {
 			await agg.cleanupStaleTurns();
 
 			// Recent turn should NOT be cleaned up
-			const cleanupCalls = (mockLogger.info as any).mock.calls.filter(
-				(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
-			);
+			const cleanupCalls = vi
+				.mocked(mockLogger.info)
+				.mock.calls.filter(
+					(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
+				);
 			expect(cleanupCalls.length).toBe(0);
 		});
 	});
@@ -1178,7 +1177,7 @@ describe("TurnAggregator", () => {
 			const deps: TurnAggregatorDeps = {
 				graphClient: mockGraphClient,
 				logger: mockLogger,
-				handlerRegistry: mockRegistry as any,
+				handlerRegistry: mockRegistry,
 			};
 			const agg = new TurnAggregator(deps);
 
@@ -1192,12 +1191,12 @@ describe("TurnAggregator", () => {
 
 			// Create two independent aggregator instances
 			const agg1 = new TurnAggregator({
-				graphClient: createMockGraphClient(),
-				logger: createMockLogger(),
+				graphClient: createTestGraphClient(),
+				logger: createTestLogger(),
 			});
 			const agg2 = new TurnAggregator({
-				graphClient: createMockGraphClient(),
-				logger: createMockLogger(),
+				graphClient: createTestGraphClient(),
+				logger: createTestLogger(),
 			});
 
 			// Create turn in instance 1
@@ -1215,9 +1214,9 @@ describe("TurnAggregator", () => {
 			);
 
 			// Get the create call for agg2 - should have sequenceIndex 0
-			const createCalls = (mockGraphClient2.query as any).mock.calls.filter((call: any[]) =>
-				call[0]?.includes("CREATE (t:Turn"),
-			);
+			const createCalls = vi
+				.mocked(mockGraphClient2.query)
+				.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 			expect(createCalls.length).toBe(1);
 			expect(createCalls[0][1].sequenceIndex).toBe(0);
 		});
@@ -1225,10 +1224,10 @@ describe("TurnAggregator", () => {
 		it("should not share sequence counters between instances", async () => {
 			const sessionId = uniqueSessionId("seq-isolation");
 
-			const mockGraphClient1 = createMockGraphClient();
+			const mockGraphClient1 = createTestGraphClient();
 			const agg1 = new TurnAggregator({
 				graphClient: mockGraphClient1,
-				logger: createMockLogger(),
+				logger: createTestLogger(),
 			});
 
 			// Create two turns in instance 1
@@ -1242,17 +1241,17 @@ describe("TurnAggregator", () => {
 			);
 
 			// Instance 1 should have sequence 0 and 1
-			const createCalls1 = (mockGraphClient1.query as any).mock.calls.filter((call: any[]) =>
-				call[0]?.includes("CREATE (t:Turn"),
-			);
+			const createCalls1 = vi
+				.mocked(mockGraphClient1.query)
+				.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 			expect(createCalls1[0][1].sequenceIndex).toBe(0);
 			expect(createCalls1[1][1].sequenceIndex).toBe(1);
 
 			// Create new instance for same session - should start at 0
-			const mockGraphClient2 = createMockGraphClient();
+			const mockGraphClient2 = createTestGraphClient();
 			const agg2 = new TurnAggregator({
 				graphClient: mockGraphClient2,
-				logger: createMockLogger(),
+				logger: createTestLogger(),
 			});
 
 			await agg2.processEvent(
@@ -1260,9 +1259,9 @@ describe("TurnAggregator", () => {
 				sessionId,
 			);
 
-			const createCalls2 = (mockGraphClient2.query as any).mock.calls.filter((call: any[]) =>
-				call[0]?.includes("CREATE (t:Turn"),
-			);
+			const createCalls2 = vi
+				.mocked(mockGraphClient2.query)
+				.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 			expect(createCalls2[0][1].sequenceIndex).toBe(0); // Fresh start
 		});
 	});
@@ -1270,11 +1269,11 @@ describe("TurnAggregator", () => {
 	describe("clearSession", () => {
 		it("should clear session state", async () => {
 			const sessionId = uniqueSessionId("clear");
-			const mockGraph = createMockGraphClient();
+			const mockGraph = createTestGraphClient();
 
 			const agg = new TurnAggregator({
 				graphClient: mockGraph,
-				logger: createMockLogger(),
+				logger: createTestLogger(),
 			});
 
 			// Create turns to build up state
@@ -1296,9 +1295,9 @@ describe("TurnAggregator", () => {
 				sessionId,
 			);
 
-			const createCalls = (mockGraph.query as any).mock.calls.filter((call: any[]) =>
-				call[0]?.includes("CREATE (t:Turn"),
-			);
+			const createCalls = vi
+				.mocked(mockGraph.query)
+				.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 
 			// Should have 3 turns: index 0, 1, then 0 again after clear
 			expect(createCalls.length).toBe(3);
@@ -1308,11 +1307,11 @@ describe("TurnAggregator", () => {
 		it("should only clear specified session", async () => {
 			const session1 = uniqueSessionId("keep");
 			const session2 = uniqueSessionId("clear");
-			const mockGraph = createMockGraphClient();
+			const mockGraph = createTestGraphClient();
 
 			const agg = new TurnAggregator({
 				graphClient: mockGraph,
-				logger: createMockLogger(),
+				logger: createTestLogger(),
 			});
 
 			// Create turns in both sessions
@@ -1334,9 +1333,11 @@ describe("TurnAggregator", () => {
 				session1,
 			);
 
-			const createCalls = (mockGraph.query as any).mock.calls.filter(
-				(call: any[]) => call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === session1,
-			);
+			const createCalls = vi
+				.mocked(mockGraph.query)
+				.mock.calls.filter(
+					(call: any[]) => call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === session1,
+				);
 
 			expect(createCalls.length).toBe(2);
 			expect(createCalls[1][1].sequenceIndex).toBe(1); // Continues from 1
@@ -1356,9 +1357,9 @@ describe("TurnAggregator", () => {
 			await aggregator.processEvent(event, sessionId);
 
 			// No turn created because role=user but content is empty string (falsy)
-			const createCalls = (mockGraphClient.query as any).mock.calls.filter((call: any[]) =>
-				call[0]?.includes("CREATE (t:Turn"),
-			);
+			const createCalls = vi
+				.mocked(mockGraphClient.query)
+				.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 			expect(createCalls.length).toBe(0);
 		});
 
@@ -1383,9 +1384,9 @@ describe("TurnAggregator", () => {
 			);
 
 			// The finalization query should truncate preview to 2000 chars
-			const finalizeCall = (mockGraphClient.query as any).mock.calls.find((call: any[]) =>
-				call[0]?.includes("SET t.assistant_preview"),
-			);
+			const finalizeCall = vi
+				.mocked(mockGraphClient.query)
+				.mock.calls.find((call: any[]) => call[0]?.includes("SET t.assistant_preview"));
 			expect(finalizeCall).toBeDefined();
 		});
 
@@ -1444,7 +1445,7 @@ describe("TurnAggregator", () => {
 			const deps: TurnAggregatorDeps = {
 				graphClient: mockGraphClient,
 				logger: mockLogger,
-				handlerRegistry: mockRegistry as any,
+				handlerRegistry: mockRegistry,
 			};
 			const agg = new TurnAggregator(deps);
 
@@ -1473,7 +1474,7 @@ describe("TurnAggregator", () => {
 			const deps: TurnAggregatorDeps = {
 				graphClient: mockGraphClient,
 				logger: mockLogger,
-				handlerRegistry: mockRegistry as any,
+				handlerRegistry: mockRegistry,
 			};
 			const agg = new TurnAggregator(deps);
 
@@ -1491,7 +1492,7 @@ describe("TurnAggregator", () => {
 
 			await agg.processEvent(event, sessionId);
 
-			const handleCall = (handler.handle as any).mock.calls[0];
+			const handleCall = vi.mocked(handler.handle).mock.calls[0];
 			expect(handleCall[0].metadata).toEqual({ custom: "value" });
 		});
 
@@ -1503,7 +1504,7 @@ describe("TurnAggregator", () => {
 			const deps: TurnAggregatorDeps = {
 				graphClient: mockGraphClient,
 				logger: mockLogger,
-				handlerRegistry: mockRegistry as any,
+				handlerRegistry: mockRegistry,
 			};
 			const agg = new TurnAggregator(deps);
 
@@ -1520,7 +1521,7 @@ describe("TurnAggregator", () => {
 
 			await agg.processEvent(event, sessionId);
 
-			const handleCall = (handler.handle as any).mock.calls[0];
+			const handleCall = vi.mocked(handler.handle).mock.calls[0];
 			expect(handleCall[0].usage).toEqual({
 				input_tokens: 150,
 				output_tokens: 300,

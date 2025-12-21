@@ -11,8 +11,8 @@ Provides retrieval implementations for:
 import logging
 from typing import Any, Literal
 
-import chromadb  # type: ignore
-from chromadb.config import Settings  # type: ignore
+import chromadb
+from chromadb.config import Settings
 from pydantic import BaseModel, Field
 
 from engram_benchmark.longmemeval.types import ParsedInstance

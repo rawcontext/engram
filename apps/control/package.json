@@ -3,17 +3,17 @@
 	"version": "0.0.0",
 	"type": "module",
 	"dependencies": {
-		"@ai-sdk/xai": "^2.0.39",
-		"@modelcontextprotocol/sdk": "^1.24.3",
+		"@ai-sdk/xai": "^2.0.42",
+		"@modelcontextprotocol/sdk": "^1.25.1",
 		"@engram/logger": "*",
 		"@engram/graph": "*",
 		"@engram/storage": "*",
-		"ai": "^5.0.108",
-		"xstate": "^5.24.0",
-		"zod": "^3.25.76"
+		"ai": "^5.0.116",
+		"xstate": "^5.25.0",
+		"zod": "^4.2.1"
 	},
 	"devDependencies": {
-		"@types/node": "^24.10.1",
+		"@types/node": "^25.0.3",
 		"@engram/tsconfig": "*"
 	},
 	"scripts": {

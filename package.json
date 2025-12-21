@@ -16,9 +16,7 @@
 		"dev": "turbo run dev",
 		"lint": "biome check --write .",
 		"format": "biome format --write .",
-		"test": "vitest run --project default --project @engram/infra",
-		"test:integration": "vitest run --project integration",
-		"test:all": "vitest run",
+		"test": "vitest run",
 		"infra:up": "docker-compose -f docker-compose.dev.yml up -d",
 		"infra:down": "docker-compose -f docker-compose.dev.yml down",
 		"prepare": "husky"

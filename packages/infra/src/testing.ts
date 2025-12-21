@@ -52,10 +52,10 @@ export function clearTrackedResources(): void {
 
 /**
  * Extract the value from a Pulumi Output for testing.
- * This uses the internal promise() method available in test mode.
+ * Uses the .apply() method to safely convert Output to Promise.
  */
-export function getOutputValue<T>(output: pulumi.Output<T>): Promise<T | undefined> {
-	return (output as unknown as { promise(): Promise<T | undefined> }).promise();
+export function getOutputValue<T>(output: pulumi.Output<T>): Promise<T> {
+	return new Promise((resolve) => output.apply(resolve));
 }
 
 /**

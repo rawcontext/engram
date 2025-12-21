@@ -1,18 +1,43 @@
+import type { FalkorClient } from "@engram/storage";
 import { describe, expect, it, vi } from "vitest";
 import { GraphWriter } from "./graph";
+import type { BaseNode } from "./models/base";
 
-const mockFalkorClient = {
-	connect: vi.fn(async () => {}),
-	query: vi.fn(async () => []),
-	disconnect: vi.fn(async () => {}),
-};
+/**
+ * Mock FalkorClient type for testing GraphWriter.
+ */
+interface MockFalkorClient {
+	connect: ReturnType<typeof vi.fn>;
+	query: ReturnType<typeof vi.fn>;
+	disconnect: ReturnType<typeof vi.fn>;
+}
+
+function createMockFalkorClient(): MockFalkorClient {
+	return {
+		connect: vi.fn(async () => {}),
+		query: vi.fn(async () => []),
+		disconnect: vi.fn(async () => {}),
+	};
+}
+
+/**
+ * Test node type that extends BaseNode.
+ */
+interface TestNode extends BaseNode {
+	content: string;
+}
 
 describe("GraphWriter", () => {
 	it("should write a node with bitemporal properties", async () => {
-		const writer = new GraphWriter(mockFalkorClient as any);
-		const data = { id: "node-1", content: "test" };
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+		const data: Omit<TestNode, "vt_start" | "vt_end" | "tt_start" | "tt_end"> = {
+			id: "node-1",
+			labels: ["TestLabel"],
+			content: "test",
+		};
 
-		await writer.writeNode("TestLabel", data as any);
+		await writer.writeNode<TestNode>("TestLabel", data);
 
 		expect(mockFalkorClient.query).toHaveBeenCalled();
 		const call = mockFalkorClient.query.mock.calls[mockFalkorClient.query.mock.calls.length - 1];
@@ -22,7 +47,8 @@ describe("GraphWriter", () => {
 	});
 
 	it("should write an edge between nodes", async () => {
-		const writer = new GraphWriter(mockFalkorClient as any);
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
 
 		await writer.writeEdge("node-1", "node-2", "LINKS_TO");
 
@@ -33,14 +59,15 @@ describe("GraphWriter", () => {
 	});
 
 	it("should update node by writing new version and linking", async () => {
-		const writer = new GraphWriter(mockFalkorClient as any);
-		const newData = { id: "node-1-v2", content: "updated" };
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
+		const newData: Omit<TestNode, "vt_start" | "vt_end" | "tt_start" | "tt_end"> = {
+			id: "node-1-v2",
+			labels: ["TestLabel"],
+			content: "updated",
+		};
 
-		// Mock writeNode and writeEdge calls internal to updateNode?
-		// Or just check the query calls.
-		// writeNode calls query, writeEdge calls query.
-
-		await writer.updateNode("node-1-v1", "TestLabel", newData as any);
+		await writer.updateNode<TestNode>("node-1-v1", "TestLabel", newData);
 
 		// Should be 2 calls
 		const calls = mockFalkorClient.query.mock.calls.slice(-2);
@@ -49,7 +76,8 @@ describe("GraphWriter", () => {
 	});
 
 	it("should delete node by closing transaction time", async () => {
-		const writer = new GraphWriter(mockFalkorClient as any);
+		const mockFalkorClient = createMockFalkorClient();
+		const writer = new GraphWriter(mockFalkorClient as unknown as FalkorClient);
 
 		await writer.deleteNode("node-1");
 

@@ -40,6 +40,7 @@ import type {
 	ToolCallNode,
 	TurnNode,
 } from "@engram/graph";
+import type { Logger } from "@engram/logger";
 import type {
 	BlobStore,
 	Consumer,
@@ -50,6 +51,7 @@ import type {
 	Producer,
 	RedisPublisher,
 } from "@engram/storage";
+import type { Mock } from "vitest";
 import { vi } from "vitest";
 
 // =============================================================================
@@ -74,6 +76,57 @@ export function createTestId(prefix = "01TEST"): string {
  */
 export function createTestHash(): string {
 	return Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+}
+
+// =============================================================================
+// Logger Mock Factory
+// =============================================================================
+
+/**
+ * Type for a mock logger with all standard log levels as mock functions.
+ */
+export interface MockLogger {
+	trace: Mock;
+	debug: Mock;
+	info: Mock;
+	warn: Mock;
+	error: Mock;
+	fatal: Mock;
+	child: Mock;
+	level: string;
+	bindings: Mock;
+	flush: Mock;
+	isLevelEnabled: Mock;
+	silent: Mock;
+}
+
+/**
+ * Create a mock Logger with vi.fn() stubs.
+ * Compatible with pino's Logger interface for testing purposes.
+ *
+ * @example
+ * ```ts
+ * const logger = createTestLogger();
+ * myService.doSomething();
+ * expect(logger.info).toHaveBeenCalledWith("Operation completed");
+ * ```
+ */
+export function createTestLogger(): MockLogger & Logger {
+	const mockLogger: MockLogger = {
+		trace: vi.fn(),
+		debug: vi.fn(),
+		info: vi.fn(),
+		warn: vi.fn(),
+		error: vi.fn(),
+		fatal: vi.fn(),
+		child: vi.fn().mockReturnThis(),
+		level: "info",
+		bindings: vi.fn().mockReturnValue({}),
+		flush: vi.fn(),
+		isLevelEnabled: vi.fn().mockReturnValue(true),
+		silent: vi.fn(),
+	};
+	return mockLogger as MockLogger & Logger;
 }
 
 // =============================================================================

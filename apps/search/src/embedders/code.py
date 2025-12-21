@@ -4,7 +4,7 @@ import logging
 import re
 from typing import Any
 
-from sentence_transformers import SentenceTransformer  # type: ignore
+from sentence_transformers import SentenceTransformer
 
 from src.embedders.base import BaseEmbedder
 

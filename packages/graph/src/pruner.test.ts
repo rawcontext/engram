@@ -1,9 +1,26 @@
-import { beforeEach, describe, expect, it, type MockedFunction, vi } from "vitest";
+import type { BlobStore, FalkorClient } from "@engram/storage";
+import type { Mock } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GraphPruner } from "./pruner";
 
+/**
+ * Mock FalkorClient type for testing GraphPruner.
+ */
+interface MockFalkorClient {
+	query: Mock;
+}
+
+/**
+ * Mock BlobStore type for testing archival.
+ */
+interface MockBlobStore {
+	save: Mock;
+	read: Mock;
+}
+
 describe("GraphPruner", () => {
-	let mockFalkorQuery: MockedFunction<any>;
-	let mockFalkorClient: { query: Mock };
+	let mockFalkorQuery: Mock;
+	let mockFalkorClient: MockFalkorClient;
 
 	beforeEach(() => {
 		mockFalkorQuery = vi.fn(async () => []);
@@ -19,7 +36,7 @@ describe("GraphPruner", () => {
 			.mockResolvedValueOnce([[2]])
 			.mockResolvedValueOnce([]);
 
-		const pruner = new GraphPruner(mockFalkorClient as any);
+		const pruner = new GraphPruner(mockFalkorClient as unknown as FalkorClient);
 
 		const result = await pruner.pruneHistory({ retentionMs: 1000 });
 
@@ -38,7 +55,7 @@ describe("GraphPruner", () => {
 			.mockResolvedValueOnce([{ nodeId: 3 }]) // fetch batch 2 (partial)
 			.mockResolvedValueOnce([[1]]); // delete batch 2
 
-		const pruner = new GraphPruner(mockFalkorClient as any);
+		const pruner = new GraphPruner(mockFalkorClient as unknown as FalkorClient);
 
 		const result = await pruner.pruneHistory({ retentionMs: 1000, batchSize: 2 });
 
@@ -54,7 +71,7 @@ describe("GraphPruner", () => {
 			.mockResolvedValueOnce([{ nodeId: 3 }, { nodeId: 4 }])
 			.mockResolvedValueOnce([[2]]);
 
-		const pruner = new GraphPruner(mockFalkorClient as any);
+		const pruner = new GraphPruner(mockFalkorClient as unknown as FalkorClient);
 
 		const result = await pruner.pruneHistory({
 			retentionMs: 1000,
@@ -82,7 +99,10 @@ describe("GraphPruner", () => {
 			.mockResolvedValueOnce([[2]]) // delete batch
 			.mockResolvedValueOnce([]); // no more
 
-		const pruner = new GraphPruner(mockFalkorClient as any, mockBlobStore as any);
+		const pruner = new GraphPruner(
+			mockFalkorClient as unknown as FalkorClient,
+			mockBlobStore as unknown as BlobStore,
+		);
 
 		const result = await pruner.pruneHistory({ retentionMs: 1000 });
 
@@ -114,7 +134,10 @@ describe("GraphPruner", () => {
 		// Archive query returns empty, fetch returns empty
 		mockFalkorQuery.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
-		const pruner = new GraphPruner(mockFalkorClient as any, mockBlobStore as any);
+		const pruner = new GraphPruner(
+			mockFalkorClient as unknown as FalkorClient,
+			mockBlobStore as unknown as BlobStore,
+		);
 
 		const result = await pruner.pruneHistory({ retentionMs: 1000 });
 

@@ -150,7 +150,7 @@ class MTEBBenchmark:
             ImportError: If mteb is not installed
         """
         try:
-            import mteb  # type: ignore
+            import mteb
         except ImportError as e:
             raise ImportError(
                 "mteb is not installed. Install with: pip install 'engram-benchmark[mteb]'"
@@ -172,7 +172,7 @@ class MTEBBenchmark:
             ImportError: If mteb is not installed
         """
         try:
-            import mteb  # type: ignore
+            import mteb
         except ImportError as e:
             raise ImportError(
                 "mteb is not installed. Install with: pip install 'engram-benchmark[mteb]'"
@@ -194,7 +194,7 @@ class MTEBBenchmark:
             ImportError: If mteb is not installed
         """
         try:
-            import mteb  # type: ignore
+            import mteb
         except ImportError as e:
             raise ImportError(
                 "mteb is not installed. Install with: pip install 'engram-benchmark[mteb]'"
@@ -254,7 +254,7 @@ class MTEBBenchmark:
             ImportError: If mteb is not installed
         """
         try:
-            import mteb  # type: ignore
+            import mteb
         except ImportError as e:
             raise ImportError(
                 "mteb is not installed. Install with: pip install 'engram-benchmark[mteb]'"
@@ -279,7 +279,7 @@ class MTEBBenchmark:
             ImportError: If mteb is not installed
         """
         try:
-            import mteb  # type: ignore
+            import mteb
         except ImportError as e:
             raise ImportError(
                 "mteb is not installed. Install with: pip install 'engram-benchmark[mteb]'"

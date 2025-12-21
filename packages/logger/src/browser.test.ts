@@ -43,9 +43,24 @@ vi.mock("pino", () => {
 // Import after mocking
 import { createBrowserLogger } from "./browser";
 
+/**
+ * Minimal Window interface for testing browser logger.
+ */
+interface MockWindow {
+	addEventListener: ReturnType<typeof vi.fn>;
+	removeEventListener: ReturnType<typeof vi.fn>;
+}
+
+/**
+ * Minimal Document interface for testing browser logger.
+ */
+interface MockDocument {
+	visibilityState: string;
+}
+
 describe("Browser Logger", () => {
 	// Mock global fetch
-	let mockFetch: ReturnType<typeof spyOn>;
+	let mockFetch: ReturnType<typeof vi.spyOn>;
 	const originalFetch = global.fetch;
 	const originalWindow = global.window;
 	const originalDocument = global.document;
@@ -55,10 +70,10 @@ describe("Browser Logger", () => {
 		global.window = {
 			addEventListener: vi.fn(),
 			removeEventListener: vi.fn(),
-		} as any;
+		} as unknown as typeof global.window;
 		global.document = {
 			visibilityState: "visible",
-		} as any;
+		} as unknown as typeof global.document;
 	});
 
 	afterEach(() => {
@@ -103,7 +118,7 @@ describe("Browser Logger", () => {
 		const callArgs = mockFetch.mock.calls[0];
 		expect(callArgs[0]).toBe("/api/v1/logs/client");
 
-		const body = JSON.parse((callArgs[1] as any).body as string);
+		const body = JSON.parse((callArgs[1] as { body: string }).body);
 		expect(body.logs).toHaveLength(2);
 		expect(body.logs[0].msg).toBe("Log 1");
 		expect(body.logs[1].msg).toBe("Log 2");
@@ -160,7 +175,7 @@ describe("Browser Logger", () => {
 			global.window = {
 				addEventListener: addEventListenerSpy,
 				removeEventListener: removeEventListenerSpy,
-			} as any;
+			} as unknown as typeof global.window;
 
 			const logger = createBrowserLogger({
 				service: "test",

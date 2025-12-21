@@ -4,7 +4,6 @@ import { apiError, apiSuccess } from "@lib/api-response";
 import { UserRole, withRole } from "@lib/rbac";
 import { withTelemetry } from "@lib/telemetry";
 import { validate } from "@lib/validate";
-import type { z } from "zod";
 
 // Initialize Kafka
 const kafka = createKafkaClient("interface-service");
@@ -22,11 +21,7 @@ export const _IngestBody = RawStreamEventSchema;
  */
 export const POST = withTelemetry(
 	withRole(UserRole.SYSTEM)(async (req: Request) => {
-		// Cast the schema to z.ZodSchema<unknown> for the validate helper,
-		// but rely on the inner inference for data usage.
-		// validate() ensures runtime structure.
-		return validate(RawStreamEventSchema as unknown as z.ZodSchema<unknown>)(req, async (data) => {
-			const event = RawStreamEventSchema.parse(data);
+		return validate(RawStreamEventSchema)(req, async (event) => {
 			console.log("Ingesting event:", event.event_id);
 
 			try {

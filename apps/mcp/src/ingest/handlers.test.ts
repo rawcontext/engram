@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
+import type { Context } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	handleIngestEvent,
@@ -8,40 +9,38 @@ import {
 	type IngestHandlerDeps,
 } from "./handlers";
 
-// Mock dependencies
+// Mock dependencies with properly typed factories
 const mockMemoryStore = {
 	createMemory: vi.fn(),
 };
 
-const mockGraphClient = {
-	connect: vi.fn().mockResolvedValue(undefined),
-	disconnect: vi.fn().mockResolvedValue(undefined),
-	query: vi.fn().mockResolvedValue([]),
-};
-
-const mockLogger = {
-	debug: vi.fn(),
-	info: vi.fn(),
-	warn: vi.fn(),
-	error: vi.fn(),
-};
+const mockGraphClient = createTestGraphClient();
+const mockLogger = createTestLogger();
 
 const deps: IngestHandlerDeps = {
-	memoryStore: mockMemoryStore as any,
-	graphClient: mockGraphClient as any,
-	logger: mockLogger as any,
+	memoryStore: mockMemoryStore as IngestHandlerDeps["memoryStore"],
+	graphClient: mockGraphClient,
+	logger: mockLogger,
 };
 
-// Helper to create test context
-function createTestContext(body: unknown) {
-	const app = new Hono();
+/**
+ * Mock Hono context for testing handlers.
+ */
+interface MockContext {
+	req: {
+		json: ReturnType<typeof vi.fn>;
+	};
+	json: ReturnType<typeof vi.fn>;
+}
 
+// Helper to create test context
+function createTestContext(body: unknown): MockContext {
 	return {
 		req: {
 			json: vi.fn().mockResolvedValue(body),
 		},
 		json: vi.fn((data: unknown, status?: number) => ({ data, status: status ?? 200 })),
-	} as any;
+	};
 }
 
 describe("Ingest Handlers", () => {

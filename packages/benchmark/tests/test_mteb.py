@@ -52,10 +52,10 @@ class TestMTEBConfig:
         assert config.batch_size == 256
 
         # Invalid batch sizes should raise ValidationError
-        with pytest.raises(Exception):  # Pydantic ValidationError  # noqa: B017
+        with pytest.raises(ValueError):
             MTEBConfig(model_name="test", batch_size=0)
 
-        with pytest.raises(Exception):  # Pydantic ValidationError  # noqa: B017
+        with pytest.raises(ValueError):
             MTEBConfig(model_name="test", batch_size=1000)
 
 

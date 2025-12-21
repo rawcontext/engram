@@ -1,6 +1,7 @@
 export interface GraphNode {
 	id: string;
 	label: string;
+	type?: string;
 	[key: string]: unknown;
 }
 

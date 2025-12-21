@@ -3,8 +3,8 @@
 import logging
 from typing import Any
 
-import torch  # type: ignore
-from transformers import AutoModelForMaskedLM, AutoTokenizer  # type: ignore
+import torch
+from transformers import AutoModelForMaskedLM, AutoTokenizer
 
 from src.embedders.base import BaseEmbedder
 

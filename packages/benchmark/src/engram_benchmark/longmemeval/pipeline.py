@@ -14,7 +14,7 @@ Supports async execution with configurable concurrency and progress tracking.
 
 import asyncio
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
 
@@ -36,6 +36,15 @@ from engram_benchmark.utils.reporting import (
     generate_json_report,
     generate_markdown_report,
 )
+
+
+@runtime_checkable
+class IndexableRetriever(Protocol):
+    """Protocol for retrievers that support indexing."""
+
+    async def index_instance(self, instance: ParsedInstance) -> None:
+        """Index a single instance."""
+        ...
 
 
 class PipelineConfig(BaseModel):
@@ -150,7 +159,7 @@ class BenchmarkPipeline:
     async def _index_documents(self) -> None:
         """Index documents in vector store (ChromaDB only)."""
         # Check if retriever supports indexing
-        if not hasattr(self.retriever, "index_instance"):
+        if not isinstance(self.retriever, IndexableRetriever):
             return
 
         total = len(self.parsed_instances)
@@ -159,7 +168,7 @@ class BenchmarkPipeline:
         with tracker.start(), tracker.stage("Indexing documents", total=total) as stage_id:
             for instance in self.parsed_instances:
                 # Index instance (ChromaRetriever method)
-                await self.retriever.index_instance(instance)  # type: ignore
+                await self.retriever.index_instance(instance)
                 tracker.update(stage_id, advance=1)
 
     async def _retrieve_and_read(self) -> list[PipelineResult]:

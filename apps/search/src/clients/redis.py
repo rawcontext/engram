@@ -6,7 +6,7 @@ import json
 import logging
 import os
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 import redis.asyncio as redis
 from pydantic import BaseModel, Field
@@ -62,10 +62,10 @@ class RedisPublisher:
             url: Redis connection URL. Defaults to REDIS_URL env var.
         """
         self.url = url or os.environ.get("REDIS_URL", "redis://localhost:6379")
-        self._client: redis.Redis | None = None
-        self._connect_promise: asyncio.Task[redis.Redis] | None = None
+        self._client: redis.Redis[str] | None = None
+        self._connect_promise: asyncio.Task[redis.Redis[str]] | None = None
 
-    async def connect(self) -> redis.Redis:
+    async def connect(self) -> redis.Redis[str]:
         """Connect to Redis server with connection reuse.
 
         Returns existing connection if already open, otherwise creates new connection.
@@ -77,7 +77,7 @@ class RedisPublisher:
         # Return existing open client
         if self._client is not None:
             try:
-                await self._client.ping()  # type: ignore[misc]
+                await self._client.ping()
                 return self._client
             except Exception:
                 pass
@@ -87,14 +87,14 @@ class RedisPublisher:
             return await self._connect_promise
 
         # Start new connection attempt
-        async def _connect() -> redis.Redis:
+        async def _connect() -> redis.Redis[str]:
             try:
                 logger.info(f"Connecting to Redis at {self.url}")
-                client = redis.from_url(self.url, decode_responses=True)  # type: ignore[no-untyped-call]
+                client = cast(redis.Redis[str], redis.from_url(self.url, decode_responses=True))
                 await client.ping()
                 self._client = client
                 logger.info("Redis publisher connected successfully")
-                return client  # type: ignore[no-any-return]
+                return client
             finally:
                 # Clear promise after completion (success or failure)
                 self._connect_promise = None
@@ -215,12 +215,12 @@ class RedisSubscriber:
             url: Redis connection URL. Defaults to REDIS_URL env var.
         """
         self.url = url or os.environ.get("REDIS_URL", "redis://localhost:6379")
-        self._client: redis.Redis | None = None
-        self._pubsub: redis.client.PubSub | None = None
+        self._client: redis.Redis[str] | None = None
+        self._pubsub: redis.client.PubSub[str] | None = None
         self._subscriptions: dict[str, set[Callable[[dict[str, Any]], None]]] = {}
         self._listen_task: asyncio.Task[None] | None = None
 
-    async def connect(self) -> redis.Redis:
+    async def connect(self) -> redis.Redis[str]:
         """Connect to Redis server.
 
         Returns:
@@ -228,15 +228,15 @@ class RedisSubscriber:
         """
         if self._client is not None:
             try:
-                await self._client.ping()  # type: ignore[misc]
+                await self._client.ping()
                 return self._client
             except Exception:
                 pass
 
         logger.info(f"Connecting to Redis subscriber at {self.url}")
-        self._client = redis.from_url(self.url, decode_responses=True)  # type: ignore[no-untyped-call]
+        self._client = cast(redis.Redis[str], redis.from_url(self.url, decode_responses=True))
         self._pubsub = self._client.pubsub()
-        await self._client.ping()  # type: ignore[misc]
+        await self._client.ping()
         logger.info("Redis subscriber connected successfully")
 
         # Start message listener
@@ -358,7 +358,7 @@ class RedisSubscriber:
             for channel in list(self._subscriptions.keys()):
                 await self._pubsub.unsubscribe(channel)
             self._subscriptions.clear()
-            await self._pubsub.aclose()  # type: ignore[no-untyped-call]
+            await self._pubsub.aclose()
             self._pubsub = None
 
         # Close client connection

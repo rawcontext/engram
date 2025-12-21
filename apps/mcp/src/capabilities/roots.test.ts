@@ -1,8 +1,19 @@
+import { createTestLogger } from "@engram/common/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RootsService } from "./roots";
 
+/**
+ * Mock MCP server structure for roots capability testing.
+ */
+interface MockMcpServer {
+	server: {
+		listRoots: ReturnType<typeof vi.fn>;
+		setNotificationHandler: ReturnType<typeof vi.fn>;
+	};
+}
+
 // Mock the MCP server
-const mockServer = {
+const mockServer: MockMcpServer = {
 	server: {
 		listRoots: vi.fn(),
 		setNotificationHandler: vi.fn(),
@@ -10,19 +21,17 @@ const mockServer = {
 };
 
 // Mock the logger
-const mockLogger = {
-	debug: vi.fn(),
-	info: vi.fn(),
-	warn: vi.fn(),
-	error: vi.fn(),
-};
+const mockLogger = createTestLogger();
 
 describe("RootsService", () => {
 	let service: RootsService;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		service = new RootsService(mockServer as any, mockLogger as any);
+		service = new RootsService(
+			mockServer as unknown as Parameters<typeof RootsService.prototype.constructor>[0],
+			mockLogger,
+		);
 	});
 
 	afterEach(() => {

@@ -6,13 +6,13 @@
 	"types": "./src/index.ts",
 	"devDependencies": {
 		"typescript": "^5.9.3",
-		"@types/node": "^24.10.1",
+		"@types/node": "^25.0.3",
 		"@engram/tsconfig": "*"
 	},
 	"dependencies": {
 		"@engram/events": "*",
 		"@engram/common": "*",
-		"zod": "^4.1.13"
+		"zod": "^4.2.1"
 	},
 	"scripts": {
 		"build": "echo 'Build success'",

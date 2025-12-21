@@ -57,10 +57,9 @@ export class MemoryStore {
 		}
 
 		const id = ulid();
-		// Use unknown cast to work around Zod v4 literal type inference
 		const memory: MemoryNode = {
 			id,
-			labels: ["Memory"],
+			labels: ["Memory"] as const,
 			content: input.content,
 			content_hash: contentHash,
 			type: input.type ?? "context",
@@ -75,7 +74,7 @@ export class MemoryStore {
 			vt_end: Number.MAX_SAFE_INTEGER,
 			tt_start: now,
 			tt_end: Number.MAX_SAFE_INTEGER,
-		} as unknown as MemoryNode;
+		};
 
 		// Validate with Zod
 		MemoryNodeSchema.parse(memory);

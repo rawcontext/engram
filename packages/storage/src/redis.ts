@@ -139,8 +139,7 @@ export type RedisPublisher = ReturnType<typeof createRedisPublisher>;
 
 export function createRedisSubscriber() {
 	let client: RedisClientType | null = null;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const subscriptions = new Map<string, Set<(message: any) => void>>();
+	const subscriptions = new Map<string, Set<(message: unknown) => void>>();
 
 	const connect = async () => {
 		if (client?.isOpen) return client;
@@ -182,13 +181,13 @@ export function createRedisSubscriber() {
 			});
 		}
 
-		subscriptions.get(channel)?.add(callback);
+		subscriptions.get(channel)?.add(callback as (message: unknown) => void);
 
 		// Return unsubscribe function
 		return async () => {
 			const callbacks = subscriptions.get(channel);
 			if (callbacks) {
-				callbacks.delete(callback);
+				callbacks.delete(callback as (message: unknown) => void);
 				if (callbacks.size === 0) {
 					subscriptions.delete(channel);
 					await conn.unsubscribe(channel);

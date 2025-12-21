@@ -1,28 +1,41 @@
+import type { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { apiError, apiSuccess } from "./api-response";
 import { validate } from "./validate";
 
+/**
+ * Shape of mocked NextResponse.json() return value.
+ */
+interface MockedResponse {
+	body: {
+		success: boolean;
+		data?: Record<string, unknown>;
+		error?: { message: string; code: string };
+	};
+	init: { status: number };
+}
+
 // Mock NextResponse
 vi.mock("next/server", () => ({
 	NextResponse: {
-		json: (body: any, init?: any) => ({ body, init }),
+		json: (body: Record<string, unknown>, init?: { status: number }) => ({ body, init }),
 	},
 }));
 
 describe("Interface Lib", () => {
 	describe("apiResponse", () => {
 		it("should return success response", () => {
-			const res = apiSuccess({ foo: "bar" }) as any;
+			const res = apiSuccess({ foo: "bar" }) as unknown as MockedResponse;
 			expect(res.body.success).toBe(true);
-			expect(res.body.data.foo).toBe("bar");
+			expect((res.body.data as Record<string, unknown>).foo).toBe("bar");
 			expect(res.init.status).toBe(200);
 		});
 
 		it("should return error response", () => {
-			const res = apiError("Failed", "ERR_01", 400) as any;
+			const res = apiError("Failed", "ERR_01", 400) as unknown as MockedResponse;
 			expect(res.body.success).toBe(false);
-			expect(res.body.error.message).toBe("Failed");
+			expect(res.body.error?.message).toBe("Failed");
 			expect(res.init.status).toBe(400);
 		});
 	});
@@ -32,42 +45,58 @@ describe("Interface Lib", () => {
 			name: z.string(),
 		});
 
+		/**
+		 * Mock request object that satisfies NextRequest.json() signature.
+		 */
+		interface MockRequest {
+			json: () => Promise<unknown>;
+		}
+
 		it("should pass valid data", async () => {
-			const req = {
+			const req: MockRequest = {
 				json: async () => ({ name: "test" }),
 			};
-			const next = vi.fn(async (data) => apiSuccess(data));
+			const next = vi.fn(async (data: { name: string }) => apiSuccess(data));
 
-			const res = (await validate(schema)(req as any, next)) as any;
+			const res = (await validate(schema)(
+				req as unknown as NextRequest,
+				next,
+			)) as unknown as MockedResponse;
 
 			expect(next).toHaveBeenCalled();
 			expect(res.body.success).toBe(true);
 		});
 
 		it("should fail invalid data", async () => {
-			const req = {
+			const req: MockRequest = {
 				json: async () => ({ name: 123 }),
 			};
 			const next = vi.fn(async () => apiSuccess({}));
 
-			const res = (await validate(schema)(req as any, next)) as any;
+			const res = (await validate(schema)(
+				req as unknown as NextRequest,
+				next,
+			)) as unknown as MockedResponse;
 
 			expect(next).not.toHaveBeenCalled();
 			expect(res.body.success).toBe(false);
-			expect(res.body.error.code).toBe("VALIDATION_ERROR");
+			expect(res.body.error?.code).toBe("VALIDATION_ERROR");
 		});
 
 		it("should fail invalid json", async () => {
-			const req = {
+			const req: MockRequest = {
 				json: async () => {
 					throw new Error();
 				},
 			};
 			const next = vi.fn(async () => apiSuccess({}));
 
-			const res = (await validate(schema)(req as any, next)) as any;
+			const res = (await validate(schema)(
+				req as unknown as NextRequest,
+				next,
+			)) as unknown as MockedResponse;
 
-			expect(res.body.error.code).toBe("INVALID_JSON");
+			expect(res.body.error?.code).toBe("INVALID_JSON");
 		});
 	});
 });

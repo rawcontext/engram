@@ -1,20 +1,10 @@
+import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryStore } from "./memory-store";
 
-// Mock the graph client
-const mockGraphClient = {
-	connect: vi.fn().mockResolvedValue(undefined),
-	disconnect: vi.fn().mockResolvedValue(undefined),
-	query: vi.fn(),
-};
-
-// Mock the logger
-const mockLogger = {
-	debug: vi.fn(),
-	info: vi.fn(),
-	warn: vi.fn(),
-	error: vi.fn(),
-};
+// Create typed mock instances
+const mockGraphClient = createTestGraphClient();
+const mockLogger = createTestLogger();
 
 describe("MemoryStore", () => {
 	let store: MemoryStore;
@@ -22,8 +12,8 @@ describe("MemoryStore", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		store = new MemoryStore({
-			graphClient: mockGraphClient as any,
-			logger: mockLogger as any,
+			graphClient: mockGraphClient,
+			logger: mockLogger,
 		});
 	});
 

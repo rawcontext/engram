@@ -47,7 +47,7 @@ class ColBERTEmbedder(BaseEmbedder):
         logger.info(f"Loading ColBERT model via PyLate: {self.model_name}")
 
         try:
-            from pylate import models  # type: ignore
+            from pylate import models
 
             self._model = models.ColBERT(
                 model_name_or_path=self.model_name,

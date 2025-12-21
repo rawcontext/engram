@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type DirectoryNode, VirtualFileSystem } from "./vfs";
+import { type DirectoryNode, type FileNode, VirtualFileSystem } from "./vfs";
 
 describe("VirtualFileSystem", () => {
 	describe("initialization", () => {
@@ -123,7 +123,7 @@ describe("VirtualFileSystem", () => {
 			vfs.writeFile("/timed.txt", "content");
 			const after = Date.now();
 
-			const file = vfs.root.children["timed.txt"] as any;
+			const file = vfs.root.children["timed.txt"] as FileNode;
 			expect(file.lastModified).toBeGreaterThanOrEqual(before);
 			expect(file.lastModified).toBeLessThanOrEqual(after);
 		});

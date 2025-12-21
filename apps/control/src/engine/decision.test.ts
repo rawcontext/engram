@@ -10,7 +10,7 @@ const mockGenerateText = vi.fn(async () => ({
 
 vi.mock("ai", () => ({
 	generateText: mockGenerateText,
-	tool: vi.fn((config: any) => ({ ...config, _isTool: true })),
+	tool: vi.fn((config: Record<string, unknown>) => ({ ...config, _isTool: true })),
 }));
 
 vi.mock("@ai-sdk/xai", () => ({
@@ -55,7 +55,8 @@ describe("Decision Engine Helper Functions", () => {
 		});
 
 		it("should return empty array when toolCalls is not an array", () => {
-			const result = extractToolCalls({ toolCalls: "not an array" as any });
+			// Test with non-array toolCalls (edge case / type mismatch from external API)
+			const result = extractToolCalls({ toolCalls: "not an array" as unknown as unknown[] });
 			expect(result).toEqual([]);
 		});
 
@@ -93,15 +94,16 @@ describe("Decision Engine Helper Functions", () => {
 		});
 
 		it("should skip invalid entries", () => {
-			const result = extractToolCalls({
-				toolCalls: [
-					{ toolName: "valid", args: {} },
-					null,
-					undefined,
-					"string",
-					{}, // No toolName
-				] as any,
-			});
+			// Test with mixed valid/invalid entries (edge case from external API)
+			const invalidToolCalls = [
+				{ toolName: "valid", args: {} },
+				null,
+				undefined,
+				"string",
+				{}, // No toolName
+			] as unknown[];
+
+			const result = extractToolCalls({ toolCalls: invalidToolCalls });
 
 			expect(result).toHaveLength(1);
 			expect(result[0].toolName).toBe("valid");
@@ -119,10 +121,15 @@ describe("Decision Engine Helper Functions", () => {
 
 	describe("convertMcpToolsToAiSdk", () => {
 		// Test the conversion logic
+		interface AiTool {
+			description: string;
+			inputSchema: { type: string };
+		}
+
 		function convertMcpToolsToAiSdk(
 			mcpTools: Array<{ name: string; description?: string; inputSchema?: unknown }>,
 		) {
-			const aiTools: Record<string, any> = {};
+			const aiTools: Record<string, AiTool> = {};
 
 			for (const mcpTool of mcpTools) {
 				aiTools[mcpTool.name] = {

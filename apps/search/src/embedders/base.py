@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-import torch  # type: ignore
+import torch
 
 logger = logging.getLogger(__name__)
 

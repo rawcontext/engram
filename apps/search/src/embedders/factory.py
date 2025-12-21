@@ -1,7 +1,7 @@
 """Factory for creating embedder instances."""
 
 import logging
-from typing import Literal
+from typing import Literal, cast
 
 from src.config import Settings
 from src.embedders.base import BaseEmbedder
@@ -47,7 +47,7 @@ class EmbedderFactory:
                 batch_size=self.settings.embedder_batch_size,
                 cache_size=self.settings.embedder_cache_size,
             )
-        return self._embedders["text"]  # type: ignore
+        return cast(TextEmbedder, self._embedders["text"])
 
     def get_code_embedder(self) -> CodeEmbedder:
         """Get or create code embedder instance.
@@ -63,7 +63,7 @@ class EmbedderFactory:
                 batch_size=self.settings.embedder_batch_size,
                 cache_size=self.settings.embedder_cache_size,
             )
-        return self._embedders["code"]  # type: ignore
+        return cast(CodeEmbedder, self._embedders["code"])
 
     def get_sparse_embedder(self) -> SparseEmbedder:
         """Get or create sparse embedder instance.
@@ -79,7 +79,7 @@ class EmbedderFactory:
                 batch_size=self.settings.embedder_batch_size,
                 cache_size=self.settings.embedder_cache_size,
             )
-        return self._embedders["sparse"]  # type: ignore
+        return cast(SparseEmbedder, self._embedders["sparse"])
 
     def get_colbert_embedder(self) -> ColBERTEmbedder:
         """Get or create ColBERT embedder instance.
@@ -95,7 +95,7 @@ class EmbedderFactory:
                 batch_size=self.settings.embedder_batch_size,
                 cache_size=self.settings.embedder_cache_size,
             )
-        return self._embedders["colbert"]  # type: ignore
+        return cast(ColBERTEmbedder, self._embedders["colbert"])
 
     def get_embedder(self, embedder_type: EmbedderType) -> BaseEmbedder:
         """Get embedder by type.

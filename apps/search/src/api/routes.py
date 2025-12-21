@@ -13,7 +13,7 @@ from src.api.schemas import (
     SearchResponse,
     SearchResult,
 )
-from src.retrieval.types import SearchFilters, SearchQuery, TimeRange
+from src.retrieval.types import RerankerTier, SearchFilters, SearchQuery, SearchStrategy, TimeRange
 from src.utils.metrics import get_content_type, get_metrics
 
 logger = logging.getLogger(__name__)
@@ -131,15 +131,21 @@ async def search(request: Request, search_request: SearchRequest) -> SearchRespo
                 time_range=time_range,
             )
 
+        # Convert string strategy/tier to enums if provided
+        strategy = SearchStrategy(search_request.strategy) if search_request.strategy else None
+        rerank_tier = (
+            RerankerTier(search_request.rerank_tier) if search_request.rerank_tier else None
+        )
+
         # Build search query
         query = SearchQuery(
             text=search_request.text,
             limit=search_request.limit,
             threshold=search_request.threshold,
             filters=filters,
-            strategy=search_request.strategy,  # type: ignore[arg-type]
+            strategy=strategy,
             rerank=search_request.rerank,
-            rerank_tier=search_request.rerank_tier,  # type: ignore[arg-type]
+            rerank_tier=rerank_tier,
             rerank_depth=search_request.rerank_depth,
         )
 

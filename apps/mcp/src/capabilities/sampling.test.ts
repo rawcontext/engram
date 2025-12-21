@@ -1,27 +1,35 @@
+import { createTestLogger } from "@engram/common/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SamplingService } from "./sampling";
 
+/**
+ * Mock MCP server structure for sampling capability testing.
+ */
+interface MockMcpServer {
+	server: {
+		createMessage: ReturnType<typeof vi.fn>;
+	};
+}
+
 // Mock the MCP server
-const mockServer = {
+const mockServer: MockMcpServer = {
 	server: {
 		createMessage: vi.fn(),
 	},
 };
 
 // Mock the logger
-const mockLogger = {
-	debug: vi.fn(),
-	info: vi.fn(),
-	warn: vi.fn(),
-	error: vi.fn(),
-};
+const mockLogger = createTestLogger();
 
 describe("SamplingService", () => {
 	let service: SamplingService;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		service = new SamplingService(mockServer as any, mockLogger as any);
+		service = new SamplingService(
+			mockServer as unknown as Parameters<typeof SamplingService.prototype.constructor>[0],
+			mockLogger,
+		);
 	});
 
 	afterEach(() => {

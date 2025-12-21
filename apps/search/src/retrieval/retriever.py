@@ -27,7 +27,7 @@ from src.retrieval.constants import (
     SPARSE_FIELD,
     TEXT_DENSE_FIELD,
 )
-from src.retrieval.types import SearchQuery, SearchResultItem, SearchStrategy
+from src.retrieval.types import RerankerTier, SearchQuery, SearchResultItem, SearchStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +106,7 @@ class SearchRetriever:
         strategy: SearchStrategy | str = user_strategy or SearchStrategy.HYBRID
         if not user_strategy:
             classification = self.classifier.classify(text)
-            strategy = classification["strategy"]  # type: ignore
+            strategy = classification["strategy"]
 
         # Convert string to enum if needed
         if isinstance(strategy, str):
@@ -355,18 +355,18 @@ class SearchRetriever:
             content = payload.get("content", "")
             documents.append(str(content))
 
-        # Auto-select tier if not specified
-        effective_tier = rerank_tier or "fast"
+        # Auto-select tier based on query complexity if not specified
+        effective_tier = self._select_reranker_tier(query_text, rerank_tier)
 
         # Apply reranking with router (handles timeout and fallback)
         try:
             reranked_results, actual_tier, degraded = await self.reranker_router.rerank(
                 query=query_text,
                 documents=documents,
-                tier=effective_tier,  # type: ignore[arg-type]
+                tier=effective_tier,
                 top_k=limit,
                 timeout_ms=RERANK_TIMEOUT_MS,
-                fallback_tier="fast",
+                fallback_tier=RerankerTier.FAST,
             )
 
             rerank_latency_ms = (asyncio.get_event_loop().time() - rerank_start_time) * 1000
@@ -404,7 +404,7 @@ class SearchRetriever:
                     score=ranked.score,  # Use reranker score as final score
                     rrf_score=original.score,  # Preserve original score
                     reranker_score=ranked.score,
-                    rerank_tier=actual_tier,  # type: ignore[arg-type]
+                    rerank_tier=actual_tier,
                     payload=original.payload or {},
                     degraded=degraded,
                     degraded_reason=f"Reranker tier {actual_tier}" if degraded else None,
@@ -454,7 +454,7 @@ class SearchRetriever:
         if not filters:
             return None
 
-        conditions = []
+        conditions: list[models.Condition] = []
 
         if hasattr(filters, "session_id") and filters.session_id:
             conditions.append(
@@ -487,7 +487,7 @@ class SearchRetriever:
         if not conditions:
             return None
 
-        return models.Filter(must=conditions)  # type: ignore[arg-type]
+        return models.Filter(must=conditions)
 
     def _map_raw_results(self, results: list[models.ScoredPoint]) -> list[SearchResultItem]:
         """Map raw Qdrant results to SearchResultItem.
@@ -509,3 +509,57 @@ class SearchRetriever:
             )
             items.append(item)
         return items
+
+    def _select_reranker_tier(
+        self,
+        query_text: str,
+        explicit_tier: str | None,
+    ) -> RerankerTier:
+        """Select reranker tier based on query complexity.
+
+        Uses the query classifier to determine optimal tier when not explicitly
+        specified. Code queries route to CODE tier, otherwise complexity
+        determines tier: SIMPLE→FAST, MODERATE→ACCURATE, COMPLEX→ACCURATE.
+
+        Args:
+            query_text: Query text to classify.
+            explicit_tier: Explicitly requested tier (used if provided).
+
+        Returns:
+            Selected reranker tier.
+        """
+        # Use explicit tier if provided
+        if explicit_tier:
+            if isinstance(explicit_tier, RerankerTier):
+                return explicit_tier
+            return RerankerTier(explicit_tier)
+
+        # Classify query complexity
+        classification = self.classifier.classify_complexity(query_text)
+
+        # Code queries get CODE tier for specialized reranking
+        if classification.features.has_code:
+            logger.debug(
+                f"Auto-selected CODE tier: query has code patterns, "
+                f"score={classification.score}"
+            )
+            return RerankerTier.CODE
+
+        # Map complexity to tier
+        from src.retrieval.types import QueryComplexity
+
+        tier_map = {
+            QueryComplexity.SIMPLE: RerankerTier.FAST,
+            QueryComplexity.MODERATE: RerankerTier.ACCURATE,
+            QueryComplexity.COMPLEX: RerankerTier.ACCURATE,
+        }
+
+        selected_tier = tier_map[classification.complexity]
+
+        logger.debug(
+            f"Auto-selected {selected_tier.value} tier: "
+            f"complexity={classification.complexity.value}, "
+            f"score={classification.score}"
+        )
+
+        return selected_tier

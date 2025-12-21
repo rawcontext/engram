@@ -1,15 +1,12 @@
 import { xai } from "@ai-sdk/xai";
 import { createNodeLogger, type Logger } from "@engram/logger";
-import { generateText, tool } from "ai";
+import { generateText, type ToolSet, tool } from "ai";
 import { createActor, fromPromise } from "xstate";
 import { z } from "zod";
 import type { ContextAssembler } from "../context/assembler";
 import { type AgentContext, agentMachine, type ToolCall } from "../state/machine";
 
 const model = xai("grok-4-1-fast-reasoning");
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AiToolSet = Record<string, any>;
 
 /**
  * Interface for tool adapters (ToolRouter).
@@ -38,8 +35,8 @@ export interface DecisionEngineDeps {
  */
 function convertMcpToolsToAiSdk(
 	mcpTools: Array<{ name: string; description?: string; inputSchema?: unknown }>,
-): AiToolSet {
-	const aiTools: AiToolSet = {};
+): ToolSet {
+	const aiTools: ToolSet = {};
 
 	for (const mcpTool of mcpTools) {
 		// Use tool() with passthrough schema for dynamic MCP tools
@@ -86,7 +83,7 @@ function extractToolCalls(result: { toolCalls?: unknown[] }): ToolCall[] {
 
 export class DecisionEngine {
 	private actor;
-	private cachedTools: AiToolSet = {};
+	private cachedTools: ToolSet = {};
 	private contextAssembler: ContextAssembler;
 	private toolAdapter: ToolAdapter;
 	private logger: Logger;

@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Any
 
-from aiokafka import AIOKafkaConsumer, AIOKafkaProducer  # type: ignore[import-untyped]
+from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)

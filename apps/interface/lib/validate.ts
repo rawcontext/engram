@@ -3,8 +3,8 @@ import type { z } from "zod";
 import { apiError } from "./api-response";
 
 export const validate =
-	(schema: z.ZodSchema<unknown>) =>
-	async (req: Request, next: (data: unknown) => Promise<NextResponse>) => {
+	<T>(schema: z.ZodType<T>) =>
+	async (req: Request, next: (data: T) => Promise<NextResponse>) => {
 		try {
 			const body = await req.json();
 			const parsed = schema.safeParse(body);

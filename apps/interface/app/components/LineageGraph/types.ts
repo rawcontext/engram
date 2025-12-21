@@ -3,6 +3,19 @@ import type { Edge, Node } from "@xyflow/react";
 import type { ReactNode } from "react";
 
 /**
+ * Data stored in each neural node
+ */
+export interface NeuralNodeData extends GraphNode {
+	label: string;
+	type: string;
+}
+
+/**
+ * Custom node type for the lineage graph
+ */
+export type NeuralGraphNode = Node<NeuralNodeData, "neural">;
+
+/**
  * Props for the main LineageGraph component
  */
 export interface LineageGraphProps {

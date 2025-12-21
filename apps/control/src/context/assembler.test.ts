@@ -1,7 +1,7 @@
 import { GraphOperationError, SearchError } from "@engram/common";
 import type { GraphClient, ThoughtNode } from "@engram/storage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SearchClient, SearchResponse } from "../clients/search.js";
+import type { SearchClient, SearchResponse, SearchResult } from "../clients/search.js";
 import {
 	ContextAssembler,
 	type ContextAssemblerDeps,
@@ -354,7 +354,12 @@ describe("ContextAssembler", () => {
 		it("should handle null search results", async () => {
 			// Arrange
 			const searchClient = createMockSearchClient({
-				search: vi.fn(async () => ({ results: null, total: 0, took_ms: 1 }) as any),
+				// Simulate search returning null results (edge case)
+				search: vi.fn(async () => ({
+					results: null as unknown as SearchResponse["results"],
+					total: 0,
+					took_ms: 1,
+				})),
 			});
 
 			const assembler = createContextAssembler({
@@ -959,8 +964,8 @@ describe("ContextAssembler", () => {
 		});
 
 		it("should handle search results without payload", async () => {
-			// Arrange
-			const mockSearchResults = [
+			// Arrange - simulate results with missing/null payloads (edge case)
+			const mockSearchResults: SearchResult[] = [
 				{
 					id: "1",
 					score: 0.9,
@@ -968,6 +973,7 @@ describe("ContextAssembler", () => {
 					reranker_score: null,
 					rerank_tier: null,
 					degraded: false,
+					payload: undefined as unknown as SearchResult["payload"],
 				}, // No payload
 				{
 					id: "2",
@@ -975,13 +981,13 @@ describe("ContextAssembler", () => {
 					rrf_score: null,
 					reranker_score: null,
 					rerank_tier: null,
-					payload: null,
+					payload: null as unknown as SearchResult["payload"],
 					degraded: false,
 				},
 			];
 
 			const searchClient = createMockSearchClient({
-				search: vi.fn(async () => ({ results: mockSearchResults, total: 2, took_ms: 1 }) as any),
+				search: vi.fn(async () => ({ results: mockSearchResults, total: 2, took_ms: 1 })),
 			});
 
 			const assembler = createContextAssembler({

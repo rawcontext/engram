@@ -1,26 +1,16 @@
+import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SearchClient } from "../clients/search";
 import { MemoryRetriever } from "./memory-retriever";
 
-// Mock the graph client
-const mockGraphClient = {
-	connect: vi.fn().mockResolvedValue(undefined),
-	disconnect: vi.fn().mockResolvedValue(undefined),
-	query: vi.fn(),
-};
+// Create typed mock instances
+const mockGraphClient = createTestGraphClient();
+const mockLogger = createTestLogger();
 
-// Mock the search client
+// Mock the search client (using type assertion since SearchClient has specific shape)
 const mockSearchClient: SearchClient = {
 	search: vi.fn(),
-} as unknown as SearchClient;
-
-// Mock the logger
-const mockLogger = {
-	debug: vi.fn(),
-	info: vi.fn(),
-	warn: vi.fn(),
-	error: vi.fn(),
-};
+} as SearchClient;
 
 describe("MemoryRetriever", () => {
 	let retriever: MemoryRetriever;
@@ -28,9 +18,9 @@ describe("MemoryRetriever", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		retriever = new MemoryRetriever({
-			graphClient: mockGraphClient as any,
+			graphClient: mockGraphClient,
 			searchClient: mockSearchClient,
-			logger: mockLogger as any,
+			logger: mockLogger,
 		});
 	});
 

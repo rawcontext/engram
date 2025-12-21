@@ -15,11 +15,11 @@ const mockBucket = vi.fn(() => ({
 	file: mockFile,
 }));
 
-// Mock the @google-cloud/storage module
+// Mock the @google-cloud/storage module with a class
 vi.mock("@google-cloud/storage", () => ({
-	Storage: vi.fn(() => ({
-		bucket: mockBucket,
-	})),
+	Storage: class MockStorage {
+		bucket = mockBucket;
+	},
 }));
 
 describe("Blob Storage", () => {
@@ -211,18 +211,18 @@ describe("Blob Storage", () => {
 		it("should create FS store by default", () => {
 			const store = createBlobStore();
 			expect(store.save).toBeDefined();
-			expect((store as any).basePath).toBeDefined();
+			expect(store).toBeInstanceOf(FileSystemBlobStore);
 		});
 
 		it("should create FS store when type is fs", () => {
 			const store = createBlobStore("fs");
-			expect((store as any).basePath).toBeDefined();
+			expect(store).toBeInstanceOf(FileSystemBlobStore);
 		});
 
 		it("should create GCS store when requested", () => {
 			const store = createBlobStore("gcs");
 			expect(store.save).toBeDefined();
-			expect((store as any).bucket).toBeDefined();
+			expect(store).toBeInstanceOf(GCSBlobStore);
 		});
 	});
 });

@@ -6,11 +6,11 @@
 	"types": "./src/index.ts",
 	"devDependencies": {
 		"typescript": "^5.9.3",
-		"@types/node": "^24.10.1",
+		"@types/node": "^25.0.3",
 		"@engram/tsconfig": "*"
 	},
 	"dependencies": {
-		"zod": "^3.25.76",
+		"zod": "^4.2.1",
 		"@engram/storage": "*",
 		"@engram/vfs": "*"
 	},

@@ -17,7 +17,7 @@ Supported providers (examples):
 
 import asyncio
 import json
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from litellm import acompletion
 from litellm.exceptions import (
@@ -198,7 +198,7 @@ class LiteLLMProvider:
 
         for attempt in range(self.max_retries):
             try:
-                response: Any = await acompletion(
+                response = await acompletion(
                     model=self.model,
                     messages=messages,
                     max_tokens=self.max_tokens,
@@ -207,7 +207,7 @@ class LiteLLMProvider:
                     **kwargs,
                 )
                 # LiteLLM returns ModelResponse but typing is complex, so we cast
-                return response  # type: ignore[no-any-return]
+                return cast("ModelResponse", response)
 
             except (RateLimitError, APIConnectionError, Timeout) as e:
                 last_error = e

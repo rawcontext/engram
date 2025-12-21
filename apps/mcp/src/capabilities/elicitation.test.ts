@@ -1,27 +1,35 @@
+import { createTestLogger } from "@engram/common/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ElicitationService } from "./elicitation";
 
+/**
+ * Mock MCP server structure for elicitation capability testing.
+ */
+interface MockMcpServer {
+	server: {
+		elicitInput: ReturnType<typeof vi.fn>;
+	};
+}
+
 // Mock the MCP server
-const mockServer = {
+const mockServer: MockMcpServer = {
 	server: {
 		elicitInput: vi.fn(),
 	},
 };
 
 // Mock the logger
-const mockLogger = {
-	debug: vi.fn(),
-	info: vi.fn(),
-	warn: vi.fn(),
-	error: vi.fn(),
-};
+const mockLogger = createTestLogger();
 
 describe("ElicitationService", () => {
 	let service: ElicitationService;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		service = new ElicitationService(mockServer as any, mockLogger as any);
+		service = new ElicitationService(
+			mockServer as unknown as Parameters<typeof ElicitationService.prototype.constructor>[0],
+			mockLogger,
+		);
 	});
 
 	afterEach(() => {

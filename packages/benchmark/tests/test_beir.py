@@ -57,10 +57,10 @@ class TestBEIRConfig:
         assert config.batch_size == 256
 
         # Invalid batch sizes should raise ValidationError
-        with pytest.raises(Exception):  # Pydantic ValidationError  # noqa: B017
+        with pytest.raises(ValueError):
             BEIRConfig(model_name="test", batch_size=0)
 
-        with pytest.raises(Exception):  # Pydantic ValidationError  # noqa: B017
+        with pytest.raises(ValueError):
             BEIRConfig(model_name="test", batch_size=1000)
 
     def test_config_validation_top_k(self) -> None:
@@ -70,10 +70,10 @@ class TestBEIRConfig:
         assert config.top_k == 500
 
         # Invalid top_k should raise ValidationError
-        with pytest.raises(Exception):  # Pydantic ValidationError  # noqa: B017
+        with pytest.raises(ValueError):
             BEIRConfig(model_name="test", top_k=0)
 
-        with pytest.raises(Exception):  # Pydantic ValidationError  # noqa: B017
+        with pytest.raises(ValueError):
             BEIRConfig(model_name="test", top_k=2000)
 
 

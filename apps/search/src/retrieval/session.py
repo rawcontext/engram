@@ -19,7 +19,7 @@ See:
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, Field
 from qdrant_client.http import models
@@ -286,11 +286,11 @@ class SessionAwareRetriever:
 
             return [
                 SessionResult(
-                    session_id=r.payload.get("session_id", ""),  # type: ignore
-                    summary=r.payload.get("summary", ""),  # type: ignore
+                    session_id=cast(str, (r.payload or {}).get("session_id", "")),
+                    summary=cast(str, (r.payload or {}).get("summary", "")),
                     score=r.score or 0.0,
-                    topics=r.payload.get("topics"),  # type: ignore
-                    entities=r.payload.get("entities"),  # type: ignore
+                    topics=cast(list[str] | None, (r.payload or {}).get("topics")),
+                    entities=cast(list[str] | None, (r.payload or {}).get("entities")),
                 )
                 for r in results
             ]
@@ -364,7 +364,7 @@ class SessionAwareRetriever:
                 SessionAwareSearchResult(
                     id=r.id,
                     score=r.score or 0.0,
-                    payload=r.payload or {},  # type: ignore
+                    payload=cast(dict[str, Any], r.payload or {}),
                     session_id=session.session_id,
                     session_summary=session.summary,
                     session_score=session.score,
