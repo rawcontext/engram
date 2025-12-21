@@ -23,7 +23,8 @@ describe("Event Schemas", () => {
 				payload: { some: "data" },
 			};
 			const parsed = RawStreamEventSchema.parse(validEvent);
-			expect(parsed).toEqual(validEvent);
+			// Use toMatchObject to allow additional bitemporal fields
+			expect(parsed).toMatchObject(validEvent);
 		});
 
 		it("should parse a valid raw event with optional fields", () => {
@@ -35,7 +36,8 @@ describe("Event Schemas", () => {
 				headers: { "x-test": "true" },
 			};
 			const parsed = RawStreamEventSchema.parse(validEvent);
-			expect(parsed).toEqual(validEvent);
+			// Use toMatchObject to allow additional bitemporal fields
+			expect(parsed).toMatchObject(validEvent);
 		});
 
 		it("should reject invalid uuid", () => {
@@ -70,7 +72,8 @@ describe("Event Schemas", () => {
 				content: "Hello world",
 			};
 			const parsed = ParsedStreamEventSchema.parse(validEvent);
-			expect(parsed).toEqual(validEvent);
+			// Use toMatchObject to allow additional bitemporal fields
+			expect(parsed).toMatchObject(validEvent);
 		});
 
 		it("should parse a tool call event", () => {
@@ -87,7 +90,8 @@ describe("Event Schemas", () => {
 				},
 			};
 			const parsed = ParsedStreamEventSchema.parse(validEvent);
-			expect(parsed).toEqual(validEvent);
+			// Use toMatchObject to allow additional bitemporal fields
+			expect(parsed).toMatchObject(validEvent);
 		});
 
 		it("should parse a diff event", () => {
@@ -102,7 +106,8 @@ describe("Event Schemas", () => {
 				},
 			};
 			const parsed = ParsedStreamEventSchema.parse(validEvent);
-			expect(parsed).toEqual(validEvent);
+			// Use toMatchObject to allow additional bitemporal fields
+			expect(parsed).toMatchObject(validEvent);
 		});
 
 		it("should parse usage event", () => {
@@ -117,7 +122,8 @@ describe("Event Schemas", () => {
 				},
 			};
 			const parsed = ParsedStreamEventSchema.parse(validEvent);
-			expect(parsed).toEqual(validEvent);
+			// Use toMatchObject to allow additional bitemporal fields
+			expect(parsed).toMatchObject(validEvent);
 		});
 
 		it("should reject invalid event type", () => {
