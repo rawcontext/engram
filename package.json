@@ -22,8 +22,10 @@
 		"test:ts": "dotenv -- turbo run //#test:ts:run",
 		"test:ts:run": "vitest run",
 		"test:ts:watch": "vitest",
-		"infra:up": "docker-compose -f docker-compose.dev.yml up -d",
-		"infra:down": "docker-compose -f docker-compose.dev.yml down",
+		"infra:up": "./scripts/infra-up.sh",
+		"infra:down": "./scripts/infra-down.sh",
+		"infra:docker": "docker-compose -f docker-compose.dev.yml up -d redpanda falkordb qdrant postgres",
+		"infra:docker:down": "docker-compose -f docker-compose.dev.yml down",
 		"prepare": "husky"
 	},
 	"devDependencies": {
