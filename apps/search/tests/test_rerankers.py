@@ -1,5 +1,8 @@
 """Tests for reranker implementations."""
 
+from unittest.mock import MagicMock, patch
+
+import numpy as np
 import pytest
 
 from src.rerankers import (
@@ -19,6 +22,22 @@ SAMPLE_DOCS = [
     "Berlin is the capital and largest city of Germany.",
     "The weather today is sunny with clear skies.",
 ]
+
+
+@pytest.fixture
+def mock_cross_encoder():
+    """Mock CrossEncoder model to avoid loading real models in CI."""
+    with patch("src.rerankers.cross_encoder.CrossEncoder") as mock_cls:
+        mock_model = MagicMock()
+        mock_model.device = "cpu"
+        # Return scores that put Paris first (highest score)
+        mock_model.predict = MagicMock(
+            side_effect=lambda pairs, **kwargs: np.array(
+                [0.9 - i * 0.1 for i in range(len(pairs))]
+            )
+        )
+        mock_cls.return_value = mock_model
+        yield mock_model
 
 
 class TestFlashRankReranker:
@@ -84,9 +103,8 @@ class TestFlashRankReranker:
 class TestCrossEncoderReranker:
     """Tests for CrossEncoder reranker."""
 
-    def test_initialization(self) -> None:
+    def test_initialization(self, mock_cross_encoder: MagicMock) -> None:
         """Test CrossEncoder reranker initialization."""
-        # Use a small model for testing
         reranker = CrossEncoderReranker(
             model_name="cross-encoder/ms-marco-MiniLM-L-2-v2",
             device="cpu",
@@ -96,7 +114,7 @@ class TestCrossEncoderReranker:
         assert reranker.batch_size == 4
         assert reranker.model is not None
 
-    def test_rerank_returns_results(self) -> None:
+    def test_rerank_returns_results(self, mock_cross_encoder: MagicMock) -> None:
         """Test that rerank returns ranked results."""
         reranker = CrossEncoderReranker(
             model_name="cross-encoder/ms-marco-MiniLM-L-2-v2",
@@ -108,7 +126,7 @@ class TestCrossEncoderReranker:
         assert all(isinstance(r, RankedResult) for r in results)
         assert all(r.original_index is not None for r in results)
 
-    def test_rerank_scores_are_sorted(self) -> None:
+    def test_rerank_scores_are_sorted(self, mock_cross_encoder: MagicMock) -> None:
         """Test that results are sorted by score descending."""
         reranker = CrossEncoderReranker(
             model_name="cross-encoder/ms-marco-MiniLM-L-2-v2",
@@ -119,7 +137,7 @@ class TestCrossEncoderReranker:
         scores = [r.score for r in results]
         assert scores == sorted(scores, reverse=True)
 
-    def test_rerank_with_top_k(self) -> None:
+    def test_rerank_with_top_k(self, mock_cross_encoder: MagicMock) -> None:
         """Test reranking with top_k limit."""
         reranker = CrossEncoderReranker(
             model_name="cross-encoder/ms-marco-MiniLM-L-2-v2",
@@ -129,7 +147,7 @@ class TestCrossEncoderReranker:
 
         assert len(results) == 2
 
-    async def test_rerank_async(self) -> None:
+    async def test_rerank_async(self, mock_cross_encoder: MagicMock) -> None:
         """Test async reranking."""
         reranker = CrossEncoderReranker(
             model_name="cross-encoder/ms-marco-MiniLM-L-2-v2",
@@ -139,7 +157,7 @@ class TestCrossEncoderReranker:
 
         assert len(results) == len(SAMPLE_DOCS)
 
-    def test_rerank_batch(self) -> None:
+    def test_rerank_batch(self, mock_cross_encoder: MagicMock) -> None:
         """Test batch reranking."""
         reranker = CrossEncoderReranker(
             model_name="cross-encoder/ms-marco-MiniLM-L-2-v2",
