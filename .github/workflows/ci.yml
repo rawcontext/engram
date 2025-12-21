@@ -10,6 +10,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
 jobs:
   typecheck:
     runs-on: ubuntu-latest
@@ -48,13 +52,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-      - name: Run search tests
-        run: cd apps/search && uv sync && uv run pytest
-      - name: Run tuner tests
-        run: cd apps/tuner && uv sync && uv run pytest
+      - run: npm ci --include=optional
+      - name: Sync Python dependencies
+        run: |
+          cd apps/search && uv sync
+          cd ../tuner && uv sync
+      - name: Run Python tests via turbo
+        run: npx turbo run test --filter=search-service --filter=tuner-service
