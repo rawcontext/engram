@@ -1,8 +1,6 @@
 {
 	"$schema": "https://turbo.build/schema.json",
-	"remoteCache": {
-		"signature": true
-	},
+	"remoteCache": {},
 	"globalDependencies": [".env", ".env.*", "tsconfig.json", "biome.json"],
 	"globalPassThroughEnv": ["CI", "NODE_ENV", "GITHUB_ACTIONS"],
 	"globalEnv": ["REDIS_URL", "QDRANT_URL"],
