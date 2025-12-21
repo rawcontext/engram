@@ -7,9 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  ci:
+  # Shared setup job - caches dependencies for downstream jobs
+  install:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -28,7 +28,17 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Install dependencies
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/search/.venv
+            apps/tuner/.venv
+          key: uv-${{ runner.os }}-${{ hashFiles('apps/*/uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
+
+      - name: Install Node dependencies
         run: npm ci --include=optional
 
       - name: Install sharp for Linux
@@ -39,11 +49,91 @@ jobs:
           cd apps/search && uv sync
           cd ../tuner && uv sync
 
-      - name: Typecheck
-        run: npm run typecheck
+      # Cache node_modules for other jobs
+      - name: Cache node_modules
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
 
-      - name: Lint
-        run: npm run lint
+  # Typecheck and Lint run in parallel
+  check:
+    needs: install
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [typecheck, lint]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - name: Test
-        run: npm test
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+
+      - name: Run ${{ matrix.task }}
+        run: npm run ${{ matrix.task }}
+
+  # TypeScript tests
+  test-ts:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+
+      - name: Run TypeScript tests
+        run: npm run test:ts
+
+  # Python tests run in parallel matrix
+  test-python:
+    needs: install
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [search, tuner]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Restore uv cache
+        uses: actions/cache/restore@v4
+        with:
+          path: apps/${{ matrix.app }}/.venv
+          key: uv-${{ runner.os }}-${{ hashFiles('apps/*/uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: cd apps/${{ matrix.app }} && uv sync
+
+      - name: Run ${{ matrix.app }} tests
+        run: cd apps/${{ matrix.app }} && uv run pytest
