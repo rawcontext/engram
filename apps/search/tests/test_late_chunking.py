@@ -1,6 +1,6 @@
 """Tests for late chunking module."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -220,9 +220,7 @@ class TestLateChunker:
 
         result = chunker._pool_tokens(token_embeddings, 0, 5)
 
-        # Norm should not necessarily be 1
-        norm = np.linalg.norm(result)
-        # It could be 1 by chance, but statistically unlikely
+        # Verify the result shape matches expected dimensions
         assert result.shape == (384,)
 
     def test_fallback_embed(self, chunker: LateChunker) -> None:

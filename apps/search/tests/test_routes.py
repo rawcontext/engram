@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 from src.api.router import router
@@ -33,7 +32,7 @@ def mock_embedder_factory():
     factory = MagicMock()
     embedder = AsyncMock()
     embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
-    factory.get_embedder = MagicMock(return_value=embedder)
+    factory.get_embedder = AsyncMock(return_value=embedder)
     return factory
 
 

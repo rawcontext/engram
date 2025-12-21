@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from qdrant_client.http import models
 
 from src.clients.qdrant import QdrantClientWrapper
 from src.config import Settings

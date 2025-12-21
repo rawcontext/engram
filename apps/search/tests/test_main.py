@@ -347,7 +347,7 @@ class TestRun:
             run()
 
             mock_run.assert_called_once_with(
-                "search.main:app",
+                "src.main:app",
                 host="0.0.0.0",
                 port=5002,
                 reload=False,
