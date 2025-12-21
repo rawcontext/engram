@@ -21,7 +21,7 @@ export class Redactor {
 		NPM_TOKEN: /\bnpm_[A-Za-z0-9]{36}\b/g,
 		PRIVATE_KEY: /-----BEGIN\s+(?:RSA\s+|EC\s+|OPENSSH\s+)?PRIVATE\s+KEY-----/g,
 		DATABASE_URL: /\b(postgres|postgresql|mysql|mongodb|redis):\/\/[^\s"']+/gi,
-		BEARER_TOKEN: /\bBearer\s+[A-Za-z0-9._\-]+\b/g,
+		BEARER_TOKEN: /\bBearer\s+[A-Za-z0-9._-]+\b/g,
 		PASSWORD_FIELD: /(?:password|passwd|pwd|secret)\s*[:=]\s*["']?[^\s"']+["']?/gi,
 	};
 

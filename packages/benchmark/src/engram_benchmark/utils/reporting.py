@@ -108,6 +108,20 @@ def generate_markdown_report(report: BenchmarkReport, output_path: str | Path | 
         lines.append(_format_abstention_metrics(report.metrics.abstention))
         lines.append("")
 
+    # RAGAS metrics
+    if report.metrics.ragas is not None:
+        lines.append("## RAGAS Metrics")
+        lines.append("")
+        lines.append(_format_ragas_metrics(report.metrics.ragas))
+        lines.append("")
+
+    # Latency metrics
+    if report.metrics.latency is not None:
+        lines.append("## Latency Metrics")
+        lines.append("")
+        lines.append(_format_latency_metrics(report.metrics.latency))
+        lines.append("")
+
     markdown = "\n".join(lines)
 
     # Save if output path specified
@@ -213,6 +227,48 @@ def _expand_ability_name(ability: str) -> str:
     return ability_names.get(ability, ability)
 
 
+def _format_ragas_metrics(metrics: dict[str, float]) -> str:
+    """Format RAGAS metrics as Markdown."""
+    lines = []
+
+    lines.append("| Metric | Score |")
+    lines.append("|--------|-------|")
+
+    # Standard RAGAS metric display names
+    metric_names = {
+        "faithfulness": "Faithfulness",
+        "answer_relevancy": "Answer Relevancy",
+        "context_precision": "Context Precision",
+        "context_recall": "Context Recall",
+        "context_relevancy": "Context Relevancy",
+        "answer_correctness": "Answer Correctness",
+        "answer_similarity": "Answer Similarity",
+    }
+
+    for key, value in sorted(metrics.items()):
+        display_name = metric_names.get(key, key.replace("_", " ").title())
+        lines.append(f"| {display_name} | {value:.4f} |")
+
+    return "\n".join(lines)
+
+
+def _format_latency_metrics(metrics: dict[str, float]) -> str:
+    """Format latency metrics as Markdown."""
+    lines = []
+
+    lines.append("| Metric | Value |")
+    lines.append("|--------|-------|")
+
+    # Group by component (retrieval, reader, total)
+    for key in sorted(metrics.keys()):
+        value = metrics[key]
+        # Format key for display (e.g., "retrieval_p50_ms" -> "Retrieval P50")
+        display_name = key.replace("_ms", "").replace("_", " ").title()
+        lines.append(f"| {display_name} | {value:.1f}ms |")
+
+    return "\n".join(lines)
+
+
 def generate_json_report(report: BenchmarkReport, output_path: str | Path | None = None) -> str:
     """
     Generate a JSON-formatted benchmark report.
@@ -299,4 +355,20 @@ def print_summary(report: BenchmarkReport) -> None:
         console.print(f"  Precision: {report.metrics.abstention.precision * 100:.1f}%")
         console.print(f"  Recall: {report.metrics.abstention.recall * 100:.1f}%")
         console.print(f"  F1 Score: {report.metrics.abstention.f1 * 100:.1f}%")
+        console.print()
+
+    # RAGAS metrics (if available)
+    if report.metrics.ragas is not None:
+        console.print("[bold]RAGAS Metrics:[/bold]")
+        for key, value in sorted(report.metrics.ragas.items()):
+            display_name = key.replace("_", " ").title()
+            console.print(f"  {display_name}: {value:.4f}")
+        console.print()
+
+    # Latency metrics (if available)
+    if report.metrics.latency is not None:
+        console.print("[bold]Latency:[/bold]")
+        for key, value in sorted(report.metrics.latency.items()):
+            display_name = key.replace("_ms", "").replace("_", " ").title()
+            console.print(f"  {display_name}: {value:.1f}ms")
         console.print()

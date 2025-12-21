@@ -78,6 +78,7 @@ def evaluate_retrieval(
         recall_at_k={k: float(results[f"recall@{k}"]) for k in k_values},
         ndcg_at_k={k: float(results[f"ndcg@{k}"]) for k in k_values},
         mrr=float(results["mrr"]),
+        map=float(results["map"]),
     )
 
 
@@ -220,6 +221,7 @@ def compute_retrieval_metrics(
         recall_at_k=recall_at_k,
         ndcg_at_k=ndcg_at_k,
         mrr=avg_mrr,
+        map=0.0,  # MAP requires qrels/runs format, computed separately via evaluate_retrieval
     )
 
 

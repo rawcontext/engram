@@ -182,58 +182,201 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 	}
 
 	async update(id: string, updates: UpdateTurnInput): Promise<Turn> {
+		const maxRetries = 3;
+		let lastError: Error | null = null;
+
+		for (let attempt = 0; attempt < maxRetries; attempt++) {
+			try {
+				return await this.performUpdate(id, updates);
+			} catch (error) {
+				if (error instanceof Error && error.message.includes("Concurrent modification")) {
+					lastError = error;
+					// Exponential backoff: 10ms, 20ms, 40ms
+					await new Promise((resolve) => setTimeout(resolve, 10 * 2 ** attempt));
+					continue;
+				}
+				throw error;
+			}
+		}
+
+		throw new Error(
+			`Failed to update turn ${id} after ${maxRetries} attempts due to concurrent modifications. Last error: ${lastError?.message}`,
+		);
+	}
+
+	/**
+	 * Internal method to perform a single update attempt with proper bitemporal versioning.
+	 * Creates a new version and closes the old one (immutable history).
+	 */
+	private async performUpdate(id: string, updates: UpdateTurnInput): Promise<Turn> {
 		const existing = await this.findById(id);
 		if (!existing) {
 			throw new Error(`Turn not found: ${id}`);
 		}
 
-		// Build update SET clause
-		const updateProps: Record<string, unknown> = {};
-		if (updates.assistantPreview !== undefined)
-			updateProps.assistant_preview = updates.assistantPreview;
-		if (updates.assistantBlobRef !== undefined)
-			updateProps.assistant_blob_ref = updates.assistantBlobRef;
-		if (updates.embedding !== undefined) updateProps.embedding = updates.embedding;
-		if (updates.filesTouched !== undefined) updateProps.files_touched = updates.filesTouched;
-		if (updates.toolCallsCount !== undefined) updateProps.tool_calls_count = updates.toolCallsCount;
-		if (updates.inputTokens !== undefined) updateProps.input_tokens = updates.inputTokens;
-		if (updates.outputTokens !== undefined) updateProps.output_tokens = updates.outputTokens;
-		if (updates.cacheReadTokens !== undefined)
-			updateProps.cache_read_tokens = updates.cacheReadTokens;
-		if (updates.cacheWriteTokens !== undefined)
-			updateProps.cache_write_tokens = updates.cacheWriteTokens;
-		if (updates.reasoningTokens !== undefined)
-			updateProps.reasoning_tokens = updates.reasoningTokens;
-		if (updates.costUsd !== undefined) updateProps.cost_usd = updates.costUsd;
-		if (updates.durationMs !== undefined) updateProps.duration_ms = updates.durationMs;
-		if (updates.gitCommit !== undefined) updateProps.git_commit = updates.gitCommit;
+		// Check if there are any updates to apply
+		const hasUpdates =
+			updates.assistantPreview !== undefined ||
+			updates.assistantBlobRef !== undefined ||
+			updates.embedding !== undefined ||
+			updates.filesTouched !== undefined ||
+			updates.toolCallsCount !== undefined ||
+			updates.inputTokens !== undefined ||
+			updates.outputTokens !== undefined ||
+			updates.cacheReadTokens !== undefined ||
+			updates.cacheWriteTokens !== undefined ||
+			updates.reasoningTokens !== undefined ||
+			updates.costUsd !== undefined ||
+			updates.durationMs !== undefined ||
+			updates.gitCommit !== undefined;
 
-		if (Object.keys(updateProps).length === 0) {
+		if (!hasUpdates) {
 			return existing;
 		}
 
-		const setClause = this.buildSetClause(updateProps, "t");
-		await this.query(`MATCH (t:Turn {id: $id}) WHERE t.tt_end = ${this.maxDate} SET ${setClause}`, {
-			id,
-			...updateProps,
-		});
+		// Close old version with optimistic locking
+		const t = this.now;
+		const closeResult = await this.query<{ count: number }>(
+			`MATCH (t:Turn {id: $id}) WHERE t.tt_end = ${this.maxDate}
+			 SET t.tt_end = $t
+			 RETURN count(t) as count`,
+			{ id, t },
+		);
 
-		// Return updated turn
+		if (!closeResult[0] || closeResult[0].count === 0) {
+			throw new Error(`Concurrent modification detected for turn ${id}. Please retry.`);
+		}
+
+		// Create new version with merged properties
+		const newTemporal = this.createBitemporal();
+		const newId = this.generateId();
+
+		const nodeProps: Record<string, unknown> = {
+			id: newId,
+			user_content: existing.userContent,
+			user_content_hash: existing.userContentHash,
+			assistant_preview: updates.assistantPreview ?? existing.assistantPreview,
+			sequence_index: existing.sequenceIndex,
+			files_touched: updates.filesTouched ?? existing.filesTouched,
+			tool_calls_count: updates.toolCallsCount ?? existing.toolCallsCount,
+			vt_start: newTemporal.vt_start,
+			vt_end: newTemporal.vt_end,
+			tt_start: newTemporal.tt_start,
+			tt_end: newTemporal.tt_end,
+		};
+
+		// Optional fields - use update value if provided, else existing value
+		const assistantBlobRef = updates.assistantBlobRef ?? existing.assistantBlobRef;
+		if (assistantBlobRef) nodeProps.assistant_blob_ref = assistantBlobRef;
+
+		const embedding = updates.embedding ?? existing.embedding;
+		if (embedding) nodeProps.embedding = embedding;
+
+		const inputTokens = updates.inputTokens ?? existing.inputTokens;
+		if (inputTokens !== undefined) nodeProps.input_tokens = inputTokens;
+
+		const outputTokens = updates.outputTokens ?? existing.outputTokens;
+		if (outputTokens !== undefined) nodeProps.output_tokens = outputTokens;
+
+		const cacheReadTokens = updates.cacheReadTokens ?? existing.cacheReadTokens;
+		if (cacheReadTokens !== undefined) nodeProps.cache_read_tokens = cacheReadTokens;
+
+		const cacheWriteTokens = updates.cacheWriteTokens ?? existing.cacheWriteTokens;
+		if (cacheWriteTokens !== undefined) nodeProps.cache_write_tokens = cacheWriteTokens;
+
+		const reasoningTokens = updates.reasoningTokens ?? existing.reasoningTokens;
+		if (reasoningTokens !== undefined) nodeProps.reasoning_tokens = reasoningTokens;
+
+		const costUsd = updates.costUsd ?? existing.costUsd;
+		if (costUsd !== undefined) nodeProps.cost_usd = costUsd;
+
+		const durationMs = updates.durationMs ?? existing.durationMs;
+		if (durationMs !== undefined) nodeProps.duration_ms = durationMs;
+
+		const gitCommit = updates.gitCommit ?? existing.gitCommit;
+		if (gitCommit) nodeProps.git_commit = gitCommit;
+
+		const propsString = this.buildPropertyString(nodeProps);
+
+		// Create new turn and link to session
+		await this.query(
+			`MATCH (s:Session {id: $sessionId})
+			 WHERE s.tt_end = ${this.maxDate}
+			 CREATE (t:Turn {${propsString}})
+			 CREATE (s)-[:${EdgeTypes.HAS_TURN} {vt_start: $vt_start, vt_end: $vt_end, tt_start: $tt_start, tt_end: $tt_end}]->(t)`,
+			{ sessionId: existing.sessionId, ...nodeProps },
+		);
+
+		// Link new version to old with REPLACES edge
+		await this.query(
+			`MATCH (new:Turn {id: $newId}), (old:Turn {id: $oldId})
+			 CREATE (new)-[:REPLACES {tt_start: $ttStart, tt_end: ${this.maxDate}, vt_start: $vtStart, vt_end: ${this.maxDate}}]->(old)`,
+			{ newId, oldId: id, ttStart: newTemporal.tt_start, vtStart: newTemporal.vt_start },
+		);
+
+		// Re-establish NEXT edges if this turn had them
+		// Link from previous turn to new version
+		if (existing.sequenceIndex > 0) {
+			await this.query(
+				`MATCH (s:Session {id: $sessionId})-[:${EdgeTypes.HAS_TURN}]->(prev:Turn {sequence_index: $prevIndex})
+				 MATCH (s)-[:${EdgeTypes.HAS_TURN}]->(curr:Turn {id: $currId})
+				 WHERE prev.tt_end = ${this.maxDate} AND curr.tt_end = ${this.maxDate}
+				 CREATE (prev)-[:${EdgeTypes.NEXT} {vt_start: $vtStart, vt_end: ${this.maxDate}, tt_start: $ttStart, tt_end: ${this.maxDate}}]->(curr)`,
+				{
+					sessionId: existing.sessionId,
+					prevIndex: existing.sequenceIndex - 1,
+					currId: newId,
+					vtStart: newTemporal.vt_start,
+					ttStart: newTemporal.tt_start,
+				},
+			);
+		}
+
+		// Link to next turn if it exists
+		const nextTurnResult = await this.query<{ nextId: string }>(
+			`MATCH (s:Session {id: $sessionId})-[:${EdgeTypes.HAS_TURN}]->(next:Turn {sequence_index: $nextIndex})
+			 WHERE next.tt_end = ${this.maxDate}
+			 RETURN next.id as nextId`,
+			{ sessionId: existing.sessionId, nextIndex: existing.sequenceIndex + 1 },
+		);
+
+		if (nextTurnResult[0]?.nextId) {
+			await this.query(
+				`MATCH (curr:Turn {id: $currId}), (next:Turn {id: $nextId})
+				 WHERE curr.tt_end = ${this.maxDate} AND next.tt_end = ${this.maxDate}
+				 CREATE (curr)-[:${EdgeTypes.NEXT} {vt_start: $vtStart, vt_end: ${this.maxDate}, tt_start: $ttStart, tt_end: ${this.maxDate}}]->(next)`,
+				{
+					currId: newId,
+					nextId: nextTurnResult[0].nextId,
+					vtStart: newTemporal.vt_start,
+					ttStart: newTemporal.tt_start,
+				},
+			);
+		}
+
 		return {
-			...existing,
+			id: newId,
+			sessionId: existing.sessionId,
+			userContent: existing.userContent,
+			userContentHash: existing.userContentHash,
 			assistantPreview: updates.assistantPreview ?? existing.assistantPreview,
-			assistantBlobRef: updates.assistantBlobRef ?? existing.assistantBlobRef,
-			embedding: updates.embedding ?? existing.embedding,
+			assistantBlobRef,
+			embedding,
+			sequenceIndex: existing.sequenceIndex,
 			filesTouched: updates.filesTouched ?? existing.filesTouched,
 			toolCallsCount: updates.toolCallsCount ?? existing.toolCallsCount,
-			inputTokens: updates.inputTokens ?? existing.inputTokens,
-			outputTokens: updates.outputTokens ?? existing.outputTokens,
-			cacheReadTokens: updates.cacheReadTokens ?? existing.cacheReadTokens,
-			cacheWriteTokens: updates.cacheWriteTokens ?? existing.cacheWriteTokens,
-			reasoningTokens: updates.reasoningTokens ?? existing.reasoningTokens,
-			costUsd: updates.costUsd ?? existing.costUsd,
-			durationMs: updates.durationMs ?? existing.durationMs,
-			gitCommit: updates.gitCommit ?? existing.gitCommit,
+			inputTokens,
+			outputTokens,
+			cacheReadTokens,
+			cacheWriteTokens,
+			reasoningTokens,
+			costUsd,
+			durationMs,
+			gitCommit,
+			vtStart: newTemporal.vt_start,
+			vtEnd: newTemporal.vt_end,
+			ttStart: newTemporal.tt_start,
+			ttEnd: newTemporal.tt_end,
 		};
 	}
 

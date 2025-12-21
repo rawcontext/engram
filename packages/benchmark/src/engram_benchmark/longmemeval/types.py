@@ -195,6 +195,7 @@ class RetrievalMetrics(BaseModel):
         description="NDCG at different K values - measures ranking quality"
     )
     mrr: float = Field(ge=0.0, le=1.0, description="Mean Reciprocal Rank")
+    map: float = Field(ge=0.0, le=1.0, default=0.0, description="Mean Average Precision")
 
 
 class AbstentionMetrics(BaseModel):
