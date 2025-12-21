@@ -170,6 +170,4 @@ class TestPrunerIntegration:
 
         study.optimize(objective, n_trials=3)
         # All trials should complete (none pruned)
-        assert all(
-            t.state == optuna.trial.TrialState.COMPLETE for t in study.trials
-        )
+        assert all(t.state == optuna.trial.TrialState.COMPLETE for t in study.trials)

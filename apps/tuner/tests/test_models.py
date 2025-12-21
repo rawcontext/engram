@@ -76,9 +76,7 @@ class TestIntParameter:
 class TestCategoricalParameter:
     """Tests for CategoricalParameter model."""
 
-    def test_valid_categorical_parameter(
-        self, sample_categorical_param: dict[str, Any]
-    ) -> None:
+    def test_valid_categorical_parameter(self, sample_categorical_param: dict[str, Any]) -> None:
         """Test creating a valid categorical parameter."""
         param = CategoricalParameter(**sample_categorical_param)
         assert param.name == "optimizer"
@@ -87,9 +85,7 @@ class TestCategoricalParameter:
 
     def test_categorical_with_mixed_types(self) -> None:
         """Test categorical with mixed choice types."""
-        param = CategoricalParameter(
-            name="mixed", choices=[1, 2.5, "three", True]
-        )
+        param = CategoricalParameter(name="mixed", choices=[1, 2.5, "three", True])
         assert param.choices == [1, 2.5, "three", True]
 
     def test_categorical_forbids_extra(self) -> None:
@@ -114,9 +110,7 @@ class TestCreateStudyRequest:
         assert request.load_if_exists is True
         assert len(request.search_space) == 3
 
-    def test_study_request_minimize(
-        self, sample_search_space: list[dict[str, Any]]
-    ) -> None:
+    def test_study_request_minimize(self, sample_search_space: list[dict[str, Any]]) -> None:
         """Test study with minimize direction."""
         request = CreateStudyRequest(
             name="test_study",
@@ -125,9 +119,7 @@ class TestCreateStudyRequest:
         )
         assert request.direction == "minimize"
 
-    def test_study_request_multi_objective(
-        self, sample_search_space: list[dict[str, Any]]
-    ) -> None:
+    def test_study_request_multi_objective(self, sample_search_space: list[dict[str, Any]]) -> None:
         """Test multi-objective study."""
         request = CreateStudyRequest(
             name="test_study",
@@ -136,9 +128,7 @@ class TestCreateStudyRequest:
         )
         assert request.direction == ["maximize", "minimize"]
 
-    def test_study_request_custom_sampler(
-        self, sample_search_space: list[dict[str, Any]]
-    ) -> None:
+    def test_study_request_custom_sampler(self, sample_search_space: list[dict[str, Any]]) -> None:
         """Test study with custom sampler."""
         request = CreateStudyRequest(
             name="test_study",
@@ -147,16 +137,12 @@ class TestCreateStudyRequest:
         )
         assert request.sampler == "gp"
 
-    def test_study_request_name_validation(
-        self, sample_search_space: list[dict[str, Any]]
-    ) -> None:
+    def test_study_request_name_validation(self, sample_search_space: list[dict[str, Any]]) -> None:
         """Test study name validation."""
         with pytest.raises(ValidationError):
             CreateStudyRequest(name="", search_space=sample_search_space)
 
-    def test_study_request_invalid_sampler(
-        self, sample_search_space: list[dict[str, Any]]
-    ) -> None:
+    def test_study_request_invalid_sampler(self, sample_search_space: list[dict[str, Any]]) -> None:
         """Test invalid sampler type."""
         with pytest.raises(ValidationError):
             CreateStudyRequest(
