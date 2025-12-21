@@ -3,11 +3,15 @@
 	"version": "0.0.0",
 	"private": true,
 	"turbo": {
+		"build": {
+			"outputs": []
+		},
 		"test": {
 			"outputs": []
 		}
 	},
 	"scripts": {
+		"build": "echo 'Python app - no build step'",
 		"test": "uv run pytest",
 		"lint": "uv run ruff check src tests",
 		"format": "uv run ruff format src tests"
