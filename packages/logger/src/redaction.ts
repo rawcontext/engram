@@ -45,11 +45,11 @@ export const DEFAULT_REDACT_PATHS = [
 export type RedactPath = (typeof DEFAULT_REDACT_PATHS)[number];
 
 /**
- * Merge custom redaction paths with defaults
+ * Merge custom redaction paths with defaults using Set.union (ES2025)
  */
 export function mergeRedactPaths(customPaths?: readonly string[]): readonly string[] {
 	if (!customPaths?.length) {
 		return DEFAULT_REDACT_PATHS;
 	}
-	return [...new Set([...DEFAULT_REDACT_PATHS, ...customPaths])];
+	return Array.from(new Set(DEFAULT_REDACT_PATHS).union(new Set(customPaths)));
 }

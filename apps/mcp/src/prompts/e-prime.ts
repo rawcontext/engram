@@ -113,12 +113,12 @@ export function registerPrimePrompt(
 			}
 
 			// Sort by relevance
-			contextItems.sort((a, b) => b.relevance - a.relevance);
+			const sortedContext = contextItems.toSorted((a, b) => b.relevance - a.relevance);
 
 			// Build the prompt message
 			const projectInfo = sessionContext.project ? `\n\nProject: ${sessionContext.project}` : "";
 
-			const formattedContext = formatContext(contextItems);
+			const formattedContext = formatContext(sortedContext);
 
 			return {
 				messages: [

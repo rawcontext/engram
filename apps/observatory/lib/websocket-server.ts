@@ -197,12 +197,12 @@ async function _checkConsumerGroups(): Promise<ConsumerStatusResponse> {
 	admin.connect();
 
 	try {
-		const result = await new Promise<unknown>((resolve, reject) => {
-			admin.describeGroups(CONSUMER_GROUPS, { timeout: 5000 }, (err, res) => {
-				if (err) reject(err);
-				else resolve(res);
-			});
+		const { promise, resolve, reject } = Promise.withResolvers<unknown>();
+		admin.describeGroups(CONSUMER_GROUPS, { timeout: 5000 }, (err, res) => {
+			if (err) reject(err);
+			else resolve(res);
 		});
+		const result = await promise;
 
 		// Handle different response formats
 		let descriptions: GroupDescription[];

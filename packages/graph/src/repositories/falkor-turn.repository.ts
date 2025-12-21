@@ -81,7 +81,7 @@ export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRe
 			{ sessionId, limit },
 		);
 		// Reverse to get chronological order
-		return results.reverse().map((r) => this.mapToTurn(r.t, sessionId));
+		return results.toReversed().map((r) => this.mapToTurn(r.t, sessionId));
 	}
 
 	async findByFilePath(sessionId: string, filePath: string): Promise<Turn[]> {

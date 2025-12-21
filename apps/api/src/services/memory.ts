@@ -284,7 +284,7 @@ export class MemoryService {
 
 			// Sort by score and limit
 			return Array.from(resultMap.values())
-				.sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+				.toSorted((a, b) => (b.score ?? 0) - (a.score ?? 0))
 				.slice(0, limit);
 		} catch (error) {
 			// Fallback to keyword search if vector search fails
@@ -410,9 +410,7 @@ export class MemoryService {
 			});
 		}
 
-		// Sort by relevance
-		context.sort((a, b) => b.relevance - a.relevance);
-
-		return context.slice(0, limit * 2);
+		// Sort by relevance and limit
+		return context.toSorted((a, b) => b.relevance - a.relevance).slice(0, limit * 2);
 	}
 }

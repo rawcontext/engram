@@ -121,7 +121,7 @@ export class InMemoryFileSystem implements IFileSystem {
 			}
 		}
 
-		return results.sort();
+		return results.toSorted();
 	}
 
 	async readDirAsync(path: string): Promise<string[]> {
@@ -300,6 +300,6 @@ export class InMemoryFileSystem implements IFileSystem {
 				paths.push(path);
 			}
 		}
-		return paths.sort();
+		return paths.toSorted();
 	}
 }

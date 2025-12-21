@@ -118,10 +118,10 @@ export function registerContextTool(
 			}
 
 			// Sort by relevance
-			contextItems.sort((a, b) => b.relevance - a.relevance);
+			const sortedContext = contextItems.toSorted((a, b) => b.relevance - a.relevance);
 
 			const output = {
-				context: contextItems,
+				context: sortedContext,
 				task,
 				summary: undefined as string | undefined,
 			};

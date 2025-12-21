@@ -112,7 +112,7 @@ export class ContextAssembler {
 
 			if (result.length > 0) {
 				// Reverse to get chronological order (oldest first)
-				return result.map((r) => r.thought).reverse();
+				return result.map((r) => r.thought).toReversed();
 			}
 
 			// Fallback: simple timestamp-based ordering if no NEXT chain
@@ -196,7 +196,7 @@ export class ContextAssembler {
 	 */
 	private pruneToFit(sections: ContextSection[], tokenLimit: number): string {
 		// Sort by priority (lower number = higher priority)
-		const sorted = [...sections].sort((a, b) => a.priority - b.priority);
+		const sorted = sections.toSorted((a, b) => a.priority - b.priority);
 
 		const included: ContextSection[] = [];
 		let totalTokens = 0;

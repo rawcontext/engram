@@ -31,11 +31,11 @@ export function useGraphLayout({
 		if (!data?.nodes?.length) return "";
 		const nodeIds = data.nodes
 			.map((n) => n.id)
-			.sort()
+			.toSorted()
 			.join(",");
 		const linkKeys = data.links
 			.map((l) => `${l.source}-${l.target}`)
-			.sort()
+			.toSorted()
 			.join(",");
 		return `${nodeIds}|${linkKeys}`;
 	}, [data]);

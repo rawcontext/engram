@@ -119,15 +119,12 @@ function createAdminClient(brokers: string): AdminClient {
  * Describe consumer groups using the Admin API.
  */
 async function describeGroups(admin: AdminClient, groupIds: string[]): Promise<GroupDescription[]> {
-	return new Promise((resolve, reject) => {
-		admin.describeGroups(groupIds, { timeout: 10000 }, (err, descriptions) => {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(descriptions);
-			}
-		});
+	const { promise, resolve, reject } = Promise.withResolvers<GroupDescription[]>();
+	admin.describeGroups(groupIds, { timeout: 10000 }, (err, descriptions) => {
+		if (err) reject(err);
+		else resolve(descriptions);
 	});
+	return promise;
 }
 
 /**

@@ -91,11 +91,9 @@ export class EvaluationCache {
 	 */
 	private getKey(params: Record<string, unknown>): string {
 		// Sort keys for deterministic hashing
-		const sortedKeys = Object.keys(params).sort();
-		const sorted: Record<string, unknown> = {};
-		for (const key of sortedKeys) {
-			sorted[key] = params[key];
-		}
+		const sorted = Object.fromEntries(
+			Object.entries(params).toSorted(([a], [b]) => a.localeCompare(b)),
+		);
 
 		const json = JSON.stringify(sorted);
 		return createHash("md5").update(json).digest("hex");

@@ -164,7 +164,7 @@ export class MemoryRetriever {
 
 		// Sort by score and limit
 		return Array.from(resultMap.values())
-			.sort((a, b) => b.score - a.score)
+			.toSorted((a, b) => b.score - a.score)
 			.slice(0, limit);
 	}
 }

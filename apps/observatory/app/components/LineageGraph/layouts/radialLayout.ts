@@ -30,7 +30,7 @@ export function getRadialLayout(
 	// Categorize nodes by type and sort by sequence_index
 	const turnNodes = nodes
 		.filter((n) => (n.data?.type as string)?.toLowerCase() === "turn")
-		.sort((a, b) => {
+		.toSorted((a, b) => {
 			const seqA = (a.data?.sequence_index as number) ?? 0;
 			const seqB = (b.data?.sequence_index as number) ?? 0;
 			return seqA - seqB;
@@ -38,7 +38,7 @@ export function getRadialLayout(
 
 	const reasoningNodes = nodes
 		.filter((n) => (n.data?.type as string)?.toLowerCase() === "reasoning")
-		.sort((a, b) => {
+		.toSorted((a, b) => {
 			const seqA = (a.data?.sequence_index as number) ?? 0;
 			const seqB = (b.data?.sequence_index as number) ?? 0;
 			return seqA - seqB;
@@ -46,7 +46,7 @@ export function getRadialLayout(
 
 	const toolCallNodes = nodes
 		.filter((n) => (n.data?.type as string)?.toLowerCase() === "toolcall")
-		.sort((a, b) => {
+		.toSorted((a, b) => {
 			const seqA = (a.data?.sequence_index as number) ?? 0;
 			const seqB = (b.data?.sequence_index as number) ?? 0;
 			return seqA - seqB;
@@ -63,27 +63,17 @@ export function getRadialLayout(
 		childToParent.set(edge.target, edge.source);
 	}
 
-	// Group children by parent Turn
-	const reasoningByParent = new Map<string, Node[]>();
-	const toolCallByParent = new Map<string, Node[]>();
+	// Group children by parent Turn using Map.groupBy (ES2024)
+	// Type-safe: filter guarantees parentId exists, use as string to satisfy type checker
+	const reasoningByParent = Map.groupBy(
+		reasoningNodes.filter((node) => childToParent.has(node.id)),
+		(node) => childToParent.get(node.id) as string,
+	);
 
-	for (const node of reasoningNodes) {
-		const parentId = childToParent.get(node.id);
-		if (parentId) {
-			const list = reasoningByParent.get(parentId) || [];
-			list.push(node);
-			reasoningByParent.set(parentId, list);
-		}
-	}
-
-	for (const node of toolCallNodes) {
-		const parentId = childToParent.get(node.id);
-		if (parentId) {
-			const list = toolCallByParent.get(parentId) || [];
-			list.push(node);
-			toolCallByParent.set(parentId, list);
-		}
-	}
+	const toolCallByParent = Map.groupBy(
+		toolCallNodes.filter((node) => childToParent.has(node.id)),
+		(node) => childToParent.get(node.id) as string,
+	);
 
 	// Calculate height needed for each Turn's subtree (considering all child types)
 	const turnHeights = new Map<string, number>();

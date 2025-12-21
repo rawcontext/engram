@@ -70,7 +70,7 @@ export class ToolRegistry {
 
 		// Sort by score descending and return top-k
 		return toolsWithScores
-			.sort((a, b) => b.score - a.score)
+			.toSorted((a, b) => b.score - a.score)
 			.slice(0, topK)
 			.map(({ tool }) => tool);
 	}
