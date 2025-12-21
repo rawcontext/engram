@@ -106,6 +106,7 @@ class BatchQueue:
         Raises:
             RuntimeError: If queue has reached max capacity.
         """
+        should_flush = False
         async with self._lock:
             # Check queue capacity
             if len(self._queue) >= self.config.max_queue_size:
@@ -116,9 +117,13 @@ class BatchQueue:
 
             self._queue.append(document)
 
-            # Flush if batch size reached
+            # Check if batch size reached (flush outside lock to avoid deadlock)
             if len(self._queue) >= self.config.batch_size:
-                await self._flush()
+                should_flush = True
+
+        # Flush outside the lock to avoid deadlock since _flush also acquires lock
+        if should_flush:
+            await self._flush()
 
     async def _flush(self) -> None:
         """Flush the current batch to the indexer.

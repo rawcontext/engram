@@ -254,6 +254,14 @@ class TestLLMReranker:
         assert reranker.provider == "openai"
         assert reranker.full_model_name == "openai/gpt-4o-mini"
 
+    def test_initialization_without_provider(self) -> None:
+        """Test LLM reranker initialization without provider prefix."""
+        reranker = LLMReranker(
+            model="gpt-4o-mini",
+            provider=None,
+        )
+        assert reranker.full_model_name == "gpt-4o-mini"
+
     def test_parse_scores_valid(self) -> None:
         """Test parsing valid scores from LLM response."""
         reranker = LLMReranker()
@@ -302,6 +310,177 @@ class TestLLMReranker:
         # First request should work (but might fail due to API)
         # We just test that rate limiter is checked
         assert reranker.rate_limiter is rate_limiter
+
+    def test_estimate_cost(self) -> None:
+        """Test cost estimation."""
+        reranker = LLMReranker(cost_per_1k_tokens=1.0)
+        cost = reranker._estimate_cost(prompt_tokens=500, completion_tokens=500)
+        assert cost == 1.0  # (500 + 500) / 1000 * 1.0
+
+    def test_parse_scores_count_mismatch(self) -> None:
+        """Test parsing scores with wrong count returns fallback."""
+        reranker = LLMReranker()
+        response = "[95, 72]"  # Only 2 scores but we expect 4
+        scores = reranker._parse_scores(response, 4)
+        # Should return uniform fallback scores
+        assert scores == [50.0, 50.0, 50.0, 50.0]
+
+    def test_parse_scores_not_a_list(self) -> None:
+        """Test parsing scores when response is not a list."""
+        reranker = LLMReranker()
+        # No brackets at all - should fail
+        response = "scores: 95, 72"
+        scores = reranker._parse_scores(response, 2)
+        # Should return uniform fallback scores
+        assert scores == [50.0, 50.0]
+
+    def test_rerank_with_mock_litellm(self) -> None:
+        """Test reranking with mocked litellm."""
+        with patch("src.rerankers.llm.litellm") as mock_litellm:
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "[95, 72, 88, 45]"
+            mock_litellm.completion.return_value = mock_response
+
+            reranker = LLMReranker(model="test-model", provider="test")
+            results = reranker.rerank(SAMPLE_QUERY, SAMPLE_DOCS)
+
+            assert len(results) == 4
+            mock_litellm.completion.assert_called_once()
+            # Results should be sorted by score
+            scores = [r.score for r in results]
+            assert scores == sorted(scores, reverse=True)
+
+    def test_rerank_empty_documents(self) -> None:
+        """Test reranking with empty documents."""
+        reranker = LLMReranker()
+        results = reranker.rerank(SAMPLE_QUERY, [])
+        assert results == []
+
+    def test_rerank_with_top_k(self) -> None:
+        """Test reranking with top_k limit."""
+        with patch("src.rerankers.llm.litellm") as mock_litellm:
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "[95, 72, 88, 45]"
+            mock_litellm.completion.return_value = mock_response
+
+            reranker = LLMReranker(model="test-model", provider="test")
+            results = reranker.rerank(SAMPLE_QUERY, SAMPLE_DOCS, top_k=2)
+
+            assert len(results) == 2
+
+    def test_rerank_rate_limit_exceeded(self) -> None:
+        """Test reranking when rate limit is exceeded."""
+        rate_limiter = SlidingWindowRateLimiter(
+            max_requests_per_hour=1,
+            max_budget_cents_per_hour=1000,
+        )
+        # Consume the one allowed request
+        rate_limiter.check_and_record(cost_cents=1.0)
+
+        reranker = LLMReranker(
+            model="test-model",
+            provider="test",
+            rate_limiter=rate_limiter,
+        )
+
+        with pytest.raises(RateLimitError):
+            reranker.rerank(SAMPLE_QUERY, SAMPLE_DOCS)
+
+    def test_rerank_llm_error_fallback(self) -> None:
+        """Test reranking falls back on LLM error."""
+        with patch("src.rerankers.llm.litellm") as mock_litellm:
+            mock_litellm.completion.side_effect = Exception("API Error")
+
+            reranker = LLMReranker(model="test-model", provider="test")
+            results = reranker.rerank(SAMPLE_QUERY, SAMPLE_DOCS)
+
+            # Should return uniform fallback scores (50.0 each)
+            assert len(results) == 4
+            # All scores should be 0.5 (50.0/100.0)
+            assert all(r.score == 0.5 for r in results)
+
+    async def test_rerank_async_with_mock(self) -> None:
+        """Test async reranking with mocked litellm."""
+        with patch("src.rerankers.llm.litellm") as mock_litellm:
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "[95, 72, 88, 45]"
+            mock_litellm.acompletion = MagicMock(return_value=mock_response)
+
+            reranker = LLMReranker(model="test-model", provider="test")
+            results = await reranker.rerank_async(SAMPLE_QUERY, SAMPLE_DOCS)
+
+            assert len(results) == 4
+
+    async def test_rerank_async_empty(self) -> None:
+        """Test async reranking with empty documents."""
+        reranker = LLMReranker()
+        results = await reranker.rerank_async(SAMPLE_QUERY, [])
+        assert results == []
+
+    async def test_rerank_async_rate_limit_exceeded(self) -> None:
+        """Test async reranking when rate limit is exceeded."""
+        rate_limiter = SlidingWindowRateLimiter(
+            max_requests_per_hour=1,
+            max_budget_cents_per_hour=1000,
+        )
+        # Consume the one allowed request
+        rate_limiter.check_and_record(cost_cents=1.0)
+
+        reranker = LLMReranker(
+            model="test-model",
+            provider="test",
+            rate_limiter=rate_limiter,
+        )
+
+        with pytest.raises(RateLimitError):
+            await reranker.rerank_async(SAMPLE_QUERY, SAMPLE_DOCS)
+
+    async def test_rerank_async_llm_error_fallback(self) -> None:
+        """Test async reranking falls back on LLM error."""
+        with patch("src.rerankers.llm.litellm") as mock_litellm:
+            mock_litellm.acompletion = MagicMock(side_effect=Exception("API Error"))
+
+            reranker = LLMReranker(model="test-model", provider="test")
+            results = await reranker.rerank_async(SAMPLE_QUERY, SAMPLE_DOCS)
+
+            assert len(results) == 4
+            assert all(r.score == 0.5 for r in results)
+
+    def test_rerank_batch(self) -> None:
+        """Test batch reranking."""
+        with patch("src.rerankers.llm.litellm") as mock_litellm:
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "[95, 72]"
+            mock_litellm.completion.return_value = mock_response
+
+            reranker = LLMReranker(model="test-model", provider="test")
+            queries = [SAMPLE_QUERY, "Another query"]
+            docs_batch = [SAMPLE_DOCS[:2], SAMPLE_DOCS[:2]]
+
+            results = reranker.rerank_batch(queries, docs_batch)
+
+            assert len(results) == 2
+            assert all(len(r) == 2 for r in results)
+
+    async def test_rerank_batch_async(self) -> None:
+        """Test async batch reranking."""
+        with patch("src.rerankers.llm.litellm") as mock_litellm:
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "[95, 72]"
+            mock_litellm.acompletion = MagicMock(return_value=mock_response)
+
+            reranker = LLMReranker(model="test-model", provider="test")
+            queries = [SAMPLE_QUERY, "Another query"]
+            docs_batch = [SAMPLE_DOCS[:2], SAMPLE_DOCS[:2]]
+
+            results = await reranker.rerank_batch_async(queries, docs_batch)
+
+            assert len(results) == 2
 
 
 class TestRerankerRouter:

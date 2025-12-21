@@ -265,6 +265,236 @@ class TestRedisSubscriber:
             await subscriber.disconnect()
 
 
+class TestRedisPublisherAdvanced:
+    """Additional tests for RedisPublisher coverage."""
+
+    @pytest.mark.asyncio
+    async def test_connect_reuses_existing_client(self) -> None:
+        """Test connect reuses existing open client."""
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
+            mock_client = AsyncMock()
+            mock_from_url.return_value = mock_client
+
+            publisher = RedisPublisher()
+            # First connect
+            await publisher.connect()
+            # Second connect should reuse and just ping
+            await publisher.connect()
+
+            # from_url called once, ping called twice
+            assert mock_from_url.call_count == 1
+            assert mock_client.ping.call_count == 2
+
+            await publisher.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_connect_reconnects_on_ping_failure(self) -> None:
+        """Test connect creates new client if existing ping fails."""
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
+            mock_client1 = AsyncMock()
+            mock_client1.ping.side_effect = Exception("Connection lost")
+
+            mock_client2 = AsyncMock()
+            mock_client2.ping = AsyncMock()  # New client ping succeeds
+            mock_client2.aclose = AsyncMock()
+
+            mock_from_url.return_value = mock_client2
+
+            publisher = RedisPublisher()
+            # Set existing (broken) client
+            publisher._client = mock_client1
+            # Connect should fail ping and create new client
+            client = await publisher.connect()
+
+            assert client == mock_client2
+            await publisher.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_connect_reuses_in_flight_promise(self) -> None:
+        """Test concurrent connects reuse the same connection task."""
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
+            mock_client = AsyncMock()
+            mock_from_url.return_value = mock_client
+
+            publisher = RedisPublisher()
+
+            # Start two concurrent connects
+            import asyncio
+
+            result1, result2 = await asyncio.gather(
+                publisher.connect(), publisher.connect()
+            )
+
+            # Both should get the same client
+            assert result1 == result2
+            # from_url should only be called once
+            assert mock_from_url.call_count == 1
+
+            await publisher.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_publish_global_session_event(self) -> None:
+        """Test publishing global session event."""
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
+            mock_client = AsyncMock()
+            mock_from_url.return_value = mock_client
+
+            publisher = RedisPublisher()
+            await publisher.publish_global_session_event(
+                event_type="session_created",
+                session_data={"id": "sess-123", "title": "New Session"},
+            )
+
+            mock_client.publish.assert_called_once()
+            call_args = mock_client.publish.call_args
+            assert call_args[0][0] == "sessions:updates"
+
+            import json
+
+            message = json.loads(call_args[0][1])
+            assert message["type"] == "session_created"
+            assert message["session_id"] == ""  # Global event
+            assert message["data"]["id"] == "sess-123"
+
+            await publisher.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_disconnect_when_already_disconnected(self) -> None:
+        """Test disconnect is safe when already disconnected."""
+        publisher = RedisPublisher()
+        # Should not raise
+        await publisher.disconnect()
+
+
+class TestRedisSubscriberAdvanced:
+    """Additional tests for RedisSubscriber coverage."""
+
+    @pytest.mark.asyncio
+    async def test_connect_reuses_existing_client(self) -> None:
+        """Test connect reuses existing open client."""
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
+            mock_client = MagicMock()
+            mock_client.ping = AsyncMock()
+            mock_client.aclose = AsyncMock()
+            mock_pubsub = MagicMock()
+            mock_pubsub.aclose = AsyncMock()
+            mock_pubsub.unsubscribe = AsyncMock()
+            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
+            mock_from_url.return_value = mock_client
+
+            subscriber = RedisSubscriber()
+            await subscriber.connect()
+            await subscriber.connect()
+
+            # from_url called once, ping called twice
+            assert mock_from_url.call_count == 1
+            assert mock_client.ping.call_count == 2
+
+            await subscriber.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_connect_reconnects_on_ping_failure(self) -> None:
+        """Test connect creates new client if existing ping fails."""
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
+            mock_client1 = MagicMock()
+            mock_client1.ping = AsyncMock(side_effect=Exception("Connection lost"))
+            mock_client1.aclose = AsyncMock()
+
+            mock_client2 = MagicMock()
+            mock_client2.ping = AsyncMock()
+            mock_client2.aclose = AsyncMock()
+            mock_pubsub = MagicMock()
+            mock_pubsub.aclose = AsyncMock()
+            mock_pubsub.unsubscribe = AsyncMock()
+            mock_pubsub.listen = MagicMock(return_value=AsyncMock().__aiter__())
+            mock_client2.pubsub = MagicMock(return_value=mock_pubsub)
+
+            mock_from_url.return_value = mock_client2
+
+            subscriber = RedisSubscriber()
+            subscriber._client = mock_client1
+            await subscriber.connect()
+
+            assert subscriber._client == mock_client2
+            await subscriber.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_subscribe_to_consumer_status(self) -> None:
+        """Test subscribe_to_consumer_status helper."""
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
+            mock_client = MagicMock()
+            mock_client.ping = AsyncMock()
+            mock_client.aclose = AsyncMock()
+            mock_pubsub = MagicMock()
+            mock_pubsub.subscribe = AsyncMock()
+            mock_pubsub.unsubscribe = AsyncMock()
+            mock_pubsub.aclose = AsyncMock()
+            mock_pubsub.listen = MagicMock(return_value=AsyncMock().__aiter__())
+            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
+            mock_from_url.return_value = mock_client
+
+            subscriber = RedisSubscriber()
+
+            def callback(msg: dict) -> None:
+                pass
+
+            unsubscribe = await subscriber.subscribe_to_consumer_status(callback)
+
+            mock_pubsub.subscribe.assert_called_once_with("consumers:status")
+            assert callable(unsubscribe)
+
+            await subscriber.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_unsubscribe_removes_callback(self) -> None:
+        """Test unsubscribe function removes the callback."""
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
+            mock_client = MagicMock()
+            mock_client.ping = AsyncMock()
+            mock_client.aclose = AsyncMock()
+            mock_pubsub = MagicMock()
+            mock_pubsub.subscribe = AsyncMock()
+            mock_pubsub.unsubscribe = AsyncMock()
+            mock_pubsub.aclose = AsyncMock()
+            mock_pubsub.listen = MagicMock(return_value=AsyncMock().__aiter__())
+            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
+            mock_from_url.return_value = mock_client
+
+            subscriber = RedisSubscriber()
+
+            def callback(msg: dict) -> None:
+                pass
+
+            unsubscribe = await subscriber.subscribe("test-channel:events", callback)
+
+            # Unsubscribe
+            unsubscribe()
+
+            # Check that subscriptions were cleaned up
+            assert "test-channel:events" not in subscriber._subscriptions
+
+            await subscriber.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_context_manager_subscriber(self) -> None:
+        """Test async context manager protocol for subscriber."""
+        with patch("src.clients.redis.redis.from_url") as mock_from_url:
+            mock_client = MagicMock()
+            mock_client.ping = AsyncMock()
+            mock_client.aclose = AsyncMock()
+            mock_pubsub = MagicMock()
+            mock_pubsub.aclose = AsyncMock()
+            mock_pubsub.unsubscribe = AsyncMock()
+            mock_pubsub.listen = MagicMock(return_value=AsyncMock().__aiter__())
+            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
+            mock_from_url.return_value = mock_client
+
+            async with RedisSubscriber() as subscriber:
+                assert subscriber._client is not None
+
+            mock_client.aclose.assert_called()
+
+
 class TestPydanticModels:
     """Tests for Pydantic models."""
 
