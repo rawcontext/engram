@@ -2,27 +2,12 @@
 # Docs: https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
 version: 2
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Multi-Ecosystem Groups
-# Combines updates across package managers into single PRs for related changes
-# ═══════════════════════════════════════════════════════════════════════════════
-multi-ecosystem-groups:
-  infrastructure:
-    applies-to: version-updates
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "America/Los_Angeles"
-
 updates:
   # ═══════════════════════════════════════════════════════════════════════════
   # NPM - TypeScript Monorepo
   # ═══════════════════════════════════════════════════════════════════════════
   - package-ecosystem: "npm"
     directory: "/"
-    multi-ecosystem-group: "infrastructure"
-    patterns: ["*"]
     schedule:
       interval: "weekly"
       day: "monday"
@@ -148,8 +133,6 @@ updates:
   # ═══════════════════════════════════════════════════════════════════════════
   - package-ecosystem: "uv"
     directory: "/apps/search"
-    multi-ecosystem-group: "infrastructure"
-    patterns: ["*"]
     schedule:
       interval: "weekly"
       day: "monday"
@@ -236,8 +219,6 @@ updates:
   # ═══════════════════════════════════════════════════════════════════════════
   - package-ecosystem: "uv"
     directory: "/apps/tuner"
-    multi-ecosystem-group: "infrastructure"
-    patterns: ["*"]
     schedule:
       interval: "weekly"
       day: "monday"
