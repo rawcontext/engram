@@ -3,6 +3,24 @@ import type { Logger } from "@engram/logger";
 import type { GraphClient } from "@engram/storage";
 
 /**
+ * Payload for turn finalized events.
+ * Contains complete aggregated turn content for indexing.
+ */
+export interface TurnFinalizedPayload {
+	id: string;
+	session_id: string;
+	sequence_index: number;
+	user_content: string;
+	assistant_content: string;
+	reasoning_preview: string;
+	tool_calls: string[];
+	files_touched: string[];
+	input_tokens: number;
+	output_tokens: number;
+	timestamp: number;
+}
+
+/**
  * Context provided to event handlers for processing stream events.
  * Contains all dependencies needed to handle events and update the graph.
  */
@@ -22,6 +40,8 @@ export interface HandlerContext {
 		label: string;
 		properties: Record<string, unknown>;
 	}) => void;
+	/** Callback for publishing turn finalized events to Kafka for indexing */
+	publishTurnFinalized?: (payload: TurnFinalizedPayload) => Promise<void>;
 }
 
 /**

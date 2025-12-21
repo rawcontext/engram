@@ -13,6 +13,34 @@ from src.config import Settings
 logger = logging.getLogger(__name__)
 
 
+# Pre-defined collection schemas
+def get_turns_collection_schema(collection_name: str = "engram_turns") -> "CollectionSchema":
+    """Get schema for turn-level conversation indexing.
+
+    Turn-level indexing provides complete conversation turns for semantic search,
+    replacing fragment-level indexing for better retrieval quality.
+
+    Args:
+        collection_name: Name for the collection (default: engram_turns)
+
+    Returns:
+        CollectionSchema configured for turn-level documents with:
+        - turn_dense: BGE-small dense vectors (384 dims)
+        - turn_sparse: SPLADE sparse vectors
+        - turn_colbert: ColBERT multi-vectors (128 dims)
+    """
+    return CollectionSchema(
+        collection_name=collection_name,
+        dense_vector_size=384,  # BGE-small-en-v1.5
+        dense_vector_name="turn_dense",
+        sparse_vector_name="turn_sparse",
+        colbert_vector_name="turn_colbert",
+        colbert_vector_size=128,
+        enable_colbert=True,
+        distance=Distance.COSINE,
+    )
+
+
 class CollectionSchema(BaseModel):
     """Schema definition for a Qdrant collection."""
 

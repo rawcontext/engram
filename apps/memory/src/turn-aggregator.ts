@@ -6,6 +6,7 @@ import {
 	createDefaultHandlerRegistry,
 	type EventHandlerRegistry,
 	type HandlerContext,
+	type TurnFinalizedPayload,
 	type TurnState,
 } from "./handlers";
 
@@ -67,6 +68,9 @@ export type NodeCreatedCallback = (
 	},
 ) => void;
 
+// Callback type for turn finalized events (for Kafka indexing)
+export type TurnFinalizedCallback = (payload: TurnFinalizedPayload) => Promise<void>;
+
 /**
  * Dependencies for TurnAggregator construction.
  * Supports dependency injection for testability.
@@ -75,6 +79,7 @@ export interface TurnAggregatorDeps {
 	graphClient: GraphClient;
 	logger: Logger;
 	onNodeCreated?: NodeCreatedCallback;
+	onTurnFinalized?: TurnFinalizedCallback;
 	handlerRegistry?: EventHandlerRegistry;
 }
 
@@ -82,6 +87,7 @@ export class TurnAggregator {
 	private graphClient: GraphClient;
 	private logger: Logger;
 	private onNodeCreated?: NodeCreatedCallback;
+	private onTurnFinalized?: TurnFinalizedCallback;
 	private handlerRegistry: EventHandlerRegistry;
 
 	// Instance-level state (moved from module level to prevent cross-instance contamination)
@@ -101,6 +107,7 @@ export class TurnAggregator {
 			this.graphClient = depsOrFalkor.graphClient;
 			this.logger = depsOrFalkor.logger;
 			this.onNodeCreated = depsOrFalkor.onNodeCreated;
+			this.onTurnFinalized = depsOrFalkor.onTurnFinalized;
 			this.handlerRegistry = depsOrFalkor.handlerRegistry ?? createDefaultHandlerRegistry();
 		} else {
 			// Legacy constructor support
@@ -145,6 +152,7 @@ export class TurnAggregator {
 			graphClient: this.graphClient,
 			logger: this.logger,
 			emitNodeCreated: (node) => this.emitNodeCreated(sessionId, node),
+			publishTurnFinalized: this.onTurnFinalized,
 		};
 	}
 

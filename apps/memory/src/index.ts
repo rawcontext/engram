@@ -10,7 +10,11 @@ import { createRedisPublisher } from "@engram/storage/redis";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { type NodeCreatedCallback, TurnAggregator } from "./turn-aggregator";
+import {
+	type NodeCreatedCallback,
+	TurnAggregator,
+	type TurnFinalizedCallback,
+} from "./turn-aggregator";
 
 /**
  * Dependencies for Memory Service construction.
@@ -91,12 +95,26 @@ export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
 		}
 	};
 
+	// Callback for publishing turn_finalized events to Kafka for search indexing
+	const onTurnFinalized: TurnFinalizedCallback = async (payload) => {
+		try {
+			await kafkaClient.sendEvent("memory.turn_finalized", payload.id, payload);
+			logger.debug(
+				{ turnId: payload.id, sessionId: payload.session_id },
+				"Published turn_finalized event",
+			);
+		} catch (e) {
+			logger.error({ err: e, turnId: payload.id }, "Failed to publish turn_finalized event");
+		}
+	};
+
 	const turnAggregator =
 		deps?.turnAggregator ??
 		new TurnAggregator({
 			graphClient,
 			logger,
 			onNodeCreated,
+			onTurnFinalized,
 		});
 
 	return {
@@ -145,7 +163,25 @@ const onNodeCreated: NodeCreatedCallback = async (sessionId, node) => {
 	}
 };
 
-const turnAggregator = new TurnAggregator(falkor, logger, onNodeCreated);
+// Callback for publishing turn_finalized events to Kafka for search indexing
+const onTurnFinalized: TurnFinalizedCallback = async (payload) => {
+	try {
+		await kafka.sendEvent("memory.turn_finalized", payload.id, payload);
+		logger.debug(
+			{ turnId: payload.id, sessionId: payload.session_id },
+			"Published turn_finalized event",
+		);
+	} catch (e) {
+		logger.error({ err: e, turnId: payload.id }, "Failed to publish turn_finalized event");
+	}
+};
+
+const turnAggregator = new TurnAggregator({
+	graphClient: falkor,
+	logger,
+	onNodeCreated,
+	onTurnFinalized,
+});
 
 // Pruning Job Configuration
 const PRUNE_INTERVAL_MS =

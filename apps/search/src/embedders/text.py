@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 class TextEmbedder(BaseEmbedder):
     """Dense text embedder using sentence-transformers.
 
-    Uses BAAI/bge-base-en-v1.5 by default (768 dimensions).
+    Uses BAAI/bge-small-en-v1.5 by default (384 dimensions).
     Supports query vs document prefixes for improved retrieval.
     """
 
     def __init__(
         self,
-        model_name: str = "BAAI/bge-base-en-v1.5",
+        model_name: str = "BAAI/bge-small-en-v1.5",
         device: str = "cpu",
         batch_size: int = 32,
         cache_size: int = 10000,
@@ -139,5 +139,5 @@ class TextEmbedder(BaseEmbedder):
         if self._model_loaded and hasattr(self, "_embedding_dim"):
             dim: int = self._embedding_dim
             return dim
-        # Default for BGE-base
-        return 768
+        # Default for BGE-small
+        return 384

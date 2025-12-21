@@ -22,6 +22,8 @@ from src.retrieval.constants import (
     CODE_DENSE_FIELD,
     SPARSE_FIELD,
     TEXT_DENSE_FIELD,
+    TURN_DENSE_FIELD,
+    TURN_SPARSE_FIELD,
 )
 from src.retrieval.types import RerankerTier, SearchQuery, SearchResultItem, SearchStrategy
 
@@ -69,6 +71,7 @@ class SearchRetriever:
         self.settings = settings
         self.classifier = QueryClassifier()
         self.collection_name = settings.qdrant_collection
+        self.turns_collection_name = settings.qdrant_turns_collection
 
     async def search(self, query: SearchQuery) -> list[SearchResultItem]:
         """Execute search with optional reranking.
@@ -576,3 +579,340 @@ class SearchRetriever:
         )
 
         return selected_tier
+
+    async def search_turns(
+        self,
+        query: SearchQuery,
+        fallback_to_legacy: bool = True,
+    ) -> list[SearchResultItem]:
+        """Search the engram_turns collection for complete conversation turns.
+
+        This method searches the turn-level collection which contains complete
+        user + assistant + reasoning content, providing better semantic context
+        for retrieval compared to fragment-level indexing.
+
+        Args:
+            query: Search query with retrieval parameters.
+            fallback_to_legacy: If True, fall back to engram_memory on empty results.
+
+        Returns:
+            List of search result items sorted by relevance.
+        """
+        text = query.text
+        limit = query.limit
+        filters = query.filters
+        user_strategy = query.strategy
+        rerank = query.rerank
+        rerank_tier = query.rerank_tier
+        rerank_depth = query.rerank_depth
+
+        # Determine effective limit: oversample if reranking is enabled
+        fetch_limit = max(rerank_depth, limit) if rerank else limit
+
+        # Determine strategy using classifier if not provided
+        strategy: SearchStrategy | str = user_strategy or SearchStrategy.HYBRID
+        if not user_strategy:
+            classification = self.classifier.classify(text)
+            strategy = classification["strategy"]
+
+        # Convert string to enum if needed
+        if isinstance(strategy, str):
+            strategy = SearchStrategy(strategy)
+
+        # Build Qdrant filter
+        qdrant_filter = self._build_qdrant_filter(filters)
+
+        # Fetch results from turns collection
+        try:
+            if strategy == SearchStrategy.DENSE:
+                raw_results = await self._search_turns_dense(
+                    text=text,
+                    limit=fetch_limit,
+                    qdrant_filter=qdrant_filter,
+                )
+            elif strategy == SearchStrategy.SPARSE:
+                raw_results = await self._search_turns_sparse(
+                    text=text,
+                    limit=fetch_limit,
+                    qdrant_filter=qdrant_filter,
+                )
+            else:  # HYBRID
+                raw_results = await self._search_turns_hybrid(
+                    text=text,
+                    limit=fetch_limit,
+                    qdrant_filter=qdrant_filter,
+                )
+
+            logger.debug(
+                f"Retrieved {len(raw_results)} turn results for strategy={strategy}, "
+                f"fetch_limit={fetch_limit}"
+            )
+
+            # Fallback to legacy collection if no results
+            if not raw_results and fallback_to_legacy:
+                logger.info("No turns results, falling back to legacy collection")
+                return await self.search(query)
+
+        except Exception as e:
+            logger.warning(f"Turn search failed, falling back to legacy: {e}")
+            if fallback_to_legacy:
+                return await self.search(query)
+            raise
+
+        # Apply reranking if enabled
+        if rerank and raw_results:
+            return await self._apply_reranking(
+                query_text=text,
+                raw_results=raw_results,
+                limit=limit,
+                rerank_tier=rerank_tier,
+                strategy=strategy,
+            )
+
+        # No reranking - return raw results trimmed to limit
+        return self._map_raw_results(raw_results[:limit])
+
+    async def _search_turns_dense(
+        self,
+        text: str,
+        limit: int,
+        qdrant_filter: models.Filter | None,
+    ) -> list[models.ScoredPoint]:
+        """Execute dense vector search on turns collection.
+
+        Args:
+            text: Query text.
+            limit: Number of results to retrieve.
+            qdrant_filter: Optional Qdrant filter.
+
+        Returns:
+            List of scored points from Qdrant.
+        """
+        embedder = await self.embedder_factory.get_text_embedder()
+        vector = await embedder.embed(text, is_query=True)
+
+        results = await self.qdrant_client.client.query_points(
+            collection_name=self.turns_collection_name,
+            query=vector,
+            using=TURN_DENSE_FIELD,
+            query_filter=qdrant_filter,
+            limit=limit,
+            with_payload=True,
+            score_threshold=self.settings.search_min_score_dense,
+        )
+
+        return results.points
+
+    async def _search_turns_sparse(
+        self,
+        text: str,
+        limit: int,
+        qdrant_filter: models.Filter | None,
+    ) -> list[models.ScoredPoint]:
+        """Execute sparse vector search on turns collection.
+
+        Args:
+            text: Query text.
+            limit: Number of results to retrieve.
+            qdrant_filter: Optional Qdrant filter.
+
+        Returns:
+            List of scored points from Qdrant.
+        """
+        sparse_embedder = await self.embedder_factory.get_sparse_embedder()
+        sparse_dict = sparse_embedder.embed_sparse(text)
+
+        sparse_vector = models.SparseVector(
+            indices=list(sparse_dict.keys()),
+            values=list(sparse_dict.values()),
+        )
+
+        results = await self.qdrant_client.client.query_points(
+            collection_name=self.turns_collection_name,
+            query=sparse_vector,
+            using=TURN_SPARSE_FIELD,
+            query_filter=qdrant_filter,
+            limit=limit,
+            with_payload=True,
+            score_threshold=self.settings.search_min_score_sparse,
+        )
+
+        return results.points
+
+    async def _search_turns_hybrid(
+        self,
+        text: str,
+        limit: int,
+        qdrant_filter: models.Filter | None,
+    ) -> list[models.ScoredPoint]:
+        """Execute hybrid search on turns collection with RRF fusion.
+
+        Args:
+            text: Query text.
+            limit: Number of results to retrieve.
+            qdrant_filter: Optional Qdrant filter.
+
+        Returns:
+            List of scored points with RRF scores.
+        """
+        # Generate both vectors in parallel
+        text_embedder = await self.embedder_factory.get_text_embedder()
+        sparse_embedder = await self.embedder_factory.get_sparse_embedder()
+        dense_vector, sparse_dict = await asyncio.gather(
+            text_embedder.embed(text, is_query=True),
+            asyncio.to_thread(sparse_embedder.embed_sparse, text),
+        )
+
+        sparse_vector = models.SparseVector(
+            indices=list(sparse_dict.keys()),
+            values=list(sparse_dict.values()),
+        )
+
+        # Execute hybrid search with prefetch + RRF fusion
+        results = await self.qdrant_client.client.query_points(
+            collection_name=self.turns_collection_name,
+            prefetch=[
+                models.Prefetch(
+                    query=dense_vector,
+                    using=TURN_DENSE_FIELD,
+                    limit=limit * 2,
+                ),
+                models.Prefetch(
+                    query=sparse_vector,
+                    using=TURN_SPARSE_FIELD,
+                    limit=limit * 2,
+                ),
+            ],
+            query=models.FusionQuery(fusion=models.Fusion.RRF),
+            query_filter=qdrant_filter,
+            limit=limit,
+            with_payload=True,
+        )
+
+        return results.points
+
+    def aggregate_by_session(
+        self,
+        results: list[SearchResultItem],
+        max_per_session: int = 3,
+        min_sessions: int = 2,
+    ) -> list[SearchResultItem]:
+        """Aggregate search results to limit dominance by single session.
+
+        Prevents a single session from dominating results by limiting the
+        number of results per session while ensuring diversity.
+
+        Args:
+            results: List of search results to aggregate.
+            max_per_session: Maximum results per session (default: 3).
+            min_sessions: Minimum number of sessions to include (default: 2).
+
+        Returns:
+            Aggregated results with per-session limits applied.
+        """
+        if not results:
+            return []
+
+        # Group results by session
+        session_results: dict[str, list[SearchResultItem]] = {}
+        no_session_results: list[SearchResultItem] = []
+
+        for result in results:
+            session_id = result.payload.get("session_id")
+            if session_id:
+                if session_id not in session_results:
+                    session_results[session_id] = []
+                session_results[session_id].append(result)
+            else:
+                no_session_results.append(result)
+
+        # Sort each session's results by score
+        for session_id in session_results:
+            session_results[session_id].sort(key=lambda r: r.score, reverse=True)
+
+        # Calculate per-session limit (allow more if few sessions)
+        num_sessions = len(session_results)
+        effective_limit = max_per_session * 2 if num_sessions < min_sessions else max_per_session
+
+        # Build aggregated results
+        aggregated: list[SearchResultItem] = []
+
+        # Round-robin collection to ensure session diversity
+        session_ids = list(session_results.keys())
+        indices: dict[str, int] = dict.fromkeys(session_ids, 0)
+
+        # Collect results round-robin until all sessions exhausted up to their limit
+        while True:
+            added_any = False
+            for session_id in session_ids:
+                idx = indices[session_id]
+                if idx < min(len(session_results[session_id]), effective_limit):
+                    aggregated.append(session_results[session_id][idx])
+                    indices[session_id] += 1
+                    added_any = True
+            if not added_any:
+                break
+
+        # Add results without session_id at the end
+        aggregated.extend(no_session_results)
+
+        # Sort final results by score
+        aggregated.sort(key=lambda r: r.score, reverse=True)
+
+        logger.debug(
+            f"Aggregated {len(results)} results to {len(aggregated)} "
+            f"(sessions: {num_sessions}, max_per_session: {effective_limit})"
+        )
+
+        return aggregated
+
+    def deduplicate_results(
+        self,
+        results: list[SearchResultItem],
+    ) -> list[SearchResultItem]:
+        """Deduplicate search results by ID and content.
+
+        Removes duplicate results based on ID and content similarity to ensure
+        diversity in returned results.
+
+        Args:
+            results: List of search results to deduplicate.
+
+        Returns:
+            Deduplicated results preserving highest-scored version of duplicates.
+        """
+        if not results:
+            return []
+
+        # Sort by score descending to keep highest-scored duplicates
+        sorted_results = sorted(results, key=lambda r: r.score, reverse=True)
+
+        seen_ids: set[str | int] = set()
+        seen_content_hashes: set[str] = set()
+        deduplicated: list[SearchResultItem] = []
+
+        for result in sorted_results:
+            # Skip if we've seen this ID
+            if result.id in seen_ids:
+                continue
+
+            # Generate a simple hash of content for deduplication
+            content = result.payload.get("content", "")
+            if isinstance(content, str):
+                # Simple hash: first 100 chars + length
+                content_hash = f"{content[:100].strip().lower()}_{len(content)}"
+
+                # Skip if we've seen similar content
+                if content_hash in seen_content_hashes:
+                    continue
+
+                seen_content_hashes.add(content_hash)
+
+            seen_ids.add(result.id)
+            deduplicated.append(result)
+
+        logger.debug(
+            f"Deduplicated {len(results)} results to {len(deduplicated)}"
+        )
+
+        return deduplicated

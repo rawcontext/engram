@@ -7,7 +7,7 @@ from qdrant_client.http import models
 
 from src.clients.qdrant import QdrantClientWrapper
 from src.config import Settings
-from src.services.schema_manager import CollectionSchema, SchemaManager
+from src.services.schema_manager import CollectionSchema, SchemaManager, get_turns_collection_schema
 
 
 class TestSchemaManager:
@@ -327,3 +327,28 @@ class TestSchemaManager:
         assert schema.on_disk is True
         assert schema.hnsw_m == 32
         assert schema.hnsw_ef_construct == 200
+
+
+class TestTurnsCollectionSchema:
+    """Tests for the get_turns_collection_schema helper function."""
+
+    def test_default_schema(self) -> None:
+        """Test get_turns_collection_schema with default name."""
+        schema = get_turns_collection_schema()
+
+        assert schema.collection_name == "engram_turns"
+        assert schema.dense_vector_size == 384  # BGE-small
+        assert schema.dense_vector_name == "turn_dense"
+        assert schema.sparse_vector_name == "turn_sparse"
+        assert schema.colbert_vector_name == "turn_colbert"
+        assert schema.colbert_vector_size == 128
+        assert schema.enable_colbert is True
+        assert schema.distance == models.Distance.COSINE
+
+    def test_custom_collection_name(self) -> None:
+        """Test get_turns_collection_schema with custom collection name."""
+        schema = get_turns_collection_schema("my_custom_turns")
+
+        assert schema.collection_name == "my_custom_turns"
+        assert schema.dense_vector_size == 384  # Should still use BGE-small dims
+        assert schema.dense_vector_name == "turn_dense"

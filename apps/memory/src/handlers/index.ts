@@ -34,6 +34,7 @@ export type {
 	HandlerResult,
 	ReasoningState,
 	ToolCallState,
+	TurnFinalizedPayload,
 	TurnState,
 } from "./handler.interface";
 // Registry

@@ -139,9 +139,11 @@ services:
     environment:
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=engram_memory
+      - QDRANT_TURNS_COLLECTION=engram_turns
       - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
       - REDIS_URL=redis://falkordb:6379
       - EMBEDDER_DEVICE=cpu
+      - EMBEDDER_TEXT_MODEL=BAAI/bge-small-en-v1.5
       - EMBEDDER_PRELOAD=false
       - DEBUG=true
       - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]

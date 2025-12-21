@@ -15,6 +15,7 @@ from src.rerankers import RerankerRouter
 from src.retrieval import SearchRetriever
 from src.retrieval.multi_query import MultiQueryRetriever
 from src.retrieval.session import SessionAwareRetriever
+from src.services import SchemaManager, get_turns_collection_schema
 from src.utils.logging import configure_logging, get_logger
 from src.utils.metrics import SERVICE_INFO
 from src.utils.tracing import TracingMiddleware
@@ -62,7 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app.state.qdrant = qdrant_client
         logger.info("Qdrant client initialized successfully")
 
-        # Check if collection exists
+        # Check if legacy collection exists
         collection_info = await qdrant_client.get_collection_info()
         if collection_info:
             logger.info(
@@ -74,6 +75,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 f"Collection '{settings.qdrant_collection}' does not exist yet. "
                 "It will be created when first indexing occurs."
             )
+
+        # Ensure engram_turns collection exists for turn-level indexing
+        schema_manager = SchemaManager(qdrant_client, settings)
+        turns_schema = get_turns_collection_schema(settings.qdrant_turns_collection)
+        created = await schema_manager.ensure_collection(turns_schema)
+        if created:
+            logger.info(
+                f"Created turns collection '{settings.qdrant_turns_collection}' "
+                f"with 384-dim dense, sparse, and ColBERT vectors"
+            )
+        app.state.schema_manager = schema_manager
 
     except Exception as e:
         logger.error(f"Failed to initialize Qdrant client: {e}")

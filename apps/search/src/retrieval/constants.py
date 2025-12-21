@@ -80,3 +80,25 @@ SPARSE_FIELD = "text_sparse"
 Used for keyword-based search with learned sparse representations.
 Model: naver/splade-cocondenser-ensembledistil
 """
+
+# Turn collection vector field names (engram_turns)
+TURN_DENSE_FIELD = "turn_dense"
+"""Qdrant vector field name for turn-level dense embeddings.
+
+Used for semantic search on complete conversation turns.
+Model: BAAI/bge-small-en-v1.5 (384 dimensions)
+"""
+
+TURN_SPARSE_FIELD = "turn_sparse"
+"""Qdrant sparse vector field name for turn-level SPLADE embeddings.
+
+Used for keyword-based search on complete conversation turns.
+Model: naver/splade-cocondenser-ensembledistil
+"""
+
+TURN_COLBERT_FIELD = "turn_colbert"
+"""Qdrant multi-vector field name for turn-level ColBERT embeddings.
+
+Used for late-interaction search on complete conversation turns.
+Model: colbert-ir/colbertv2.0 (128 dimensions per token)
+"""

@@ -157,10 +157,9 @@ class DocumentIndexer:
         }
 
         # Add ColBERT vectors if available
+        # For ColBERT, Qdrant expects a list of token embeddings (multi-vector)
         if colbert_vecs and self.config.enable_colbert:
-            # For ColBERT, Qdrant expects a MultiVector
-            # We store each token's embedding as a separate vector
-            vectors[self.config.colbert_vector_name] = models.MultiVector(vectors=colbert_vecs)
+            vectors[self.config.colbert_vector_name] = colbert_vecs
 
         # Build payload with content and metadata
         payload = {

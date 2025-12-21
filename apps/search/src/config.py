@@ -24,10 +24,18 @@ class Settings(BaseSettings):
     # Qdrant
     qdrant_url: str = Field(default="http://localhost:6333", description="Qdrant server URL")
     qdrant_collection: str = Field(default="engram_memory", description="Qdrant collection name")
+    qdrant_turns_collection: str = Field(
+        default="engram_turns", description="Turn-level indexing collection name"
+    )
     qdrant_timeout: int = Field(default=30, description="Qdrant request timeout in seconds")
     qdrant_grpc_port: int | None = Field(default=None, description="Qdrant gRPC port (optional)")
     qdrant_prefer_grpc: bool = Field(
         default=False, description="Prefer gRPC over HTTP for better performance"
+    )
+
+    # FalkorDB (for backfill scripts)
+    falkordb_url: str = Field(
+        default="redis://localhost:6379", description="FalkorDB connection URL"
     )
 
     # Search defaults (to be used in Phase 4)
@@ -49,7 +57,7 @@ class Settings(BaseSettings):
         default="cpu", description="Device for embedder inference: cpu, cuda, mps"
     )
     embedder_text_model: str = Field(
-        default="BAAI/bge-base-en-v1.5", description="Dense text embedding model"
+        default="BAAI/bge-small-en-v1.5", description="Dense text embedding model (384 dims)"
     )
     embedder_code_model: str = Field(
         default="nomic-ai/nomic-embed-text-v1.5", description="Code-specific embedding model"

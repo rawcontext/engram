@@ -62,6 +62,33 @@ export class UsageEventHandler implements EventHandler {
 
 		turn.isFinalized = true;
 
+		// Publish turn_finalized event for search service indexing
+		if (context.publishTurnFinalized) {
+			try {
+				await context.publishTurnFinalized({
+					id: turn.turnId,
+					session_id: turn.sessionId,
+					sequence_index: turn.sequenceIndex,
+					user_content: turn.userContent,
+					assistant_content: turn.assistantContent,
+					reasoning_preview: turn.reasoningBlocks
+						.map((r) => r.content)
+						.join("\n")
+						.slice(0, 500),
+					tool_calls: turn.toolCalls.map((tc) => tc.toolName),
+					files_touched: [...turn.filesTouched.keys()],
+					input_tokens: turn.inputTokens,
+					output_tokens: turn.outputTokens,
+					timestamp: Date.now(),
+				});
+			} catch (e) {
+				context.logger.error(
+					{ err: e, turnId: turn.turnId },
+					"Failed to publish turn_finalized event",
+				);
+			}
+		}
+
 		context.logger.info(
 			{
 				turnId: turn.turnId,
