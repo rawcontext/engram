@@ -7,9 +7,16 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-import torch
-
 logger = logging.getLogger(__name__)
+
+# Optional torch import for local embedders
+try:
+    import torch
+
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None  # type: ignore
 
 
 class BaseEmbedder(ABC):
@@ -61,6 +68,10 @@ class BaseEmbedder(ABC):
         Returns:
                 Validated device string.
         """
+        if not TORCH_AVAILABLE:
+            # When using HuggingFace API, device doesn't matter
+            return "cpu"
+
         if device == "auto":
             if torch.cuda.is_available():
                 return "cuda"
@@ -171,7 +182,7 @@ class BaseEmbedder(ABC):
         self._model_loaded = False
 
         # Clear CUDA cache if using GPU
-        if self.device == "cuda":
+        if TORCH_AVAILABLE and self.device == "cuda":
             torch.cuda.empty_cache()
 
         # Shutdown executor to prevent resource leak

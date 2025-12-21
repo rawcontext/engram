@@ -13,9 +13,6 @@ from typing import Literal
 
 from src.config import Settings, get_settings
 from src.rerankers.base import BaseReranker, RankedResult
-from src.rerankers.colbert import ColBERTReranker
-from src.rerankers.cross_encoder import CrossEncoderReranker
-from src.rerankers.flash import FlashRankReranker
 from src.rerankers.llm import LLMReranker
 from src.utils.rate_limiter import RateLimitError, SlidingWindowRateLimiter
 
@@ -69,10 +66,22 @@ class RerankerRouter:
 
         reranker: BaseReranker
         if tier == "fast":
-            # Fast tier always uses local FlashRank (CPU-optimized, low latency)
-            reranker = FlashRankReranker(
-                model_name=self.settings.reranker_fast_model,
-            )
+            # Fast tier uses FlashRank (requires local dependencies)
+            # Fall back to HuggingFace accurate tier if not available
+            try:
+                from src.rerankers.flash import FlashRankReranker
+
+                reranker = FlashRankReranker(
+                    model_name=self.settings.reranker_fast_model,
+                )
+            except ImportError:
+                logger.warning("FlashRank not available, using HuggingFace for fast tier")
+                from src.clients.huggingface import HuggingFaceReranker
+
+                reranker = HuggingFaceReranker(
+                    model_id=self.settings.reranker_accurate_model,
+                    api_token=self.settings.hf_api_token,
+                )
         elif tier == "accurate":
             # Accurate tier supports HuggingFace backend
             if self.settings.reranker_backend == "huggingface":
@@ -84,6 +93,8 @@ class RerankerRouter:
                     api_token=self.settings.hf_api_token,
                 )
             else:
+                from src.rerankers.cross_encoder import CrossEncoderReranker
+
                 reranker = CrossEncoderReranker(
                     model_name=self.settings.reranker_accurate_model,
                     device=self.settings.embedder_device,
@@ -100,12 +111,16 @@ class RerankerRouter:
                     api_token=self.settings.hf_api_token,
                 )
             else:
+                from src.rerankers.cross_encoder import CrossEncoderReranker
+
                 reranker = CrossEncoderReranker(
                     model_name=self.settings.reranker_code_model,
                     device=self.settings.embedder_device,
                     batch_size=self.settings.reranker_batch_size,
                 )
         elif tier == "colbert":
+            from src.rerankers.colbert import ColBERTReranker
+
             reranker = ColBERTReranker(
                 model_name=self.settings.reranker_colbert_model,
                 device=self.settings.embedder_device,

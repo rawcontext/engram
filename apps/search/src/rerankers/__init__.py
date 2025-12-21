@@ -9,19 +9,24 @@ This module provides multiple reranking tiers:
 """
 
 from src.rerankers.base import BaseReranker, RankedResult
-from src.rerankers.colbert import ColBERTReranker
-from src.rerankers.cross_encoder import CrossEncoderReranker
-from src.rerankers.flash import FlashRankReranker
 from src.rerankers.llm import LLMReranker
 from src.rerankers.router import RerankerRouter, RerankerTier
 
 __all__ = [
     "BaseReranker",
     "RankedResult",
-    "FlashRankReranker",
-    "CrossEncoderReranker",
-    "ColBERTReranker",
     "LLMReranker",
     "RerankerRouter",
     "RerankerTier",
 ]
+
+# Optional local model imports (require sentence-transformers, etc.)
+try:
+    from src.rerankers.colbert import ColBERTReranker
+    from src.rerankers.cross_encoder import CrossEncoderReranker
+    from src.rerankers.flash import FlashRankReranker
+
+    __all__.extend(["FlashRankReranker", "CrossEncoderReranker", "ColBERTReranker"])
+except ImportError:
+    # Local ML dependencies not installed - using HuggingFace API only
+    pass

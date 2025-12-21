@@ -2,23 +2,15 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Literal, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from src.config import Settings
 from src.embedders.base import BaseEmbedder
-from src.embedders.code import CodeEmbedder
-from src.embedders.colbert import ColBERTEmbedder
-from src.embedders.sparse import SparseEmbedder
-from src.embedders.text import TextEmbedder
 
 if TYPE_CHECKING:
     from src.clients.huggingface import HuggingFaceEmbedder
 
 logger = logging.getLogger(__name__)
-
-# Type alias for embedders that can be returned by text/code methods
-TextOrHFEmbedder = Union[TextEmbedder, "HuggingFaceEmbedder"]
-CodeOrHFEmbedder = Union[CodeEmbedder, "HuggingFaceEmbedder"]
 
 EmbedderType = Literal["text", "code", "sparse", "colbert"]
 
@@ -48,7 +40,7 @@ class EmbedderFactory:
             "colbert": asyncio.Lock(),
         }
 
-    async def get_text_embedder(self) -> TextOrHFEmbedder:
+    async def get_text_embedder(self) -> Any:
         """Get or create text embedder instance.
 
         Returns backend-appropriate embedder based on settings.embedder_backend:
@@ -69,6 +61,8 @@ class EmbedderFactory:
                         api_token=self.settings.hf_api_token,
                     )
                 else:
+                    from src.embedders.text import TextEmbedder
+
                     logger.info("Creating local text embedder")
                     self._embedders["text"] = TextEmbedder(
                         model_name=self.settings.embedder_text_model,
@@ -76,9 +70,9 @@ class EmbedderFactory:
                         batch_size=self.settings.embedder_batch_size,
                         cache_size=self.settings.embedder_cache_size,
                     )
-            return self._embedders["text"]  # type: ignore[return-value]
+            return self._embedders["text"]
 
-    async def get_code_embedder(self) -> CodeOrHFEmbedder:
+    async def get_code_embedder(self) -> Any:
         """Get or create code embedder instance.
 
         Returns backend-appropriate embedder based on settings.embedder_backend:
@@ -99,6 +93,8 @@ class EmbedderFactory:
                         api_token=self.settings.hf_api_token,
                     )
                 else:
+                    from src.embedders.code import CodeEmbedder
+
                     logger.info("Creating local code embedder")
                     self._embedders["code"] = CodeEmbedder(
                         model_name=self.settings.embedder_code_model,
@@ -106,16 +102,24 @@ class EmbedderFactory:
                         batch_size=self.settings.embedder_batch_size,
                         cache_size=self.settings.embedder_cache_size,
                     )
-            return self._embedders["code"]  # type: ignore[return-value]
+            return self._embedders["code"]
 
-    async def get_sparse_embedder(self) -> SparseEmbedder:
+    async def get_sparse_embedder(self) -> Any:
         """Get or create sparse embedder instance.
+
+        Note: Sparse embedders require local dependencies and are not available
+        via HuggingFace Inference API.
 
         Returns:
                 SparseEmbedder instance.
+
+        Raises:
+            ImportError: If local ML dependencies are not installed.
         """
         async with self._locks["sparse"]:
             if "sparse" not in self._embedders:
+                from src.embedders.sparse import SparseEmbedder
+
                 logger.info("Creating sparse embedder")
                 self._embedders["sparse"] = SparseEmbedder(
                     model_name=self.settings.embedder_sparse_model,
@@ -123,16 +127,24 @@ class EmbedderFactory:
                     batch_size=self.settings.embedder_batch_size,
                     cache_size=self.settings.embedder_cache_size,
                 )
-            return cast(SparseEmbedder, self._embedders["sparse"])
+            return self._embedders["sparse"]
 
-    async def get_colbert_embedder(self) -> ColBERTEmbedder:
+    async def get_colbert_embedder(self) -> Any:
         """Get or create ColBERT embedder instance.
+
+        Note: ColBERT embedders require local dependencies and are not available
+        via HuggingFace Inference API.
 
         Returns:
                 ColBERTEmbedder instance.
+
+        Raises:
+            ImportError: If local ML dependencies are not installed.
         """
         async with self._locks["colbert"]:
             if "colbert" not in self._embedders:
+                from src.embedders.colbert import ColBERTEmbedder
+
                 logger.info("Creating ColBERT embedder")
                 self._embedders["colbert"] = ColBERTEmbedder(
                     model_name=self.settings.embedder_colbert_model,
@@ -140,7 +152,7 @@ class EmbedderFactory:
                     batch_size=self.settings.embedder_batch_size,
                     cache_size=self.settings.embedder_cache_size,
                 )
-            return cast(ColBERTEmbedder, self._embedders["colbert"])
+            return self._embedders["colbert"]
 
     async def get_embedder(self, embedder_type: EmbedderType) -> BaseEmbedder:
         """Get embedder by type.
@@ -179,16 +191,20 @@ class EmbedderFactory:
             self.get_code_embedder(),
             self.get_sparse_embedder(),
             self.get_colbert_embedder(),
+            return_exceptions=True,
         )
+
+        # Filter out failed embedders
+        successful_embedders = [e for e in embedders if not isinstance(e, Exception)]
 
         # Load all models concurrently, collecting any errors
         results = await asyncio.gather(
-            *[embedder.load() for embedder in embedders],
+            *[embedder.load() for embedder in successful_embedders],
             return_exceptions=True,
         )
 
         # Log any failures but continue
-        for embedder, result in zip(embedders, results, strict=True):
+        for embedder, result in zip(successful_embedders, results, strict=True):
             if isinstance(result, Exception):
                 logger.error(f"Failed to preload {embedder.model_name}: {result}")
                 # Remove failed embedder from the factory
@@ -202,8 +218,6 @@ class EmbedderFactory:
     async def unload_all(self) -> None:
         """Unload all embedder models to free memory."""
         logger.info("Unloading all embedder models...")
-
-        import asyncio
 
         await asyncio.gather(*[embedder.unload() for embedder in self._embedders.values()])
 

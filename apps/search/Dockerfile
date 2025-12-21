@@ -9,7 +9,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml uv.lock* README.md ./
 
 # Install dependencies (without dev dependencies)
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -22,15 +22,10 @@ COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# Production stage
+# Production stage - lightweight, uses HuggingFace Inference API
 FROM python:3.12-slim
 
 WORKDIR /app
-
-# Install libgomp for ONNX runtime (will be needed in Phase 2)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment and source from builder
 COPY --from=base /app/.venv /app/.venv

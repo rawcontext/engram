@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 import httpx
+import numpy as np
 from huggingface_hub import AsyncInferenceClient
 
 from src.rerankers.base import BaseReranker, RankedResult
@@ -97,6 +98,16 @@ class HuggingFaceEmbedder:
                 embedding = await self._client.feature_extraction(text=text, model=self.model_id)
 
                 # Handle different return formats
+                if isinstance(embedding, np.ndarray):
+                    # HuggingFace API returns numpy arrays - convert to list
+                    if embedding.ndim == 1:
+                        return embedding.tolist()
+                    elif embedding.ndim == 2:
+                        # Batch result with single item
+                        return embedding[0].tolist()
+                    else:
+                        raise ValueError(f"Unexpected numpy array shape: {embedding.shape}")
+
                 if isinstance(embedding, list):
                     # Check if it's a nested list (batch result with single item)
                     if embedding and isinstance(embedding[0], list):
