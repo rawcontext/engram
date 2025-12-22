@@ -71,7 +71,20 @@ addopts = "--strict-markers --tb=short --cov=src --cov-report=term-missing --cov
 [tool.coverage.run]
 branch = true
 source = ["src"]
-omit = ["*/tests/*", "*/__pycache__/*"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    # ML modules require optional dependencies not installed in CI
+    "src/embedders/text.py",
+    "src/embedders/code.py",
+    "src/embedders/sparse.py",
+    "src/embedders/colbert.py",
+    "src/rerankers/flash.py",
+    "src/rerankers/cross_encoder.py",
+    "src/rerankers/colbert.py",
+    "src/chunking/semantic.py",
+    "src/chunking/late.py",
+]
 
 [tool.coverage.report]
 fail_under = 80
