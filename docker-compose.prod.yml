@@ -219,6 +219,7 @@ services:
     platform: linux/amd64
     environment:
       - NODE_ENV=production
+      - HOSTNAME=0.0.0.0
       - API_URL=http://api:8080
       - SEARCH_URL=http://search:5002
       - FALKORDB_URL=redis://falkordb:6379
