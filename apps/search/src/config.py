@@ -23,10 +23,7 @@ class Settings(BaseSettings):
 
     # Qdrant
     qdrant_url: str = Field(default="http://localhost:6333", description="Qdrant server URL")
-    qdrant_collection: str = Field(default="engram_memory", description="Qdrant collection name")
-    qdrant_turns_collection: str = Field(
-        default="engram_turns", description="Turn-level indexing collection name"
-    )
+    qdrant_collection: str = Field(default="engram_turns", description="Qdrant collection name")
     qdrant_timeout: int = Field(default=30, description="Qdrant request timeout in seconds")
     qdrant_grpc_port: int | None = Field(default=None, description="Qdrant gRPC port (optional)")
     qdrant_prefer_grpc: bool = Field(
@@ -67,7 +64,7 @@ class Settings(BaseSettings):
     search_rerank_depth: int = Field(default=30, description="Number of results to rerank")
     search_default_strategy: str = Field(
         default="hybrid",
-        description="Default search strategy: 'dense', 'sparse', or 'hybrid'. Use 'dense' when sparse embeddings are unavailable (huggingface backend).",
+        description="Search strategy: 'dense', 'sparse', or 'hybrid'",
     )
 
     # Embedders

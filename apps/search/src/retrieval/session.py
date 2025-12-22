@@ -40,7 +40,7 @@ class SessionRetrieverConfig(BaseModel):
             turns_per_session: Number of turns per session in stage 2 (default: 3).
             final_top_k: Final top-K after reranking (default: 10).
             session_collection: Collection name for session summaries (default: "sessions").
-            turn_collection: Collection name for turns (default: "engram_memory").
+            turn_collection: Collection name for turns (default: "engram_turns").
             session_vector_name: Vector field name for session embeddings (default: "text_dense").
             turn_vector_name: Vector field name for turn embeddings (default: "text_dense").
             session_score_threshold: Minimum score threshold for sessions (default: 0.3).
@@ -53,7 +53,7 @@ class SessionRetrieverConfig(BaseModel):
     session_collection: str = Field(
         default="sessions", description="Collection name for session summaries"
     )
-    turn_collection: str = Field(default="engram_memory", description="Collection name for turns")
+    turn_collection: str = Field(default="engram_turns", description="Collection name for turns")
     session_vector_name: str = Field(
         default="text_dense", description="Vector field name for session embeddings"
     )

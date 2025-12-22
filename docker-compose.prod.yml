@@ -79,9 +79,12 @@ services:
     environment:
       - NODE_ENV=production
       - REDPANDA_BROKERS=redpanda:9092
+      - REDIS_URL=redis://falkordb:6379
       - PORT=5001
     depends_on:
       redpanda:
+        condition: service_healthy
+      falkordb:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:

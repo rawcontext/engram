@@ -1,6 +1,5 @@
 """Test fixtures for tuner tests."""
 
-from collections.abc import AsyncGenerator
 from typing import Any
 from unittest.mock import MagicMock
 

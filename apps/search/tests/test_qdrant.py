@@ -50,9 +50,7 @@ class TestQdrantClientWrapper:
         assert wrapper._client is None
         assert wrapper._collection_name == "test_collection"
 
-    async def test_connect_success(
-        self, settings: Settings, mock_async_client: AsyncMock
-    ) -> None:
+    async def test_connect_success(self, settings: Settings, mock_async_client: AsyncMock) -> None:
         """Test successful connection."""
         mock_collection_info = MagicMock()
         mock_async_client.get_collection = AsyncMock(return_value=mock_collection_info)
@@ -138,9 +136,7 @@ class TestQdrantClientWrapper:
         result = await wrapper.health_check()
 
         assert result is True
-        mock_async_client.get_collection.assert_called_with(
-            collection_name="test_collection"
-        )
+        mock_async_client.get_collection.assert_called_with(collection_name="test_collection")
 
     async def test_health_check_unhealthy(
         self, settings: Settings, mock_async_client: AsyncMock
@@ -201,9 +197,7 @@ class TestQdrantClientWrapper:
         result = await wrapper.collection_exists("custom_collection")
 
         assert result is True
-        mock_async_client.get_collection.assert_called_with(
-            collection_name="custom_collection"
-        )
+        mock_async_client.get_collection.assert_called_with(collection_name="custom_collection")
 
     async def test_collection_exists_not_connected(self, settings: Settings) -> None:
         """Test collection_exists returns False when not connected."""
@@ -240,9 +234,7 @@ class TestQdrantClientWrapper:
         result = await wrapper.get_collection_info("custom_collection")
 
         assert result is mock_info
-        mock_async_client.get_collection.assert_called_with(
-            collection_name="custom_collection"
-        )
+        mock_async_client.get_collection.assert_called_with(collection_name="custom_collection")
 
     async def test_get_collection_info_error(
         self, settings: Settings, mock_async_client: AsyncMock

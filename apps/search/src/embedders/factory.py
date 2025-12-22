@@ -2,13 +2,13 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 from src.config import Settings
 from src.embedders.base import BaseEmbedder
 
 if TYPE_CHECKING:
-    from src.clients.huggingface import HuggingFaceEmbedder
+    pass
 
 logger = logging.getLogger(__name__)
 

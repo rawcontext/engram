@@ -31,11 +31,11 @@ class TestCreateApp:
         app = create_app()
         # Check that routes exist
         route_paths = [route.path for route in app.routes]
-        assert "/health" in route_paths
-        assert "/ready" in route_paths
-        assert "/metrics" in route_paths
-        assert "/search" in route_paths
-        assert "/embed" in route_paths
+        assert "/v1/health" in route_paths
+        assert "/v1/ready" in route_paths
+        assert "/v1/metrics" in route_paths
+        assert "/v1/search" in route_paths
+        assert "/v1/embed" in route_paths
 
     def test_app_has_cors_middleware(self) -> None:
         """Test app has CORS middleware."""
@@ -68,9 +68,10 @@ class TestLifespan:
     @pytest.fixture
     def mock_schema_manager(self):
         """Create mock schema manager."""
-        with patch("src.main.SchemaManager") as mock_cls, patch(
-            "src.main.get_turns_collection_schema"
-        ) as mock_schema:
+        with (
+            patch("src.main.SchemaManager") as mock_cls,
+            patch("src.main.get_turns_collection_schema") as mock_schema,
+        ):
             mock_manager = MagicMock()
             mock_manager.ensure_collection = AsyncMock(return_value=False)
             mock_cls.return_value = mock_manager
@@ -221,9 +222,10 @@ class TestLifespan:
         mock_session_retriever,
     ) -> None:
         """Test startup with model preloading."""
-        with patch("src.main.get_settings") as mock_fn, patch(
-            "src.main.EmbedderFactory"
-        ) as mock_factory_cls:
+        with (
+            patch("src.main.get_settings") as mock_fn,
+            patch("src.main.EmbedderFactory") as mock_factory_cls,
+        ):
             settings = MagicMock()
             settings.debug = False
             settings.qdrant_url = "http://localhost:6333"
@@ -256,9 +258,10 @@ class TestLifespan:
         mock_session_retriever,
     ) -> None:
         """Test startup when preload fails."""
-        with patch("src.main.get_settings") as mock_fn, patch(
-            "src.main.EmbedderFactory"
-        ) as mock_factory_cls:
+        with (
+            patch("src.main.get_settings") as mock_fn,
+            patch("src.main.EmbedderFactory") as mock_factory_cls,
+        ):
             settings = MagicMock()
             settings.debug = False
             settings.qdrant_url = "http://localhost:6333"
@@ -333,9 +336,10 @@ class TestRun:
 
     def test_run_calls_uvicorn(self) -> None:
         """Test that run starts uvicorn server."""
-        with patch("src.main.uvicorn.run") as mock_run, patch(
-            "src.main.get_settings"
-        ) as mock_settings:
+        with (
+            patch("src.main.uvicorn.run") as mock_run,
+            patch("src.main.get_settings") as mock_settings,
+        ):
             settings = MagicMock()
             settings.search_host = "0.0.0.0"
             settings.search_port = 5002

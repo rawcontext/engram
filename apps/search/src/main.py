@@ -14,7 +14,12 @@ from src.clients import KafkaClient, QdrantClientWrapper
 from src.clients.redis import RedisPublisher
 from src.config import get_settings
 from src.embedders import EmbedderFactory
-from src.indexing.turns import TurnFinalizedConsumer, TurnFinalizedConsumerConfig, TurnsIndexer
+from src.indexing.turns import (
+    TurnFinalizedConsumer,
+    TurnFinalizedConsumerConfig,
+    TurnsIndexer,
+    TurnsIndexerConfig,
+)
 from src.rerankers import RerankerRouter
 from src.retrieval import SearchRetriever
 from src.retrieval.multi_query import MultiQueryRetriever
@@ -82,11 +87,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         # Ensure engram_turns collection exists for turn-level indexing
         schema_manager = SchemaManager(qdrant_client, settings)
-        turns_schema = get_turns_collection_schema(settings.qdrant_turns_collection)
+        turns_schema = get_turns_collection_schema(settings.qdrant_collection)
         created = await schema_manager.ensure_collection(turns_schema)
         if created:
             logger.info(
-                f"Created turns collection '{settings.qdrant_turns_collection}' "
+                f"Created turns collection '{settings.qdrant_collection}' "
                 f"with 384-dim dense, sparse, and ColBERT vectors"
             )
         app.state.schema_manager = schema_manager
@@ -146,10 +151,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 await redis_publisher.connect()
                 app.state.redis_publisher = redis_publisher
 
-                # Create turns indexer
+                # Create turns indexer (disable sparse/colbert for HuggingFace API backend)
+                use_local_embeddings = settings.embedder_backend != "huggingface"
+                turns_indexer_config = TurnsIndexerConfig(
+                    enable_sparse=use_local_embeddings,
+                    enable_colbert=use_local_embeddings,
+                )
                 turns_indexer = TurnsIndexer(
                     qdrant_client=app.state.qdrant,
                     embedder_factory=embedder_factory,
+                    config=turns_indexer_config,
                 )
                 app.state.turns_indexer = turns_indexer
 

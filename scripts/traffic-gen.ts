@@ -1122,7 +1122,7 @@ function delay(ms: number): Promise<void> {
 // =============================================================================
 
 async function main() {
-	console.log("\n" + "=".repeat(60));
+	console.log(`\n${"=".repeat(60)}`);
 	console.log("ENGRAM TRAFFIC GENERATOR");
 	console.log("=".repeat(60));
 	console.log(`Provider: ${PROVIDER}`);
@@ -1154,7 +1154,7 @@ async function main() {
 		sessionIds.push(sessionId);
 	}
 
-	console.log("\n" + "=".repeat(60));
+	console.log(`\n${"=".repeat(60)}`);
 	console.log("TRAFFIC GENERATION COMPLETE");
 	console.log("=".repeat(60));
 	console.log(`Sessions created: ${sessionIds.length}`);

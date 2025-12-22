@@ -188,9 +188,7 @@ class TestBatchQueue:
 
         await queue.stop()
 
-    async def test_flush_empty_queue(
-        self, config: BatchConfig, async_callback: AsyncMock
-    ) -> None:
+    async def test_flush_empty_queue(self, config: BatchConfig, async_callback: AsyncMock) -> None:
         """Test that flushing empty queue does nothing."""
         queue = BatchQueue(config, async_callback)
         await queue.start()
@@ -232,9 +230,7 @@ class TestBatchQueue:
         # Error should be logged but not crash
         await queue.stop()
 
-    async def test_queue_size_property(
-        self, config: BatchConfig, mock_callback: MagicMock
-    ) -> None:
+    async def test_queue_size_property(self, config: BatchConfig, mock_callback: MagicMock) -> None:
         """Test queue_size property."""
         queue = BatchQueue(config, mock_callback)
         await queue.start()
@@ -724,7 +720,7 @@ class TestIndexerConfig:
     def test_default_values(self) -> None:
         """Test default configuration values."""
         config = IndexerConfig()
-        assert config.collection_name == "engram_memory"
+        assert config.collection_name == "engram_turns"
         assert config.dense_vector_name == "text_dense"
         assert config.sparse_vector_name == "text_sparse"
         assert config.colbert_vector_name == "text_colbert"

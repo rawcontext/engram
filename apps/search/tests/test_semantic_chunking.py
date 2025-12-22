@@ -126,9 +126,7 @@ class TestSemanticChunker:
         config = ChunkingConfig(max_chunk_chars=100)
         chunker = SemanticChunker(mock_embedder, config)
         text_with_code = (
-            "Here is text.\n\n"
-            "```python\ndef hello():\n    print('Hello')\n```\n\n"
-            "More text."
+            "Here is text.\n\n```python\ndef hello():\n    print('Hello')\n```\n\nMore text."
         )
         chunks = await chunker.chunk(text_with_code)
         code_found = any("```python" in c.text and "print(" in c.text for c in chunks)

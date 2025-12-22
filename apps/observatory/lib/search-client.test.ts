@@ -35,7 +35,7 @@ describe("search-client", () => {
 
 			expect(result).toEqual(mockResponse);
 			expect(fetch).toHaveBeenCalledWith(
-				"http://localhost:5002/search",
+				"http://localhost:5002/v1/search",
 				expect.objectContaining({
 					method: "POST",
 					headers: {
@@ -56,7 +56,7 @@ describe("search-client", () => {
 
 			await search({ text: "test" }, "http://custom:8080");
 
-			expect(fetch).toHaveBeenCalledWith("http://custom:8080/search", expect.any(Object));
+			expect(fetch).toHaveBeenCalledWith("http://custom:8080/v1/search", expect.any(Object));
 		});
 
 		it("should use SEARCH_URL env var when available", async () => {
@@ -72,7 +72,7 @@ describe("search-client", () => {
 
 			await search({ text: "test" });
 
-			expect(fetch).toHaveBeenCalledWith("http://env-url:9090/search", expect.any(Object));
+			expect(fetch).toHaveBeenCalledWith("http://env-url:9090/v1/search", expect.any(Object));
 
 			process.env.SEARCH_URL = originalEnv;
 		});
@@ -105,7 +105,7 @@ describe("search-client", () => {
 
 			await search(request);
 
-			expect(fetch).toHaveBeenCalledWith("http://localhost:5002/search", {
+			expect(fetch).toHaveBeenCalledWith("http://localhost:5002/v1/search", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",

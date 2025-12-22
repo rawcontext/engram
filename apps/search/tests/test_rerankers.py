@@ -32,9 +32,7 @@ def mock_cross_encoder():
         mock_model.device = "cpu"
         # Return scores that put Paris first (highest score)
         mock_model.predict = MagicMock(
-            side_effect=lambda pairs, **kwargs: np.array(
-                [0.9 - i * 0.1 for i in range(len(pairs))]
-            )
+            side_effect=lambda pairs, **kwargs: np.array([0.9 - i * 0.1 for i in range(len(pairs))])
         )
         mock_cls.return_value = mock_model
         yield mock_model

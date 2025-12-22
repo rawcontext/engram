@@ -81,7 +81,7 @@ describe("SearchClient", () => {
 
 			expect(result).toEqual(mockResponse);
 			expect(fetchMock).toHaveBeenCalledWith(
-				"http://localhost:5002/search",
+				"http://localhost:5002/v1/search",
 				expect.objectContaining({
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -178,7 +178,7 @@ describe("SearchClient", () => {
 
 			expect(result).toEqual(mockResponse);
 			expect(fetchMock).toHaveBeenCalledWith(
-				"http://localhost:5002/embed",
+				"http://localhost:5002/v1/embed",
 				expect.objectContaining({
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -258,7 +258,7 @@ describe("SearchClient", () => {
 			const result = await client.health();
 
 			expect(result).toEqual({ status: "healthy", qdrant_connected: true });
-			expect(fetchMock).toHaveBeenCalledWith("http://localhost:5002/health");
+			expect(fetchMock).toHaveBeenCalledWith("http://localhost:5002/v1/health");
 		});
 
 		it("should return unhealthy when response not ok", async () => {

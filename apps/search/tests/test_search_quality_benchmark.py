@@ -164,9 +164,7 @@ class TestSearchQualityBenchmark:
         self, benchmark: SearchQualityBenchmark, mock_qdrant: MagicMock
     ) -> None:
         """Test handling collection stats error."""
-        mock_qdrant.client.get_collection = AsyncMock(
-            side_effect=Exception("Collection not found")
-        )
+        mock_qdrant.client.get_collection = AsyncMock(side_effect=Exception("Collection not found"))
 
         stats = await benchmark.get_collection_stats("missing_collection")
 
@@ -241,9 +239,7 @@ class TestSearchQualityBenchmarkIntegration:
         """Test evaluating a collection with mocked results."""
         mock_qdrant = MagicMock()
         mock_qdrant.client = AsyncMock()
-        mock_qdrant.client.get_collection = AsyncMock(
-            return_value=MagicMock(points_count=100)
-        )
+        mock_qdrant.client.get_collection = AsyncMock(return_value=MagicMock(points_count=100))
 
         mock_embedders = MagicMock()
 
@@ -276,9 +272,7 @@ class TestSearchQualityBenchmarkIntegration:
         """Test evaluating a collection with no results."""
         mock_qdrant = MagicMock()
         mock_qdrant.client = AsyncMock()
-        mock_qdrant.client.get_collection = AsyncMock(
-            return_value=MagicMock(points_count=0)
-        )
+        mock_qdrant.client.get_collection = AsyncMock(return_value=MagicMock(points_count=0))
 
         mock_embedders = MagicMock()
 

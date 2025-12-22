@@ -71,7 +71,7 @@ class SearchRetriever:
         self.settings = settings
         self.classifier = QueryClassifier()
         self.collection_name = settings.qdrant_collection
-        self.turns_collection_name = settings.qdrant_turns_collection
+        self.turns_collection_name = settings.qdrant_collection
 
     async def search(self, query: SearchQuery) -> list[SearchResultItem]:
         """Execute search with optional reranking.

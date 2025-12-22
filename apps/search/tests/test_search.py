@@ -8,7 +8,7 @@ from httpx import AsyncClient
 async def test_search_endpoint_exists(client: AsyncClient) -> None:
     """Test that /search endpoint is accessible."""
     response = await client.post(
-        "/search",
+        "/v1/search",
         json={
             "text": "test query",
             "limit": 5,
@@ -22,7 +22,7 @@ async def test_search_endpoint_exists(client: AsyncClient) -> None:
 async def test_search_with_minimal_request(client: AsyncClient) -> None:
     """Test search with minimal required fields."""
     response = await client.post(
-        "/search",
+        "/v1/search",
         json={
             "text": "test query",
         },
@@ -41,7 +41,7 @@ async def test_search_with_minimal_request(client: AsyncClient) -> None:
 async def test_search_with_full_request(client: AsyncClient) -> None:
     """Test search with all optional parameters."""
     response = await client.post(
-        "/search",
+        "/v1/search",
         json={
             "text": "test query",
             "limit": 10,
@@ -65,7 +65,7 @@ async def test_search_validates_limit_range(client: AsyncClient) -> None:
     """Test that search validates limit parameter range."""
     # Test limit too high
     response = await client.post(
-        "/search",
+        "/v1/search",
         json={
             "text": "test query",
             "limit": 1000,  # Exceeds max of 100
@@ -79,7 +79,7 @@ async def test_search_validates_threshold_range(client: AsyncClient) -> None:
     """Test that search validates threshold parameter range."""
     # Test threshold too high
     response = await client.post(
-        "/search",
+        "/v1/search",
         json={
             "text": "test query",
             "threshold": 1.5,  # Exceeds max of 1.0
@@ -92,7 +92,7 @@ async def test_search_validates_threshold_range(client: AsyncClient) -> None:
 async def test_search_requires_text_field(client: AsyncClient) -> None:
     """Test that search requires the text field."""
     response = await client.post(
-        "/search",
+        "/v1/search",
         json={
             "limit": 10,
             # Missing required 'text' field
@@ -105,7 +105,7 @@ async def test_search_requires_text_field(client: AsyncClient) -> None:
 async def test_embed_endpoint_exists(client: AsyncClient) -> None:
     """Test that /embed endpoint is accessible."""
     response = await client.post(
-        "/embed",
+        "/v1/embed",
         json={
             "text": "test text to embed",
         },
@@ -118,7 +118,7 @@ async def test_embed_endpoint_exists(client: AsyncClient) -> None:
 async def test_embed_with_minimal_request(client: AsyncClient) -> None:
     """Test embed with minimal required fields."""
     response = await client.post(
-        "/embed",
+        "/v1/embed",
         json={
             "text": "test text",
         },
@@ -143,7 +143,7 @@ async def test_embed_with_minimal_request(client: AsyncClient) -> None:
 async def test_embed_with_full_request(client: AsyncClient) -> None:
     """Test embed with all optional parameters."""
     response = await client.post(
-        "/embed",
+        "/v1/embed",
         json={
             "text": "def hello(): return 'world'",
             "embedder_type": "code",
@@ -163,7 +163,7 @@ async def test_embed_with_full_request(client: AsyncClient) -> None:
 async def test_embed_requires_text_field(client: AsyncClient) -> None:
     """Test that embed requires the text field."""
     response = await client.post(
-        "/embed",
+        "/v1/embed",
         json={
             "embedder_type": "text",
             # Missing required 'text' field
@@ -176,7 +176,7 @@ async def test_embed_requires_text_field(client: AsyncClient) -> None:
 async def test_embed_vectors_are_normalized(client: AsyncClient) -> None:
     """Test that embed returns normalized vectors (L2 norm ≈ 1)."""
     response = await client.post(
-        "/embed",
+        "/v1/embed",
         json={
             "text": "test normalization",
         },
@@ -201,8 +201,8 @@ async def test_embed_vectors_are_normalized(client: AsyncClient) -> None:
 async def test_embed_similar_texts_high_similarity(client: AsyncClient) -> None:
     """Test that similar texts have high cosine similarity."""
     # Embed two similar texts
-    response1 = await client.post("/embed", json={"text": "machine learning algorithms"})
-    response2 = await client.post("/embed", json={"text": "machine learning models"})
+    response1 = await client.post("/v1/embed", json={"text": "machine learning algorithms"})
+    response2 = await client.post("/v1/embed", json={"text": "machine learning models"})
 
     # Should return 200 or 503 (if embedder factory not initialized in test)
     assert response1.status_code in [200, 503]

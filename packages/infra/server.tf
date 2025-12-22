@@ -27,12 +27,14 @@ resource "hcloud_server" "engram" {
 
     packages:
       - docker.io
-      - docker-compose-plugin
+      - docker-compose-v2
       - ufw
       - htop
       - curl
       - wget
       - git
+      - jq
+      - unzip
 
     runcmd:
       # Enable and start Docker

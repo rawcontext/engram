@@ -33,7 +33,12 @@ class TurnsIndexerConfig(BaseModel):
     dense_vector_name: str = Field(default="turn_dense", description="Dense vector field")
     sparse_vector_name: str = Field(default="turn_sparse", description="Sparse vector field")
     colbert_vector_name: str = Field(default="turn_colbert", description="ColBERT vector field")
-    enable_colbert: bool = Field(default=True, description="Enable ColBERT embeddings")
+    enable_sparse: bool = Field(
+        default=True, description="Enable sparse embeddings (requires local ML dependencies)"
+    )
+    enable_colbert: bool = Field(
+        default=True, description="Enable ColBERT embeddings (requires local ML dependencies)"
+    )
     batch_size: int = Field(default=32, description="Embedding batch size")
 
 
@@ -87,15 +92,17 @@ class TurnsIndexer:
             await text_embedder.load()
             dense_embeddings = await text_embedder.embed_batch(texts, is_query=False)
 
-            # Generate sparse embeddings
-            logger.debug("Generating sparse embeddings...")
-            sparse_embedder = await self.embedders.get_sparse_embedder()
-            await sparse_embedder.load()
-            sparse_embeddings = sparse_embedder.embed_sparse_batch(texts)
+            # Generate sparse embeddings (optional, requires local ML dependencies)
+            sparse_embeddings: list[dict[int, float]] = [{} for _ in documents]
+            if self.config.enable_sparse:
+                logger.debug("Generating sparse embeddings...")
+                sparse_embedder = await self.embedders.get_sparse_embedder()
+                await sparse_embedder.load()
+                sparse_embeddings = sparse_embedder.embed_sparse_batch(texts)
 
-            # Generate ColBERT embeddings (optional)
+            # Generate ColBERT embeddings (optional, requires local ML dependencies)
             colbert_embeddings: list[list[list[float]] | None] = [None] * len(documents)
-            if self.config.enable_colbert:
+            if self.config.enable_sparse and self.config.enable_colbert:
                 logger.debug("Generating ColBERT embeddings...")
                 colbert_embedder = await self.embedders.get_colbert_embedder()
                 await colbert_embedder.load()
@@ -473,7 +480,7 @@ def create_turns_consumer(
         Configured TurnFinalizedConsumer ready to start.
     """
     indexer_config = TurnsIndexerConfig(
-        collection_name=settings.qdrant_turns_collection,
+        collection_name=settings.qdrant_collection,
     )
 
     indexer = TurnsIndexer(

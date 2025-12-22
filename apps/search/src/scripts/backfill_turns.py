@@ -92,7 +92,7 @@ class TurnsBackfiller:
 
             # Initialize indexer
             indexer_config = TurnsIndexerConfig(
-                collection_name=self.settings.qdrant_turns_collection,
+                collection_name=self.settings.qdrant_collection,
                 batch_size=self.batch_size,
             )
             self._indexer = TurnsIndexer(self._qdrant, self._embedders, indexer_config)

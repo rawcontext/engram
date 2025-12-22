@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class IndexerConfig(BaseModel):
     """Configuration for document indexer."""
 
-    collection_name: str = Field(default="engram_memory", description="Qdrant collection")
+    collection_name: str = Field(default="engram_turns", description="Qdrant collection")
     dense_vector_name: str = Field(default="text_dense", description="Dense vector field")
     sparse_vector_name: str = Field(default="text_sparse", description="Sparse vector field")
     colbert_vector_name: str = Field(default="text_colbert", description="ColBERT vector field")

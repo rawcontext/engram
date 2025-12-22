@@ -74,6 +74,14 @@ class HuggingFaceEmbedder:
         """
         return self.config["dimensions"]
 
+    async def load(self) -> None:
+        """Load the embedder (no-op for API-based embedder).
+
+        This method exists for compatibility with local embedders that require
+        model loading. API-based embedders are ready immediately.
+        """
+        logger.debug(f"HuggingFaceEmbedder '{self.model_id}' ready (API-based)")
+
     async def embed(self, text: str, is_query: bool = True) -> list[float]:
         """Generate embedding for a single text.
 

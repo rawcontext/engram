@@ -50,7 +50,7 @@ describe("SearchClient", () => {
 			});
 
 			expect(fetch).toHaveBeenCalledWith(
-				"http://localhost:5002/search",
+				"http://localhost:5002/v1/search",
 				expect.objectContaining({
 					method: "POST",
 					headers: {
@@ -132,7 +132,7 @@ describe("SearchClient", () => {
 
 			await clientWithSlash.search({ text: "test" });
 
-			expect(fetch).toHaveBeenCalledWith("http://localhost:5002/search", expect.any(Object));
+			expect(fetch).toHaveBeenCalledWith("http://localhost:5002/v1/search", expect.any(Object));
 		});
 
 		it("should throw error on failed request", async () => {

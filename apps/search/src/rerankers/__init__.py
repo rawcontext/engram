@@ -22,9 +22,9 @@ __all__ = [
 
 # Optional local model imports (require sentence-transformers, etc.)
 try:
-    from src.rerankers.colbert import ColBERTReranker
-    from src.rerankers.cross_encoder import CrossEncoderReranker
-    from src.rerankers.flash import FlashRankReranker
+    from src.rerankers.colbert import ColBERTReranker  # noqa: F401
+    from src.rerankers.cross_encoder import CrossEncoderReranker  # noqa: F401
+    from src.rerankers.flash import FlashRankReranker  # noqa: F401
 
     __all__.extend(["FlashRankReranker", "CrossEncoderReranker", "ColBERTReranker"])
 except ImportError:

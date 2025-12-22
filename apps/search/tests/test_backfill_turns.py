@@ -173,9 +173,7 @@ class TestTurnsBackfiller:
         assert indexed == 0  # Dry run doesn't index
 
     @pytest.mark.asyncio
-    async def test_query_turns_parses_response(
-        self, dry_run_backfiller: TurnsBackfiller
-    ) -> None:
+    async def test_query_turns_parses_response(self, dry_run_backfiller: TurnsBackfiller) -> None:
         """Test parsing FalkorDB response."""
         mock_redis = AsyncMock()
         mock_redis.ping = AsyncMock()
@@ -202,9 +200,7 @@ class TestTurnsBackfiller:
         assert turns[1]["turn_id"] == "turn-2"
 
     @pytest.mark.asyncio
-    async def test_query_turns_empty_response(
-        self, dry_run_backfiller: TurnsBackfiller
-    ) -> None:
+    async def test_query_turns_empty_response(self, dry_run_backfiller: TurnsBackfiller) -> None:
         """Test handling empty FalkorDB response."""
         mock_redis = AsyncMock()
         mock_redis.ping = AsyncMock()

@@ -93,9 +93,7 @@ class TestLateChunker:
         result = chunker.embed_chunks("Some text", [])
         assert result == []
 
-    def test_embed_chunks_single_chunk(
-        self, chunker: LateChunker, mock_model: MagicMock
-    ) -> None:
+    def test_embed_chunks_single_chunk(self, chunker: LateChunker, mock_model: MagicMock) -> None:
         """Test embedding a single chunk."""
         full_text = "The quick brown fox"
         chunks = ["The quick brown fox"]
@@ -125,9 +123,7 @@ class TestLateChunker:
         for emb in result:
             assert emb.shape == (384,)
 
-    def test_embed_with_boundaries(
-        self, chunker: LateChunker, mock_model: MagicMock
-    ) -> None:
+    def test_embed_with_boundaries(self, chunker: LateChunker, mock_model: MagicMock) -> None:
         """Test embedding with pre-computed boundaries."""
         boundaries = [
             ChunkBoundary(start_token=1, end_token=3),
@@ -140,16 +136,12 @@ class TestLateChunker:
         for emb in result:
             assert emb.shape == (384,)
 
-    def test_embed_with_boundaries_empty(
-        self, chunker: LateChunker
-    ) -> None:
+    def test_embed_with_boundaries_empty(self, chunker: LateChunker) -> None:
         """Test embedding with empty boundaries."""
         result = chunker.embed_with_boundaries("Test text", [])
         assert result == []
 
-    def test_embed_and_chunk(
-        self, chunker: LateChunker, mock_model: MagicMock
-    ) -> None:
+    def test_embed_and_chunk(self, chunker: LateChunker, mock_model: MagicMock) -> None:
         """Test embed_and_chunk returns full results."""
         full_text = "Hello world"
         chunks = ["Hello world"]
@@ -166,9 +158,7 @@ class TestLateChunker:
         result = chunker.embed_and_chunk("", [])
         assert result == []
 
-    def test_pool_tokens_valid_range(
-        self, chunker: LateChunker
-    ) -> None:
+    def test_pool_tokens_valid_range(self, chunker: LateChunker) -> None:
         """Test pooling tokens within valid range."""
         token_embeddings = torch.randn(10, 384)
 
@@ -176,9 +166,7 @@ class TestLateChunker:
 
         assert result.shape == (384,)
 
-    def test_pool_tokens_invalid_range(
-        self, chunker: LateChunker
-    ) -> None:
+    def test_pool_tokens_invalid_range(self, chunker: LateChunker) -> None:
         """Test pooling tokens with invalid range uses fallback."""
         token_embeddings = torch.randn(10, 384)
 
@@ -187,9 +175,7 @@ class TestLateChunker:
 
         assert result.shape == (384,)
 
-    def test_pool_tokens_out_of_bounds(
-        self, chunker: LateChunker
-    ) -> None:
+    def test_pool_tokens_out_of_bounds(self, chunker: LateChunker) -> None:
         """Test pooling tokens with out of bounds indices."""
         token_embeddings = torch.randn(10, 384)
 
@@ -198,9 +184,7 @@ class TestLateChunker:
 
         assert result.shape == (384,)
 
-    def test_normalize_embeddings(
-        self, mock_model: MagicMock
-    ) -> None:
+    def test_normalize_embeddings(self, mock_model: MagicMock) -> None:
         """Test that embeddings are normalized by default."""
         chunker = LateChunker(mock_model, normalize_embeddings=True)
         token_embeddings = torch.randn(10, 384)
@@ -211,9 +195,7 @@ class TestLateChunker:
         norm = np.linalg.norm(result)
         np.testing.assert_almost_equal(norm, 1.0, decimal=5)
 
-    def test_no_normalize_embeddings(
-        self, mock_model: MagicMock
-    ) -> None:
+    def test_no_normalize_embeddings(self, mock_model: MagicMock) -> None:
         """Test disabling embedding normalization."""
         chunker = LateChunker(mock_model, normalize_embeddings=False)
         token_embeddings = torch.randn(10, 384)
@@ -233,9 +215,7 @@ class TestLateChunker:
         for emb in result:
             assert emb.shape == (384,)
 
-    def test_find_chunk_boundaries(
-        self, chunker: LateChunker, mock_model: MagicMock
-    ) -> None:
+    def test_find_chunk_boundaries(self, chunker: LateChunker, mock_model: MagicMock) -> None:
         """Test finding chunk boundaries in text."""
         full_text = "Hello world. Goodbye world."
         chunks = ["Hello world.", "Goodbye world."]
@@ -260,9 +240,7 @@ class TestLateChunker:
         full_text = "Hello world"
         chunks = ["Not in text"]
 
-        mock_model.tokenize.return_value = {
-            "input_ids": torch.tensor([[101, 1, 2, 3, 102]])
-        }
+        mock_model.tokenize.return_value = {"input_ids": torch.tensor([[101, 1, 2, 3, 102]])}
 
         boundaries = chunker._find_chunk_boundaries(full_text, chunks)
 

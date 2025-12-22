@@ -11,10 +11,10 @@ __all__ = [
 
 # Optional local model imports (require sentence-transformers, torch, etc.)
 try:
-    from src.embedders.code import CodeEmbedder
-    from src.embedders.colbert import ColBERTEmbedder
-    from src.embedders.sparse import SparseEmbedder
-    from src.embedders.text import TextEmbedder
+    from src.embedders.code import CodeEmbedder  # noqa: F401
+    from src.embedders.colbert import ColBERTEmbedder  # noqa: F401
+    from src.embedders.sparse import SparseEmbedder  # noqa: F401
+    from src.embedders.text import TextEmbedder  # noqa: F401
 
     __all__.extend(["TextEmbedder", "CodeEmbedder", "SparseEmbedder", "ColBERTEmbedder"])
 except ImportError:
