@@ -213,6 +213,9 @@ jobs:
             EMBEDDER_TEXT_MODEL=${{ vars.EMBEDDER_TEXT_MODEL }}
             SEARCH_DEFAULT_STRATEGY=${{ vars.SEARCH_DEFAULT_STRATEGY }}
             CORS_ORIGINS=${{ vars.CORS_ORIGINS }}
+            BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
             EOF
 
   # Deploy API service
