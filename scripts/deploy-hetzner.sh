@@ -53,7 +53,7 @@ ssh engram@$SERVER_IP << 'EOF'
     cd /opt/engram
 
     echo "Creating data directories..."
-    mkdir -p data/{qdrant,falkordb,postgres,redpanda}
+    mkdir -p data/{qdrant,falkordb,postgres,nats}
 
     echo "Pulling latest images..."
     docker compose -f docker-compose.prod.yml pull

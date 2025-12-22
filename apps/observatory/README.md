@@ -100,7 +100,7 @@ Observatory communicates with the Python search service:
 ### Prerequisites
 
 - **Node.js**: 24+
-- **Infrastructure**: Running via `npm run infra:up` from monorepo root
+- **Infrastructure**: Running via `bun run infra:up` from monorepo root
   - FalkorDB (Redis-based graph): port 6379
   - Qdrant (vector store): port 6333
   - Redpanda (Kafka): port 19092
@@ -111,11 +111,11 @@ Observatory communicates with the Python search service:
 ```bash
 # From monorepo root
 npm install
-npm run infra:up
+bun run infra:up
 
 # Start observatory
 cd apps/observatory
-npm run dev
+bun run dev
 ```
 
 **Access**: http://localhost:5000
@@ -133,12 +133,12 @@ PORT=5000                              # Observatory port
 ### Scripts
 
 ```bash
-npm run dev          # Start dev server with custom WebSocket handler
-npm run build        # Production build
-npm run start        # Production server
-npm run typecheck    # TypeScript validation (tsgo)
-npm run lint         # Biome linting
-npm run format       # Biome formatting
+bun run dev          # Start dev server with custom WebSocket handler
+bun run build        # Production build
+bun run start        # Production server
+bun run typecheck    # TypeScript validation (tsgo)
+bun run lint         # Biome linting
+bun run format       # Biome formatting
 npm test:watch       # Vitest watch mode
 npm test:e2e         # Playwright E2E tests
 npm test:e2e:ui      # Playwright UI mode
@@ -148,7 +148,7 @@ npm test:e2e:ui      # Playwright UI mode
 
 ```bash
 # From monorepo root
-npx tsx scripts/traffic-gen.ts
+bunx tsx scripts/traffic-gen.ts
 ```
 
 ---
@@ -445,7 +445,7 @@ type SearchResult {
 **Problem**: WebSocket fails to connect
 
 **Solutions**:
-1. Verify you're running `npm run dev` (not `next dev` directly)
+1. Verify you're running `bun run dev` (not `next dev` directly)
 2. Check port 5000 is available: `lsof -i :5000`
 3. Ensure Redis is running: `docker ps | grep redis`
 4. Check browser console for upgrade errors
@@ -462,7 +462,7 @@ type SearchResult {
    > GRAPH.QUERY engram "MATCH (s:Session) RETURN count(s)"
    ```
 3. Check memory service is running and publishing to Redis
-4. Generate test data: `npx tsx scripts/traffic-gen.ts`
+4. Generate test data: `bunx tsx scripts/traffic-gen.ts`
 
 ### Search Returns No Results
 
@@ -480,7 +480,7 @@ type SearchResult {
 **Problem**: Footer shows services offline
 
 **Solutions**:
-1. Start all services: `npm run dev` from monorepo root
+1. Start all services: `bun run dev` from monorepo root
 2. Check Redpanda: http://localhost:8080 (Redpanda Console)
 3. Verify consumer groups:
    ```bash

@@ -166,19 +166,19 @@ Tools from MCP servers are dynamically discovered and merged with built-in tools
 
 ```bash
 # From monorepo root
-npm run dev --filter=@engram/control
+bun run dev --filter=@engram/control
 
 # Or from this directory
-npm run dev
+bun run dev
 
 # Run tests
 npm test
 
 # Type checking
-npm run typecheck
+bun run typecheck
 
 # Linting
-npm run lint
+bun run lint
 ```
 
 ## Kafka Integration

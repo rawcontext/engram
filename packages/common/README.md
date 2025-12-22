@@ -44,7 +44,7 @@ const port = envNum("PORT", 3000);
 const threshold = envFloat("SCORE_THRESHOLD", 0.75);
 
 // Array (comma-separated by default)
-const brokers = envArray("KAFKA_BROKERS", ["localhost:9092"]);
+const servers = envArray("NATS_SERVERS", ["localhost:4222"]);
 const hosts = envArray("REDIS_HOSTS", ["127.0.0.1"], ";"); // Custom delimiter
 
 // Required (throws if not set)
@@ -264,7 +264,7 @@ RateLimits.INGESTION_EPS;                // 100 events/sec
 // Batch Limits
 BatchLimits.DEFAULT_BATCH_SIZE;          // 100
 BatchLimits.EMBEDDING_BATCH_SIZE;        // 32
-BatchLimits.KAFKA_BATCH_SIZE;            // 100
+BatchLimits.MESSAGE_BATCH_SIZE;          // 100
 
 // Intervals (all in milliseconds)
 PruneIntervals.GRAPH_PRUNE_MS;           // 86,400,000 (24 hours)

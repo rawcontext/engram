@@ -394,13 +394,13 @@ jobs:
           script: |
             cd /opt/engram
             echo "Creating data directories..."
-            mkdir -p data/{qdrant,falkordb,postgres,redpanda}
+            mkdir -p data/{qdrant,falkordb,postgres,nats}
 
             echo "Pulling infrastructure images..."
-            docker compose -f docker-compose.prod.yml pull redpanda qdrant falkordb postgres
+            docker compose -f docker-compose.prod.yml pull nats qdrant falkordb postgres
 
             echo "Starting infrastructure services..."
-            docker compose -f docker-compose.prod.yml up -d redpanda qdrant falkordb postgres
+            docker compose -f docker-compose.prod.yml up -d nats qdrant falkordb postgres
 
             echo "Waiting for services to be healthy..."
             sleep 15

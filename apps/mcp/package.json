@@ -33,7 +33,7 @@
 	],
 	"license": "AGPL-3.0",
 	"engines": {
-		"node": ">=20"
+		"bun": ">=1.0"
 	},
 	"publishConfig": {
 		"access": "public"
@@ -59,9 +59,9 @@
 		"build": "tsup",
 		"build:tsc": "tsgo",
 		"typecheck": "tsgo --noEmit",
-		"prepublishOnly": "npm run build",
-		"start": "node dist/index.js",
-		"start:http": "node dist/http-server.js",
+		"prepublishOnly": "bun run build",
+		"start": "bun dist/index.js",
+		"start:http": "bun dist/http-server.js",
 		"lint": "biome check .",
 		"format": "biome format ."
 	}

@@ -20,13 +20,13 @@ cd packages/infra
 tofu init -backend-config="conn_str=$TOFU_PG_CONN_STR"
 
 # Preview changes
-npm run plan
+bun run plan
 
 # Apply changes
-npm run up
+bun run up
 
 # View outputs
-npm run output
+bun run output
 ```
 
 ## Infrastructure Components
@@ -165,14 +165,14 @@ gh workflow run deploy.yml -f force_infra=true
 ## NPM Scripts
 
 ```bash
-npm run init      # tofu init
-npm run validate  # tofu validate
-npm run fmt       # tofu fmt -recursive
-npm run plan      # tofu plan
-npm run up        # tofu apply -auto-approve
-npm run down      # tofu destroy -auto-approve
-npm run output    # tofu output
-npm run state     # tofu state list
+bun run init      # tofu init
+bun run validate  # tofu validate
+bun run fmt       # tofu fmt -recursive
+bun run plan      # tofu plan
+bun run up        # tofu apply -auto-approve
+bun run down      # tofu destroy -auto-approve
+bun run output    # tofu output
+bun run state     # tofu state list
 ```
 
 ## Outputs
@@ -233,10 +233,10 @@ If you have existing resources to import:
 
 ```bash
 # Import existing server
-npm run import:server
+bun run import:server
 
 # Import existing SSH key
-npm run import:ssh
+bun run import:ssh
 
 # Import DNS records (get IDs from Vercel)
 tofu import vercel_dns_record.api rec_xxxxx

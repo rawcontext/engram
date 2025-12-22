@@ -5,16 +5,16 @@ Bitemporal, graph-backed intelligent agent memory system. Hybrid TypeScript/Pyth
 ## Critical Commands
 
 ```bash
-# TypeScript (npm workspaces)
-npm install              # Install all workspaces
-npm run infra:up         # Start Redpanda, FalkorDB, Qdrant, Postgres
-npm run infra:down       # Stop infrastructure
-npm run dev              # Start all apps in dev mode
-npm run build            # Build all apps/packages
-npm test                 # Run vitest
-npm run typecheck        # TypeScript validation
-npm run lint             # Biome linting
-npm run format           # Biome formatting
+# TypeScript (bun workspaces)
+bun install              # Install all workspaces
+bun run infra:up         # Start NATS, FalkorDB, Qdrant, Postgres
+bun run infra:down       # Stop infrastructure
+bun run dev              # Start all apps in dev mode
+bun run build            # Build all apps/packages
+bun test                 # Run vitest
+bun run typecheck        # TypeScript validation
+bun run lint             # Biome linting
+bun run format           # Biome formatting
 
 # Python apps (uv)
 cd apps/search && uv sync      # Install dependencies
@@ -31,17 +31,17 @@ cd apps/tuner && uv run tuner  # Start tuner service
 
 ### TypeScript
 - **Formatter/Linter**: Biome (tabs, double quotes, 100 char line width)
-- **Package Manager**: npm only (never yarn/pnpm)
+- **Package Manager**: bun only (never npm/yarn/pnpm)
 - **TypeScript**: Version 7 (tsgo), strict mode, ESNext target, bundler module resolution
 - **Testing**: Vitest with globals enabled
 
 #### TypeScript 7 Notes
 - Uses `tsgo` - native Go implementation with ~10x faster builds
 - Target `ESNext` for latest ES2025 features (Set methods, Iterator helpers, Promise.try, etc.)
-- Downlevel emit only supports ES2021+, so modern Node.js runtimes required
+- Downlevel emit only supports ES2021+, so modern Bun runtime required
 - Multi-threaded builds and parallel project compilation enabled by default
 
-IMPORTANT: Run `npm run lint` and `npm run typecheck` before committing.
+IMPORTANT: Run `bun run lint` and `bun run typecheck` before committing.
 
 ### Python
 - **Formatter/Linter**: Ruff (88 char line width, Python 3.12+)
@@ -145,9 +145,9 @@ Parsers in `packages/parser/src/providers/`: Anthropic, OpenAI, Gemini, Claude C
 ## Testing
 
 ```bash
-npm test                           # All tests
-npm test -- --filter=@engram/graph # Single package
-npm test -- --watch               # Watch mode
+bun test                           # All tests
+bun test -- --filter=@engram/graph # Single package
+bun test -- --watch               # Watch mode
 
 # Python tests
 cd apps/search && uv run pytest --cov=src --cov-report=html
@@ -160,14 +160,14 @@ See `vitest.config.ts` for project-specific configurations.
 
 ```bash
 # Local development
-npm run infra:up    # docker-compose.dev.yml
+bun run infra:up    # docker-compose.dev.yml
 
 # Production (Pulumi)
 cd packages/infra
-npm run wake        # Turn on GKE cluster and workloads
-npm run sleep       # Turn off expensive resources
-npm run preview     # Preview changes
-npm run up          # Deploy
+bun run wake        # Turn on GKE cluster and workloads
+bun run sleep       # Turn off expensive resources
+bun run preview     # Preview changes
+bun run up          # Deploy
 ```
 
 **Services**: FalkorDB (6379), Qdrant (6333), Redpanda (9092/19092), Redis (6379), PostgreSQL (5432)
@@ -206,7 +206,7 @@ This is NOT optional. Failure to ground your reasoning leads to:
 YOU MUST:
 1. **Context7 first** - For ANY library work, call Context7 MCP before writing code
 2. **Web search for mutations** - APIs, configs, and best practices change. Search when uncertain
-3. **Run linting** before suggesting changes: `npm run lint && npm run typecheck`
+3. **Run linting** before suggesting changes: `bun run lint && bun run typecheck`
 4. **Preserve bitemporal fields** - never remove vt_*/tt_* fields from graph nodes
 5. **Use the storage package** - never create direct DB connections
 

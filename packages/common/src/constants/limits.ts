@@ -114,6 +114,6 @@ export const BatchLimits = {
 	/** Batch size for accurate reranking */
 	RERANK_ACCURATE_BATCH_SIZE: 8,
 
-	/** Batch size for Kafka message processing */
-	KAFKA_BATCH_SIZE: 100,
+	/** Batch size for message queue processing */
+	MESSAGE_BATCH_SIZE: 100,
 } as const;

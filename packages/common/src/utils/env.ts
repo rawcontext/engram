@@ -126,7 +126,7 @@ export function envRequired(key: string): string {
  *
  * @example
  * ```ts
- * const brokers = envArray("KAFKA_BROKERS", ["localhost:9092"]);
+ * const servers = envArray("NATS_SERVERS", ["localhost:4222"]);
  * const hosts = envArray("REDIS_HOSTS", ["127.0.0.1"], ";");
  * ```
  */

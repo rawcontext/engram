@@ -151,8 +151,7 @@ Engram ingests events from multiple AI agent formats:
 
 ### Prerequisites
 
-- **Node.js** v24+
-- **npm** v11+
+- **Bun** v1.3.5+
 - **Docker** & Docker Compose
 
 ### Setup
@@ -161,13 +160,13 @@ Engram ingests events from multiple AI agent formats:
 # Clone and install
 git clone https://github.com/ccheney/engram.git
 cd engram
-npm install
+bun install
 
-# Start infrastructure (Redpanda, FalkorDB, Qdrant)
-npm run infra:up
+# Start infrastructure (NATS, FalkorDB, Qdrant)
+bun run infra:up
 
 # Start all services in dev mode
-npm run dev
+bun run dev
 ```
 
 ### Verify It's Working
@@ -182,7 +181,7 @@ npm run dev
 
 ```bash
 # Run the traffic generator to create test sessions
-npx tsx scripts/traffic-gen.ts
+bunx tsx scripts/traffic-gen.ts
 ```
 
 ---
@@ -343,14 +342,14 @@ Each service publishes heartbeats to Redis every 10 seconds. The Neural Observat
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start all services in development mode |
-| `npm run build` | Build all apps and packages |
-| `npm run test` | Run test suites |
-| `npm run typecheck` | TypeScript type checking |
-| `npm run lint` | Biome linting |
-| `npm run format` | Biome formatting |
-| `npm run infra:up` | Start Docker infrastructure |
-| `npm run infra:down` | Stop Docker infrastructure |
+| `bun run dev` | Start all services in development mode |
+| `bun run build` | Build all apps and packages |
+| `bun run test` | Run test suites |
+| `bun run typecheck` | TypeScript type checking |
+| `bun run lint` | Biome linting |
+| `bun run format` | Biome formatting |
+| `bun run infra:up` | Start Docker infrastructure |
+| `bun run infra:down` | Stop Docker infrastructure |
 
 ---
 
@@ -371,13 +370,13 @@ Engram runs on multiple services, all containerized for local development:
 
 ```bash
 # Start infrastructure
-npm run infra:up
+bun run infra:up
 
 # View logs
 docker-compose -f docker-compose.dev.yml logs -f
 
 # Stop infrastructure
-npm run infra:down
+bun run infra:down
 ```
 
 ---

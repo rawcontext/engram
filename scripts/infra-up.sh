@@ -23,10 +23,10 @@ docker ps --filter name=engram --format "table {{.Names}}\t{{.Status}}" | head -
 # Start TypeScript services
 echo ""
 echo "=== Starting TypeScript Services ==="
-npm run -w @engram/memory dev > /tmp/engram-memory.log 2>&1 &
+bun run -w @engram/memory dev > /tmp/engram-memory.log 2>&1 &
 echo "Memory service started (logs: /tmp/engram-memory.log)"
 
-npm run -w @engram/ingestion dev > /tmp/engram-ingestion.log 2>&1 &
+bun run -w @engram/ingestion dev > /tmp/engram-ingestion.log 2>&1 &
 echo "Ingestion service started (logs: /tmp/engram-ingestion.log)"
 
 # Start Python search service
@@ -42,8 +42,8 @@ echo "Engram Infrastructure Started"
 echo "=============================================="
 echo ""
 echo "Services:"
-echo "  Memory:    npm run -w @engram/memory dev"
-echo "  Ingestion: npm run -w @engram/ingestion dev"
+echo "  Memory:    bun run -w @engram/memory dev"
+echo "  Ingestion: bun run -w @engram/ingestion dev"
 echo "  Search:    http://localhost:5002"
 echo ""
 echo "Infrastructure:"

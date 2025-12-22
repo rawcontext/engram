@@ -21,7 +21,7 @@
 		"dev": "tsx --env-file=.env src/index.ts",
 		"build": "tsgo",
 		"typecheck": "tsgo --noEmit",
-		"start": "node dist/index.js",
+		"start": "bun dist/index.js",
 		"lint": "biome check .",
 		"format": "biome format ."
 	}

@@ -380,17 +380,17 @@ See `.env.example` for a complete configuration template.
 npm install
 
 # Start infrastructure (Redis, FalkorDB, PostgreSQL, Qdrant)
-npm run infra:up
+bun run infra:up
 
 # Run database migrations
 cd apps/api
-npm run dev  # Migrations run automatically on startup
+bun run dev  # Migrations run automatically on startup
 
 # Create an API key
 tsx scripts/create-api-key.ts test "Local Dev" "Development API key"
 
 # Start the API server (watches for changes)
-npm run dev
+bun run dev
 
 # In another terminal, test the API
 curl -H "Authorization: Bearer engram_test_..." http://localhost:8080/v1/health
@@ -400,13 +400,13 @@ curl -H "Authorization: Bearer engram_test_..." http://localhost:8080/v1/health
 
 ```bash
 # Build for production
-npm run build
+bun run build
 
 # Type checking
-npm run typecheck
+bun run typecheck
 
 # Linting
-npm run lint
+bun run lint
 
 # Start production build
 npm start

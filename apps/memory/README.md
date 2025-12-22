@@ -50,24 +50,24 @@ All nodes include bitemporal fields: `vt_start`, `vt_end`, `tt_start`, `tt_end`
 
 ```bash
 # From monorepo root
-npm run dev --filter=@engram/memory
+bun run dev --filter=@engram/memory
 
 # From apps/memory directory
-npm run dev
+bun run dev
 ```
 
 ### Build
 
 ```bash
-npm run build
+bun run build
 ```
 
 ### Type Checking and Linting
 
 ```bash
-npm run typecheck
-npm run lint
-npm run format
+bun run typecheck
+bun run lint
+bun run format
 ```
 
 ## Configuration

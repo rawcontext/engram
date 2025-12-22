@@ -43,8 +43,8 @@ export const PollIntervals = {
 	/** Maximum connection retry interval (30 seconds) */
 	CONNECTION_RETRY_MAX_MS: 30 * 1000, // 30_000
 
-	/** Kafka consumer poll interval (100ms) */
-	KAFKA_POLL_MS: 100,
+	/** Message queue consumer poll interval (100ms) */
+	MESSAGE_POLL_MS: 100,
 } as const;
 
 /**

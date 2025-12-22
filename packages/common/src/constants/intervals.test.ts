@@ -27,7 +27,7 @@ describe("PollIntervals", () => {
 		expect(PollIntervals.METRICS_COLLECTION_MS).toBe(10 * 1000);
 		expect(PollIntervals.CONNECTION_RETRY_BASE_MS).toBe(1000);
 		expect(PollIntervals.CONNECTION_RETRY_MAX_MS).toBe(30 * 1000);
-		expect(PollIntervals.KAFKA_POLL_MS).toBe(100);
+		expect(PollIntervals.MESSAGE_POLL_MS).toBe(100);
 	});
 });
 

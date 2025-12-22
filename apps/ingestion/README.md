@@ -158,20 +158,20 @@ Accepts raw events matching the `RawStreamEvent` schema:
 
 ```bash
 # From monorepo root
-npm run dev --filter=@engram/ingestion
+bun run dev --filter=@engram/ingestion
 
 # Or from apps/ingestion directory
-npm run dev
+bun run dev
 ```
 
 ### Production Mode
 
 ```bash
 # Build (no-op, returns success)
-npm run build
+bun run build
 
 # Start with environment variables
-PORT=5001 npm run dev
+PORT=5001 bun run dev
 ```
 
 ### Infrastructure Requirements
@@ -180,7 +180,7 @@ Start required infrastructure before running:
 
 ```bash
 # From monorepo root
-npm run infra:up
+bun run infra:up
 ```
 
 This starts:
@@ -287,13 +287,13 @@ Extractors are cleaned up every 5 minutes. Check extractor map sizes:
 
 ```bash
 # Biome linting
-npm run lint
+bun run lint
 
 # TypeScript type checking
-npm run typecheck
+bun run typecheck
 
 # Format code
-npm run format
+bun run format
 ```
 
 ## Architecture Notes
