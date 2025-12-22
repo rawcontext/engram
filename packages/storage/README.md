@@ -1,6 +1,6 @@
 # @engram/storage
 
-Unified storage client layer for Engram's infrastructure backends. Provides clean abstractions for FalkorDB (graph), NATS JetStream (messaging), PostgreSQL (relational), Redis (pub/sub), and blob storage (GCS/filesystem).
+Unified storage client layer for Engram's infrastructure backends. Provides clean abstractions for FalkorDB (graph), NATS JetStream (messaging + pub/sub), PostgreSQL (relational), and blob storage (GCS/filesystem).
 
 ## Overview
 
@@ -134,15 +134,16 @@ await postgres.disconnect();
 - `transaction<T>()`: Execute multiple queries in a transaction
 - `healthCheck()`: Verify connection health
 
-### Redis (Pub/Sub)
+### NATS Core Pub/Sub (Real-time Updates)
 
-Redis publisher/subscriber for real-time session updates and consumer status.
+NATS Core pub/sub for real-time session updates and consumer status.
 
 ```typescript
-import { createRedisPublisher, createRedisSubscriber } from "@engram/storage/redis";
+import { createNatsPubSubPublisher, createNatsPubSubSubscriber } from "@engram/storage/nats";
 
 // Publisher
-const publisher = createRedisPublisher();
+const publisher = createNatsPubSubPublisher();
+await publisher.connect();
 
 // Publish session-specific update
 await publisher.publishSessionUpdate("session-123", {
@@ -162,7 +163,8 @@ await publisher.publishConsumerStatus("consumer_ready", "memory-group", "instanc
 await publisher.disconnect();
 
 // Subscriber
-const subscriber = createRedisSubscriber();
+const subscriber = createNatsPubSubSubscriber();
+await subscriber.connect();
 
 // Subscribe to session-specific updates
 const unsubscribe = await subscriber.subscribe("session-123", (message) => {
@@ -170,7 +172,7 @@ const unsubscribe = await subscriber.subscribe("session-123", (message) => {
 });
 
 // Subscribe to global session updates
-await subscriber.subscribe("sessions:updates", (message) => {
+await subscriber.subscribe("observatory.sessions.updates", (message) => {
   console.log("Global session event:", message);
 });
 
@@ -185,12 +187,12 @@ await subscriber.disconnect();
 ```
 
 **Environment Variables:**
-- `REDIS_URL`: Redis connection URL (required)
+- `NATS_URL`: NATS server URL (default: `nats://localhost:4222`)
 
-**Channels:**
-- `session:{sessionId}:updates`: Session-specific updates
-- `sessions:updates`: Global session events
-- `consumers:status`: Consumer readiness/heartbeat events
+**Subjects:**
+- `observatory.session.{sessionId}.updates`: Session-specific updates
+- `observatory.sessions.updates`: Global session events
+- `observatory.consumers.status`: Consumer readiness/heartbeat events
 
 ### Blob Storage
 
@@ -235,8 +237,7 @@ import type {
   Consumer,
   ConsumerConfig,
   BlobStore,
-  RedisPublisher,
-  KafkaMessage
+  Message
 } from "@engram/storage";
 ```
 
@@ -251,21 +252,22 @@ import type {
 } from "@engram/storage/falkor";
 ```
 
-### Redis Types
+### NATS Pub/Sub Types
 
 ```typescript
 import type {
   SessionUpdate,
-  ConsumerStatusUpdate
-} from "@engram/storage/redis";
+  ConsumerStatusUpdate,
+  NatsPubSubPublisher,
+  NatsPubSubSubscriber
+} from "@engram/storage/nats";
 ```
 
 ## Dependencies
 
 - **FalkorDB**: `falkordb` (graph database client)
-- **NATS**: `@nats-io/jetstream`, `@nats-io/transport-node` (message queue client)
+- **NATS**: `@nats-io/jetstream`, `@nats-io/transport-node` (message queue + pub/sub)
 - **PostgreSQL**: `pg` (relational database client)
-- **Redis**: `redis` (pub/sub client)
 - **Google Cloud Storage**: `@google-cloud/storage` (blob storage, optional)
 
 ## Architecture Notes
@@ -274,5 +276,5 @@ import type {
 - Message ordering is guaranteed per-stream using message keys
 - Blob storage uses SHA-256 content addressing for deduplication
 - FalkorDB queries return typed results for compile-time safety
-- Redis pub/sub supports both global and session-specific channels
-- Consumer status is tracked via Redis pub/sub heartbeats
+- NATS pub/sub supports both global and session-specific subjects
+- Consumer status is tracked via NATS pub/sub heartbeats

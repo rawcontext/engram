@@ -1,4 +1,4 @@
-import type { SessionUpdate } from "@engram/storage/redis";
+import type { SessionUpdate } from "@engram/storage/nats";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	cleanupWebSocketServer,
@@ -7,8 +7,8 @@ import {
 	handleSessionsConnection,
 } from "./websocket-server";
 
-vi.mock("@engram/storage/redis", () => ({
-	createRedisSubscriber: vi.fn(() => ({
+vi.mock("@engram/storage/nats", () => ({
+	createNatsPubSubSubscriber: vi.fn(() => ({
 		subscribe: vi.fn(async (_channel: string, _callback: (data: any) => void) => {
 			return vi.fn();
 		}),
@@ -174,10 +174,10 @@ describe("websocket-server", () => {
 		});
 
 		it("should not send updates when WebSocket is closed", async () => {
-			const { createRedisSubscriber } = await import("@engram/storage/redis");
+			const { createNatsPubSubSubscriber } = await import("@engram/storage/nats");
 			let subscribeCallback: ((data: SessionUpdate) => void) | null = null;
 
-			vi.mocked(createRedisSubscriber).mockReturnValueOnce({
+			vi.mocked(createNatsPubSubSubscriber).mockReturnValueOnce({
 				subscribe: vi.fn(async (_channel: string, callback: (data: SessionUpdate) => void) => {
 					subscribeCallback = callback;
 					return vi.fn();
@@ -194,7 +194,7 @@ describe("websocket-server", () => {
 
 			if (subscribeCallback) {
 				subscribeCallback({
-					type: "turn_completed",
+					type: "turn_completed" as any,
 					sessionId: "sess_123",
 					data: {},
 					timestamp: Date.now(),
@@ -303,10 +303,10 @@ describe("websocket-server", () => {
 		});
 
 		it("should not send updates when WebSocket is closed", async () => {
-			const { createRedisSubscriber } = await import("@engram/storage/redis");
+			const { createNatsPubSubSubscriber } = await import("@engram/storage/nats");
 			let subscribeCallback: ((data: SessionUpdate) => void) | null = null;
 
-			vi.mocked(createRedisSubscriber).mockReturnValueOnce({
+			vi.mocked(createNatsPubSubSubscriber).mockReturnValueOnce({
 				subscribe: vi.fn(async (_channel: string, callback: (data: SessionUpdate) => void) => {
 					subscribeCallback = callback;
 					return vi.fn();

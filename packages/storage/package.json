@@ -9,8 +9,7 @@
 		"./falkor": "./src/falkor.ts",
 		"./nats": "./src/nats.ts",
 		"./blob": "./src/blob.ts",
-		"./postgres": "./src/postgres.ts",
-		"./redis": "./src/redis.ts"
+		"./postgres": "./src/postgres.ts"
 	},
 	"devDependencies": {
 		"@engram/tsconfig": "*",
@@ -20,8 +19,7 @@
 	"dependencies": {
 		"@google-cloud/storage": "^7.18.0",
 		"falkordb": "^6.4.1",
-		"pg": "^8.16.3",
-		"redis": "^5.10.0"
+		"pg": "^8.16.3"
 	},
 	"turbo": {
 		"build": {
