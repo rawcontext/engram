@@ -118,9 +118,10 @@ jobs:
       - name: OpenTofu Init
         working-directory: packages/infra
         env:
-          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+          TF_HTTP_USERNAME: tofu
+          TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
         run: |
-          tofu init -backend-config="conn_str=${{ secrets.TOFU_PG_CONN_STR }}"
+          tofu init
 
       - name: OpenTofu Validate
         working-directory: packages/infra
@@ -129,6 +130,8 @@ jobs:
       - name: OpenTofu Plan
         working-directory: packages/infra
         env:
+          TF_HTTP_USERNAME: tofu
+          TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
           TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
           TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
@@ -138,6 +141,8 @@ jobs:
       - name: OpenTofu Apply
         working-directory: packages/infra
         env:
+          TF_HTTP_USERNAME: tofu
+          TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
           TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
           TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
