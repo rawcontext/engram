@@ -3,6 +3,26 @@ import { Pool } from "pg";
 
 const baseURL = process.env.BETTER_AUTH_URL || "https://observatory.statient.com";
 
+// Log configuration status for debugging (no secrets)
+console.log("[BetterAuth] Initializing with config:", {
+	baseURL,
+	hasSecret: !!process.env.BETTER_AUTH_SECRET,
+	hasDbUrl: !!process.env.AUTH_DATABASE_URL,
+	hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
+	hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+});
+
+// Validate required environment variables
+if (!process.env.AUTH_DATABASE_URL) {
+	console.error("[BetterAuth] Missing AUTH_DATABASE_URL environment variable");
+}
+if (!process.env.BETTER_AUTH_SECRET) {
+	console.error("[BetterAuth] Missing BETTER_AUTH_SECRET environment variable");
+}
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+	console.error("[BetterAuth] Missing Google OAuth credentials");
+}
+
 export const auth = betterAuth({
 	database: new Pool({
 		connectionString: process.env.AUTH_DATABASE_URL,
@@ -11,8 +31,8 @@ export const auth = betterAuth({
 	secret: process.env.BETTER_AUTH_SECRET,
 	socialProviders: {
 		google: {
-			clientId: process.env.GOOGLE_CLIENT_ID as string,
-			clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+			clientId: process.env.GOOGLE_CLIENT_ID || "",
+			clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
 			redirectURI: `${baseURL}/api/auth/callback/google`,
 		},
 	},
