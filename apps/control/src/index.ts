@@ -1,6 +1,6 @@
 import { createNodeLogger } from "@engram/logger";
 import { createFalkorClient, createNatsClient } from "@engram/storage";
-import { createRedisPublisher } from "@engram/storage/redis";
+import { createNatsPubSubPublisher } from "@engram/storage/nats";
 import { createSearchClient } from "./clients/search.js";
 import { ContextAssembler } from "./context/assembler.js";
 import { ExecutionService } from "./execution/index.js";
@@ -60,15 +60,19 @@ const startConsumer = async () => {
 	const consumer = await nats.getConsumer({ groupId: "control-group" });
 	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
 
-	// Publish consumer ready status to Redis
-	const redis = createRedisPublisher();
-	await redis.publishConsumerStatus("consumer_ready", "control-group", "control-service");
+	// Publish consumer ready status via NATS pub/sub
+	const natsPubSub = createNatsPubSubPublisher();
+	await natsPubSub.publishConsumerStatus("consumer_ready", "control-group", "control-service");
 	logger.info("Published consumer_ready status for control-group");
 
 	// Periodic heartbeat every 10 seconds
 	const heartbeatInterval = setInterval(async () => {
 		try {
-			await redis.publishConsumerStatus("consumer_heartbeat", "control-group", "control-service");
+			await natsPubSub.publishConsumerStatus(
+				"consumer_heartbeat",
+				"control-group",
+				"control-service",
+			);
 		} catch (e) {
 			logger.error({ err: e }, "Failed to publish heartbeat");
 		}
@@ -78,15 +82,15 @@ const startConsumer = async () => {
 	const cleanup = async () => {
 		clearInterval(heartbeatInterval);
 		try {
-			await redis.publishConsumerStatus(
+			await natsPubSub.publishConsumerStatus(
 				"consumer_disconnected",
 				"control-group",
 				"control-service",
 			);
-			await redis.disconnect();
-			logger.info("Redis publisher disconnected");
+			await natsPubSub.disconnect();
+			logger.info("NATS pub/sub publisher disconnected");
 		} catch (e) {
-			logger.error({ err: e }, "Error during Redis cleanup");
+			logger.error({ err: e }, "Error during NATS pub/sub cleanup");
 		}
 		try {
 			await consumer.disconnect();

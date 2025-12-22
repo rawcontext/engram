@@ -10,7 +10,7 @@ import {
 	ThinkingExtractor,
 } from "@engram/parser";
 import { createNatsClient } from "@engram/storage";
-import { createRedisPublisher } from "@engram/storage/redis";
+import { createNatsPubSubPublisher } from "@engram/storage/nats";
 
 /**
  * Dependencies for IngestionProcessor construction.
@@ -332,15 +332,15 @@ export async function startConsumer() {
 	const consumer = await nats.getConsumer({ groupId: "ingestion-group" });
 	await consumer.subscribe({ topic: "raw_events", fromBeginning: false });
 
-	// Publish consumer ready status to Redis
-	const redis = createRedisPublisher();
-	await redis.publishConsumerStatus("consumer_ready", "ingestion-group", "ingestion-service");
+	// Publish consumer ready status via NATS pub/sub
+	const natsPubSub = createNatsPubSubPublisher();
+	await natsPubSub.publishConsumerStatus("consumer_ready", "ingestion-group", "ingestion-service");
 	logger.info("Published consumer_ready status for ingestion-group");
 
 	// Periodic heartbeat every 10 seconds
 	const heartbeatInterval = setInterval(async () => {
 		try {
-			await redis.publishConsumerStatus(
+			await natsPubSub.publishConsumerStatus(
 				"consumer_heartbeat",
 				"ingestion-group",
 				"ingestion-service",
@@ -361,13 +361,13 @@ export async function startConsumer() {
 		} catch (e) {
 			logger.error({ err: e }, "Error disconnecting consumer");
 		}
-		await redis.publishConsumerStatus(
+		await natsPubSub.publishConsumerStatus(
 			"consumer_disconnected",
 			"ingestion-group",
 			"ingestion-service",
 		);
-		await redis.disconnect();
-		logger.info("Redis publisher disconnected");
+		await natsPubSub.disconnect();
+		logger.info("NATS pub/sub publisher disconnected");
 		process.exit(0);
 	};
 

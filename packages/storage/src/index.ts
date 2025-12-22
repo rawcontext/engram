@@ -11,9 +11,8 @@ export type {
 	Message,
 	MessageClient,
 	Producer,
-	RedisPublisher,
 } from "./interfaces";
 export * from "./interfaces";
 export * from "./nats";
 export * from "./postgres";
-export * from "./redis";
+// Note: redis.ts is deprecated - use createNatsPubSubPublisher/createNatsPubSubSubscriber from nats.ts instead

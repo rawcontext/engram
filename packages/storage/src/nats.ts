@@ -1,9 +1,71 @@
 import { type JetStreamClient, jetstream, jetstreamManager } from "@nats-io/jetstream";
-import { connect, type NatsConnection } from "@nats-io/transport-node";
+import { connect, type NatsConnection, type Subscription } from "@nats-io/transport-node";
 import type { Consumer, ConsumerConfig, Message, MessageClient, Producer } from "./interfaces";
 
 // Re-export types
 export type { Consumer, Message, Producer } from "./interfaces";
+
+// =============================================================================
+// Pub/Sub Types (for real-time updates, replaces Redis pub/sub)
+// =============================================================================
+
+export interface SessionUpdate {
+	type:
+		| "lineage"
+		| "timeline"
+		| "node_created"
+		| "graph_node_created"
+		| "session_created"
+		| "session_updated"
+		| "session_closed";
+	sessionId: string;
+	data: unknown;
+	timestamp: number;
+}
+
+export interface ConsumerStatusUpdate {
+	type: "consumer_ready" | "consumer_disconnected" | "consumer_heartbeat";
+	groupId: string;
+	serviceId: string;
+	timestamp: number;
+}
+
+// Subject mappings for pub/sub (Core NATS, not JetStream)
+const PUBSUB_SUBJECTS = {
+	sessionUpdates: (sessionId: string) => `observatory.session.${sessionId}.updates`,
+	sessionsGlobal: "observatory.sessions.updates",
+	consumersStatus: "observatory.consumers.status",
+} as const;
+
+export interface NatsPubSubPublisher {
+	connect: () => Promise<void>;
+	publishSessionUpdate: (
+		sessionId: string,
+		update: Omit<SessionUpdate, "sessionId" | "timestamp">,
+	) => Promise<void>;
+	publishGlobalSessionEvent: (
+		eventType: "session_created" | "session_updated" | "session_closed",
+		sessionData: unknown,
+	) => Promise<void>;
+	publishConsumerStatus: (
+		eventType: "consumer_ready" | "consumer_disconnected" | "consumer_heartbeat",
+		groupId: string,
+		serviceId: string,
+	) => Promise<void>;
+	disconnect: () => Promise<void>;
+}
+
+export interface NatsPubSubSubscriber {
+	connect: () => Promise<void>;
+	subscribe: <T = SessionUpdate>(
+		channelOrSessionId: string,
+		callback: (message: T) => void,
+	) => Promise<() => Promise<void>>;
+	subscribeToConsumerStatus: (
+		callback: (message: ConsumerStatusUpdate) => void,
+	) => Promise<() => Promise<void>>;
+	disconnect: () => Promise<void>;
+}
 
 export class NatsClient implements MessageClient {
 	private nc: NatsConnection | null = null;
@@ -177,4 +239,258 @@ export class NatsClient implements MessageClient {
 export function createNatsClient(_clientId?: string): NatsClient {
 	const url = process.env.NATS_URL || "nats://localhost:4222";
 	return new NatsClient(url);
+}
+
+// =============================================================================
+// NATS Core Pub/Sub (for real-time WebSocket updates)
+// =============================================================================
+
+/**
+ * Creates a NATS Core pub/sub publisher.
+ * Uses ephemeral Core NATS (not JetStream) for real-time updates.
+ * Matches the RedisPublisher interface for drop-in replacement.
+ */
+export function createNatsPubSubPublisher(): NatsPubSubPublisher {
+	let nc: NatsConnection | null = null;
+	let connectPromise: Promise<NatsConnection> | null = null;
+
+	const ensureConnected = async (): Promise<NatsConnection> => {
+		if (nc && !nc.isClosed()) return nc;
+
+		if (connectPromise) {
+			return connectPromise;
+		}
+
+		connectPromise = (async () => {
+			try {
+				const url = process.env.NATS_URL || "nats://localhost:4222";
+				const newNc = await connect({ servers: url });
+				nc = newNc;
+				console.log("[NATS PubSub Publisher] Connected");
+				return newNc;
+			} catch (err) {
+				connectPromise = null;
+				throw err;
+			}
+		})();
+
+		try {
+			const result = await connectPromise;
+			return result;
+		} finally {
+			connectPromise = null;
+		}
+	};
+
+	const pubsubConnect = async (): Promise<void> => {
+		await ensureConnected();
+	};
+
+	const publishSessionUpdate = async (
+		sessionId: string,
+		update: Omit<SessionUpdate, "sessionId" | "timestamp">,
+	): Promise<void> => {
+		const conn = await ensureConnected();
+		const subject = PUBSUB_SUBJECTS.sessionUpdates(sessionId);
+		const message: SessionUpdate = {
+			...update,
+			sessionId,
+			timestamp: Date.now(),
+		};
+		conn.publish(subject, JSON.stringify(message));
+	};
+
+	const publishGlobalSessionEvent = async (
+		eventType: "session_created" | "session_updated" | "session_closed",
+		sessionData: unknown,
+	): Promise<void> => {
+		const conn = await ensureConnected();
+		const message: SessionUpdate = {
+			type: eventType,
+			sessionId: "",
+			data: sessionData,
+			timestamp: Date.now(),
+		};
+		conn.publish(PUBSUB_SUBJECTS.sessionsGlobal, JSON.stringify(message));
+	};
+
+	const publishConsumerStatus = async (
+		eventType: "consumer_ready" | "consumer_disconnected" | "consumer_heartbeat",
+		groupId: string,
+		serviceId: string,
+	): Promise<void> => {
+		const conn = await ensureConnected();
+		const message: ConsumerStatusUpdate = {
+			type: eventType,
+			groupId,
+			serviceId,
+			timestamp: Date.now(),
+		};
+		conn.publish(PUBSUB_SUBJECTS.consumersStatus, JSON.stringify(message));
+	};
+
+	const disconnect = async (): Promise<void> => {
+		try {
+			if (nc && !nc.isClosed()) {
+				await nc.drain();
+				await nc.close();
+			}
+		} finally {
+			nc = null;
+			connectPromise = null;
+		}
+	};
+
+	return {
+		connect: pubsubConnect,
+		publishSessionUpdate,
+		publishGlobalSessionEvent,
+		publishConsumerStatus,
+		disconnect,
+	};
+}
+
+/**
+ * Creates a NATS Core pub/sub subscriber.
+ * Uses ephemeral Core NATS (not JetStream) for real-time updates.
+ * Matches the Redis subscriber interface for drop-in replacement.
+ */
+export function createNatsPubSubSubscriber(): NatsPubSubSubscriber {
+	let nc: NatsConnection | null = null;
+	const subscriptions = new Map<
+		string,
+		{ sub: Subscription; callbacks: Set<(message: unknown) => void> }
+	>();
+	let subscriptionLock = Promise.resolve();
+
+	const ensureConnected = async (): Promise<NatsConnection> => {
+		if (nc && !nc.isClosed()) return nc;
+
+		const url = process.env.NATS_URL || "nats://localhost:4222";
+		nc = await connect({ servers: url });
+		console.log("[NATS PubSub Subscriber] Connected");
+		return nc;
+	};
+
+	const subConnect = async (): Promise<void> => {
+		await ensureConnected();
+	};
+
+	const subscribe = async <T = SessionUpdate>(
+		channelOrSessionId: string,
+		callback: (message: T) => void,
+	): Promise<() => Promise<void>> => {
+		await subscriptionLock;
+
+		const operationPromise = (async () => {
+			const conn = await ensureConnected();
+
+			// Support both session-specific subjects and global subjects
+			const subject = channelOrSessionId.includes(".")
+				? channelOrSessionId // Already a full subject (e.g., "observatory.sessions.updates")
+				: PUBSUB_SUBJECTS.sessionUpdates(channelOrSessionId); // Session ID, build subject
+
+			// Track callbacks per subject
+			if (!subscriptions.has(subject)) {
+				const sub = conn.subscribe(subject);
+				const callbacks = new Set<(message: unknown) => void>();
+				subscriptions.set(subject, { sub, callbacks });
+
+				// Process messages asynchronously
+				(async () => {
+					try {
+						for await (const msg of sub) {
+							try {
+								const parsed = JSON.parse(msg.string()) as T;
+								const entry = subscriptions.get(subject);
+								if (entry) {
+									for (const cb of entry.callbacks) {
+										cb(parsed);
+									}
+								}
+							} catch (e) {
+								console.error("[NATS PubSub Subscriber] Failed to parse message:", e);
+							}
+						}
+					} catch (e) {
+						// Subscription closed or connection error
+						if (!nc?.isClosed()) {
+							console.error("[NATS PubSub Subscriber] Subscription error:", e);
+						}
+					}
+				})();
+			}
+
+			subscriptions.get(subject)?.callbacks.add(callback as (message: unknown) => void);
+
+			// Return unsubscribe function
+			return async () => {
+				await subscriptionLock;
+
+				const unsubPromise = (async () => {
+					const entry = subscriptions.get(subject);
+					if (entry) {
+						entry.callbacks.delete(callback as (message: unknown) => void);
+						if (entry.callbacks.size === 0) {
+							subscriptions.delete(subject);
+							entry.sub.unsubscribe();
+						}
+					}
+				})();
+
+				subscriptionLock = unsubPromise.then(
+					() => {},
+					() => {},
+				);
+				await unsubPromise;
+			};
+		})();
+
+		subscriptionLock = operationPromise.then(
+			() => {},
+			() => {},
+		);
+		return operationPromise;
+	};
+
+	const subscribeToConsumerStatus = async (
+		callback: (message: ConsumerStatusUpdate) => void,
+	): Promise<() => Promise<void>> => {
+		return subscribe<ConsumerStatusUpdate>(PUBSUB_SUBJECTS.consumersStatus, callback);
+	};
+
+	const disconnect = async (): Promise<void> => {
+		await subscriptionLock;
+
+		const operationPromise = (async () => {
+			try {
+				// Unsubscribe from all subjects
+				for (const [, entry] of subscriptions) {
+					entry.sub.unsubscribe();
+				}
+				subscriptions.clear();
+
+				if (nc && !nc.isClosed()) {
+					await nc.drain();
+					await nc.close();
+				}
+			} finally {
+				nc = null;
+				subscriptions.clear();
+			}
+		})();
+
+		subscriptionLock = operationPromise.then(
+			() => {},
+			() => {},
+		);
+		await operationPromise;
+	};
+
+	return {
+		connect: subConnect,
+		subscribe,
+		subscribeToConsumerStatus,
+		disconnect,
+	};
 }

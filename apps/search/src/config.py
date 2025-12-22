@@ -53,9 +53,6 @@ class Settings(BaseSettings):
         default="search-turns-indexer", description="NATS consumer group ID"
     )
 
-    # Redis (for consumer status publishing)
-    redis_url: str = Field(default="redis://localhost:6379", description="Redis URL for pub/sub")
-
     # Search defaults (to be used in Phase 4)
     search_default_limit: int = Field(default=10, description="Default search result limit")
     search_max_limit: int = Field(default=100, description="Maximum search result limit")

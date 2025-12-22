@@ -15,8 +15,8 @@ from pydantic import BaseModel, Field
 from qdrant_client.http import models
 
 from src.clients.nats import NatsClient
+from src.clients.nats_pubsub import NatsPubSubPublisher
 from src.clients.qdrant import QdrantClientWrapper
-from src.clients.redis import RedisPublisher
 from src.config import Settings
 from src.embedders.factory import EmbedderFactory
 from src.indexing.batch import BatchConfig, BatchQueue, Document
@@ -206,7 +206,7 @@ class TurnFinalizedConsumer:
         self,
         nats_client: NatsClient,
         indexer: TurnsIndexer,
-        redis_publisher: RedisPublisher | None = None,
+        nats_pubsub: NatsPubSubPublisher | None = None,
         config: TurnFinalizedConsumerConfig | None = None,
     ) -> None:
         """Initialize the turn finalized consumer.
@@ -214,12 +214,12 @@ class TurnFinalizedConsumer:
         Args:
             nats_client: NATS client for consuming events.
             indexer: Turns indexer for generating embeddings and upserting.
-            redis_publisher: Optional Redis publisher for status updates.
+            nats_pubsub: Optional NATS pub/sub publisher for status updates.
             config: Consumer configuration.
         """
         self.nats = nats_client
         self.indexer = indexer
-        self.redis = redis_publisher
+        self.nats_pubsub = nats_pubsub
         self.config = config or TurnFinalizedConsumerConfig()
         self._batch_queue: BatchQueue | None = None
         self._running = False
@@ -248,10 +248,10 @@ class TurnFinalizedConsumer:
         # Start batch queue
         await self._batch_queue.start()
 
-        # Publish consumer_ready to Redis
-        if self.redis:
+        # Publish consumer_ready via NATS pub/sub
+        if self.nats_pubsub:
             try:
-                await self.redis.publish_consumer_status(
+                await self.nats_pubsub.publish_consumer_status(
                     status_type="consumer_ready",
                     group_id=self.config.group_id,
                     service_id=self.config.service_id,
@@ -299,10 +299,10 @@ class TurnFinalizedConsumer:
             await self._batch_queue.stop()
             self._batch_queue = None
 
-        # Publish consumer_disconnected to Redis
-        if self.redis:
+        # Publish consumer_disconnected via NATS pub/sub
+        if self.nats_pubsub:
             try:
-                await self.redis.publish_consumer_status(
+                await self.nats_pubsub.publish_consumer_status(
                     status_type="consumer_disconnected",
                     group_id=self.config.group_id,
                     service_id=self.config.service_id,
@@ -338,16 +338,16 @@ class TurnFinalizedConsumer:
             logger.error(f"Error processing turn message: {e}", exc_info=True)
 
     async def _heartbeat_loop(self) -> None:
-        """Send periodic heartbeats to Redis."""
+        """Send periodic heartbeats via NATS pub/sub."""
         heartbeat_interval_s = self.config.heartbeat_interval_ms / 1000.0
 
         try:
             while self._running:
                 await asyncio.sleep(heartbeat_interval_s)
 
-                if self.redis:
+                if self.nats_pubsub:
                     try:
-                        await self.redis.publish_consumer_status(
+                        await self.nats_pubsub.publish_consumer_status(
                             status_type="consumer_heartbeat",
                             group_id=self.config.group_id,
                             service_id=self.config.service_id,
@@ -448,7 +448,7 @@ def create_turns_consumer(
     qdrant_client: QdrantClientWrapper,
     embedder_factory: EmbedderFactory,
     nats_client: NatsClient,
-    redis_publisher: RedisPublisher | None = None,
+    nats_pubsub: NatsPubSubPublisher | None = None,
 ) -> TurnFinalizedConsumer:
     """Create a configured TurnFinalizedConsumer instance.
 
@@ -457,7 +457,7 @@ def create_turns_consumer(
         qdrant_client: Qdrant client wrapper.
         embedder_factory: Factory for creating embedder instances.
         nats_client: NATS client for consuming events.
-        redis_publisher: Optional Redis publisher for status updates.
+        nats_pubsub: Optional NATS pub/sub publisher for status updates.
 
     Returns:
         Configured TurnFinalizedConsumer ready to start.
@@ -479,6 +479,6 @@ def create_turns_consumer(
     return TurnFinalizedConsumer(
         nats_client=nats_client,
         indexer=indexer,
-        redis_publisher=redis_publisher,
+        nats_pubsub=nats_pubsub,
         config=consumer_config,
     )

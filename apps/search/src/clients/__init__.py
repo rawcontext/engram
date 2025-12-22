@@ -3,19 +3,19 @@
 Provides async client wrappers for:
 - Qdrant: Vector database for multi-vector search
 - NATS: JetStream messaging for indexing pipeline
-- Redis: Pub/sub for consumer status and notifications
+- NATS PubSub: Core NATS pub/sub for real-time updates (replaces Redis)
 - HuggingFace: Embeddings and reranking via Inference API
 """
 
 from src.clients.huggingface import HuggingFaceEmbedder, HuggingFaceReranker
 from src.clients.nats import NatsClient, NatsClientConfig
-from src.clients.qdrant import QdrantClientWrapper
-from src.clients.redis import (
+from src.clients.nats_pubsub import (
     ConsumerStatusUpdate,
-    RedisPublisher,
-    RedisSubscriber,
+    NatsPubSubPublisher,
+    NatsPubSubSubscriber,
     SessionUpdate,
 )
+from src.clients.qdrant import QdrantClientWrapper
 
 __all__ = [
     "ConsumerStatusUpdate",
@@ -23,8 +23,8 @@ __all__ = [
     "HuggingFaceReranker",
     "NatsClient",
     "NatsClientConfig",
+    "NatsPubSubPublisher",
+    "NatsPubSubSubscriber",
     "QdrantClientWrapper",
-    "RedisPublisher",
-    "RedisSubscriber",
     "SessionUpdate",
 ]

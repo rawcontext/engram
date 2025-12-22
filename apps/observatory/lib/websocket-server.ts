@@ -1,24 +1,24 @@
 import {
 	type ConsumerStatusUpdate,
-	createRedisSubscriber,
+	createNatsPubSubSubscriber,
 	type SessionUpdate,
-} from "@engram/storage/redis";
+} from "@engram/storage/nats";
 import { WebSocket } from "ws";
 import { getSessionLineage, getSessionsForWebSocket, getSessionTimeline } from "./graph-queries";
 
-const redisSubscriber = createRedisSubscriber();
+const natsSubscriber = createNatsPubSubSubscriber();
 
-// Separate subscriber for consumer status (Redis subscribers can only subscribe, not do other ops)
-const consumerStatusSubscriber = createRedisSubscriber();
+// Separate subscriber for consumer status
+const consumerStatusSubscriber = createNatsPubSubSubscriber();
 
-// Global channel for session list updates
-const SESSIONS_CHANNEL = "sessions:updates";
+// Global subject for session list updates (NATS uses dot notation)
+const SESSIONS_SUBJECT = "observatory.sessions.updates";
 
 export async function handleSessionConnection(ws: WebSocket, sessionId: string) {
 	console.log(`[WS] Client connected to session ${sessionId}`);
 
-	// Subscribe to Redis channel for real-time updates
-	const unsubscribe = await redisSubscriber.subscribe(sessionId, (update: SessionUpdate) => {
+	// Subscribe to NATS subject for real-time updates
+	const unsubscribe = await natsSubscriber.subscribe(sessionId, (update: SessionUpdate) => {
 		if (ws.readyState !== WebSocket.OPEN) return;
 
 		// Forward the update to the WebSocket client
@@ -70,8 +70,8 @@ export async function handleSessionConnection(ws: WebSocket, sessionId: string) 
 export async function handleSessionsConnection(ws: WebSocket) {
 	console.log("[WS] Client connected to sessions list");
 
-	// Subscribe to global sessions channel for real-time updates
-	const unsubscribe = await redisSubscriber.subscribe(SESSIONS_CHANNEL, (update: SessionUpdate) => {
+	// Subscribe to global sessions subject for real-time updates
+	const unsubscribe = await natsSubscriber.subscribe(SESSIONS_SUBJECT, (update: SessionUpdate) => {
 		if (ws.readyState !== WebSocket.OPEN) return;
 
 		ws.send(
@@ -150,11 +150,11 @@ interface ConsumerStatusResponse {
 }
 
 // =============================================================================
-// Consumer Status State Management (Event-Driven via Redis Pub/Sub)
+// Consumer Status State Management (Event-Driven via NATS Pub/Sub)
 // =============================================================================
 
 /**
- * In-memory state for consumer groups, updated via Redis pub/sub events.
+ * In-memory state for consumer groups, updated via NATS pub/sub events.
  * Services publish heartbeats every 10 seconds; if no heartbeat received
  * within 30 seconds, the consumer is considered offline.
  */
@@ -213,12 +213,12 @@ function broadcastConsumerStatus() {
 }
 
 /**
- * Handle incoming consumer status events from Redis pub/sub.
+ * Handle incoming consumer status events from NATS pub/sub.
  */
 function handleConsumerStatusEvent(event: ConsumerStatusUpdate) {
 	const { type, groupId, serviceId, timestamp } = event;
 
-	console.log(`[WS Consumer] Redis event: ${type} from ${groupId}/${serviceId}`);
+	console.log(`[WS Consumer] NATS event: ${type} from ${groupId}/${serviceId}`);
 
 	if (type === "consumer_ready" || type === "consumer_heartbeat") {
 		consumerStates.set(groupId, {
@@ -234,7 +234,7 @@ function handleConsumerStatusEvent(event: ConsumerStatusUpdate) {
 	}
 }
 
-// Initialize Redis subscription for consumer status (runs once at module load)
+// Initialize NATS subscription for consumer status (runs once at module load)
 let consumerStatusSubscriptionInitialized = false;
 
 async function initConsumerStatusSubscription() {
@@ -243,9 +243,9 @@ async function initConsumerStatusSubscription() {
 
 	try {
 		await consumerStatusSubscriber.subscribeToConsumerStatus(handleConsumerStatusEvent);
-		console.log("[WS Consumer] Subscribed to Redis consumer status channel");
+		console.log("[WS Consumer] Subscribed to NATS consumer status subject");
 	} catch (error) {
-		console.error("[WS Consumer] Failed to subscribe to Redis:", error);
+		console.error("[WS Consumer] Failed to subscribe to NATS:", error);
 		consumerStatusSubscriptionInitialized = false;
 	}
 }
@@ -293,12 +293,12 @@ export function cleanupWebSocketServer(): void {
 
 /**
  * Handle WebSocket connection for consumer status streaming.
- * Uses Redis pub/sub for true event-driven updates (no polling).
+ * Uses NATS pub/sub for true event-driven updates (no polling).
  */
 export async function handleConsumerStatusConnection(ws: WebSocket) {
 	console.log("[WS] Client connected to consumer status");
 
-	// Ensure Redis subscription is active
+	// Ensure NATS subscription is active
 	await initConsumerStatusSubscription();
 
 	// Track this client

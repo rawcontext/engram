@@ -10,8 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api import router
-from src.clients import NatsClient, NatsClientConfig, QdrantClientWrapper
-from src.clients.redis import RedisPublisher
+from src.clients import NatsClient, NatsClientConfig, NatsPubSubPublisher, QdrantClientWrapper
 from src.config import get_settings
 from src.embedders import EmbedderFactory
 from src.indexing.turns import (
@@ -163,10 +162,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 nats_client = NatsClient(config=nats_config)
                 app.state.nats_client = nats_client
 
-                # Create Redis publisher for status updates
-                redis_publisher = RedisPublisher(settings.redis_url)
-                await redis_publisher.connect()
-                app.state.redis_publisher = redis_publisher
+                # Create NATS pub/sub publisher for status updates (replaces Redis)
+                nats_pubsub = NatsPubSubPublisher(settings.nats_url)
+                await nats_pubsub.connect()
+                app.state.nats_pubsub = nats_pubsub
 
                 # Create turns indexer (disable sparse/colbert for HuggingFace API backend)
                 use_local_embeddings = settings.embedder_backend != "huggingface"
@@ -188,7 +187,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 turns_consumer = TurnFinalizedConsumer(
                     nats_client=nats_client,
                     indexer=turns_indexer,
-                    redis_publisher=redis_publisher,
+                    nats_pubsub=nats_pubsub,
                     config=consumer_config,
                 )
                 app.state.turns_consumer = turns_consumer
@@ -244,13 +243,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         with contextlib.suppress(asyncio.CancelledError):
             await app.state.consumer_task
 
-    # Close Redis publisher
-    if hasattr(app.state, "redis_publisher") and app.state.redis_publisher is not None:
+    # Close NATS pub/sub publisher
+    if hasattr(app.state, "nats_pubsub") and app.state.nats_pubsub is not None:
         try:
-            await app.state.redis_publisher.disconnect()
-            logger.info("Redis publisher closed")
+            await app.state.nats_pubsub.disconnect()
+            logger.info("NATS pub/sub publisher closed")
         except Exception as e:
-            logger.error(f"Error closing Redis publisher: {e}")
+            logger.error(f"Error closing NATS pub/sub publisher: {e}")
 
     # Close NATS client
     if hasattr(app.state, "nats_client") and app.state.nats_client is not None:

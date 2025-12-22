@@ -7,7 +7,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./falkor": "./src/falkor.ts",
-		"./kafka": "./src/kafka.ts",
+		"./nats": "./src/nats.ts",
 		"./blob": "./src/blob.ts",
 		"./postgres": "./src/postgres.ts",
 		"./redis": "./src/redis.ts"

@@ -1,12 +1,7 @@
 import { GraphPruner } from "@engram/graph";
 import { createNodeLogger, type Logger, pino, withTraceContext } from "@engram/logger";
-import {
-	createFalkorClient,
-	createNatsClient,
-	type GraphClient,
-	type RedisPublisher,
-} from "@engram/storage";
-import { createRedisPublisher } from "@engram/storage/redis";
+import { createFalkorClient, createNatsClient, type GraphClient } from "@engram/storage";
+import { createNatsPubSubPublisher, type NatsPubSubPublisher } from "@engram/storage/nats";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -25,8 +20,8 @@ export interface MemoryServiceDeps {
 	graphClient?: GraphClient;
 	/** NATS client for event streaming. */
 	natsClient?: ReturnType<typeof createNatsClient>;
-	/** Redis publisher for real-time updates. */
-	redisPublisher?: RedisPublisher;
+	/** NATS pub/sub publisher for real-time updates. */
+	natsPubSub?: NatsPubSubPublisher;
 	/** Logger instance. */
 	logger?: Logger;
 	/** Turn aggregator for event processing. */
@@ -47,7 +42,7 @@ export interface MemoryServiceDeps {
  * // Test usage (inject mocks)
  * const deps = createMemoryServiceDeps({
  *   graphClient: mockGraphClient,
- *   redisPublisher: mockRedis,
+ *   natsPubSub: mockNatsPubSub,
  * });
  */
 export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
@@ -70,13 +65,13 @@ export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
 
 	const graphClient = deps?.graphClient ?? createFalkorClient();
 	const natsClient = deps?.natsClient ?? createNatsClient("memory-service");
-	const redisPublisher = deps?.redisPublisher ?? createRedisPublisher();
+	const natsPubSub = deps?.natsPubSub ?? createNatsPubSubPublisher();
 	const graphPruner = deps?.graphPruner ?? new GraphPruner(graphClient);
 
-	// Callback for real-time WebSocket updates
+	// Callback for real-time WebSocket updates via NATS pub/sub
 	const onNodeCreated: NodeCreatedCallback = async (sessionId, node) => {
 		try {
-			await redisPublisher.publishSessionUpdate(sessionId, {
+			await natsPubSub.publishSessionUpdate(sessionId, {
 				type: "graph_node_created",
 				data: {
 					id: node.id,
@@ -120,7 +115,7 @@ export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
 	return {
 		graphClient,
 		natsClient,
-		redisPublisher,
+		natsPubSub,
 		logger,
 		turnAggregator,
 		graphPruner,
@@ -141,13 +136,13 @@ const logger = createNodeLogger(
 // Initialize Services
 const falkor = createFalkorClient();
 const nats = createNatsClient("memory-service");
-const redis = createRedisPublisher();
+const natsPubSub = createNatsPubSubPublisher();
 const pruner = new GraphPruner(falkor);
 
-// Callback for real-time WebSocket updates when TurnAggregator creates graph nodes
+// Callback for real-time WebSocket updates when TurnAggregator creates graph nodes (via NATS pub/sub)
 const onNodeCreated: NodeCreatedCallback = async (sessionId, node) => {
 	try {
-		await redis.publishSessionUpdate(sessionId, {
+		await natsPubSub.publishSessionUpdate(sessionId, {
 			type: "graph_node_created",
 			data: {
 				id: node.id,
@@ -239,14 +234,18 @@ export async function startPersistenceConsumer() {
 	const consumer = await nats.getConsumer({ groupId: "memory-group" });
 	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
 
-	// Publish consumer ready status to Redis
-	await redis.publishConsumerStatus("consumer_ready", "memory-group", "memory-service");
+	// Publish consumer ready status via NATS pub/sub
+	await natsPubSub.publishConsumerStatus("consumer_ready", "memory-group", "memory-service");
 	logger.info("Published consumer_ready status for memory-group");
 
 	// Periodic heartbeat every 10 seconds
 	const heartbeatInterval = setInterval(async () => {
 		try {
-			await redis.publishConsumerStatus("consumer_heartbeat", "memory-group", "memory-service");
+			await natsPubSub.publishConsumerStatus(
+				"consumer_heartbeat",
+				"memory-group",
+				"memory-service",
+			);
 		} catch (e) {
 			logger.error({ err: e }, "Failed to publish heartbeat");
 		}
@@ -263,9 +262,13 @@ export async function startPersistenceConsumer() {
 		} catch (e) {
 			logger.error({ err: e }, "Error disconnecting consumer");
 		}
-		await redis.publishConsumerStatus("consumer_disconnected", "memory-group", "memory-service");
-		await redis.disconnect();
-		logger.info("Redis publisher disconnected");
+		await natsPubSub.publishConsumerStatus(
+			"consumer_disconnected",
+			"memory-group",
+			"memory-service",
+		);
+		await natsPubSub.disconnect();
+		logger.info("NATS pub/sub publisher disconnected");
 		await falkor.disconnect();
 		logger.info("FalkorDB disconnected");
 		process.exit(0);
@@ -368,10 +371,10 @@ export async function startPersistenceConsumer() {
 					},
 				);
 
-				// 3. If new session, publish to global sessions channel for homepage
+				// 3. If new session, publish to global sessions subject for homepage (via NATS pub/sub)
 				// Note: use camelCase to match frontend SessionListItem interface
 				if (isNewSession) {
-					await redis.publishGlobalSessionEvent("session_created", {
+					await natsPubSub.publishGlobalSessionEvent("session_created", {
 						id: sessionId,
 						title: null,
 						userId: event.metadata?.user_id || "unknown",
