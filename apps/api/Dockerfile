@@ -1,27 +1,33 @@
-# Stage 1: Builder
-FROM oven/bun:1.3.5 AS builder
+# Stage 1: Builder - use Node.js for Kafka native bindings compatibility
+FROM node:24-alpine AS builder
 WORKDIR /app
-COPY package.json bun.lock ./
+
+# Install build dependencies for native modules
+RUN apk add --no-cache python3 make g++
+
+COPY package.json package-lock.json ./
 COPY apps/api ./apps/api
 COPY packages ./packages
-# Install dependencies
-RUN bun install
-# Build dependencies first, then api
+
+# Install dependencies with npm for Node.js native bindings
+RUN npm ci
+
+# Build dependencies using npm scripts
 WORKDIR /app/packages/common
-RUN bun run build
+RUN npm run build
 WORKDIR /app/packages/logger
-RUN bun run build
+RUN npm run build
 WORKDIR /app/packages/events
-RUN bun run build
+RUN npm run build
 WORKDIR /app/packages/storage
-RUN bun run build
+RUN npm run build
 WORKDIR /app/packages/graph
-RUN bun run build
+RUN npm run build
 WORKDIR /app/apps/api
-RUN bun run build
+RUN npm run build
 
 # Stage 2: Runner
-FROM oven/bun:1.3.5-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
@@ -38,4 +44,4 @@ USER engram
 EXPOSE 8080
 
 WORKDIR /app/apps/api
-CMD ["bun", "run", "dist/index.js"]
+CMD ["node", "dist/index.js"]
