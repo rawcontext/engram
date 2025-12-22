@@ -15,6 +15,6 @@ export type {
 	RedisPublisher,
 } from "./interfaces";
 export * from "./interfaces";
-export * from "./kafka";
+export * from "./nats";
 export * from "./postgres";
 export * from "./redis";

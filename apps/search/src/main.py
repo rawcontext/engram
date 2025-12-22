@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api import router
-from src.clients import KafkaClient, QdrantClientWrapper
+from src.clients import NatsClient, NatsClientConfig, QdrantClientWrapper
 from src.clients.redis import RedisPublisher
 from src.config import get_settings
 from src.embedders import EmbedderFactory
@@ -156,12 +156,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Session-aware retriever initialized")
 
         # Start turn indexing consumer if enabled
-        if settings.kafka_consumer_enabled:
+        if settings.nats_consumer_enabled:
             try:
-                # Create Kafka client
-                bootstrap_servers = [s.strip() for s in settings.kafka_bootstrap_servers.split(",")]
-                kafka_client = KafkaClient(bootstrap_servers=bootstrap_servers)
-                app.state.kafka_client = kafka_client
+                # Create NATS client
+                nats_config = NatsClientConfig(servers=settings.nats_url)
+                nats_client = NatsClient(config=nats_config)
+                app.state.nats_client = nats_client
 
                 # Create Redis publisher for status updates
                 redis_publisher = RedisPublisher(settings.redis_url)
@@ -183,10 +183,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
                 # Create and start consumer
                 consumer_config = TurnFinalizedConsumerConfig(
-                    group_id=settings.kafka_consumer_group,
+                    group_id=settings.nats_consumer_group,
                 )
                 turns_consumer = TurnFinalizedConsumer(
-                    kafka_client=kafka_client,
+                    nats_client=nats_client,
                     indexer=turns_indexer,
                     redis_publisher=redis_publisher,
                     config=consumer_config,
@@ -197,7 +197,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 consumer_task = asyncio.create_task(turns_consumer.start())
                 app.state.consumer_task = consumer_task
                 logger.info(
-                    f"Turn indexing consumer started (group: {settings.kafka_consumer_group})"
+                    f"Turn indexing consumer started (group: {settings.nats_consumer_group})"
                 )
             except Exception as e:
                 logger.error(f"Failed to start turn indexing consumer: {e}")
@@ -252,13 +252,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             logger.error(f"Error closing Redis publisher: {e}")
 
-    # Close Kafka client
-    if hasattr(app.state, "kafka_client") and app.state.kafka_client is not None:
+    # Close NATS client
+    if hasattr(app.state, "nats_client") and app.state.nats_client is not None:
         try:
-            await app.state.kafka_client.close()
-            logger.info("Kafka client closed")
+            await app.state.nats_client.close()
+            logger.info("NATS client closed")
         except Exception as e:
-            logger.error(f"Error closing Kafka client: {e}")
+            logger.error(f"Error closing NATS client: {e}")
 
     # Unload embedder models
     if hasattr(app.state, "embedder_factory") and app.state.embedder_factory is not None:

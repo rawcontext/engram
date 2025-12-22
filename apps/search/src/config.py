@@ -44,15 +44,15 @@ class Settings(BaseSettings):
         default="redis://localhost:6379", description="FalkorDB connection URL"
     )
 
-    # Kafka (for turn indexing consumer)
-    kafka_bootstrap_servers: str = Field(
-        default="localhost:19092", description="Kafka bootstrap servers (comma-separated)"
+    # NATS (for turn indexing consumer)
+    nats_url: str = Field(
+        default="nats://localhost:4222", description="NATS server URL"
     )
-    kafka_consumer_enabled: bool = Field(
-        default=True, description="Enable Kafka consumer for turn indexing"
+    nats_consumer_enabled: bool = Field(
+        default=True, description="Enable NATS consumer for turn indexing"
     )
-    kafka_consumer_group: str = Field(
-        default="search-turns-indexer", description="Kafka consumer group ID"
+    nats_consumer_group: str = Field(
+        default="search-turns-indexer", description="NATS consumer group ID"
     )
 
     # Redis (for consumer status publishing)

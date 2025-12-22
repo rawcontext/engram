@@ -24,7 +24,7 @@
 		"test:ts:watch": "vitest",
 		"infra:up": "./scripts/infra-up.sh",
 		"infra:down": "./scripts/infra-down.sh",
-		"infra:docker": "docker-compose -f docker-compose.dev.yml up -d redpanda falkordb qdrant postgres",
+		"infra:docker": "docker-compose -f docker-compose.dev.yml up -d nats falkordb qdrant postgres",
 		"infra:docker:down": "docker-compose -f docker-compose.dev.yml down",
 		"prepare": "husky"
 	},
@@ -50,6 +50,7 @@
 	},
 	"packageManager": "npm@11.7.0",
 	"dependencies": {
-		"@confluentinc/kafka-javascript": "^1.7.0"
+		"@nats-io/jetstream": "^3.0.0",
+		"@nats-io/transport-node": "^3.0.0"
 	}
 }

@@ -13,7 +13,7 @@ dependencies = [
     # Vector DB
     "qdrant-client>=1.16.2",
     # Messaging & Cache
-    "aiokafka>=0.12.0",
+    "nats-py>=2.9.0",
     "redis[hiredis]>=7.1.0",
     # HTTP & HuggingFace API
     "httpx>=0.28.1",
@@ -111,8 +111,8 @@ disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = [
-    "aiokafka",
-    "aiokafka.*",
+    "nats",
+    "nats.*",
     "huggingface_hub",
     "huggingface_hub.*",
     "sentence_transformers",

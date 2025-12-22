@@ -1,32 +1,19 @@
 name: engram
 
 services:
-  redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:v23.3.1
-    command:
-      - redpanda start
-      - --smp 2
-      - --memory 2G
-      - --reserve-memory 0M
-      - --overprovisioned
-      - --node-id 0
-      - --check=false
-      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
-      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
-      - --set redpanda.group_new_member_join_timeout=120000
-      - --set redpanda.group_initial_rebalance_delay=10000
+  nats:
+    image: nats:2.12-alpine
+    command: ["--jetstream", "--store_dir=/data"]
     ports:
-      - "18081:8081"
-      - "9092:9092"
-      - "19092:19092"
+      - "4222:4222"
+      - "8222:8222"
     volumes:
-      - redpanda-data:/var/lib/redpanda/data
+      - nats-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy: true'"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      test: ["CMD", "wget", "--spider", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   falkordb:
     image: falkordb/falkordb:latest
@@ -56,29 +43,6 @@ services:
       timeout: 3s
       retries: 5
 
-  # NOTE: @engram/memory is disabled in Docker due to @confluentinc/kafka-javascript
-  # native binding incompatibility with Bun runtime. Run it locally instead:
-  #   bun run --filter=@engram/memory dev
-  #
-  # To fix: Replace @confluentinc/kafka-javascript with kafkajs in packages/storage
-  # @engram/memory:
-  #   build:
-  #     context: .
-  #     dockerfile: apps/memory/Dockerfile.dev
-  #   platform: linux/amd64
-  #   environment:
-  #     - REDPANDA_BROKERS=redpanda:9092
-  #     - FALKORDB_URL=redis://falkordb:6379
-  #     - REDIS_URL=redis://falkordb:6379
-  #   volumes:
-  #     - ./apps/memory/src:/app/apps/memory/src:ro
-  #     - ./packages:/app/packages:ro
-  #   depends_on:
-  #     redpanda:
-  #       condition: service_started
-  #     falkordb:
-  #       condition: service_healthy
-  #   restart: unless-stopped
 
   # PostgreSQL for Optuna study persistence and API authentication
   postgres:
@@ -140,7 +104,7 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=engram_memory
       - QDRANT_TURNS_COLLECTION=engram_turns
-      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - NATS_URL=nats://nats:4222
       - REDIS_URL=redis://falkordb:6379
       - EMBEDDER_DEVICE=cpu
       - EMBEDDER_TEXT_MODEL=BAAI/bge-small-en-v1.5
@@ -150,8 +114,8 @@ services:
     depends_on:
       qdrant:
         condition: service_started
-      redpanda:
-        condition: service_started
+      nats:
+        condition: service_healthy
       falkordb:
         condition: service_started
     volumes:
@@ -165,7 +129,7 @@ services:
       start_period: 30s
 
 volumes:
-  redpanda-data:
+  nats-data:
   falkor-data:
   qdrant-data:
   postgres-data:

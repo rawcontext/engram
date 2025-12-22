@@ -7,16 +7,14 @@ for retrieval and reranking.
 
 import asyncio
 import contextlib
-import json
 import logging
 import uuid
 from typing import Any
 
-from aiokafka import AIOKafkaConsumer
 from pydantic import BaseModel, Field
 from qdrant_client.http import models
 
-from src.clients.kafka import KafkaClient
+from src.clients.nats import NatsClient
 from src.clients.qdrant import QdrantClientWrapper
 from src.clients.redis import RedisPublisher
 from src.config import Settings
@@ -188,7 +186,7 @@ class TurnsIndexer:
 class TurnFinalizedConsumerConfig(BaseModel):
     """Configuration for turn finalized event consumer."""
 
-    topic: str = Field(default="memory.turn_finalized", description="Kafka topic")
+    topic: str = Field(default="memory.turn_finalized", description="Topic to consume")
     group_id: str = Field(default="search-turns-indexer", description="Consumer group ID")
     batch_config: BatchConfig = Field(default_factory=BatchConfig)
     indexer_config: TurnsIndexerConfig = Field(default_factory=TurnsIndexerConfig)
@@ -197,16 +195,16 @@ class TurnFinalizedConsumerConfig(BaseModel):
 
 
 class TurnFinalizedConsumer:
-    """Consumes turn_finalized events from Kafka and indexes them to Qdrant.
+    """Consumes turn_finalized events from NATS JetStream and indexes them to Qdrant.
 
-    Subscribes to the memory.turn_finalized Kafka topic, builds complete
+    Subscribes to the memory.turns.finalized NATS subject, builds complete
     turn documents from user + assistant + reasoning content, and batches
     them for efficient indexing with multi-vector embeddings.
     """
 
     def __init__(
         self,
-        kafka_client: KafkaClient,
+        nats_client: NatsClient,
         indexer: TurnsIndexer,
         redis_publisher: RedisPublisher | None = None,
         config: TurnFinalizedConsumerConfig | None = None,
@@ -214,16 +212,15 @@ class TurnFinalizedConsumer:
         """Initialize the turn finalized consumer.
 
         Args:
-            kafka_client: Kafka client for consuming events.
+            nats_client: NATS client for consuming events.
             indexer: Turns indexer for generating embeddings and upserting.
             redis_publisher: Optional Redis publisher for status updates.
             config: Consumer configuration.
         """
-        self.kafka = kafka_client
+        self.nats = nats_client
         self.indexer = indexer
         self.redis = redis_publisher
         self.config = config or TurnFinalizedConsumerConfig()
-        self._consumer: AIOKafkaConsumer | None = None
         self._batch_queue: BatchQueue | None = None
         self._running = False
         self._heartbeat_task: asyncio.Task[None] | None = None
@@ -239,10 +236,8 @@ class TurnFinalizedConsumer:
             f"(group: {self.config.group_id}, service: {self.config.service_id})"
         )
 
-        # Create Kafka consumer
-        self._consumer = await self.kafka.create_consumer(
-            topics=[self.config.topic], group_id=self.config.group_id
-        )
+        # Connect to NATS
+        await self.nats.connect()
 
         # Create batch queue with indexing callback
         self._batch_queue = BatchQueue(
@@ -272,12 +267,11 @@ class TurnFinalizedConsumer:
         logger.info("Turn consumer started, beginning message consumption")
 
         try:
-            async for message in self._consumer:
-                if not self._running:
-                    break
-
-                await self._process_message(message)
-
+            await self.nats.subscribe(
+                topic=self.config.topic,
+                group_id=self.config.group_id,
+                handler=self._handle_message,
+            )
         except asyncio.CancelledError:
             logger.info("Turn consumer task cancelled")
         except Exception as e:
@@ -316,28 +310,19 @@ class TurnFinalizedConsumer:
             except Exception as e:
                 logger.warning(f"Failed to publish consumer_disconnected status: {e}")
 
-        # Disconnect consumer
-        if self._consumer is not None:
-            await self._consumer.stop()
-            self._consumer = None
+        # Close NATS connection
+        await self.nats.close()
 
         logger.info("Turn consumer stopped")
 
-    async def _process_message(self, message: Any) -> None:
-        """Process a single Kafka message.
+    async def _handle_message(self, subject: str, data: dict[str, Any]) -> None:
+        """Handle a single message from NATS.
 
         Args:
-            message: Kafka message from aiokafka.
+            subject: NATS subject the message was received on.
+            data: Parsed message payload.
         """
         try:
-            # Decode message value
-            value = message.value
-            if isinstance(value, bytes):
-                value = value.decode("utf-8")
-
-            # Parse JSON
-            data = json.loads(value)
-
             # Extract document from turn_finalized event
             document = self._parse_turn_finalized(data)
             if document is None:
@@ -349,8 +334,6 @@ class TurnFinalizedConsumer:
                 await self._batch_queue.add(document)
                 logger.debug(f"Added turn document {document.id} to batch queue")
 
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode JSON message: {e}")
         except Exception as e:
             logger.error(f"Error processing turn message: {e}", exc_info=True)
 
@@ -381,7 +364,7 @@ class TurnFinalizedConsumer:
     def _parse_turn_finalized(self, data: dict[str, Any]) -> Document | None:
         """Parse a turn_finalized event into a Document.
 
-        Expected event structure from memory.turn_finalized topic:
+        Expected event structure from memory.turns.finalized subject:
         {
             "id": "turn-id",
             "session_id": "session-id",
@@ -464,7 +447,7 @@ def create_turns_consumer(
     settings: Settings,
     qdrant_client: QdrantClientWrapper,
     embedder_factory: EmbedderFactory,
-    kafka_client: KafkaClient,
+    nats_client: NatsClient,
     redis_publisher: RedisPublisher | None = None,
 ) -> TurnFinalizedConsumer:
     """Create a configured TurnFinalizedConsumer instance.
@@ -473,7 +456,7 @@ def create_turns_consumer(
         settings: Application settings.
         qdrant_client: Qdrant client wrapper.
         embedder_factory: Factory for creating embedder instances.
-        kafka_client: Kafka client for consuming events.
+        nats_client: NATS client for consuming events.
         redis_publisher: Optional Redis publisher for status updates.
 
     Returns:
@@ -494,7 +477,7 @@ def create_turns_consumer(
     )
 
     return TurnFinalizedConsumer(
-        kafka_client=kafka_client,
+        nats_client=nats_client,
         indexer=indexer,
         redis_publisher=redis_publisher,
         config=consumer_config,

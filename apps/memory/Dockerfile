@@ -1,45 +1,18 @@
-# Stage 1: Builder - use Node.js for Kafka native bindings compatibility
-FROM node:24-alpine AS builder
+FROM oven/bun:1.3.5 AS builder
 WORKDIR /app
+COPY . .
+RUN bun install --frozen-lockfile
 
-# Install build dependencies for native modules
-RUN apk add --no-cache python3 make g++
-
-COPY package.json package-lock.json ./
-COPY apps/memory ./apps/memory
-COPY packages ./packages
-
-# Install dependencies with npm for Node.js native bindings
-RUN npm install
-
-# Build dependencies using npm scripts
-WORKDIR /app/packages/common
-RUN npm run build
-WORKDIR /app/packages/logger
-RUN npm run build
-WORKDIR /app/packages/events
-RUN npm run build
-WORKDIR /app/packages/storage
-RUN npm run build
-WORKDIR /app/packages/graph
-RUN npm run build
-
-# Stage 2: Runner
-FROM node:24-alpine AS runner
+FROM oven/bun:1.3.5-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-
-# Create non-root user for security
 RUN addgroup -S engram && adduser -S engram -G engram
 
-# Copy source files and built packages
-COPY --from=builder --chown=engram:engram /app/apps/memory ./apps/memory
-COPY --from=builder --chown=engram:engram /app/packages ./packages
-COPY --from=builder --chown=engram:engram /app/node_modules ./node_modules
-COPY --from=builder --chown=engram:engram /app/package.json ./
+COPY --from=builder /app/apps/memory ./apps/memory
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 
 USER engram
 EXPOSE 8080
-
-WORKDIR /app/apps/memory
-CMD ["node", "--import", "tsx", "src/index.ts"]
+CMD ["bun", "run", "apps/memory/src/index.ts"]

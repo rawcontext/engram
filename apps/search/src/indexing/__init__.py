@@ -1,30 +1,30 @@
 """Document indexing pipeline for Engram search service.
 
-This module provides Kafka consumers that index memory nodes to Qdrant
+This module provides NATS JetStream consumers that index memory nodes to Qdrant
 with multi-vector embeddings (dense, sparse, ColBERT).
 
 Components:
     - BatchQueue: Efficient batching queue with automatic flushing
     - DocumentIndexer: Multi-vector embedding generation and Qdrant upsertion
-    - MemoryEventConsumer: Kafka consumer for memory.node_created events (legacy)
-    - TurnFinalizedConsumer: Kafka consumer for memory.turn_finalized events
+    - MemoryEventConsumer: NATS consumer for memory.nodes.created events (legacy)
+    - TurnFinalizedConsumer: NATS consumer for memory.turns.finalized events
     - TurnsIndexer: Turn-level document indexer for engram_turns collection
 
 Usage:
     from src.indexing import TurnFinalizedConsumer, create_turns_consumer
-    from src.clients.kafka import KafkaClient
+    from src.clients.nats import NatsClient
     from src.clients.qdrant import QdrantClientWrapper
     from src.clients.redis import RedisPublisher
     from src.embedders.factory import EmbedderFactory
 
     # Initialize dependencies
-    kafka = KafkaClient()
+    nats = NatsClient()
     qdrant = QdrantClientWrapper(settings)
     redis = RedisPublisher()
     embedders = EmbedderFactory(settings)
 
     # Create and start turn consumer
-    consumer = create_turns_consumer(settings, qdrant, embedders, kafka, redis)
+    consumer = create_turns_consumer(settings, qdrant, embedders, nats, redis)
     await consumer.start()
 """
 
