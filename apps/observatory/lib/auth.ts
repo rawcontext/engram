@@ -1,16 +1,19 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 
+const baseURL = process.env.BETTER_AUTH_URL || "https://observatory.statient.com";
+
 export const auth = betterAuth({
 	database: new Pool({
 		connectionString: process.env.AUTH_DATABASE_URL,
 	}),
-	baseURL: process.env.BETTER_AUTH_URL,
+	baseURL,
 	secret: process.env.BETTER_AUTH_SECRET,
 	socialProviders: {
 		google: {
 			clientId: process.env.GOOGLE_CLIENT_ID as string,
 			clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+			redirectURI: `${baseURL}/api/auth/callback/google`,
 		},
 	},
 	session: {
@@ -26,6 +29,12 @@ export const auth = betterAuth({
 		"http://localhost:3000",
 		"https://observatory.statient.com",
 	],
+	onAPIError: {
+		onError: (error) => {
+			const err = error as Error;
+			console.error("[BetterAuth] API Error:", err.message);
+		},
+	},
 });
 
 export type Session = typeof auth.$Infer.Session;
