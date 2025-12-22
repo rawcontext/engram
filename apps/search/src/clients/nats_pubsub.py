@@ -16,6 +16,7 @@ from collections.abc import Callable
 from typing import Any
 
 import nats
+from nats.aio.msg import Msg as NatsMsg
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -274,7 +275,7 @@ class NatsPubSubSubscriber:
         # Track callbacks per subject
         if subject not in self._subscriptions:
             # Create message handler
-            async def message_handler(msg: nats.Msg) -> None:
+            async def message_handler(msg: NatsMsg) -> None:
                 try:
                     parsed = json.loads(msg.data.decode("utf-8"))
                     entry = self._subscriptions.get(msg.subject)

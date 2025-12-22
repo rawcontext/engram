@@ -4,9 +4,9 @@ import {
 	createFalkorClient,
 	createNatsClient,
 	type GraphClient,
-	type RedisPublisher,
+	type NatsPubSubPublisher,
 } from "@engram/storage";
-import { createRedisPublisher } from "@engram/storage/redis";
+import { createNatsPubSubPublisher } from "@engram/storage/nats";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TurnAggregator } from "./turn-aggregator";
 
@@ -15,7 +15,7 @@ const {
 	mockGraphClient,
 	mockConsumer,
 	mockNatsClient,
-	mockRedisPublisher,
+	mockNatsPubSub,
 	mockLogger,
 	mockGraphPruner,
 	mockMcpServer,
@@ -40,7 +40,7 @@ const {
 			})),
 			sendEvent: vi.fn(async () => {}),
 		},
-		mockRedisPublisher: {
+		mockNatsPubSub: {
 			publishSessionUpdate: vi.fn(async () => {}),
 			publishGlobalSessionEvent: vi.fn(async () => {}),
 			publishConsumerStatus: vi.fn(async () => {}),
@@ -69,8 +69,8 @@ vi.mock("@engram/storage", () => ({
 	createNatsClient: vi.fn(() => mockNatsClient),
 }));
 
-vi.mock("@engram/storage/redis", () => ({
-	createRedisPublisher: vi.fn(() => mockRedisPublisher),
+vi.mock("@engram/storage/nats", () => ({
+	createNatsPubSubPublisher: vi.fn(() => mockNatsPubSub),
 }));
 
 vi.mock("@engram/logger", () => ({
@@ -113,7 +113,7 @@ describe("Memory Service Deps", () => {
 
 			expect(deps.graphClient).toBeDefined();
 			expect(deps.natsClient).toBeDefined();
-			expect(deps.redisPublisher).toBeDefined();
+			expect(deps.natsPubSub).toBeDefined();
 			expect(deps.logger).toBeDefined();
 			expect(deps.turnAggregator).toBeDefined();
 			expect(deps.graphPruner).toBeDefined();
@@ -140,12 +140,12 @@ describe("Memory Service Deps", () => {
 			expect(deps.natsClient).toBe(customNats);
 		});
 
-		it("should use custom redis publisher when provided", () => {
-			const customRedis = createRedisPublisher();
+		it("should use custom NATS pub/sub publisher when provided", () => {
+			const customNatsPubSub = createNatsPubSubPublisher();
 
-			const deps = createMemoryServiceDeps({ redisPublisher: customRedis });
+			const deps = createMemoryServiceDeps({ natsPubSub: customNatsPubSub });
 
-			expect(deps.redisPublisher).toBe(customRedis);
+			expect(deps.natsPubSub).toBe(customNatsPubSub);
 		});
 
 		it("should use custom logger when provided", () => {
@@ -177,7 +177,7 @@ describe("Memory Service Deps", () => {
 
 		it("should create turn aggregator with onNodeCreated callback", async () => {
 			const deps = createMemoryServiceDeps();
-			const mockRedis = deps.redisPublisher as unknown as {
+			const mockNats = deps.natsPubSub as unknown as {
 				publishSessionUpdate: ReturnType<typeof vi.fn>;
 			};
 
@@ -185,7 +185,7 @@ describe("Memory Service Deps", () => {
 			const registry = deps.turnAggregator.getHandlerRegistry();
 			expect(registry).toBeDefined();
 
-			// Test that onNodeCreated publishes to Redis
+			// Test that onNodeCreated publishes via NATS
 			const testNode = {
 				id: "test-123",
 				type: "turn" as const,
@@ -199,13 +199,13 @@ describe("Memory Service Deps", () => {
 		});
 
 		it("should handle errors in onNodeCreated callback gracefully", async () => {
-			const mockRedis = {
-				publishSessionUpdate: vi.fn().mockRejectedValue(new Error("Redis error")),
+			const mockNats = {
+				publishSessionUpdate: vi.fn().mockRejectedValue(new Error("NATS error")),
 				publishGlobalSessionEvent: vi.fn(),
 				publishConsumerStatus: vi.fn(),
 				disconnect: vi.fn(),
 				connect: vi.fn(),
-			} as unknown as RedisPublisher;
+			} as unknown as NatsPubSubPublisher;
 
 			const mockLogger = {
 				info: vi.fn(),
@@ -215,7 +215,7 @@ describe("Memory Service Deps", () => {
 			};
 
 			const deps = createMemoryServiceDeps({
-				redisPublisher: mockRedis,
+				natsPubSub: mockNats,
 				logger: mockLogger as any,
 			});
 
@@ -259,17 +259,17 @@ describe("Memory Service Deps", () => {
 			expect(deps.logger).toBe(customLogger);
 			expect(deps.graphClient).toBe(customGraphClient);
 			expect(deps.natsClient).toBeDefined(); // Should use default
-			expect(deps.redisPublisher).toBeDefined(); // Should use default
+			expect(deps.natsPubSub).toBeDefined(); // Should use default
 		});
 
-		it("should wire onNodeCreated callback to publish to Redis", async () => {
-			const mockRedis = {
+		it("should wire onNodeCreated callback to publish via NATS", async () => {
+			const mockNats = {
 				publishSessionUpdate: vi.fn().mockResolvedValue(undefined),
 				publishGlobalSessionEvent: vi.fn(),
 				publishConsumerStatus: vi.fn(),
 				disconnect: vi.fn(),
 				connect: vi.fn(),
-			} as unknown as RedisPublisher;
+			} as unknown as NatsPubSubPublisher;
 
 			const mockLogger = {
 				info: vi.fn(),
@@ -279,7 +279,7 @@ describe("Memory Service Deps", () => {
 			};
 
 			const deps = createMemoryServiceDeps({
-				redisPublisher: mockRedis,
+				natsPubSub: mockNats,
 				logger: mockLogger as any,
 			});
 
@@ -296,11 +296,11 @@ describe("Memory Service Deps", () => {
 				testSessionId,
 			);
 
-			// onNodeCreated should have been called, which publishes to Redis
+			// onNodeCreated should have been called, which publishes via NATS
 			// Wait a tick for async callback
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
-			expect(mockRedis.publishSessionUpdate).toHaveBeenCalledWith(
+			expect(mockNats.publishSessionUpdate).toHaveBeenCalledWith(
 				testSessionId,
 				expect.objectContaining({
 					type: "graph_node_created",
@@ -312,14 +312,14 @@ describe("Memory Service Deps", () => {
 			);
 		});
 
-		it("should handle Redis publish errors in onNodeCreated gracefully", async () => {
-			const mockRedis = {
-				publishSessionUpdate: vi.fn().mockRejectedValue(new Error("Redis publish failed")),
+		it("should handle NATS publish errors in onNodeCreated gracefully", async () => {
+			const mockNats = {
+				publishSessionUpdate: vi.fn().mockRejectedValue(new Error("NATS publish failed")),
 				publishGlobalSessionEvent: vi.fn(),
 				publishConsumerStatus: vi.fn(),
 				disconnect: vi.fn(),
 				connect: vi.fn(),
-			} as unknown as RedisPublisher;
+			} as unknown as NatsPubSubPublisher;
 
 			const mockLogger = {
 				info: vi.fn(),
@@ -329,7 +329,7 @@ describe("Memory Service Deps", () => {
 			};
 
 			const deps = createMemoryServiceDeps({
-				redisPublisher: mockRedis,
+				natsPubSub: mockNats,
 				logger: mockLogger as any,
 			});
 
@@ -363,7 +363,7 @@ describe("Memory Service Deps", () => {
 			// Verify all dependencies are created
 			expect(deps.graphClient).toBeDefined();
 			expect(deps.natsClient).toBeDefined();
-			expect(deps.redisPublisher).toBeDefined();
+			expect(deps.natsPubSub).toBeDefined();
 			expect(deps.logger).toBeDefined();
 			expect(deps.turnAggregator).toBeDefined();
 			expect(deps.graphPruner).toBeDefined();
