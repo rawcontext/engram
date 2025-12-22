@@ -10,7 +10,7 @@ COPY apps/memory ./apps/memory
 COPY packages ./packages
 
 # Install dependencies with npm for Node.js native bindings
-RUN npm ci
+RUN npm install
 
 # Build dependencies using npm scripts
 WORKDIR /app/packages/common
