@@ -1,0 +1,54 @@
+# Data volumes
+data/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Node modules (each app installs its own)
+node_modules/
+
+# Build artifacts
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Terraform/OpenTofu
+.terraform/
+terraform.tfstate*
+*.tfstate*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files (handled separately)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation build
+docs/_build/
