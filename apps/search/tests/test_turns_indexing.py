@@ -167,7 +167,7 @@ class TestTurnFinalizedConsumer:
     ) -> None:
         """Test parsing a valid turn_finalized event."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=MagicMock(),
+            nats_client=MagicMock(),
             indexer=mock_turns_indexer,
         )
 
@@ -205,7 +205,7 @@ class TestTurnFinalizedConsumer:
     ) -> None:
         """Test parsing a minimal turn_finalized event."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=MagicMock(),
+            nats_client=MagicMock(),
             indexer=mock_turns_indexer,
         )
 
@@ -228,7 +228,7 @@ class TestTurnFinalizedConsumer:
     ) -> None:
         """Test parsing event without id returns None."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=MagicMock(),
+            nats_client=MagicMock(),
             indexer=mock_turns_indexer,
         )
 
@@ -247,7 +247,7 @@ class TestTurnFinalizedConsumer:
     ) -> None:
         """Test parsing event with no content returns None."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=MagicMock(),
+            nats_client=MagicMock(),
             indexer=mock_turns_indexer,
         )
 
@@ -267,7 +267,7 @@ class TestTurnFinalizedConsumer:
     ) -> None:
         """Test that has_code is set when content contains code blocks."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=MagicMock(),
+            nats_client=MagicMock(),
             indexer=mock_turns_indexer,
         )
 

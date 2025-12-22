@@ -295,15 +295,17 @@ class TestMemoryEventConsumer:
     """Tests for MemoryEventConsumer."""
 
     @pytest.fixture
-    def mock_kafka(self) -> MagicMock:
-        """Create mock Kafka client."""
-        kafka = MagicMock()
+    def mock_nats(self) -> MagicMock:
+        """Create mock NATS client."""
+        nats = MagicMock()
+        nats.close = AsyncMock()
+        nats.connect = AsyncMock()
         consumer = AsyncMock()
         consumer.stop = AsyncMock()
         # Make consumer iterable
         consumer.__aiter__ = MagicMock(return_value=iter([]))
-        kafka.create_consumer = AsyncMock(return_value=consumer)
-        return kafka
+        nats.create_consumer = AsyncMock(return_value=consumer)
+        return nats
 
     @pytest.fixture
     def mock_indexer(self) -> MagicMock:
@@ -329,30 +331,30 @@ class TestMemoryEventConsumer:
 
     async def test_initialization(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
         """Test consumer initialization."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
-        assert consumer.kafka is mock_kafka
+        assert consumer.nats is mock_nats
         assert consumer.indexer is mock_indexer
         assert consumer.config is config
         assert consumer._running is False
 
     async def test_stop_when_not_running(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
         """Test stop when consumer is not running."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -361,14 +363,14 @@ class TestMemoryEventConsumer:
 
     async def test_stop_publishes_disconnected_status(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         mock_redis: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
         """Test that stop publishes disconnected status."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             redis_publisher=mock_redis,
             config=config,
@@ -392,7 +394,7 @@ class TestMemoryEventConsumer:
 
     async def test_stop_handles_redis_error(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
@@ -401,7 +403,7 @@ class TestMemoryEventConsumer:
         mock_redis.publish_consumer_status = AsyncMock(side_effect=Exception("Redis error"))
 
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             redis_publisher=mock_redis,
             config=config,
@@ -420,13 +422,13 @@ class TestMemoryEventConsumer:
 
     def test_parse_memory_node_valid(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
         """Test parsing valid memory node data."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -450,13 +452,13 @@ class TestMemoryEventConsumer:
 
     def test_parse_memory_node_missing_id(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
         """Test parsing with missing id returns None."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -468,13 +470,13 @@ class TestMemoryEventConsumer:
 
     def test_parse_memory_node_missing_content(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
         """Test parsing with missing content returns None."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -486,13 +488,13 @@ class TestMemoryEventConsumer:
 
     def test_parse_memory_node_minimal(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
         """Test parsing with minimal required fields."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -506,15 +508,15 @@ class TestMemoryEventConsumer:
         assert doc.session_id is None
         assert doc.metadata == {}
 
-    async def test_process_message_bytes(
+    async def test_handle_message_valid(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
-        """Test processing message with bytes value."""
+        """Test handling message with valid data."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -522,112 +524,88 @@ class TestMemoryEventConsumer:
         consumer._batch_queue.add = AsyncMock()
 
         data = {"id": "node-123", "content": "test content"}
-        message = MagicMock()
-        message.value = json.dumps(data).encode("utf-8")
 
-        await consumer._process_message(message)
+        await consumer._handle_message("memory.nodes.created", data)
 
         consumer._batch_queue.add.assert_called_once()
 
-    async def test_process_message_string(
+    async def test_handle_message_with_metadata(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
-        """Test processing message with string value."""
+        """Test handling message with metadata."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
         consumer._batch_queue = MagicMock()
         consumer._batch_queue.add = AsyncMock()
 
-        data = {"id": "node-123", "content": "test content"}
-        message = MagicMock()
-        message.value = json.dumps(data)
+        data = {
+            "id": "node-123",
+            "content": "test content",
+            "type": "thought",
+            "sessionId": "session-456",
+        }
 
-        await consumer._process_message(message)
+        await consumer._handle_message("memory.nodes.created", data)
 
         consumer._batch_queue.add.assert_called_once()
 
-    async def test_process_message_invalid_json(
+    async def test_handle_message_missing_fields(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
-        """Test processing message with invalid JSON."""
+        """Test handling message with missing required fields."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
         consumer._batch_queue = MagicMock()
         consumer._batch_queue.add = AsyncMock()
 
-        message = MagicMock()
-        message.value = "not valid json"
+        # Missing content field
+        data = {"id": "node-123"}
 
         # Should not raise
-        await consumer._process_message(message)
+        await consumer._handle_message("memory.nodes.created", data)
         consumer._batch_queue.add.assert_not_called()
 
-    async def test_process_message_parse_fails(
+    async def test_handle_message_no_batch_queue(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
-        """Test processing message when parsing fails."""
+        """Test handling message when batch queue is None."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
-            indexer=mock_indexer,
-            config=config,
-        )
-        consumer._batch_queue = MagicMock()
-        consumer._batch_queue.add = AsyncMock()
-
-        # Missing required fields
-        data = {"id": "node-123"}  # Missing content
-        message = MagicMock()
-        message.value = json.dumps(data)
-
-        await consumer._process_message(message)
-        consumer._batch_queue.add.assert_not_called()
-
-    async def test_process_message_no_batch_queue(
-        self,
-        mock_kafka: MagicMock,
-        mock_indexer: MagicMock,
-        config: MemoryConsumerConfig,
-    ) -> None:
-        """Test processing message when batch queue is None."""
-        consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
         consumer._batch_queue = None
 
         data = {"id": "node-123", "content": "test content"}
-        message = MagicMock()
-        message.value = json.dumps(data)
 
         # Should not raise
-        await consumer._process_message(message)
+        await consumer._handle_message("memory.nodes.created", data)
 
     async def test_heartbeat_loop(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         mock_redis: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
         """Test heartbeat loop publishes heartbeats."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             redis_publisher=mock_redis,
             config=config,
@@ -647,7 +625,7 @@ class TestMemoryEventConsumer:
 
     async def test_heartbeat_loop_handles_redis_error(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
@@ -656,7 +634,7 @@ class TestMemoryEventConsumer:
         mock_redis.publish_consumer_status = AsyncMock(side_effect=Exception("Redis error"))
 
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             redis_publisher=mock_redis,
             config=config,
@@ -673,13 +651,13 @@ class TestMemoryEventConsumer:
 
     async def test_heartbeat_loop_no_redis(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
         """Test heartbeat loop with no Redis publisher."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             redis_publisher=None,
             config=config,
@@ -696,13 +674,13 @@ class TestMemoryEventConsumer:
 
     async def test_start_already_running(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: MemoryConsumerConfig,
     ) -> None:
         """Test starting already running consumer."""
         consumer = MemoryEventConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -711,7 +689,7 @@ class TestMemoryEventConsumer:
         # Should just return
         await consumer.start()
 
-        mock_kafka.create_consumer.assert_not_called()
+        mock_nats.create_consumer.assert_not_called()
 
 
 class TestIndexerConfig:

@@ -241,14 +241,16 @@ class TestTurnFinalizedConsumer:
     """Tests for TurnFinalizedConsumer."""
 
     @pytest.fixture
-    def mock_kafka(self) -> MagicMock:
-        """Create mock Kafka client."""
-        kafka = MagicMock()
+    def mock_nats(self) -> MagicMock:
+        """Create mock NATS client."""
+        nats = MagicMock()
+        nats.close = AsyncMock()
+        nats.connect = AsyncMock()
         consumer = AsyncMock()
         consumer.stop = AsyncMock()
         consumer.__aiter__ = MagicMock(return_value=iter([]))
-        kafka.create_consumer = AsyncMock(return_value=consumer)
-        return kafka
+        nats.create_consumer = AsyncMock(return_value=consumer)
+        return nats
 
     @pytest.fixture
     def mock_indexer(self) -> MagicMock:
@@ -274,30 +276,30 @@ class TestTurnFinalizedConsumer:
 
     async def test_initialization(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test consumer initialization."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
-        assert consumer.kafka is mock_kafka
+        assert consumer.nats is mock_nats
         assert consumer.indexer is mock_indexer
         assert consumer.config is config
         assert consumer._running is False
 
     async def test_stop_when_not_running(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test stop when consumer is not running."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -306,13 +308,13 @@ class TestTurnFinalizedConsumer:
 
     async def test_start_already_running(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test starting already running consumer."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -321,17 +323,17 @@ class TestTurnFinalizedConsumer:
         # Should just return
         await consumer.start()
 
-        mock_kafka.create_consumer.assert_not_called()
+        mock_nats.create_consumer.assert_not_called()
 
     def test_parse_turn_finalized_valid(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test parsing valid turn_finalized event."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -366,13 +368,13 @@ class TestTurnFinalizedConsumer:
 
     def test_parse_turn_finalized_missing_id(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test parsing with missing id returns None."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -384,13 +386,13 @@ class TestTurnFinalizedConsumer:
 
     def test_parse_turn_finalized_no_content(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test parsing with no content returns None."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -402,13 +404,13 @@ class TestTurnFinalizedConsumer:
 
     def test_parse_turn_finalized_with_code(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test parsing turn with code blocks."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -425,13 +427,13 @@ class TestTurnFinalizedConsumer:
 
     def test_parse_turn_finalized_user_only(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test parsing turn with only user content."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -449,14 +451,14 @@ class TestTurnFinalizedConsumer:
 
     async def test_stop_publishes_disconnected_status(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         mock_redis: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test that stop publishes disconnected status."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             redis_publisher=mock_redis,
             config=config,
@@ -480,7 +482,7 @@ class TestTurnFinalizedConsumer:
 
     async def test_stop_handles_redis_error(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
@@ -489,7 +491,7 @@ class TestTurnFinalizedConsumer:
         mock_redis.publish_consumer_status = AsyncMock(side_effect=Exception("Redis error"))
 
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             redis_publisher=mock_redis,
             config=config,
@@ -506,17 +508,15 @@ class TestTurnFinalizedConsumer:
         # Should not raise
         await consumer.stop()
 
-    async def test_process_message_bytes(
+    async def test_handle_message_valid(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
-        """Test processing message with bytes value."""
-        import json
-
+        """Test handling message with valid data."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
@@ -524,111 +524,81 @@ class TestTurnFinalizedConsumer:
         consumer._batch_queue.add = AsyncMock()
 
         data = {"id": "turn-123", "user_content": "test content"}
-        message = MagicMock()
-        message.value = json.dumps(data).encode("utf-8")
 
-        await consumer._process_message(message)
+        await consumer._handle_message("memory.turns.finalized", data)
 
         consumer._batch_queue.add.assert_called_once()
 
-    async def test_process_message_string(
+    async def test_handle_message_with_metadata(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
-        """Test processing message with string value."""
-        import json
-
+        """Test handling message with metadata."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
         consumer._batch_queue = MagicMock()
         consumer._batch_queue.add = AsyncMock()
 
-        data = {"id": "turn-123", "user_content": "test content"}
-        message = MagicMock()
-        message.value = json.dumps(data)
+        data = {
+            "id": "turn-123",
+            "user_content": "test content",
+            "assistant_content": "response",
+            "session_id": "session-456",
+        }
 
-        await consumer._process_message(message)
+        await consumer._handle_message("memory.turns.finalized", data)
 
         consumer._batch_queue.add.assert_called_once()
 
-    async def test_process_message_invalid_json(
+    async def test_handle_message_missing_fields(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
-        """Test processing message with invalid JSON."""
+        """Test handling message with missing required fields."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
         consumer._batch_queue = MagicMock()
         consumer._batch_queue.add = AsyncMock()
 
-        message = MagicMock()
-        message.value = "not valid json"
+        # Missing content field
+        data = {"id": "turn-123"}
 
         # Should not raise
-        await consumer._process_message(message)
+        await consumer._handle_message("memory.turns.finalized", data)
         consumer._batch_queue.add.assert_not_called()
 
-    async def test_process_message_parse_fails(
+    async def test_handle_message_no_batch_queue(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
-        """Test processing message when parsing fails."""
-        import json
-
+        """Test handling message when batch queue is None."""
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
-            indexer=mock_indexer,
-            config=config,
-        )
-        consumer._batch_queue = MagicMock()
-        consumer._batch_queue.add = AsyncMock()
-
-        # Missing required fields
-        data = {"id": "turn-123"}  # Missing content
-        message = MagicMock()
-        message.value = json.dumps(data)
-
-        await consumer._process_message(message)
-        consumer._batch_queue.add.assert_not_called()
-
-    async def test_process_message_no_batch_queue(
-        self,
-        mock_kafka: MagicMock,
-        mock_indexer: MagicMock,
-        config: TurnFinalizedConsumerConfig,
-    ) -> None:
-        """Test processing message when batch queue is None."""
-        import json
-
-        consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             config=config,
         )
         consumer._batch_queue = None
 
         data = {"id": "turn-123", "user_content": "test content"}
-        message = MagicMock()
-        message.value = json.dumps(data)
 
         # Should not raise
-        await consumer._process_message(message)
+        await consumer._handle_message("memory.turns.finalized", data)
 
     async def test_heartbeat_loop(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         mock_redis: MagicMock,
         config: TurnFinalizedConsumerConfig,
@@ -637,7 +607,7 @@ class TestTurnFinalizedConsumer:
         import asyncio
 
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             redis_publisher=mock_redis,
             config=config,
@@ -657,7 +627,7 @@ class TestTurnFinalizedConsumer:
 
     async def test_heartbeat_loop_handles_redis_error(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
@@ -668,7 +638,7 @@ class TestTurnFinalizedConsumer:
         mock_redis.publish_consumer_status = AsyncMock(side_effect=Exception("Redis error"))
 
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             redis_publisher=mock_redis,
             config=config,
@@ -685,7 +655,7 @@ class TestTurnFinalizedConsumer:
 
     async def test_heartbeat_loop_no_redis(
         self,
-        mock_kafka: MagicMock,
+        mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
@@ -693,7 +663,7 @@ class TestTurnFinalizedConsumer:
         import asyncio
 
         consumer = TurnFinalizedConsumer(
-            kafka_client=mock_kafka,
+            nats_client=mock_nats,
             indexer=mock_indexer,
             redis_publisher=None,
             config=config,
