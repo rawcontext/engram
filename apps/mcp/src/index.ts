@@ -55,6 +55,9 @@ async function main() {
 }
 
 main().catch((error) => {
-	console.error("Fatal error:", error);
+	// Use basic logger since main() may have failed before logger was created
+	const { createNodeLogger } = require("@engram/logger");
+	const fallbackLogger = createNodeLogger({ service: "mcp", base: { component: "main" } });
+	fallbackLogger.error({ error }, "Fatal error");
 	process.exit(1);
 });

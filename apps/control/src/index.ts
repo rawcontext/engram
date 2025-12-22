@@ -127,4 +127,7 @@ const startConsumer = async () => {
 
 // Start
 logger.info("Control Service starting...");
-startConsumer().catch(console.error);
+startConsumer().catch((err) => {
+	logger.error({ err }, "Fatal error in consumer");
+	process.exit(1);
+});

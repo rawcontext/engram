@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { parse } from "node:url";
+import { createNodeLogger } from "@engram/logger";
 import next from "next";
 import { WebSocketServer } from "ws";
 import {
@@ -7,6 +8,8 @@ import {
 	handleSessionConnection,
 	handleSessionsConnection,
 } from "./lib/websocket-server";
+
+const logger = createNodeLogger({ service: "observatory", base: { component: "server" } });
 
 const port = parseInt(process.env.PORT || "5000", 10);
 const dev = process.env.NODE_ENV !== "production";
@@ -60,6 +63,6 @@ app.prepare().then(() => {
 	});
 
 	server.listen(port, () => {
-		console.log(`> Ready on http://localhost:${port}`);
+		logger.info({ port }, "Observatory server ready");
 	});
 });

@@ -127,6 +127,8 @@ async function main() {
 }
 
 main().catch((err) => {
-	console.error("Fatal error:", err);
+	// Use basic logger since main() may have failed before logger was created
+	const fallbackLogger = createLogger({ level: "error", component: "api" });
+	fallbackLogger.error({ err }, "Fatal error");
 	process.exit(1);
 });

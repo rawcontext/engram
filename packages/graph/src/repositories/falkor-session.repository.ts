@@ -1,7 +1,13 @@
+import { createNodeLogger } from "@engram/logger";
 import type { FalkorNode } from "@engram/storage";
 import { FalkorBaseRepository, type TimeTravelOptions } from "./falkor-base";
 import type { SessionRepository } from "./session.repository";
 import type { CreateSessionInput, Session, UpdateSessionInput } from "./types";
+
+const logger = createNodeLogger({
+	service: "graph",
+	base: { component: "falkor-session-repository" },
+});
 
 /**
  * Raw FalkorDB Session node properties.
@@ -291,7 +297,7 @@ export class FalkorSessionRepository extends FalkorBaseRepository implements Ses
 			return JSON.parse(jsonString) as T;
 		} catch {
 			// Log warning but don't fail - return fallback value
-			console.warn(`[FalkorSessionRepository] Failed to parse ${context} JSON, using fallback`);
+			logger.warn({ context }, "Failed to parse JSON, using fallback");
 			return fallback;
 		}
 	}

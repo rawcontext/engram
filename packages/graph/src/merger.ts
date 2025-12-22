@@ -1,4 +1,7 @@
+import { createNodeLogger } from "@engram/logger";
 import type { FalkorClient, QueryParams } from "@engram/storage";
+
+const logger = createNodeLogger({ service: "graph", base: { component: "merger" } });
 
 /**
  * Regex pattern for valid Cypher relationship types.
@@ -39,7 +42,7 @@ export class GraphMerger {
 		for (const row of edgesResult) {
 			// Use proper type guards instead of unsafe casting
 			if (!Array.isArray(row) || row.length < 4) {
-				console.warn("[GraphMerger] Skipping invalid row - expected array with 4 elements");
+				logger.warn("Skipping invalid row - expected array with 4 elements");
 				continue;
 			}
 
@@ -50,15 +53,15 @@ export class GraphMerger {
 
 			// Validate types
 			if (typeof type !== "string") {
-				console.warn("[GraphMerger] Skipping row - type is not a string");
+				logger.warn("Skipping row - type is not a string");
 				continue;
 			}
 			if (typeof isOutgoing !== "boolean") {
-				console.warn("[GraphMerger] Skipping row - isOutgoing is not a boolean");
+				logger.warn("Skipping row - isOutgoing is not a boolean");
 				continue;
 			}
 			if (typeof neighborId !== "string") {
-				console.warn("[GraphMerger] Skipping row - neighborId is not a string");
+				logger.warn("Skipping row - neighborId is not a string");
 				continue;
 			}
 
@@ -91,6 +94,6 @@ export class GraphMerger {
 		const deleteQuery = `MATCH (s {id: $sourceId}) DETACH DELETE s`;
 		await this.client.query(deleteQuery, { sourceId });
 
-		console.log(`Merged node ${sourceId} into ${targetId}`);
+		logger.info({ sourceId, targetId }, "Merged nodes");
 	}
 }

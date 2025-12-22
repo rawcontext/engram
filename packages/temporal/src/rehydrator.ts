@@ -1,4 +1,5 @@
 import { RehydrationError } from "@engram/common";
+import { createNodeLogger } from "@engram/logger";
 import {
 	type BlobStore,
 	createBlobStore,
@@ -7,6 +8,8 @@ import {
 	type GraphClient,
 } from "@engram/storage";
 import { PatchManager, VirtualFileSystem } from "@engram/vfs";
+
+const logger = createNodeLogger({ service: "temporal", base: { component: "rehydrator" } });
 
 /**
  * Dependencies for Rehydrator construction.
@@ -130,8 +133,9 @@ export class Rehydrator {
 						// Track patch failure but continue - patches may be outdated or conflicts
 						const error = e instanceof Error ? e : new Error(String(e));
 						patchFailures.push({ filePath: diff.file_path, error });
-						console.warn(
-							`[Rehydrator] Failed to apply patch to ${diff.file_path}: ${error.message}`,
+						logger.warn(
+							{ filePath: diff.file_path, error: error.message },
+							"Failed to apply patch",
 						);
 					}
 				}
