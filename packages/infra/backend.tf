@@ -1,15 +1,18 @@
-# Remote state storage using PostgreSQL
-# The database connection string is provided via environment variable:
-#   TF_VAR_pg_conn_str or via backend config
+# Remote state storage using HTTP backend via Engram API
+# The API key is provided via environment variable:
+#   TF_HTTP_USERNAME and TF_HTTP_PASSWORD (password is the API key)
 #
-# To initialize with the backend:
-#   tofu init -backend-config="conn_str=$DATABASE_URL"
-#
-# Or set the environment variable:
-#   export TF_HTTP_ADDRESS="..." for HTTP backend alternative
+# To initialize:
+#   export TF_HTTP_USERNAME="tofu"
+#   export TF_HTTP_PASSWORD="your-api-key-with-state:write-scope"
+#   tofu init
 
 terraform {
-  backend "pg" {
-    schema_name = "tofu_state"
+  backend "http" {
+    address        = "https://api.statient.com/v1/tofu"
+    lock_address   = "https://api.statient.com/v1/tofu/lock"
+    unlock_address = "https://api.statient.com/v1/tofu/lock"
+    lock_method    = "POST"
+    unlock_method  = "POST"
   }
 }
