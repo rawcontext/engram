@@ -20,6 +20,7 @@ from src.indexing.turns import (
     TurnsIndexer,
     TurnsIndexerConfig,
 )
+from src.middleware.auth import ApiKeyAuth, set_auth_handler
 from src.rerankers import RerankerRouter
 from src.retrieval import SearchRetriever
 from src.retrieval.multi_query import MultiQueryRetriever
@@ -56,6 +57,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         None after startup, before shutdown.
     """
     settings = get_settings()
+
+    # Initialize auth handler if enabled
+    auth_handler: ApiKeyAuth | None = None
+    if settings.auth_enabled:
+        logger.info("Initializing API key authentication...")
+        auth_handler = ApiKeyAuth(settings.postgres_url)
+        try:
+            await auth_handler.connect()
+            set_auth_handler(auth_handler)
+            app.state.auth_handler = auth_handler
+            logger.info("API key authentication initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize auth: {e}")
+            logger.warning("Service starting without authentication (INSECURE)")
+    else:
+        logger.warning("API key authentication DISABLED (AUTH_ENABLED=false)")
 
     # Startup: Initialize Qdrant client and embedders
     logger.info("Starting Engram Search Service...")
@@ -258,6 +275,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info("Qdrant client closed successfully")
         except Exception as e:
             logger.error(f"Error closing Qdrant client: {e}")
+
+    # Close auth handler
+    if hasattr(app.state, "auth_handler") and app.state.auth_handler is not None:
+        try:
+            await app.state.auth_handler.disconnect()
+            logger.info("Auth handler closed successfully")
+        except Exception as e:
+            logger.error(f"Error closing auth handler: {e}")
 
     logger.info("Engram Search Service shutdown complete")
 

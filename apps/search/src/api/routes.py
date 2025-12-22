@@ -3,7 +3,7 @@
 import logging
 import time
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from src.api.schemas import (
     EmbedRequest,
@@ -17,12 +17,16 @@ from src.api.schemas import (
     SessionAwareResponse,
     SessionAwareResult,
 )
+from src.middleware.auth import ApiKeyContext, require_scope
 from src.retrieval.multi_query import MultiQueryConfig
 from src.retrieval.session import SessionRetrieverConfig
 from src.retrieval.types import RerankerTier, SearchFilters, SearchQuery, SearchStrategy, TimeRange
 from src.utils.metrics import get_content_type, get_metrics
 
 logger = logging.getLogger(__name__)
+
+# Auth dependency for search operations (requires memory:read scope)
+search_auth = Depends(require_scope("memory:read", "search:read"))
 
 router = APIRouter()
 
@@ -89,7 +93,11 @@ async def metrics() -> Response:
 
 
 @router.post("/search", response_model=SearchResponse)
-async def search(request: Request, search_request: SearchRequest) -> SearchResponse:
+async def search(
+    request: Request,
+    search_request: SearchRequest,
+    api_key: ApiKeyContext = search_auth,
+) -> SearchResponse:
     """Perform vector search with optional reranking.
 
     Executes hybrid search using dense and sparse vectors, optionally applying
@@ -110,7 +118,7 @@ async def search(request: Request, search_request: SearchRequest) -> SearchRespo
     logger.info(
         f"Search request: query='{search_request.text[:50]}...', "
         f"limit={search_request.limit}, strategy={search_request.strategy}, "
-        f"rerank={search_request.rerank}"
+        f"rerank={search_request.rerank}, key={api_key.key_prefix}"
     )
 
     # Verify search retriever is available
@@ -196,7 +204,11 @@ async def search(request: Request, search_request: SearchRequest) -> SearchRespo
 
 
 @router.post("/embed", response_model=EmbedResponse)
-async def embed(request: Request, embed_request: EmbedRequest) -> EmbedResponse:
+async def embed(
+    request: Request,
+    embed_request: EmbedRequest,
+    api_key: ApiKeyContext = search_auth,
+) -> EmbedResponse:
     """Generate embedding for text.
 
     Produces dense vector embeddings using the specified embedder type.
@@ -216,7 +228,8 @@ async def embed(request: Request, embed_request: EmbedRequest) -> EmbedResponse:
 
     logger.info(
         f"Embed request: text='{embed_request.text[:50]}...', "
-        f"type={embed_request.embedder_type}, is_query={embed_request.is_query}"
+        f"type={embed_request.embedder_type}, is_query={embed_request.is_query}, "
+        f"key={api_key.key_prefix}"
     )
 
     # Verify embedder factory is available
@@ -260,7 +273,9 @@ async def embed(request: Request, embed_request: EmbedRequest) -> EmbedResponse:
 
 @router.post("/search/multi-query", response_model=SearchResponse)
 async def multi_query_search(
-    request: Request, multi_query_request: MultiQueryRequest
+    request: Request,
+    multi_query_request: MultiQueryRequest,
+    api_key: ApiKeyContext = search_auth,
 ) -> SearchResponse:
     """Perform multi-query search with LLM-based query expansion and RRF fusion.
 
@@ -281,7 +296,8 @@ async def multi_query_search(
 
     logger.info(
         f"Multi-query search request: query='{multi_query_request.text[:50]}...', "
-        f"limit={multi_query_request.limit}, num_variations={multi_query_request.num_variations}"
+        f"limit={multi_query_request.limit}, num_variations={multi_query_request.num_variations}, "
+        f"key={api_key.key_prefix}"
     )
 
     # Verify multi-query retriever is available
@@ -379,7 +395,9 @@ async def multi_query_search(
 
 @router.post("/search/session-aware", response_model=SessionAwareResponse)
 async def session_aware_search(
-    request: Request, session_request: SessionAwareRequest
+    request: Request,
+    session_request: SessionAwareRequest,
+    api_key: ApiKeyContext = search_auth,
 ) -> SessionAwareResponse:
     """Perform session-aware hierarchical retrieval.
 
@@ -403,7 +421,8 @@ async def session_aware_search(
     logger.info(
         f"Session-aware search request: query='{session_request.query[:50]}...', "
         f"top_sessions={session_request.top_sessions}, "
-        f"turns_per_session={session_request.turns_per_session}"
+        f"turns_per_session={session_request.turns_per_session}, "
+        f"key={api_key.key_prefix}"
     )
 
     # Verify session-aware retriever is available

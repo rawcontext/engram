@@ -30,6 +30,15 @@ class Settings(BaseSettings):
         default=False, description="Prefer gRPC over HTTP for better performance"
     )
 
+    # PostgreSQL (for API key auth)
+    postgres_url: str = Field(
+        default="postgresql://postgres:postgres@localhost:5432/engram",
+        description="PostgreSQL connection URL for API key validation",
+    )
+    auth_enabled: bool = Field(
+        default=True, description="Enable API key authentication (disable for local dev)"
+    )
+
     # FalkorDB (for backfill scripts)
     falkordb_url: str = Field(
         default="redis://localhost:6379", description="FalkorDB connection URL"

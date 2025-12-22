@@ -25,6 +25,8 @@ dependencies = [
     "structlog>=25.5.0",
     # Metrics
     "prometheus-client>=0.23.1",
+    # Database (for API key auth)
+    "asyncpg>=0.30.0",
 ]
 
 [project.optional-dependencies]

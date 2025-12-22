@@ -4,12 +4,16 @@ import asyncio
 from datetime import datetime
 
 import optuna
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from tuner.core import create_pruner, create_sampler
+from tuner.middleware.auth import ApiKeyContext, require_scope
 from tuner.models import CreateStudyRequest, StudyResponse, StudySummary
 
 router = APIRouter()
+
+# Auth dependency for tuner operations
+tuner_auth = Depends(require_scope("tuner:read", "tuner:write", "memory:write"))
 
 
 def _get_storage(request: Request) -> optuna.storages.RDBStorage:
@@ -24,7 +28,11 @@ def _get_storage(request: Request) -> optuna.storages.RDBStorage:
 
 
 @router.post("", response_model=StudyResponse, status_code=status.HTTP_201_CREATED)
-async def create_study(request: Request, body: CreateStudyRequest) -> StudyResponse:
+async def create_study(
+    request: Request,
+    body: CreateStudyRequest,
+    api_key: ApiKeyContext = tuner_auth,
+) -> StudyResponse:
     """Create a new optimization study."""
     storage = _get_storage(request)
 
@@ -88,7 +96,10 @@ async def create_study(request: Request, body: CreateStudyRequest) -> StudyRespo
 
 
 @router.get("", response_model=list[StudySummary])
-async def list_studies(request: Request) -> list[StudySummary]:
+async def list_studies(
+    request: Request,
+    api_key: ApiKeyContext = tuner_auth,
+) -> list[StudySummary]:
     """List all studies."""
     storage = _get_storage(request)
     summaries = await asyncio.to_thread(storage.get_all_studies)
@@ -117,7 +128,11 @@ async def list_studies(request: Request) -> list[StudySummary]:
 
 
 @router.get("/{study_name}", response_model=StudyResponse)
-async def get_study(request: Request, study_name: str) -> StudyResponse:
+async def get_study(
+    request: Request,
+    study_name: str,
+    api_key: ApiKeyContext = tuner_auth,
+) -> StudyResponse:
     """Get study details by name."""
     storage = _get_storage(request)
 
@@ -161,7 +176,11 @@ async def get_study(request: Request, study_name: str) -> StudyResponse:
 
 
 @router.delete("/{study_name}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_study(request: Request, study_name: str) -> None:
+async def delete_study(
+    request: Request,
+    study_name: str,
+    api_key: ApiKeyContext = tuner_auth,
+) -> None:
     """Delete a study by name."""
     storage = _get_storage(request)
 

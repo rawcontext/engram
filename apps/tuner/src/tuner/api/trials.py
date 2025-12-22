@@ -3,11 +3,15 @@
 import asyncio
 
 import optuna
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from tuner.middleware.auth import ApiKeyContext, require_scope
 from tuner.models import TrialCompleteRequest, TrialResponse, TrialState, TrialSuggestion
 
 router = APIRouter()
+
+# Auth dependency for tuner operations
+tuner_auth = Depends(require_scope("tuner:read", "tuner:write", "memory:write"))
 
 
 def _get_storage(request: Request) -> optuna.storages.RDBStorage:
@@ -65,7 +69,11 @@ def _suggest_value(
 
 
 @router.post("/{study_name}/trials/suggest", response_model=TrialSuggestion)
-async def suggest_trial(request: Request, study_name: str) -> TrialSuggestion:
+async def suggest_trial(
+    request: Request,
+    study_name: str,
+    api_key: ApiKeyContext = tuner_auth,
+) -> TrialSuggestion:
     """Get next trial parameters using Optuna's ask interface.
 
     This is the 'ask' part of the ask/tell pattern for distributed optimization.
@@ -102,6 +110,7 @@ async def complete_trial(
     study_name: str,
     trial_id: int,
     body: TrialCompleteRequest,
+    api_key: ApiKeyContext = tuner_auth,
 ) -> TrialResponse:
     """Complete a trial with objective value(s).
 
@@ -155,6 +164,7 @@ async def prune_trial(
     request: Request,
     study_name: str,
     trial_id: int,
+    api_key: ApiKeyContext = tuner_auth,
 ) -> TrialResponse:
     """Mark a trial as pruned (early stopped)."""
     storage = _get_storage(request)
@@ -197,6 +207,7 @@ async def list_trials(
     state: TrialState | None = None,
     limit: int = 100,
     offset: int = 0,
+    api_key: ApiKeyContext = tuner_auth,
 ) -> list[TrialResponse]:
     """List trials for a study with optional filtering."""
     storage = _get_storage(request)

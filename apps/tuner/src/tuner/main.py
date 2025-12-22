@@ -10,6 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from tuner.api import router
 from tuner.config import get_settings
 from tuner.core import get_storage
+from tuner.middleware.auth import ApiKeyAuth, set_auth_handler
+from tuner.utils.logging import configure_logging, get_logger
+
+configure_logging(json_format=True)
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -20,16 +25,40 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """
     settings = get_settings()
 
+    # Initialize auth handler if enabled
+    auth_handler: ApiKeyAuth | None = None
+    if settings.auth_enabled:
+        logger.info("Initializing API key authentication")
+        auth_handler = ApiKeyAuth(settings.auth_database_url)
+        try:
+            await auth_handler.connect()
+            set_auth_handler(auth_handler)
+            app.state.auth_handler = auth_handler
+            logger.info("API key authentication initialized")
+        except Exception as e:
+            logger.warning("Failed to initialize auth", error=str(e))
+            logger.warning("Service starting without authentication (INSECURE)")
+    else:
+        logger.warning("API key authentication DISABLED (AUTH_ENABLED=false)")
+
     # Initialize Optuna storage
     try:
         storage = get_storage()
         app.state.storage = storage
-        print(f"Connected to Optuna storage: {str(settings.database_url)}")
+        logger.info("Connected to Optuna storage", database_url=str(settings.database_url))
     except Exception as e:
-        print(f"Warning: Could not connect to storage: {e}")
+        logger.warning("Could not connect to storage", error=str(e))
         app.state.storage = None
 
     yield
+
+    # Close auth handler
+    if hasattr(app.state, "auth_handler") and app.state.auth_handler is not None:
+        try:
+            await app.state.auth_handler.disconnect()
+            logger.info("Auth handler closed")
+        except Exception as e:
+            logger.error("Error closing auth handler", error=str(e))
 
     # Cleanup (storage cleanup handled by SQLAlchemy connection pool)
 

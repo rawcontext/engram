@@ -3,10 +3,15 @@
 import asyncio
 
 import optuna
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
+from tuner.middleware.auth import ApiKeyContext, require_scope
+
 router = APIRouter()
+
+# Auth dependency for tuner operations
+tuner_auth = Depends(require_scope("tuner:read", "tuner:write", "memory:write"))
 
 
 class BestParamsResponse(BaseModel):
@@ -55,7 +60,11 @@ async def _load_study(storage: optuna.storages.RDBStorage, study_name: str) -> o
 
 
 @router.get("/{study_name}/best", response_model=BestParamsResponse)
-async def get_best_params(request: Request, study_name: str) -> BestParamsResponse:
+async def get_best_params(
+    request: Request,
+    study_name: str,
+    api_key: ApiKeyContext = tuner_auth,
+) -> BestParamsResponse:
     """Get the best parameters from a study.
 
     For multi-objective studies, returns the first Pareto-optimal trial.
@@ -99,7 +108,11 @@ async def get_best_params(request: Request, study_name: str) -> BestParamsRespon
 
 
 @router.get("/{study_name}/pareto", response_model=list[ParetoTrialResponse])
-async def get_pareto_front(request: Request, study_name: str) -> list[ParetoTrialResponse]:
+async def get_pareto_front(
+    request: Request,
+    study_name: str,
+    api_key: ApiKeyContext = tuner_auth,
+) -> list[ParetoTrialResponse]:
     """Get the Pareto frontier for a multi-objective study."""
     storage = _get_storage(request)
     study = await _load_study(storage, study_name)
@@ -127,6 +140,7 @@ async def get_param_importance(
     request: Request,
     study_name: str,
     target_idx: int = 0,
+    api_key: ApiKeyContext = tuner_auth,
 ) -> ParamImportance:
     """Calculate parameter importance using fANOVA.
 

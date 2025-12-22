@@ -15,8 +15,12 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Database
+    # Database (for Optuna storage)
     database_url: PostgresDsn = PostgresDsn("postgresql://postgres:postgres@localhost:5432/optuna")
+
+    # Auth database (for API key validation - may be different from Optuna DB)
+    auth_database_url: str = "postgresql://postgres:postgres@localhost:5432/engram"
+    auth_enabled: bool = True
 
     # Server
     host: str = "0.0.0.0"
