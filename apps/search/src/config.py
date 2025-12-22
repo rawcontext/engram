@@ -45,9 +45,7 @@ class Settings(BaseSettings):
     )
 
     # NATS (for turn indexing consumer)
-    nats_url: str = Field(
-        default="nats://localhost:4222", description="NATS server URL"
-    )
+    nats_url: str = Field(default="nats://localhost:4222", description="NATS server URL")
     nats_consumer_enabled: bool = Field(
         default=True, description="Enable NATS consumer for turn indexing"
     )

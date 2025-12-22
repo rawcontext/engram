@@ -18,7 +18,7 @@ export interface UseConsumerStatusResult {
 }
 
 /**
- * Hook to stream Kafka consumer group status via WebSocket.
+ * Hook to stream NATS consumer group status via WebSocket.
  *
  * @example
  * ```tsx

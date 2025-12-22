@@ -1,5 +1,5 @@
 import { createNodeLogger } from "@engram/logger";
-import { createFalkorClient, createKafkaClient } from "@engram/storage";
+import { createFalkorClient, createNatsClient } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";
 import { createSearchClient } from "./clients/search.js";
 import { ContextAssembler } from "./context/assembler.js";
@@ -11,7 +11,7 @@ import { ToolRouter } from "./tools/router.js";
 const logger = createNodeLogger({ service: "control-service", base: { component: "main" } });
 
 // Initialize Services
-const kafka = createKafkaClient("control-service");
+const nats = createNatsClient("control-service");
 const falkor = createFalkorClient();
 
 // Initialize Execution Service (VFS, TimeTravel) - direct integration
@@ -53,11 +53,11 @@ async function init() {
 	}
 }
 
-// Kafka Consumer
+// NATS Consumer
 const startConsumer = async () => {
 	await init();
 
-	const consumer = await kafka.getConsumer({ groupId: "control-group" });
+	const consumer = await nats.getConsumer({ groupId: "control-group" });
 	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
 
 	// Publish consumer ready status to Redis
@@ -90,9 +90,9 @@ const startConsumer = async () => {
 		}
 		try {
 			await consumer.disconnect();
-			logger.info("Kafka consumer disconnected");
+			logger.info("NATS consumer disconnected");
 		} catch (e) {
-			logger.error({ err: e }, "Error during Kafka cleanup");
+			logger.error({ err: e }, "Error during NATS cleanup");
 		}
 		process.exit(0);
 	};

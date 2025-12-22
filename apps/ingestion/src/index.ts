@@ -9,7 +9,7 @@ import {
 	type StreamDelta,
 	ThinkingExtractor,
 } from "@engram/parser";
-import { createKafkaClient } from "@engram/storage";
+import { createNatsClient } from "@engram/storage";
 import { createRedisPublisher } from "@engram/storage/redis";
 
 /**
@@ -17,8 +17,8 @@ import { createRedisPublisher } from "@engram/storage/redis";
  * Supports dependency injection for testability.
  */
 export interface IngestionProcessorDeps {
-	/** Kafka client for event streaming. */
-	kafkaClient?: ReturnType<typeof createKafkaClient>;
+	/** NATS client for event streaming. */
+	natsClient?: ReturnType<typeof createNatsClient>;
 	/** Redactor for PII removal. */
 	redactor?: Redactor;
 	/** Logger instance. */
@@ -84,7 +84,7 @@ export function cleanupStaleExtractors(): void {
 const extractorCleanupInterval = setInterval(cleanupStaleExtractors, 5 * 60 * 1000);
 
 export class IngestionProcessor {
-	private kafkaClient: ReturnType<typeof createKafkaClient>;
+	private natsClient: ReturnType<typeof createNatsClient>;
 	private redactor: Redactor;
 	private logger: Logger;
 
@@ -94,23 +94,23 @@ export class IngestionProcessor {
 	 */
 	constructor(deps?: IngestionProcessorDeps);
 	/** @deprecated Use IngestionProcessorDeps object instead */
-	constructor(kafkaClient: ReturnType<typeof createKafkaClient>);
-	constructor(depsOrKafka?: IngestionProcessorDeps | ReturnType<typeof createKafkaClient>) {
-		if (depsOrKafka === undefined) {
+	constructor(natsClient: ReturnType<typeof createNatsClient>);
+	constructor(depsOrNats?: IngestionProcessorDeps | ReturnType<typeof createNatsClient>) {
+		if (depsOrNats === undefined) {
 			// No args: use defaults
-			this.kafkaClient = createKafkaClient("ingestion-service");
+			this.natsClient = createNatsClient("ingestion-service");
 			this.redactor = new Redactor();
 			this.logger = createNodeLogger({
 				service: "ingestion-service",
 				base: { component: "processor" },
 			});
 		} else if (
-			typeof depsOrKafka === "object" &&
-			("kafkaClient" in depsOrKafka || "redactor" in depsOrKafka || "logger" in depsOrKafka)
+			typeof depsOrNats === "object" &&
+			("natsClient" in depsOrNats || "redactor" in depsOrNats || "logger" in depsOrNats)
 		) {
 			// New deps object constructor
-			const deps = depsOrKafka as IngestionProcessorDeps;
-			this.kafkaClient = deps.kafkaClient ?? createKafkaClient("ingestion-service");
+			const deps = depsOrNats as IngestionProcessorDeps;
+			this.natsClient = deps.natsClient ?? createNatsClient("ingestion-service");
 			this.redactor = deps.redactor ?? new Redactor();
 			this.logger =
 				deps.logger ??
@@ -119,8 +119,8 @@ export class IngestionProcessor {
 					base: { component: "processor" },
 				});
 		} else {
-			// Legacy: kafkaClient directly (type assertion safe - if not deps, must be KafkaClient)
-			this.kafkaClient = depsOrKafka as ReturnType<typeof createKafkaClient>;
+			// Legacy: natsClient directly (type assertion safe - if not deps, must be NatsClient)
+			this.natsClient = depsOrNats as ReturnType<typeof createNatsClient>;
 			this.redactor = new Redactor();
 			this.logger = createNodeLogger({
 				service: "ingestion-service",
@@ -285,7 +285,7 @@ export class IngestionProcessor {
 		const validatedEvent = ParsedStreamEventSchema.parse(parsedEvent);
 
 		// 7. Publish validated event
-		await this.kafkaClient.sendEvent("parsed_events", sessionId, validatedEvent);
+		await this.natsClient.sendEvent("parsed_events", sessionId, validatedEvent);
 
 		this.logger.info(
 			{ eventId: validatedEvent.event_id, originalEventId: rawEvent.event_id, sessionId },
@@ -306,7 +306,7 @@ export class IngestionProcessor {
  * @example
  * // Test usage (inject mocks)
  * const processor = createIngestionProcessor({
- *   kafkaClient: mockKafka,
+ *   natsClient: mockNats,
  *   redactor: mockRedactor,
  * });
  */
@@ -319,17 +319,17 @@ const logger = createNodeLogger({
 	service: "ingestion-service",
 	base: { component: "main" },
 });
-const kafka = createKafkaClient("ingestion-service");
-const processor = createIngestionProcessor({ kafkaClient: kafka, logger });
+const nats = createNatsClient("ingestion-service");
+const processor = createIngestionProcessor({ natsClient: nats, logger });
 export const processEvent = processor.processEvent.bind(processor);
 
 /**
- * Start Kafka consumer for processing raw events.
+ * Start NATS consumer for processing raw events.
  * Exported for testing purposes.
  */
 /* v8 ignore start */
 export async function startConsumer() {
-	const consumer = await kafka.getConsumer({ groupId: "ingestion-group" });
+	const consumer = await nats.getConsumer({ groupId: "ingestion-group" });
 	await consumer.subscribe({ topic: "raw_events", fromBeginning: false });
 
 	// Publish consumer ready status to Redis
@@ -357,7 +357,7 @@ export async function startConsumer() {
 		clearInterval(extractorCleanupInterval); // Clear extractor cleanup timer
 		try {
 			await consumer.disconnect();
-			logger.info("Kafka consumer disconnected");
+			logger.info("NATS consumer disconnected");
 		} catch (e) {
 			logger.error({ err: e }, "Error disconnecting consumer");
 		}
@@ -386,7 +386,7 @@ export async function startConsumer() {
 				await processEvent(rawEvent);
 			} catch (e) {
 				const errorMessage = e instanceof Error ? e.message : String(e);
-				logger.error({ err: e }, "Kafka Consumer Error");
+				logger.error({ err: e }, "NATS Consumer Error");
 
 				// Send to Dead Letter Queue for later analysis/retry
 				try {
@@ -399,11 +399,11 @@ export async function startConsumer() {
 							? rawBody.event_id
 							: `unknown-${Date.now()}`;
 
-					await kafka.sendEvent("ingestion.dead_letter", eventId, {
+					await nats.sendEvent("ingestion.dead_letter", eventId, {
 						error: errorMessage,
 						payload: rawBody ?? value, // Use raw string if JSON parsing failed
 						timestamp: new Date().toISOString(),
-						source: "kafka_consumer",
+						source: "nats_consumer",
 					});
 					logger.warn({ eventId }, "Sent failed message to DLQ");
 				} catch (dlqError) {
@@ -412,7 +412,7 @@ export async function startConsumer() {
 			}
 		},
 	});
-	logger.info("Ingestion Service Kafka Consumer started");
+	logger.info("Ingestion Service NATS Consumer started");
 }
 /* v8 ignore stop */
 
@@ -484,7 +484,7 @@ export function createIngestionServer(port = 5001, maxBodySize = 50 * 1024 * 102
 								? rawBody.event_id
 								: "unknown";
 
-						await kafka.sendEvent("ingestion.dead_letter", dlqKey, {
+						await nats.sendEvent("ingestion.dead_letter", dlqKey, {
 							error: message,
 							payload: rawBody,
 							timestamp: new Date().toISOString(),

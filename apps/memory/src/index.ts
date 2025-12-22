@@ -2,7 +2,7 @@ import { GraphPruner } from "@engram/graph";
 import { createNodeLogger, type Logger, pino, withTraceContext } from "@engram/logger";
 import {
 	createFalkorClient,
-	createKafkaClient,
+	createNatsClient,
 	type GraphClient,
 	type RedisPublisher,
 } from "@engram/storage";
@@ -23,8 +23,8 @@ import {
 export interface MemoryServiceDeps {
 	/** Graph client for session persistence. Defaults to FalkorClient. */
 	graphClient?: GraphClient;
-	/** Kafka client for event streaming. */
-	kafkaClient?: ReturnType<typeof createKafkaClient>;
+	/** NATS client for event streaming. */
+	natsClient?: ReturnType<typeof createNatsClient>;
 	/** Redis publisher for real-time updates. */
 	redisPublisher?: RedisPublisher;
 	/** Logger instance. */
@@ -69,7 +69,7 @@ export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
 		);
 
 	const graphClient = deps?.graphClient ?? createFalkorClient();
-	const kafkaClient = deps?.kafkaClient ?? createKafkaClient("memory-service");
+	const natsClient = deps?.natsClient ?? createNatsClient("memory-service");
 	const redisPublisher = deps?.redisPublisher ?? createRedisPublisher();
 	const graphPruner = deps?.graphPruner ?? new GraphPruner(graphClient);
 
@@ -95,10 +95,10 @@ export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
 		}
 	};
 
-	// Callback for publishing turn_finalized events to Kafka for search indexing
+	// Callback for publishing turn_finalized events to NATS for search indexing
 	const onTurnFinalized: TurnFinalizedCallback = async (payload) => {
 		try {
-			await kafkaClient.sendEvent("memory.turn_finalized", payload.id, payload);
+			await natsClient.sendEvent("memory.turn_finalized", payload.id, payload);
 			logger.debug(
 				{ turnId: payload.id, sessionId: payload.session_id },
 				"Published turn_finalized event",
@@ -119,7 +119,7 @@ export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
 
 	return {
 		graphClient,
-		kafkaClient,
+		natsClient,
 		redisPublisher,
 		logger,
 		turnAggregator,
@@ -140,7 +140,7 @@ const logger = createNodeLogger(
 
 // Initialize Services
 const falkor = createFalkorClient();
-const kafka = createKafkaClient("memory-service");
+const nats = createNatsClient("memory-service");
 const redis = createRedisPublisher();
 const pruner = new GraphPruner(falkor);
 
@@ -163,10 +163,10 @@ const onNodeCreated: NodeCreatedCallback = async (sessionId, node) => {
 	}
 };
 
-// Callback for publishing turn_finalized events to Kafka for search indexing
+// Callback for publishing turn_finalized events to NATS for search indexing
 const onTurnFinalized: TurnFinalizedCallback = async (payload) => {
 	try {
-		await kafka.sendEvent("memory.turn_finalized", payload.id, payload);
+		await nats.sendEvent("memory.turn_finalized", payload.id, payload);
 		logger.debug(
 			{ turnId: payload.id, sessionId: payload.session_id },
 			"Published turn_finalized event",
@@ -234,9 +234,9 @@ export function clearAllIntervals(): void {
 	}
 }
 
-// Kafka Consumer for Persistence
+// NATS Consumer for Persistence
 export async function startPersistenceConsumer() {
-	const consumer = await kafka.getConsumer({ groupId: "memory-group" });
+	const consumer = await nats.getConsumer({ groupId: "memory-group" });
 	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
 
 	// Publish consumer ready status to Redis
@@ -259,7 +259,7 @@ export async function startPersistenceConsumer() {
 		clearAllIntervals(); // Clear pruning and turn cleanup intervals
 		try {
 			await consumer.disconnect();
-			logger.info("Kafka consumer disconnected");
+			logger.info("NATS consumer disconnected");
 		} catch (e) {
 			logger.error({ err: e }, "Error disconnecting consumer");
 		}
@@ -276,7 +276,7 @@ export async function startPersistenceConsumer() {
 
 	await consumer.run({
 		eachMessage: async ({ message }) => {
-			// Extract trace context from Kafka message headers
+			// Extract trace context from NATS message headers
 			const headers = message.headers || {};
 			const traceId = headers.trace_id?.toString();
 			const correlationId = headers.correlation_id?.toString() || headers.message_id?.toString();
@@ -402,7 +402,7 @@ export async function startPersistenceConsumer() {
 				const content = event.content || event.thought || "";
 				const role = event.role || "system";
 
-				await kafka.sendEvent("memory.node_created", eventId, {
+				await nats.sendEvent("memory.node_created", eventId, {
 					id: eventId,
 					labels: ["Turn"],
 					session_id: sessionId,
@@ -415,7 +415,7 @@ export async function startPersistenceConsumer() {
 				// Send to Dead Letter Queue for later analysis/retry
 				try {
 					const eventId = event?.original_event_id || event?.event_id || `unknown-${Date.now()}`;
-					await kafka.sendEvent("memory.dead_letter", String(eventId), {
+					await nats.sendEvent("memory.dead_letter", String(eventId), {
 						error: errorMessage,
 						payload: event ?? rawValue,
 						timestamp: new Date().toISOString(),

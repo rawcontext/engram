@@ -2,7 +2,6 @@
 
 import asyncio
 import contextlib
-import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

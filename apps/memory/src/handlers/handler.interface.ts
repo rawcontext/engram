@@ -40,7 +40,7 @@ export interface HandlerContext {
 		label: string;
 		properties: Record<string, unknown>;
 	}) => void;
-	/** Callback for publishing turn finalized events to Kafka for indexing */
+	/** Callback for publishing turn finalized events to NATS for indexing */
 	publishTurnFinalized?: (payload: TurnFinalizedPayload) => Promise<void>;
 }
 

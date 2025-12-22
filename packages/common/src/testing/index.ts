@@ -9,7 +9,7 @@
  * ```ts
  * import {
  *   createTestGraphClient,
- *   createTestKafkaClient,
+ *   createTestMessageClient,
  *   createTestSession,
  *   createTestTurn,
  * } from "@engram/common/testing";
@@ -46,7 +46,7 @@ import type {
 	Consumer,
 	ConsumerConfig,
 	GraphClient,
-	KafkaMessage,
+	Message,
 	MessageClient,
 	Producer,
 	RedisPublisher,
@@ -155,11 +155,11 @@ export function createTestBitemporalProps(overrides?: {
 }
 
 // =============================================================================
-// Mock Producer/Consumer for Kafka
+// Mock Producer/Consumer for Message Queues
 // =============================================================================
 
 /**
- * Create a mock Kafka producer with vi.fn() stubs.
+ * Create a mock producer with vi.fn() stubs.
  */
 export function createTestProducer(overrides?: Partial<Producer>): Producer {
 	return {
@@ -171,7 +171,7 @@ export function createTestProducer(overrides?: Partial<Producer>): Producer {
 }
 
 /**
- * Create a mock Kafka consumer with vi.fn() stubs.
+ * Create a mock consumer with vi.fn() stubs.
  */
 export function createTestConsumer(overrides?: Partial<Consumer>): Consumer {
 	return {
@@ -209,18 +209,18 @@ export function createTestGraphClient(overrides?: Partial<GraphClient>): GraphCl
 }
 
 /**
- * Create a mock MessageClient (Kafka) with vi.fn() stubs.
+ * Create a mock MessageClient with vi.fn() stubs.
  * Returns pre-configured mock producer and consumer instances.
  *
  * @example
  * ```ts
- * const kafkaClient = createTestKafkaClient();
- * const producer = await kafkaClient.getProducer();
+ * const messageClient = createTestMessageClient();
+ * const producer = await messageClient.getProducer();
  * await producer.send({ topic: "events", messages: [...] });
  * expect(producer.send).toHaveBeenCalledWith({ topic: "events", messages: [...] });
  * ```
  */
-export function createTestKafkaClient(overrides?: Partial<MessageClient>): MessageClient {
+export function createTestMessageClient(overrides?: Partial<MessageClient>): MessageClient {
 	const mockProducer = createTestProducer();
 	const mockConsumer = createTestConsumer();
 
@@ -269,13 +269,13 @@ export function createTestBlobStore(overrides?: Partial<BlobStore>): BlobStore {
 }
 
 // =============================================================================
-// Kafka Message Helpers
+// Message Helpers
 // =============================================================================
 
 /**
- * Create a test Kafka message payload.
+ * Create a test message payload.
  */
-export function createTestKafkaMessage(overrides?: Partial<KafkaMessage>): KafkaMessage {
+export function createTestMessage(overrides?: Partial<Message>): Message {
 	return {
 		key: Buffer.from("test-key"),
 		value: Buffer.from(JSON.stringify({ type: "test", data: {} })),

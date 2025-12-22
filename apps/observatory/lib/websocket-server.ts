@@ -120,7 +120,7 @@ export async function handleSessionsConnection(ws: WebSocket) {
 const CONSUMER_GROUPS = ["ingestion-group", "memory-group", "search-group", "control-group"];
 
 /**
- * Consumer group state from Kafka Admin API.
+ * Consumer group state from NATS JetStream.
  */
 const ConsumerGroupStates = {
 	UNKNOWN: 0,

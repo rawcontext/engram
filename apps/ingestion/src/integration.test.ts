@@ -6,11 +6,11 @@ const PORT = 5002; // Use different port than main service
 const BASE_URL = `http://localhost:${PORT}`;
 
 // We'll create a minimal test server that mimics the ingestion API
-// This avoids starting Kafka consumers during tests
+// This avoids starting NATS consumers during tests
 let server: Server;
 
 beforeAll(async () => {
-	// Dynamically create a test server with mocked Kafka
+	// Dynamically create a test server with mocked NATS
 	const { createServer } = await import("node:http");
 	const { RawStreamEventSchema } = await import("@engram/events");
 

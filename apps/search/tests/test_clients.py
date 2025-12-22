@@ -45,7 +45,7 @@ class TestNatsClient:
         await client.close()
 
     def test_topic_to_subject_mapping(self) -> None:
-        """Test Kafka topic to NATS subject mapping."""
+        """Test topic to NATS subject mapping."""
         config = NatsClientConfig(servers="nats://localhost:4222")
         client = NatsClient(config=config)
 
@@ -91,9 +91,7 @@ class TestNatsClient:
             await client.connect()
 
             await client.publish(
-                topic="parsed_events",
-                key="test-key",
-                message={"type": "test", "data": "hello"}
+                topic="parsed_events", key="test-key", message={"type": "test", "data": "hello"}
             )
 
             mock_js.publish.assert_called_once()

@@ -5,7 +5,7 @@ This module provides comprehensive metrics tracking for:
 - Reranker usage, costs, and performance
 - Embedding generation times and cache hit rates
 - Request patterns and error rates
-- Infrastructure health (Qdrant, Redis, Kafka)
+- Infrastructure health (Qdrant, Redis, NATS)
 """
 
 import functools
@@ -134,15 +134,15 @@ BATCH_QUEUE_SIZE = Gauge(
     "Current batch queue size",
 )
 
-KAFKA_CONSUMER_LAG = Gauge(
-    "kafka_consumer_lag",
-    "Kafka consumer lag by topic and partition",
+NATS_CONSUMER_LAG = Gauge(
+    "nats_consumer_lag",
+    "NATS consumer lag by topic and partition",
     ["topic", "partition"],
 )
 
-KAFKA_MESSAGES_PROCESSED = Counter(
-    "kafka_messages_processed_total",
-    "Total Kafka messages processed",
+NATS_MESSAGES_PROCESSED = Counter(
+    "nats_messages_processed_total",
+    "Total NATS messages processed",
     ["topic", "status"],
 )
 
@@ -445,15 +445,15 @@ def record_indexed_document(success: bool) -> None:
     INDEXED_DOCUMENTS.labels(status=status).inc()
 
 
-def record_kafka_message(topic: str, success: bool) -> None:
-    """Record a Kafka message processing event.
+def record_nats_message(topic: str, success: bool) -> None:
+    """Record a NATS message processing event.
 
     Args:
-            topic: Kafka topic.
+            topic: NATS topic.
             success: Whether processing succeeded.
     """
     status = "success" if success else "error"
-    KAFKA_MESSAGES_PROCESSED.labels(topic=topic, status=status).inc()
+    NATS_MESSAGES_PROCESSED.labels(topic=topic, status=status).inc()
 
 
 def set_batch_queue_size(size: int) -> None:
@@ -465,15 +465,15 @@ def set_batch_queue_size(size: int) -> None:
     BATCH_QUEUE_SIZE.set(size)
 
 
-def set_kafka_consumer_lag(topic: str, partition: int, lag: int) -> None:
-    """Set Kafka consumer lag for a topic/partition.
+def set_nats_consumer_lag(topic: str, partition: int, lag: int) -> None:
+    """Set NATS consumer lag for a topic/partition.
 
     Args:
-            topic: Kafka topic.
+            topic: NATS topic.
             partition: Partition number.
             lag: Current lag.
     """
-    KAFKA_CONSUMER_LAG.labels(topic=topic, partition=str(partition)).set(lag)
+    NATS_CONSUMER_LAG.labels(topic=topic, partition=str(partition)).set(lag)
 
 
 def set_qdrant_connections(count: int) -> None:

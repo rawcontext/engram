@@ -8,7 +8,7 @@ export type {
 	Consumer,
 	ConsumerConfig,
 	GraphClient,
-	KafkaMessage,
+	Message,
 	MessageClient,
 	Producer,
 	RedisPublisher,

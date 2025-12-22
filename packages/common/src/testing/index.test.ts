@@ -15,9 +15,9 @@ import {
 	createTestHash,
 	// ID and hash utilities
 	createTestId,
-	createTestKafkaClient,
-	createTestKafkaMessage,
 	createTestLogger,
+	createTestMessage,
+	createTestMessageClient,
 	createTestObservation,
 	createTestProducer,
 	createTestReasoning,
@@ -252,10 +252,10 @@ describe("createTestGraphClient", () => {
 	});
 });
 
-describe("createTestKafkaClient", () => {
+describe("createTestMessageClient", () => {
 	it("should create a mock with all required methods", () => {
 		// Act
-		const client = createTestKafkaClient();
+		const client = createTestMessageClient();
 
 		// Assert
 		expect(client.getProducer).toBeDefined();
@@ -265,7 +265,7 @@ describe("createTestKafkaClient", () => {
 
 	it("should return mock producer and consumer", async () => {
 		// Arrange
-		const client = createTestKafkaClient();
+		const client = createTestMessageClient();
 
 		// Act
 		const producer = await client.getProducer();
@@ -358,10 +358,10 @@ describe("createTestBlobStore", () => {
 	});
 });
 
-describe("createTestKafkaMessage", () => {
-	it("should create a valid Kafka message", () => {
+describe("createTestMessage", () => {
+	it("should create a valid message", () => {
 		// Act
-		const message = createTestKafkaMessage();
+		const message = createTestMessage();
 
 		// Assert
 		expect(message.key).toBeInstanceOf(Buffer);
@@ -375,7 +375,7 @@ describe("createTestKafkaMessage", () => {
 		const customValue = Buffer.from(JSON.stringify({ custom: "data" }));
 
 		// Act
-		const message = createTestKafkaMessage({
+		const message = createTestMessage({
 			value: customValue,
 			offset: "100",
 		});

@@ -3,14 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
 	test: {
 		include: ["apps/**/*.test.ts", "packages/**/*.test.ts"],
-		exclude: [
-			"**/node_modules/**",
-			"**/dist/**",
-			// Kafka tests use createRequire which bypasses vitest mocks
-			// and the native module causes worker crashes
-			"**/kafka.test.ts",
-			"**/consumer-readiness.test.ts",
-		],
+		exclude: ["**/node_modules/**", "**/dist/**", "**/consumer-readiness.test.ts"],
 		globals: true,
 		environment: "node",
 		testTimeout: 30000,
@@ -36,8 +29,6 @@ export default defineConfig({
 				"**/packages/parser/src/diff.ts",
 				"**/packages/parser/src/thinking.ts",
 				"**/packages/vfs/src/interfaces.ts",
-				// Native Kafka module files (use createRequire, can't be mocked)
-				"**/packages/storage/src/kafka.ts",
 				"**/packages/storage/src/consumer-readiness.ts",
 				// Spawns child processes for benchmark CLI
 				"**/packages/tuner/src/executor/evaluation-adapter.ts",

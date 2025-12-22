@@ -1,8 +1,8 @@
 import { RawStreamEventSchema } from "@engram/events";
-import { createKafkaClient } from "@engram/storage";
+import { createNatsClient } from "@engram/storage";
 import { describe, expect, it } from "vitest";
 
-const kafka = createKafkaClient("e2e-test");
+const nats = createNatsClient("e2e-test");
 
 describe("E2E Full Loop", () => {
 	it("should ingest and process event end-to-end", async () => {
@@ -13,7 +13,7 @@ describe("E2E Full Loop", () => {
 		console.log(`Session ID: ${sessionId}`);
 		console.log(`Event ID: ${eventId}`);
 
-		const producer = await kafka.getProducer();
+		const producer = await nats.getProducer();
 
 		// Simulate an OpenAI chunk event
 		const event = {
@@ -41,7 +41,7 @@ describe("E2E Full Loop", () => {
 		// Validate
 		const parsed = RawStreamEventSchema.parse(event);
 
-		// 1. Send to Kafka
+		// 1. Send to NATS
 		console.log("1. Sending event to 'raw_events'...");
 		await producer.send({
 			topic: "raw_events",

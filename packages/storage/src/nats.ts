@@ -1,9 +1,9 @@
 import { type JetStreamClient, jetstream, jetstreamManager } from "@nats-io/jetstream";
 import { connect, type NatsConnection } from "@nats-io/transport-node";
-import type { Consumer, ConsumerConfig, KafkaMessage, MessageClient, Producer } from "./interfaces";
+import type { Consumer, ConsumerConfig, Message, MessageClient, Producer } from "./interfaces";
 
-// Re-export types for compatibility
-export type { Consumer, KafkaMessage, Producer } from "./interfaces";
+// Re-export types
+export type { Consumer, Message, Producer } from "./interfaces";
 
 export class NatsClient implements MessageClient {
 	private nc: NatsConnection | null = null;
@@ -38,7 +38,7 @@ export class NatsClient implements MessageClient {
 			connect: async () => {},
 			disconnect: async () => {},
 			send: async (opts: { topic: string; messages: Array<{ key: string; value: string }> }) => {
-				// Map Kafka topic names to NATS subjects
+				// Map topic names to NATS subjects
 				const subject = this.topicToSubject(opts.topic);
 				for (const msg of opts.messages) {
 					await js.publish(subject, msg.value, {
@@ -59,7 +59,7 @@ export class NatsClient implements MessageClient {
 
 		const jsm = await jetstreamManager(nc);
 
-		// Create a wrapper that provides Kafka-compatible API
+		// Create a wrapper that provides the Consumer API
 		const consumer: Consumer = {
 			connect: async () => {},
 			disconnect: async () => {},
@@ -95,7 +95,7 @@ export class NatsClient implements MessageClient {
 				for await (const msg of messages) {
 					try {
 						const headerKey = msg.headers?.get("key");
-						const kafkaMessage: KafkaMessage = {
+						const queueMessage: Message = {
 							key: headerKey ? Buffer.from(headerKey) : undefined,
 							value: Buffer.from(msg.data),
 							offset: String(msg.seq),
@@ -105,7 +105,7 @@ export class NatsClient implements MessageClient {
 						await opts.eachMessage({
 							topic,
 							partition: 0,
-							message: kafkaMessage,
+							message: queueMessage,
 						});
 
 						msg.ack();
@@ -144,7 +144,7 @@ export class NatsClient implements MessageClient {
 	}
 
 	/**
-	 * Map Kafka topic names to NATS subjects.
+	 * Map topic names to NATS subjects.
 	 * raw_events -> events.raw
 	 * parsed_events -> events.parsed
 	 * memory.turn_finalized -> memory.turns.finalized
@@ -178,15 +178,3 @@ export function createNatsClient(_clientId?: string): NatsClient {
 	const url = process.env.NATS_URL || "nats://localhost:4222";
 	return new NatsClient(url);
 }
-
-/**
- * Backward-compatible alias for createNatsClient.
- * @deprecated Use createNatsClient instead
- */
-export const createKafkaClient = createNatsClient;
-
-/**
- * Backward-compatible alias for NatsClient.
- * @deprecated Use NatsClient instead
- */
-export const KafkaClient = NatsClient;

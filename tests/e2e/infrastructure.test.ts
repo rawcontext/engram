@@ -1,9 +1,9 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { beforeAll, describe, expect, it } from "vitest";
-import { createFalkorClient, createKafkaClient } from "../../packages/storage/src/index";
+import { createFalkorClient, createNatsClient } from "../../packages/storage/src/index";
 
 // Real Clients
-const kafka = createKafkaClient("test-client");
+const nats = createNatsClient("test-client");
 // Using our wrapper again to verify IT works since official client failed in test harness (likely version mismatch or connection options)
 const falkor = createFalkorClient();
 const qdrant = new QdrantClient({ url: "http://localhost:6333" });
@@ -16,7 +16,7 @@ describe("Infrastructure E2E", () => {
 
 	it("should connect to Redpanda and send/receive message", async () => {
 		const topic = `test-topic-${Date.now()}`;
-		const producer = await kafka.getProducer();
+		const producer = await nats.getProducer();
 		await producer.send({
 			topic,
 			messages: [{ key: "test-key", value: "Hello Redpanda" }],

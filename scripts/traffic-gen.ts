@@ -19,7 +19,7 @@
 
 import { randomUUID } from "node:crypto";
 import { generateEventId, type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
-import { createKafkaClient } from "@engram/storage";
+import { createNatsClient } from "@engram/storage";
 
 // Parse CLI arguments
 const args = process.argv.slice(2);
@@ -32,7 +32,7 @@ const PROVIDER = getArg("provider", "all");
 const TURNS = parseInt(getArg("turns", "5"), 10);
 const DELAY = parseInt(getArg("delay", "100"), 10);
 
-const kafka = createKafkaClient("traffic-gen");
+const nats = createNatsClient("traffic-gen");
 
 // =============================================================================
 // Project Context - Simulates a real development session
@@ -261,7 +261,7 @@ interface EventContext {
 }
 
 async function sendRawEvent(event: RawStreamEvent): Promise<void> {
-	const producer = await kafka.getProducer();
+	const producer = await nats.getProducer();
 	const validated = RawStreamEventSchema.parse(event);
 	await producer.send({
 		topic: "raw_events",
@@ -1130,8 +1130,8 @@ async function main() {
 	console.log(`Event delay: ${DELAY}ms`);
 	console.log("=".repeat(60));
 
-	const producer = await kafka.getProducer();
-	console.log("\nKafka producer connected");
+	const producer = await nats.getProducer();
+	console.log("\nNATS producer connected");
 
 	const sessionIds: string[] = [];
 

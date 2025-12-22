@@ -11,7 +11,7 @@ import {
 } from "./handlers";
 
 /**
- * Input type for stream events from Kafka.
+ * Input type for stream events from NATS.
  * This is a looser type than ParsedStreamEvent to handle partial/incomplete data
  * from the message queue. Fields are normalized before processing.
  */
@@ -44,7 +44,7 @@ export interface StreamEventInput {
  * TurnAggregator handles the aggregation of streaming events into Turn nodes.
  *
  * A Turn represents a single conversation turn (user prompt + assistant response).
- * Events arrive one at a time via Kafka, so we need to:
+ * Events arrive one at a time via NATS, so we need to:
  * 1. Detect turn boundaries (new user message = new turn)
  * 2. Delegate event processing to specialized handlers via Strategy pattern
  * 3. Create child nodes (Reasoning, ToolCall) as events arrive
@@ -68,7 +68,7 @@ export type NodeCreatedCallback = (
 	},
 ) => void;
 
-// Callback type for turn finalized events (for Kafka indexing)
+// Callback type for turn finalized events (for NATS indexing)
 export type TurnFinalizedCallback = (payload: TurnFinalizedPayload) => Promise<void>;
 
 /**
@@ -207,7 +207,7 @@ export class TurnAggregator {
 
 	/**
 	 * Process a stream event and aggregate into Turn/Reasoning/FileTouch nodes.
-	 * Accepts both loose StreamEventInput (from Kafka) and strict ParsedStreamEvent.
+	 * Accepts both loose StreamEventInput (from NATS) and strict ParsedStreamEvent.
 	 */
 	async processEvent(
 		event: StreamEventInput | ParsedStreamEvent,

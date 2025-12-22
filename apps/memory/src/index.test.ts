@@ -2,7 +2,7 @@ import { GraphPruner } from "@engram/graph";
 import { createNodeLogger } from "@engram/logger";
 import {
 	createFalkorClient,
-	createKafkaClient,
+	createNatsClient,
 	type GraphClient,
 	type RedisPublisher,
 } from "@engram/storage";
@@ -14,7 +14,7 @@ import { TurnAggregator } from "./turn-aggregator";
 const {
 	mockGraphClient,
 	mockConsumer,
-	mockKafkaClient,
+	mockNatsClient,
 	mockRedisPublisher,
 	mockLogger,
 	mockGraphPruner,
@@ -32,7 +32,7 @@ const {
 			run: vi.fn(async () => {}),
 			disconnect: vi.fn(async () => {}),
 		},
-		mockKafkaClient: {
+		mockNatsClient: {
 			getConsumer: vi.fn(async () => ({
 				subscribe: vi.fn(async () => {}),
 				run: vi.fn(async () => {}),
@@ -66,7 +66,7 @@ const {
 // Mock modules
 vi.mock("@engram/storage", () => ({
 	createFalkorClient: vi.fn(() => mockGraphClient),
-	createKafkaClient: vi.fn(() => mockKafkaClient),
+	createNatsClient: vi.fn(() => mockNatsClient),
 }));
 
 vi.mock("@engram/storage/redis", () => ({
@@ -112,7 +112,7 @@ describe("Memory Service Deps", () => {
 			const deps = createMemoryServiceDeps();
 
 			expect(deps.graphClient).toBeDefined();
-			expect(deps.kafkaClient).toBeDefined();
+			expect(deps.natsClient).toBeDefined();
 			expect(deps.redisPublisher).toBeDefined();
 			expect(deps.logger).toBeDefined();
 			expect(deps.turnAggregator).toBeDefined();
@@ -132,12 +132,12 @@ describe("Memory Service Deps", () => {
 			expect(deps.graphClient).toBe(customGraphClient);
 		});
 
-		it("should use custom kafka client when provided", () => {
-			const customKafka = createKafkaClient("test");
+		it("should use custom nats client when provided", () => {
+			const customNats = createNatsClient("test");
 
-			const deps = createMemoryServiceDeps({ kafkaClient: customKafka });
+			const deps = createMemoryServiceDeps({ natsClient: customNats });
 
-			expect(deps.kafkaClient).toBe(customKafka);
+			expect(deps.natsClient).toBe(customNats);
 		});
 
 		it("should use custom redis publisher when provided", () => {
@@ -258,7 +258,7 @@ describe("Memory Service Deps", () => {
 
 			expect(deps.logger).toBe(customLogger);
 			expect(deps.graphClient).toBe(customGraphClient);
-			expect(deps.kafkaClient).toBeDefined(); // Should use default
+			expect(deps.natsClient).toBeDefined(); // Should use default
 			expect(deps.redisPublisher).toBeDefined(); // Should use default
 		});
 
@@ -362,7 +362,7 @@ describe("Memory Service Deps", () => {
 
 			// Verify all dependencies are created
 			expect(deps.graphClient).toBeDefined();
-			expect(deps.kafkaClient).toBeDefined();
+			expect(deps.natsClient).toBeDefined();
 			expect(deps.redisPublisher).toBeDefined();
 			expect(deps.logger).toBeDefined();
 			expect(deps.turnAggregator).toBeDefined();

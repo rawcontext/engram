@@ -3,11 +3,12 @@
 import json
 import logging
 import os
-from typing import Any, Callable, Awaitable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import nats
 from nats.js import JetStreamContext
-from nats.js.api import ConsumerConfig, AckPolicy, DeliverPolicy
+from nats.js.api import AckPolicy, ConsumerConfig, DeliverPolicy
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -16,9 +17,7 @@ logger = logging.getLogger(__name__)
 class NatsClientConfig(BaseModel):
     """Configuration for NATS client."""
 
-    servers: str = Field(
-        default="nats://localhost:4222", description="NATS server URL"
-    )
+    servers: str = Field(default="nats://localhost:4222", description="NATS server URL")
     client_name: str = Field(default="search-service", description="NATS client name")
 
 
@@ -29,7 +28,7 @@ class NatsClient:
     for durable message delivery.
     """
 
-    # Topic to subject mapping (Kafka topics -> NATS subjects)
+    # Topic to subject mapping (legacy topic names -> NATS subjects)
     TOPIC_MAPPINGS: dict[str, str] = {
         "raw_events": "events.raw",
         "parsed_events": "events.parsed",
@@ -75,7 +74,7 @@ class NatsClient:
         """Publish a message to a NATS subject.
 
         Args:
-            topic: Kafka-style topic name (will be mapped to NATS subject).
+            topic: Topic name (will be mapped to NATS subject).
             key: Message key for deduplication.
             message: Message payload.
         """
@@ -96,7 +95,7 @@ class NatsClient:
         """Subscribe to a topic and process messages.
 
         Args:
-            topic: Kafka-style topic name.
+            topic: Topic name.
             group_id: Consumer group ID (becomes durable consumer name).
             handler: Async callback for processing messages.
         """
@@ -152,7 +151,7 @@ class NatsClient:
             logger.info("NATS connection closed")
 
     def _topic_to_subject(self, topic: str) -> str:
-        """Map Kafka topic name to NATS subject."""
+        """Map topic name to NATS subject."""
         return self.TOPIC_MAPPINGS.get(topic, topic.replace("_", "."))
 
     def _subject_to_stream(self, subject: str) -> str:
@@ -170,7 +169,3 @@ class NatsClient:
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit."""
         await self.close()
-
-
-# Backwards-compatible alias
-KafkaClient = NatsClient

@@ -10,9 +10,9 @@
 // =============================================================================
 
 /**
- * Kafka message structure
+ * Message structure for queue messages.
  */
-export type KafkaMessage = {
+export type Message = {
 	key?: Buffer;
 	value: Buffer;
 	offset: string;
@@ -21,23 +21,19 @@ export type KafkaMessage = {
 };
 
 /**
- * Kafka consumer interface with KafkaJS-compatible API
+ * Consumer interface for message queues.
  */
 export type Consumer = {
 	connect(): Promise<void>;
 	disconnect(): Promise<void>;
 	subscribe(opts: { topic: string; fromBeginning?: boolean }): Promise<void>;
 	run(opts: {
-		eachMessage: (payload: {
-			topic: string;
-			partition: number;
-			message: KafkaMessage;
-		}) => Promise<void>;
+		eachMessage: (payload: { topic: string; partition: number; message: Message }) => Promise<void>;
 	}): void;
 };
 
 /**
- * Kafka producer interface
+ * Producer interface for message queues.
  */
 export type Producer = {
 	connect(): Promise<void>;

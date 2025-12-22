@@ -25,7 +25,8 @@ export default defineConfig({
 		// MCP SDK - users need compatible version
 		"@modelcontextprotocol/sdk",
 		// Storage depends on these
-		"kafkajs",
+		"@nats-io/jetstream",
+		"@nats-io/transport-node",
 		"ioredis",
 		// Search depends on these (optional, only for local mode)
 		"@huggingface/transformers",

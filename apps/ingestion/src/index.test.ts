@@ -3,24 +3,24 @@ import { DiffExtractor, Redactor, ThinkingExtractor } from "@engram/parser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Use vi.hoisted to create mocks that can be accessed in vi.mock factory
-const { mockSendEvent, mockKafkaClient } = vi.hoisted(() => {
+const { mockSendEvent, mockNatsClient } = vi.hoisted(() => {
 	const mockSendEvent = vi.fn(async () => {});
-	const mockKafkaClient = {
+	const mockNatsClient = {
 		sendEvent: mockSendEvent,
 		getConsumer: vi.fn(),
 		connect: vi.fn(async () => {}),
 		disconnect: vi.fn(async () => {}),
 	};
-	return { mockSendEvent, mockKafkaClient };
+	return { mockSendEvent, mockNatsClient };
 });
 
-// Mock @engram/storage at module level so createIngestionServer uses mocked Kafka
+// Mock @engram/storage at module level so createIngestionServer uses mocked NATS
 vi.mock("@engram/storage", () => ({
-	createKafkaClient: vi.fn(() => mockKafkaClient),
+	createNatsClient: vi.fn(() => mockNatsClient),
 }));
 
 // Import after mock is set up
-import { createKafkaClient } from "@engram/storage";
+import { createNatsClient } from "@engram/storage";
 import {
 	cleanupStaleExtractors,
 	createIngestionProcessor,
@@ -40,7 +40,7 @@ describe("Ingestion Service", () => {
 
 	describe("IngestionProcessor", () => {
 		it("should process event and publish parsed event", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const eventId = "550e8400-e29b-41d4-a716-446655440000";
 			const event = {
@@ -67,7 +67,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle unknown provider", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -83,7 +83,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should extract thinking content", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440001",
@@ -114,7 +114,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should extract diffs", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -149,7 +149,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should redact PII", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -180,7 +180,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include project metadata", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -212,7 +212,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle tool call events", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -238,7 +238,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle usage events", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -265,7 +265,7 @@ describe("Ingestion Service", () => {
 
 		it("should clean up stale extractors", async () => {
 			// This tests the cleanupStaleExtractors function indirectly
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			// Process multiple events to create extractors
 			for (let i = 0; i < 5; i++) {
@@ -291,7 +291,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should return ignored status when delta is null", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			// Anthropic event with no parseable content
 			const event = {
@@ -310,7 +310,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should reuse existing thinking extractor and update lastAccess", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			// First event creates extractor
 			const event1 = {
@@ -357,7 +357,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should reuse existing diff extractor and update lastAccess", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			// First event creates extractor
 			const event1 = {
@@ -403,7 +403,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should extract file path from tool call arguments", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -429,7 +429,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle tool call with path field", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			// Create event with tool call that has a path field
 			const event = {
@@ -453,7 +453,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle tool call with filename field", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -476,7 +476,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle invalid JSON in tool call arguments gracefully", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -500,7 +500,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include cost metadata", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -525,7 +525,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include timing metadata", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -549,7 +549,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include model metadata when parser provides it", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			// Use Anthropic which includes model in delta
 			const event = {
@@ -576,7 +576,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include stopReason metadata", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -600,7 +600,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include cache metrics in usage", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -625,7 +625,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should infer event type from tool call when type is not set", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -650,7 +650,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should infer event type from usage when type is not set", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -674,7 +674,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should infer event type from content when type is not set", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -698,7 +698,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should use event_id as session_id when x-session-id header is missing", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const eventId = "550e8400-e29b-41d4-a716-446655440123";
 			const event = {
@@ -722,7 +722,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle missing headers gracefully", async () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -755,9 +755,9 @@ describe("Ingestion Service", () => {
 			expect(processor).toBeInstanceOf(IngestionProcessor);
 		});
 
-		it("should create processor with custom kafka client", () => {
-			const customKafka = createKafkaClient("test");
-			const processor = createIngestionProcessor({ kafkaClient: customKafka });
+		it("should create processor with custom nats client", () => {
+			const customNats = createNatsClient("test");
+			const processor = createIngestionProcessor({ natsClient: customNats });
 
 			expect(processor).toBeInstanceOf(IngestionProcessor);
 		});
@@ -779,14 +779,14 @@ describe("Ingestion Service", () => {
 
 	describe("Constructor variants", () => {
 		it("should support legacy positional constructor", () => {
-			const processor = new IngestionProcessor(mockKafkaClient as any);
+			const processor = new IngestionProcessor(mockNatsClient as any);
 
 			expect(processor).toBeInstanceOf(IngestionProcessor);
 		});
 
 		it("should support deps object constructor", () => {
 			const processor = new IngestionProcessor({
-				kafkaClient: mockKafkaClient as any,
+				natsClient: mockNatsClient as any,
 			});
 
 			expect(processor).toBeInstanceOf(IngestionProcessor);
@@ -801,8 +801,8 @@ describe("Ingestion Service", () => {
 
 	describe("processEvent edge cases", () => {
 		it("should handle DLQ send failure gracefully", async () => {
-			// Mock Kafka to fail on DLQ send
-			const failingKafka = {
+			// Mock NATS to fail on DLQ send
+			const failingNats = {
 				sendEvent: vi.fn(async (topic: string) => {
 					if (topic === "ingestion.dead_letter") {
 						throw new Error("DLQ failed");
@@ -811,7 +811,7 @@ describe("Ingestion Service", () => {
 				getConsumer: vi.fn(),
 			};
 
-			const processor = new IngestionProcessor(failingKafka as any);
+			const processor = new IngestionProcessor(failingNats as any);
 
 			// Send an invalid event that will trigger DLQ
 			const invalidEvent = {
@@ -1076,8 +1076,8 @@ describe("Ingestion Service", () => {
 			};
 
 			const mockGetConsumer = vi.fn(async () => mockConsumer);
-			const customKafka = {
-				...mockKafkaClient,
+			const customNats = {
+				...mockNatsClient,
 				getConsumer: mockGetConsumer,
 			};
 
