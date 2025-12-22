@@ -88,7 +88,7 @@ export function rateLimiter(options: RateLimiterOptions) {
 			const results = await pipeline.exec();
 
 			// Get count from the zCard result (3rd command, index 2)
-			const count = (results?.[2] as number) ?? 0;
+			const count = Number(results?.[2]) || 0;
 
 			// Calculate reset time (end of current window)
 			const resetAt = now + windowMs;

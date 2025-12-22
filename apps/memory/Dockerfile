@@ -1,17 +1,39 @@
+# Stage 1: Builder
 FROM oven/bun:1.3.5 AS builder
 WORKDIR /app
-COPY . .
-RUN bun install --frozen-lockfile
-RUN bun run build --filter=memory-service...
+COPY package.json bun.lock ./
+COPY apps/memory ./apps/memory
+COPY packages ./packages
+# Install dependencies
+RUN bun install
+# Build dependencies
+WORKDIR /app/packages/common
+RUN bun run build
+WORKDIR /app/packages/logger
+RUN bun run build
+WORKDIR /app/packages/events
+RUN bun run build
+WORKDIR /app/packages/storage
+RUN bun run build
+WORKDIR /app/packages/graph
+RUN bun run build
 
-FROM oven/bun:1.3.5-alpine AS runner
+# Stage 2: Runner - use Node.js for Kafka native bindings compatibility
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Create non-root user for security
 RUN addgroup -S engram && adduser -S engram -G engram
 
-COPY --from=builder /app/apps/memory/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
+# Copy source files and built packages
+COPY --from=builder --chown=engram:engram /app/apps/memory ./apps/memory
+COPY --from=builder --chown=engram:engram /app/packages ./packages
+COPY --from=builder --chown=engram:engram /app/node_modules ./node_modules
+COPY --from=builder --chown=engram:engram /app/package.json ./
 
 USER engram
 EXPOSE 8080
-CMD ["bun", "run", "dist/index.js"]
+
+WORKDIR /app/apps/memory
+CMD ["node", "--import", "tsx", "src/index.ts"]

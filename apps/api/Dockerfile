@@ -1,47 +1,41 @@
-FROM node:24-alpine AS builder
-
+# Stage 1: Builder
+FROM oven/bun:1.3.5 AS builder
 WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-COPY apps/api/package*.json ./apps/api/
-COPY packages/common/package*.json ./packages/common/
-COPY packages/logger/package*.json ./packages/logger/
-COPY packages/graph/package*.json ./packages/graph/
-COPY packages/storage/package*.json ./packages/storage/
-COPY packages/search/package*.json ./packages/search/
-COPY packages/tsconfig/package*.json ./packages/tsconfig/
-
-# Install dependencies
-RUN npm ci --workspace=@engram/api
-
-# Copy source
-COPY packages ./packages
+COPY package.json bun.lock ./
 COPY apps/api ./apps/api
+COPY packages ./packages
+# Install dependencies
+RUN bun install
+# Build dependencies first, then api
+WORKDIR /app/packages/common
+RUN bun run build
+WORKDIR /app/packages/logger
+RUN bun run build
+WORKDIR /app/packages/events
+RUN bun run build
+WORKDIR /app/packages/storage
+RUN bun run build
+WORKDIR /app/packages/graph
+RUN bun run build
+WORKDIR /app/apps/api
+RUN bun run build
 
-# Build
-RUN npm run build --workspace=@engram/api
-
-# Production image
-FROM node:24-alpine AS runner
-
+# Stage 2: Runner
+FROM oven/bun:1.3.5-alpine AS runner
 WORKDIR /app
+ENV NODE_ENV=production
 
-# Copy built artifacts
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
+# Create non-root user for security
+RUN addgroup -S engram && adduser -S engram -G engram
 
-# Non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S engram -u 1001 && \
-    chown -R engram:nodejs /app
+# Copy built app and dependencies
+COPY --from=builder --chown=engram:engram /app/apps/api ./apps/api
+COPY --from=builder --chown=engram:engram /app/packages ./packages
+COPY --from=builder --chown=engram:engram /app/node_modules ./node_modules
+COPY --from=builder --chown=engram:engram /app/package.json ./
 
 USER engram
-
 EXPOSE 8080
 
-ENV NODE_ENV=production
-ENV PORT=8080
-
-CMD ["node", "dist/index.js"]
+WORKDIR /app/apps/api
+CMD ["bun", "run", "dist/index.js"]
