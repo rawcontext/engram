@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from src.clients.nats import NatsClient
-from src.clients.redis import RedisPublisher
+from src.clients.nats_pubsub import NatsPubSubPublisher
 from src.indexing.batch import BatchConfig, BatchQueue, Document
 from src.indexing.indexer import DocumentIndexer, IndexerConfig
 
@@ -23,7 +23,7 @@ class MemoryConsumerConfig(BaseModel):
     group_id: str = Field(default="search-indexer", description="Consumer group ID")
     batch_config: BatchConfig = Field(default_factory=BatchConfig)
     indexer_config: IndexerConfig = Field(default_factory=IndexerConfig)
-    heartbeat_interval_ms: int = Field(default=30000, description="Redis heartbeat interval")
+    heartbeat_interval_ms: int = Field(default=30000, description="NATS heartbeat interval")
     service_id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
 
 
@@ -33,14 +33,14 @@ class MemoryEventConsumer:
     Subscribes to the memory.nodes.created NATS subject, extracts documents
     from events, and batches them for efficient indexing with multi-vector embeddings.
 
-    Publishes consumer status updates to Redis for monitoring.
+    Publishes consumer status updates via NATS pub/sub for monitoring.
     """
 
     def __init__(
         self,
         nats_client: NatsClient,
         indexer: DocumentIndexer,
-        redis_publisher: RedisPublisher | None = None,
+        nats_pubsub: NatsPubSubPublisher | None = None,
         config: MemoryConsumerConfig | None = None,
     ) -> None:
         """Initialize the memory event consumer.
@@ -48,12 +48,12 @@ class MemoryEventConsumer:
         Args:
             nats_client: NATS client for consuming events.
             indexer: Document indexer for generating embeddings and upserting to Qdrant.
-            redis_publisher: Optional Redis publisher for status updates.
+            nats_pubsub: Optional NATS pub/sub publisher for status updates.
             config: Consumer configuration.
         """
         self.nats = nats_client
         self.indexer = indexer
-        self.redis = redis_publisher
+        self.nats_pubsub = nats_pubsub
         self.config = config or MemoryConsumerConfig()
         self._batch_queue: BatchQueue | None = None
         self._running = False
@@ -86,10 +86,10 @@ class MemoryEventConsumer:
         # Start batch queue
         await self._batch_queue.start()
 
-        # Publish consumer_ready to Redis
-        if self.redis:
+        # Publish consumer_ready via NATS pub/sub
+        if self.nats_pubsub:
             try:
-                await self.redis.publish_consumer_status(
+                await self.nats_pubsub.publish_consumer_status(
                     status_type="consumer_ready",
                     group_id=self.config.group_id,
                     service_id=self.config.service_id,
@@ -141,10 +141,10 @@ class MemoryEventConsumer:
             await self._batch_queue.stop()
             self._batch_queue = None
 
-        # Publish consumer_disconnected to Redis
-        if self.redis:
+        # Publish consumer_disconnected via NATS pub/sub
+        if self.nats_pubsub:
             try:
-                await self.redis.publish_consumer_status(
+                await self.nats_pubsub.publish_consumer_status(
                     status_type="consumer_disconnected",
                     group_id=self.config.group_id,
                     service_id=self.config.service_id,
@@ -182,7 +182,7 @@ class MemoryEventConsumer:
             logger.error(f"Error processing message: {e}", exc_info=True)
 
     async def _heartbeat_loop(self) -> None:
-        """Send periodic heartbeats to Redis.
+        """Send periodic heartbeats via NATS pub/sub.
 
         Publishes a heartbeat message at the configured interval
         to indicate the consumer is still alive and processing.
@@ -193,9 +193,9 @@ class MemoryEventConsumer:
             while self._running:
                 await asyncio.sleep(heartbeat_interval_s)
 
-                if self.redis:
+                if self.nats_pubsub:
                     try:
-                        await self.redis.publish_consumer_status(
+                        await self.nats_pubsub.publish_consumer_status(
                             status_type="consumer_heartbeat",
                             group_id=self.config.group_id,
                             service_id=self.config.service_id,

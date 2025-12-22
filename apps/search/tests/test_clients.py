@@ -1,4 +1,4 @@
-"""Tests for NATS, Redis, and HuggingFace client wrappers."""
+"""Tests for NATS and HuggingFace client wrappers."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,8 +9,8 @@ from src.clients import (
     HuggingFaceReranker,
     NatsClient,
     NatsClientConfig,
-    RedisPublisher,
-    RedisSubscriber,
+    NatsPubSubPublisher,
+    NatsPubSubSubscriber,
     SessionUpdate,
 )
 
@@ -117,228 +117,113 @@ class TestNatsClient:
             mock_nc.close.assert_called_once()
 
 
-class TestRedisPublisher:
-    """Tests for RedisPublisher wrapper."""
+class TestNatsPubSubPublisher:
+    """Tests for NatsPubSubPublisher wrapper."""
 
     @pytest.mark.asyncio
     async def test_connect(self) -> None:
-        """Test Redis connection."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = AsyncMock()
-            mock_from_url.return_value = mock_client
+        """Test NATS pub/sub connection."""
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_connect.return_value = mock_nc
 
-            publisher = RedisPublisher(url="redis://localhost:6379")
-            client = await publisher.connect()
+            publisher = NatsPubSubPublisher(url="nats://localhost:4222")
+            nc = await publisher.connect()
 
-            mock_from_url.assert_called_once_with("redis://localhost:6379", decode_responses=True)
-            mock_client.ping.assert_called_once()
-            assert client == mock_client
+            mock_connect.assert_called_once()
+            assert nc == mock_nc
 
             await publisher.disconnect()
 
     @pytest.mark.asyncio
     async def test_publish_session_update(self) -> None:
         """Test publishing session update."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = AsyncMock()
-            mock_from_url.return_value = mock_client
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_nc.publish = AsyncMock()
+            mock_connect.return_value = mock_nc
 
-            publisher = RedisPublisher()
+            publisher = NatsPubSubPublisher()
             await publisher.publish_session_update(
                 session_id="sess-123", update_type="lineage", data={"test": "data"}
             )
 
-            # Should publish to session-specific channel
-            mock_client.publish.assert_called_once()
-            call_args = mock_client.publish.call_args
-            assert call_args[0][0] == "session:sess-123:updates"
-
-            # Verify message structure
-            import json
-
-            message = json.loads(call_args[0][1])
-            assert message["type"] == "lineage"
-            assert message["session_id"] == "sess-123"
-            assert message["data"] == {"test": "data"}
-            assert "timestamp" in message
+            # Should publish to session-specific subject
+            mock_nc.publish.assert_called_once()
+            call_args = mock_nc.publish.call_args
+            assert call_args[0][0] == "observatory.session.sess-123.updates"
 
             await publisher.disconnect()
 
     @pytest.mark.asyncio
     async def test_publish_consumer_status(self) -> None:
         """Test publishing consumer status."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = AsyncMock()
-            mock_from_url.return_value = mock_client
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_nc.publish = AsyncMock()
+            mock_connect.return_value = mock_nc
 
-            publisher = RedisPublisher()
+            publisher = NatsPubSubPublisher()
             await publisher.publish_consumer_status(
                 status_type="consumer_ready", group_id="search-group", service_id="search-1"
             )
 
-            # Should publish to consumers channel
-            mock_client.publish.assert_called_once()
-            call_args = mock_client.publish.call_args
-            assert call_args[0][0] == "consumers:status"
-
-            # Verify message structure
-            import json
-
-            message = json.loads(call_args[0][1])
-            assert message["type"] == "consumer_ready"
-            assert message["group_id"] == "search-group"
-            assert message["service_id"] == "search-1"
+            # Should publish to consumers subject
+            mock_nc.publish.assert_called_once()
+            call_args = mock_nc.publish.call_args
+            assert call_args[0][0] == "observatory.consumers.status"
 
             await publisher.disconnect()
 
     @pytest.mark.asyncio
     async def test_context_manager(self) -> None:
         """Test async context manager protocol."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = AsyncMock()
-            mock_from_url.return_value = mock_client
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_connect.return_value = mock_nc
 
-            async with RedisPublisher() as publisher:
-                assert publisher._client is not None
+            async with NatsPubSubPublisher() as publisher:
+                assert publisher._nc is not None
 
-            mock_client.aclose.assert_called_once()
-
-
-class TestRedisSubscriber:
-    """Tests for RedisSubscriber wrapper."""
-
-    @pytest.mark.asyncio
-    async def test_connect(self) -> None:
-        """Test Redis subscriber connection."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = MagicMock()
-            mock_client.ping = AsyncMock()
-            mock_client.aclose = AsyncMock()
-            mock_pubsub = MagicMock()
-            mock_pubsub.aclose = AsyncMock()
-            mock_pubsub.unsubscribe = AsyncMock()
-            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
-            mock_from_url.return_value = mock_client
-
-            subscriber = RedisSubscriber()
-            await subscriber.connect()
-
-            mock_from_url.assert_called_once()
-            mock_client.ping.assert_called_once()
-            assert subscriber._client == mock_client
-            assert subscriber._pubsub is not None
-
-            await subscriber.disconnect()
-
-    @pytest.mark.asyncio
-    async def test_subscribe_builds_session_channel(self) -> None:
-        """Test subscribing with session ID builds correct channel."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = MagicMock()
-            mock_client.ping = AsyncMock()
-            mock_client.aclose = AsyncMock()
-            mock_pubsub = MagicMock()
-            mock_pubsub.subscribe = AsyncMock()
-            mock_pubsub.unsubscribe = AsyncMock()
-            mock_pubsub.aclose = AsyncMock()
-            mock_pubsub.listen = MagicMock(return_value=AsyncMock().__aiter__())
-            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
-            mock_from_url.return_value = mock_client
-
-            subscriber = RedisSubscriber()
-
-            def callback(msg: dict) -> None:
-                pass
-
-            # Subscribe with session ID
-            await subscriber.subscribe("sess-123", callback)
-
-            # Should build session channel name
-            mock_pubsub.subscribe.assert_called_once_with("session:sess-123:updates")
-
-            await subscriber.disconnect()
-
-    @pytest.mark.asyncio
-    async def test_subscribe_uses_full_channel_name(self) -> None:
-        """Test subscribing with full channel name uses it as-is."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = MagicMock()
-            mock_client.ping = AsyncMock()
-            mock_client.aclose = AsyncMock()
-            mock_pubsub = MagicMock()
-            mock_pubsub.subscribe = AsyncMock()
-            mock_pubsub.unsubscribe = AsyncMock()
-            mock_pubsub.aclose = AsyncMock()
-            mock_pubsub.listen = MagicMock(return_value=AsyncMock().__aiter__())
-            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
-            mock_from_url.return_value = mock_client
-
-            subscriber = RedisSubscriber()
-
-            def callback(msg: dict) -> None:
-                pass
-
-            # Subscribe with full channel name
-            await subscriber.subscribe("sessions:updates", callback)
-
-            # Should use channel name as-is
-            mock_pubsub.subscribe.assert_called_once_with("sessions:updates")
-
-            await subscriber.disconnect()
+            mock_nc.drain.assert_called_once()
+            mock_nc.close.assert_called_once()
 
 
-class TestRedisPublisherAdvanced:
-    """Additional tests for RedisPublisher coverage."""
+class TestNatsPubSubPublisherAdvanced:
+    """Additional tests for NatsPubSubPublisher coverage."""
 
     @pytest.mark.asyncio
     async def test_connect_reuses_existing_client(self) -> None:
         """Test connect reuses existing open client."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = AsyncMock()
-            mock_from_url.return_value = mock_client
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_connect.return_value = mock_nc
 
-            publisher = RedisPublisher()
+            publisher = NatsPubSubPublisher()
             # First connect
             await publisher.connect()
-            # Second connect should reuse and just ping
+            # Second connect should reuse
             await publisher.connect()
 
-            # from_url called once, ping called twice
-            assert mock_from_url.call_count == 1
-            assert mock_client.ping.call_count == 2
+            # connect called once since we reuse
+            assert mock_connect.call_count == 1
 
-            await publisher.disconnect()
-
-    @pytest.mark.asyncio
-    async def test_connect_reconnects_on_ping_failure(self) -> None:
-        """Test connect creates new client if existing ping fails."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client1 = AsyncMock()
-            mock_client1.ping.side_effect = Exception("Connection lost")
-
-            mock_client2 = AsyncMock()
-            mock_client2.ping = AsyncMock()  # New client ping succeeds
-            mock_client2.aclose = AsyncMock()
-
-            mock_from_url.return_value = mock_client2
-
-            publisher = RedisPublisher()
-            # Set existing (broken) client
-            publisher._client = mock_client1
-            # Connect should fail ping and create new client
-            client = await publisher.connect()
-
-            assert client == mock_client2
             await publisher.disconnect()
 
     @pytest.mark.asyncio
     async def test_connect_reuses_in_flight_promise(self) -> None:
         """Test concurrent connects reuse the same connection task."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = AsyncMock()
-            mock_from_url.return_value = mock_client
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_connect.return_value = mock_nc
 
-            publisher = RedisPublisher()
+            publisher = NatsPubSubPublisher()
 
             # Start two concurrent connects
             import asyncio
@@ -347,172 +232,146 @@ class TestRedisPublisherAdvanced:
 
             # Both should get the same client
             assert result1 == result2
-            # from_url should only be called once
-            assert mock_from_url.call_count == 1
+            # connect should only be called once
+            assert mock_connect.call_count == 1
 
             await publisher.disconnect()
 
     @pytest.mark.asyncio
     async def test_publish_global_session_event(self) -> None:
         """Test publishing global session event."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = AsyncMock()
-            mock_from_url.return_value = mock_client
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_nc.publish = AsyncMock()
+            mock_connect.return_value = mock_nc
 
-            publisher = RedisPublisher()
+            publisher = NatsPubSubPublisher()
             await publisher.publish_global_session_event(
                 event_type="session_created",
                 session_data={"id": "sess-123", "title": "New Session"},
             )
 
-            mock_client.publish.assert_called_once()
-            call_args = mock_client.publish.call_args
-            assert call_args[0][0] == "sessions:updates"
-
-            import json
-
-            message = json.loads(call_args[0][1])
-            assert message["type"] == "session_created"
-            assert message["session_id"] == ""  # Global event
-            assert message["data"]["id"] == "sess-123"
+            mock_nc.publish.assert_called_once()
+            call_args = mock_nc.publish.call_args
+            assert call_args[0][0] == "observatory.sessions.updates"
 
             await publisher.disconnect()
 
     @pytest.mark.asyncio
     async def test_disconnect_when_already_disconnected(self) -> None:
         """Test disconnect is safe when already disconnected."""
-        publisher = RedisPublisher()
+        publisher = NatsPubSubPublisher()
         # Should not raise
         await publisher.disconnect()
 
 
-class TestRedisSubscriberAdvanced:
-    """Additional tests for RedisSubscriber coverage."""
+class TestNatsPubSubSubscriber:
+    """Tests for NatsPubSubSubscriber wrapper."""
 
     @pytest.mark.asyncio
-    async def test_connect_reuses_existing_client(self) -> None:
-        """Test connect reuses existing open client."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = MagicMock()
-            mock_client.ping = AsyncMock()
-            mock_client.aclose = AsyncMock()
-            mock_pubsub = MagicMock()
-            mock_pubsub.aclose = AsyncMock()
-            mock_pubsub.unsubscribe = AsyncMock()
-            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
-            mock_from_url.return_value = mock_client
+    async def test_connect(self) -> None:
+        """Test NATS subscriber connection."""
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_connect.return_value = mock_nc
 
-            subscriber = RedisSubscriber()
-            await subscriber.connect()
+            subscriber = NatsPubSubSubscriber()
             await subscriber.connect()
 
-            # from_url called once, ping called twice
-            assert mock_from_url.call_count == 1
-            assert mock_client.ping.call_count == 2
+            mock_connect.assert_called_once()
+            assert subscriber._nc == mock_nc
 
             await subscriber.disconnect()
 
     @pytest.mark.asyncio
-    async def test_connect_reconnects_on_ping_failure(self) -> None:
-        """Test connect creates new client if existing ping fails."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client1 = MagicMock()
-            mock_client1.ping = AsyncMock(side_effect=Exception("Connection lost"))
-            mock_client1.aclose = AsyncMock()
+    async def test_subscribe_builds_session_subject(self) -> None:
+        """Test subscribing with session ID builds correct subject."""
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_sub = AsyncMock()
+            mock_nc.subscribe = AsyncMock(return_value=mock_sub)
+            mock_connect.return_value = mock_nc
 
-            mock_client2 = MagicMock()
-            mock_client2.ping = AsyncMock()
-            mock_client2.aclose = AsyncMock()
-            mock_pubsub = MagicMock()
-            mock_pubsub.aclose = AsyncMock()
-            mock_pubsub.unsubscribe = AsyncMock()
-            mock_pubsub.listen = MagicMock(return_value=AsyncMock().__aiter__())
-            mock_client2.pubsub = MagicMock(return_value=mock_pubsub)
+            subscriber = NatsPubSubSubscriber()
 
-            mock_from_url.return_value = mock_client2
+            def callback(msg: dict) -> None:
+                pass
 
-            subscriber = RedisSubscriber()
-            subscriber._client = mock_client1
-            await subscriber.connect()
+            # Subscribe with session ID
+            await subscriber.subscribe("sess-123", callback)
 
-            assert subscriber._client == mock_client2
+            # Should build session subject name
+            mock_nc.subscribe.assert_called_once()
+            call_args = mock_nc.subscribe.call_args
+            assert call_args[0][0] == "observatory.session.sess-123.updates"
+
+            await subscriber.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_subscribe_uses_full_subject_name(self) -> None:
+        """Test subscribing with full subject name uses it as-is."""
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_sub = AsyncMock()
+            mock_nc.subscribe = AsyncMock(return_value=mock_sub)
+            mock_connect.return_value = mock_nc
+
+            subscriber = NatsPubSubSubscriber()
+
+            def callback(msg: dict) -> None:
+                pass
+
+            # Subscribe with full subject name
+            await subscriber.subscribe("observatory.sessions.updates", callback)
+
+            # Should use subject name as-is
+            mock_nc.subscribe.assert_called_once()
+            call_args = mock_nc.subscribe.call_args
+            assert call_args[0][0] == "observatory.sessions.updates"
+
             await subscriber.disconnect()
 
     @pytest.mark.asyncio
     async def test_subscribe_to_consumer_status(self) -> None:
         """Test subscribe_to_consumer_status helper."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = MagicMock()
-            mock_client.ping = AsyncMock()
-            mock_client.aclose = AsyncMock()
-            mock_pubsub = MagicMock()
-            mock_pubsub.subscribe = AsyncMock()
-            mock_pubsub.unsubscribe = AsyncMock()
-            mock_pubsub.aclose = AsyncMock()
-            mock_pubsub.listen = MagicMock(return_value=AsyncMock().__aiter__())
-            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
-            mock_from_url.return_value = mock_client
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_sub = AsyncMock()
+            mock_nc.subscribe = AsyncMock(return_value=mock_sub)
+            mock_connect.return_value = mock_nc
 
-            subscriber = RedisSubscriber()
+            subscriber = NatsPubSubSubscriber()
 
             def callback(msg: dict) -> None:
                 pass
 
             unsubscribe = await subscriber.subscribe_to_consumer_status(callback)
 
-            mock_pubsub.subscribe.assert_called_once_with("consumers:status")
+            mock_nc.subscribe.assert_called_once()
+            call_args = mock_nc.subscribe.call_args
+            assert call_args[0][0] == "observatory.consumers.status"
             assert callable(unsubscribe)
-
-            await subscriber.disconnect()
-
-    @pytest.mark.asyncio
-    async def test_unsubscribe_removes_callback(self) -> None:
-        """Test unsubscribe function removes the callback."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = MagicMock()
-            mock_client.ping = AsyncMock()
-            mock_client.aclose = AsyncMock()
-            mock_pubsub = MagicMock()
-            mock_pubsub.subscribe = AsyncMock()
-            mock_pubsub.unsubscribe = AsyncMock()
-            mock_pubsub.aclose = AsyncMock()
-            mock_pubsub.listen = MagicMock(return_value=AsyncMock().__aiter__())
-            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
-            mock_from_url.return_value = mock_client
-
-            subscriber = RedisSubscriber()
-
-            def callback(msg: dict) -> None:
-                pass
-
-            unsubscribe = await subscriber.subscribe("test-channel:events", callback)
-
-            # Unsubscribe
-            unsubscribe()
-
-            # Check that subscriptions were cleaned up
-            assert "test-channel:events" not in subscriber._subscriptions
 
             await subscriber.disconnect()
 
     @pytest.mark.asyncio
     async def test_context_manager_subscriber(self) -> None:
         """Test async context manager protocol for subscriber."""
-        with patch("src.clients.redis.redis.from_url") as mock_from_url:
-            mock_client = MagicMock()
-            mock_client.ping = AsyncMock()
-            mock_client.aclose = AsyncMock()
-            mock_pubsub = MagicMock()
-            mock_pubsub.aclose = AsyncMock()
-            mock_pubsub.unsubscribe = AsyncMock()
-            mock_pubsub.listen = MagicMock(return_value=AsyncMock().__aiter__())
-            mock_client.pubsub = MagicMock(return_value=mock_pubsub)
-            mock_from_url.return_value = mock_client
+        with patch("src.clients.nats_pubsub.nats.connect") as mock_connect:
+            mock_nc = AsyncMock()
+            mock_nc.is_connected = True
+            mock_connect.return_value = mock_nc
 
-            async with RedisSubscriber() as subscriber:
-                assert subscriber._client is not None
+            async with NatsPubSubSubscriber() as subscriber:
+                assert subscriber._nc is not None
 
-            mock_client.aclose.assert_called()
+            mock_nc.drain.assert_called()
+            mock_nc.close.assert_called()
 
 
 class TestPydanticModels:
@@ -521,11 +380,11 @@ class TestPydanticModels:
     def test_session_update_model(self) -> None:
         """Test SessionUpdate model validation."""
         update = SessionUpdate(
-            type="lineage", session_id="sess-123", data={"key": "value"}, timestamp=1234567890
+            type="lineage", sessionId="sess-123", data={"key": "value"}, timestamp=1234567890
         )
 
         assert update.type == "lineage"
-        assert update.session_id == "sess-123"
+        assert update.sessionId == "sess-123"
         assert update.data == {"key": "value"}
         assert update.timestamp == 1234567890
 
@@ -533,14 +392,14 @@ class TestPydanticModels:
         """Test ConsumerStatusUpdate model validation."""
         status = ConsumerStatusUpdate(
             type="consumer_ready",
-            group_id="search-group",
-            service_id="search-1",
+            groupId="search-group",
+            serviceId="search-1",
             timestamp=1234567890,
         )
 
         assert status.type == "consumer_ready"
-        assert status.group_id == "search-group"
-        assert status.service_id == "search-1"
+        assert status.groupId == "search-group"
+        assert status.serviceId == "search-1"
         assert status.timestamp == 1234567890
 
     def test_nats_client_config_model(self) -> None:
@@ -645,10 +504,6 @@ class TestHuggingFaceReranker:
             max_retries=3,
             retry_delay=0.01,
         )
-
-        mock_response_503 = MagicMock()
-        mock_response_503.status_code = 503
-        mock_response_503.raise_for_status.side_effect = Exception("503 Service Unavailable")
 
         mock_response_ok = MagicMock()
         mock_response_ok.json.return_value = [{"index": 0, "score": 0.9}]

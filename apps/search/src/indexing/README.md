@@ -1,11 +1,11 @@
 # Indexing Pipeline
 
-The indexing pipeline consumes memory node creation events from Kafka and indexes them to Qdrant with multi-vector embeddings (dense, sparse, and ColBERT).
+The indexing pipeline consumes memory node creation events from NATS JetStream and indexes them to Qdrant with multi-vector embeddings (dense, sparse, and ColBERT).
 
 ## Architecture
 
 ```
-Kafka Topic: memory.node_created
+NATS Subject: memory.nodes.created
          │
          ▼
   MemoryEventConsumer
@@ -41,22 +41,22 @@ Generates multi-vector embeddings and upserts to Qdrant:
 
 ### MemoryEventConsumer (`consumer.py`)
 
-Kafka consumer that:
-- Subscribes to `memory.node_created` topic
+NATS JetStream consumer that:
+- Subscribes to `memory.nodes.created` subject
 - Parses memory node events into Documents
 - Batches documents for efficient indexing
-- Publishes consumer status to Redis for monitoring
+- Publishes consumer status via NATS pub/sub for monitoring
 - Sends periodic heartbeats
 
 ## Usage
 
 ```python
-from search.config import get_settings
-from search.clients.kafka import KafkaClient
-from search.clients.qdrant import QdrantClientWrapper
-from search.clients.redis import RedisPublisher
-from search.embedders.factory import EmbedderFactory
-from search.indexing import (
+from src.config import get_settings
+from src.clients.nats import NatsClient
+from src.clients.nats_pubsub import NatsPubSubPublisher
+from src.clients.qdrant import QdrantClientWrapper
+from src.embedders.factory import EmbedderFactory
+from src.indexing import (
     DocumentIndexer,
     MemoryEventConsumer,
     MemoryConsumerConfig,
@@ -64,12 +64,12 @@ from search.indexing import (
 
 # Initialize dependencies
 settings = get_settings()
-kafka = KafkaClient()
+nats = NatsClient()
 qdrant = QdrantClientWrapper(settings)
 await qdrant.connect()
 
-redis = RedisPublisher()
-await redis.connect()
+nats_pubsub = NatsPubSubPublisher()
+await nats_pubsub.connect()
 
 embedders = EmbedderFactory(settings)
 await embedders.preload_all()  # Optional: preload models
@@ -82,7 +82,7 @@ config = MemoryConsumerConfig(
     topic="memory.node_created",
     group_id="search-indexer",
 )
-consumer = MemoryEventConsumer(kafka, indexer, redis, config)
+consumer = MemoryEventConsumer(nats, indexer, nats_pubsub, config)
 
 # Start consuming (blocks until stopped)
 await consumer.start()
@@ -92,11 +92,11 @@ await consumer.start()
 
 ### MemoryConsumerConfig
 
-- `topic` - Kafka topic to consume (default: `memory.node_created`)
+- `topic` - NATS subject to consume (default: `memory.node_created`)
 - `group_id` - Consumer group ID (default: `search-indexer`)
 - `batch_config` - BatchQueue configuration
 - `indexer_config` - DocumentIndexer configuration
-- `heartbeat_interval_ms` - Redis heartbeat interval (default: 30000ms)
+- `heartbeat_interval_ms` - NATS heartbeat interval (default: 30000ms)
 - `service_id` - Unique service instance ID (auto-generated)
 
 ### BatchConfig
@@ -116,7 +116,7 @@ await consumer.start()
 
 ## Event Format
 
-Expected Kafka message structure for `memory.node_created`:
+Expected NATS message structure for `memory.nodes.created`:
 
 ```json
 {
@@ -134,15 +134,15 @@ Expected Kafka message structure for `memory.node_created`:
 
 ## Monitoring
 
-The consumer publishes status updates to Redis channel `consumers:status`:
+The consumer publishes status updates to NATS subject `observatory.consumers.status`:
 
 - `consumer_ready` - Published when consumer starts
 - `consumer_heartbeat` - Published periodically (every 30s)
 - `consumer_disconnected` - Published when consumer stops
 
-Monitor with:
+Monitor with NATS CLI:
 ```bash
-redis-cli SUBSCRIBE consumers:status
+nats sub observatory.consumers.status
 ```
 
 ## Error Handling
@@ -150,7 +150,7 @@ redis-cli SUBSCRIBE consumers:status
 - Batch flush errors are logged but don't crash the queue
 - Message parsing errors are logged and skipped
 - Indexing errors are logged and return 0 for failed documents
-- Redis connection failures log warnings but don't stop indexing
+- NATS connection failures log warnings but don't stop indexing
 
 ## Performance Tuning
 

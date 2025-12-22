@@ -260,11 +260,11 @@ class TestTurnFinalizedConsumer:
         return indexer
 
     @pytest.fixture
-    def mock_redis(self) -> MagicMock:
-        """Create mock Redis publisher."""
-        redis = MagicMock()
-        redis.publish_consumer_status = AsyncMock()
-        return redis
+    def mock_nats_pubsub(self) -> MagicMock:
+        """Create mock NATS pub/sub publisher."""
+        nats_pubsub = MagicMock()
+        nats_pubsub.publish_consumer_status = AsyncMock()
+        return nats_pubsub
 
     @pytest.fixture
     def config(self) -> TurnFinalizedConsumerConfig:
@@ -453,14 +453,14 @@ class TestTurnFinalizedConsumer:
         self,
         mock_nats: MagicMock,
         mock_indexer: MagicMock,
-        mock_redis: MagicMock,
+        mock_nats_pubsub: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test that stop publishes disconnected status."""
         consumer = TurnFinalizedConsumer(
             nats_client=mock_nats,
             indexer=mock_indexer,
-            redis_publisher=mock_redis,
+            nats_pubsub=mock_nats_pubsub,
             config=config,
         )
 
@@ -474,26 +474,26 @@ class TestTurnFinalizedConsumer:
 
         await consumer.stop()
 
-        mock_redis.publish_consumer_status.assert_called_with(
+        mock_nats_pubsub.publish_consumer_status.assert_called_with(
             status_type="consumer_disconnected",
             group_id=config.group_id,
             service_id=config.service_id,
         )
 
-    async def test_stop_handles_redis_error(
+    async def test_stop_handles_nats_pubsub_error(
         self,
         mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
-        """Test that stop handles Redis publish errors gracefully."""
-        mock_redis = MagicMock()
-        mock_redis.publish_consumer_status = AsyncMock(side_effect=Exception("Redis error"))
+        """Test that stop handles NATS pub/sub publish errors gracefully."""
+        mock_nats_pubsub = MagicMock()
+        mock_nats_pubsub.publish_consumer_status = AsyncMock(side_effect=Exception("NATS error"))
 
         consumer = TurnFinalizedConsumer(
             nats_client=mock_nats,
             indexer=mock_indexer,
-            redis_publisher=mock_redis,
+            nats_pubsub=mock_nats_pubsub,
             config=config,
         )
 
@@ -600,7 +600,7 @@ class TestTurnFinalizedConsumer:
         self,
         mock_nats: MagicMock,
         mock_indexer: MagicMock,
-        mock_redis: MagicMock,
+        mock_nats_pubsub: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
         """Test heartbeat loop publishes heartbeats."""
@@ -609,7 +609,7 @@ class TestTurnFinalizedConsumer:
         consumer = TurnFinalizedConsumer(
             nats_client=mock_nats,
             indexer=mock_indexer,
-            redis_publisher=mock_redis,
+            nats_pubsub=mock_nats_pubsub,
             config=config,
         )
         consumer._running = True
@@ -623,24 +623,24 @@ class TestTurnFinalizedConsumer:
             await heartbeat_task
 
         # Should have published at least one heartbeat
-        assert mock_redis.publish_consumer_status.call_count >= 1
+        assert mock_nats_pubsub.publish_consumer_status.call_count >= 1
 
-    async def test_heartbeat_loop_handles_redis_error(
+    async def test_heartbeat_loop_handles_nats_pubsub_error(
         self,
         mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
-        """Test heartbeat loop handles Redis errors gracefully."""
+        """Test heartbeat loop handles NATS pub/sub errors gracefully."""
         import asyncio
 
-        mock_redis = MagicMock()
-        mock_redis.publish_consumer_status = AsyncMock(side_effect=Exception("Redis error"))
+        mock_nats_pubsub = MagicMock()
+        mock_nats_pubsub.publish_consumer_status = AsyncMock(side_effect=Exception("NATS error"))
 
         consumer = TurnFinalizedConsumer(
             nats_client=mock_nats,
             indexer=mock_indexer,
-            redis_publisher=mock_redis,
+            nats_pubsub=mock_nats_pubsub,
             config=config,
         )
         consumer._running = True
@@ -653,19 +653,19 @@ class TestTurnFinalizedConsumer:
         with contextlib.suppress(asyncio.CancelledError):
             await heartbeat_task
 
-    async def test_heartbeat_loop_no_redis(
+    async def test_heartbeat_loop_no_nats_pubsub(
         self,
         mock_nats: MagicMock,
         mock_indexer: MagicMock,
         config: TurnFinalizedConsumerConfig,
     ) -> None:
-        """Test heartbeat loop with no Redis publisher."""
+        """Test heartbeat loop with no NATS pub/sub publisher."""
         import asyncio
 
         consumer = TurnFinalizedConsumer(
             nats_client=mock_nats,
             indexer=mock_indexer,
-            redis_publisher=None,
+            nats_pubsub=None,
             config=config,
         )
         consumer._running = True
