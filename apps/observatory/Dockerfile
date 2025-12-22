@@ -3,6 +3,8 @@ WORKDIR /app
 RUN corepack enable && npm install -g bun@1.3.5
 COPY . .
 RUN bun install --frozen-lockfile
+# Fix: reinstall Kafka with correct Alpine/musl binaries (see github.com/confluentinc/confluent-kafka-javascript/issues/48)
+RUN rm -rf node_modules/@confluentinc && npm install @confluentinc/kafka-javascript
 RUN bun run build --filter=observatory...
 
 FROM node:22-alpine AS runner
