@@ -1,8 +1,28 @@
 import type { FalkorClient } from "@engram/storage";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GraphMerger } from "./merger";
 
+// Use vi.hoisted to ensure mock is available during vi.mock() execution
+const { mockLoggerWarn, mockLoggerInfo } = vi.hoisted(() => ({
+	mockLoggerWarn: vi.fn(),
+	mockLoggerInfo: vi.fn(),
+}));
+
+vi.mock("@engram/logger", () => ({
+	createNodeLogger: () => ({
+		info: mockLoggerInfo,
+		warn: mockLoggerWarn,
+		error: vi.fn(),
+		debug: vi.fn(),
+	}),
+}));
+
 describe("GraphMerger", () => {
+	beforeEach(() => {
+		mockLoggerWarn.mockClear();
+		mockLoggerInfo.mockClear();
+	});
+
 	it("should move edges and delete source", async () => {
 		const mockQuery = vi.fn((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
@@ -72,7 +92,6 @@ describe("GraphMerger", () => {
 	});
 
 	it("should skip invalid rows with insufficient elements", async () => {
-		const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const mockQuery = vi.fn((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with insufficient elements
@@ -88,12 +107,12 @@ describe("GraphMerger", () => {
 		const merger = new GraphMerger(mockFalkor);
 		await merger.mergeNodes("target-1", "source-1");
 
-		expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining("Skipping invalid row"));
-		consoleWarnSpy.mockRestore();
+		expect(mockLoggerWarn).toHaveBeenCalledWith(
+			"Skipping invalid row - expected array with 4 elements",
+		);
 	});
 
 	it("should skip rows with invalid type", async () => {
-		const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const mockQuery = vi.fn((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with non-string type
@@ -109,12 +128,10 @@ describe("GraphMerger", () => {
 		const merger = new GraphMerger(mockFalkor);
 		await merger.mergeNodes("target-1", "source-1");
 
-		expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining("type is not a string"));
-		consoleWarnSpy.mockRestore();
+		expect(mockLoggerWarn).toHaveBeenCalledWith("Skipping row - type is not a string");
 	});
 
 	it("should skip rows with invalid isOutgoing", async () => {
-		const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const mockQuery = vi.fn((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with non-boolean isOutgoing
@@ -130,14 +147,10 @@ describe("GraphMerger", () => {
 		const merger = new GraphMerger(mockFalkor);
 		await merger.mergeNodes("target-1", "source-1");
 
-		expect(consoleWarnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("isOutgoing is not a boolean"),
-		);
-		consoleWarnSpy.mockRestore();
+		expect(mockLoggerWarn).toHaveBeenCalledWith("Skipping row - isOutgoing is not a boolean");
 	});
 
 	it("should skip rows with invalid neighborId", async () => {
-		const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const mockQuery = vi.fn((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with non-string neighborId
@@ -153,10 +166,7 @@ describe("GraphMerger", () => {
 		const merger = new GraphMerger(mockFalkor);
 		await merger.mergeNodes("target-1", "source-1");
 
-		expect(consoleWarnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("neighborId is not a string"),
-		);
-		consoleWarnSpy.mockRestore();
+		expect(mockLoggerWarn).toHaveBeenCalledWith("Skipping row - neighborId is not a string");
 	});
 
 	it("should throw on invalid relationship type", async () => {
@@ -200,7 +210,6 @@ describe("GraphMerger", () => {
 	});
 
 	it("should log merge completion", async () => {
-		const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const mockQuery = vi.fn(async () => []);
 
 		const mockFalkor = {
@@ -210,8 +219,10 @@ describe("GraphMerger", () => {
 		const merger = new GraphMerger(mockFalkor);
 		await merger.mergeNodes("target-1", "source-1");
 
-		expect(consoleLogSpy).toHaveBeenCalledWith("Merged node source-1 into target-1");
-		consoleLogSpy.mockRestore();
+		expect(mockLoggerInfo).toHaveBeenCalledWith(
+			{ sourceId: "source-1", targetId: "target-1" },
+			"Merged nodes",
+		);
 	});
 
 	it("should handle non-object properties gracefully", async () => {
