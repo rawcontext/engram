@@ -35,11 +35,33 @@ const SESSIONS_CHANNEL = "sessions:updates";
 // Global channel for consumer status updates
 const CONSUMERS_CHANNEL = "consumers:status";
 
-export function createRedisPublisher() {
-	let client: ReturnType<typeof createClient> | null = null;
-	let connectPromise: Promise<ReturnType<typeof createClient>> | null = null;
+// Internal client type - use ReturnType to capture the actual type from createClient
+type RedisClient = ReturnType<typeof createClient>;
 
-	const connect = async () => {
+export interface RedisPublisherInterface {
+	connect: () => Promise<void>;
+	publishSessionUpdate: (
+		sessionId: string,
+		update: Omit<SessionUpdate, "sessionId" | "timestamp">,
+	) => Promise<void>;
+	publishGlobalSessionEvent: (
+		eventType: "session_created" | "session_updated" | "session_closed",
+		sessionData: unknown,
+	) => Promise<void>;
+	publishConsumerStatus: (
+		eventType: "consumer_ready" | "consumer_disconnected" | "consumer_heartbeat",
+		groupId: string,
+		serviceId: string,
+	) => Promise<void>;
+	disconnect: () => Promise<void>;
+}
+
+export function createRedisPublisher(): RedisPublisherInterface {
+	let client: RedisClient | null = null;
+	let connectPromise: Promise<RedisClient> | null = null;
+
+	// Internal function that ensures connection and returns the client
+	const ensureConnected = async (): Promise<RedisClient> => {
 		// Return existing open client
 		if (client?.isOpen) return client;
 
@@ -73,11 +95,16 @@ export function createRedisPublisher() {
 		}
 	};
 
+	// Public connect that doesn't expose the client
+	const connect = async (): Promise<void> => {
+		await ensureConnected();
+	};
+
 	const publishSessionUpdate = async (
 		sessionId: string,
 		update: Omit<SessionUpdate, "sessionId" | "timestamp">,
-	) => {
-		const conn = await connect();
+	): Promise<void> => {
+		const conn = await ensureConnected();
 		const channel = `session:${sessionId}:updates`;
 		const message: SessionUpdate = {
 			...update,
@@ -91,8 +118,8 @@ export function createRedisPublisher() {
 	const publishGlobalSessionEvent = async (
 		eventType: "session_created" | "session_updated" | "session_closed",
 		sessionData: unknown,
-	) => {
-		const conn = await connect();
+	): Promise<void> => {
+		const conn = await ensureConnected();
 		const message: SessionUpdate = {
 			type: eventType,
 			sessionId: "", // Global event, not tied to specific session
@@ -107,8 +134,8 @@ export function createRedisPublisher() {
 		eventType: "consumer_ready" | "consumer_disconnected" | "consumer_heartbeat",
 		groupId: string,
 		serviceId: string,
-	) => {
-		const conn = await connect();
+	): Promise<void> => {
+		const conn = await ensureConnected();
 		const message: ConsumerStatusUpdate = {
 			type: eventType,
 			groupId,
@@ -118,7 +145,7 @@ export function createRedisPublisher() {
 		await conn.publish(CONSUMERS_CHANNEL, JSON.stringify(message));
 	};
 
-	const disconnect = async () => {
+	const disconnect = async (): Promise<void> => {
 		try {
 			if (client?.isOpen) {
 				await client.quit();
@@ -139,7 +166,7 @@ export function createRedisPublisher() {
 }
 
 // Type for RedisPublisher return
-export type RedisPublisher = ReturnType<typeof createRedisPublisher>;
+export type RedisPublisher = RedisPublisherInterface;
 
 export function createRedisSubscriber() {
 	let client: RedisClientType | null = null;
