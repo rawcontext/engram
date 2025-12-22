@@ -27,3 +27,19 @@ output "deploy_command" {
   description = "Deploy command"
   value       = "./scripts/deploy-hetzner.sh"
 }
+
+# DNS outputs
+output "api_url" {
+  description = "API service URL"
+  value       = "https://api.${var.domain}"
+}
+
+output "search_url" {
+  description = "Search service URL"
+  value       = "https://search.${var.domain}"
+}
+
+output "tuner_url" {
+  description = "Tuner service URL"
+  value       = "https://tuner.${var.domain}"
+}

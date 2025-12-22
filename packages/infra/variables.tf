@@ -39,3 +39,22 @@ variable "ssh_key_name" {
   type        = string
   default     = "engram-key"
 }
+
+# Vercel DNS configuration
+variable "vercel_api_token" {
+  description = "Vercel API token for DNS management"
+  type        = string
+  sensitive   = true
+}
+
+variable "vercel_team_id" {
+  description = "Vercel team ID (optional)"
+  type        = string
+  default     = null
+}
+
+variable "domain" {
+  description = "Domain name for DNS records"
+  type        = string
+  default     = "statient.com"
+}

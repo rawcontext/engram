@@ -6,5 +6,9 @@ terraform {
       source  = "hetznercloud/hcloud"
       version = "~> 1.49"
     }
+    vercel = {
+      source  = "vercel/vercel"
+      version = "~> 2.0"
+    }
   }
 }
