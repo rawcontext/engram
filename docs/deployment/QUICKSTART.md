@@ -113,8 +113,8 @@ ssh engram@$(hcloud server ip engram-kbrm) "cd /opt/engram && docker compose -f 
 
 # Check health
 curl http://$(hcloud server ip engram-kbrm):8080/v1/health
-curl http://$(hcloud server ip engram-kbrm):5002/health
-curl http://$(hcloud server ip engram-kbrm):8000/api/v1/health
+curl http://$(hcloud server ip engram-kbrm):5002/v1/health
+curl http://$(hcloud server ip engram-kbrm):8000/v1/health
 ```
 
 ## Cost

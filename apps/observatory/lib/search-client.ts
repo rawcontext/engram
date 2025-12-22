@@ -64,7 +64,7 @@ export async function search(
 	baseUrl?: string,
 ): Promise<SearchPyResponse> {
 	const url = baseUrl || process.env.SEARCH_URL || "http://localhost:5002";
-	const endpoint = `${url}/search`;
+	const endpoint = `${url}/v1/search`;
 
 	try {
 		const response = await fetch(endpoint, {

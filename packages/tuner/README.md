@@ -28,7 +28,7 @@ HTTP client for interacting with the Python tuner service.
 import { TunerClient } from "@engram/tuner";
 
 const client = new TunerClient({
-  baseUrl: "http://localhost:8000/api/v1",
+  baseUrl: "http://localhost:8000/v1",
   timeout: 30000,
 });
 
@@ -218,7 +218,7 @@ engram-tuner optimize \
   --trials 100 \
   --objective balanced \
   --preset standard \
-  --service-url http://localhost:8000/api/v1
+  --service-url http://localhost:8000/v1
 
 # Check study status
 engram-tuner status my-study

@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from tuner.api import analysis, health, studies, trials
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/v1")
 
 router.include_router(health.router, tags=["health"])
 router.include_router(studies.router, prefix="/studies", tags=["studies"])

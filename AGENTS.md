@@ -251,13 +251,13 @@ docker exec -it falkordb redis-cli
 curl http://localhost:6333/collections
 
 # Search service health check
-curl http://localhost:5002/health
+curl http://localhost:5002/v1/health
 
 # Search service metrics
-curl http://localhost:5002/metrics
+curl http://localhost:5002/v1/metrics
 
 # Tuner service health
-curl http://localhost:8000/api/v1/health
+curl http://localhost:8000/v1/health
 
 # Optuna Dashboard
 open http://localhost:8081

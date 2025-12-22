@@ -136,7 +136,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:5002/health"]
+      test: ["CMD", "wget", "--spider", "http://localhost:5002/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -185,7 +185,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health')"]
       interval: 10s
       timeout: 5s
       retries: 5

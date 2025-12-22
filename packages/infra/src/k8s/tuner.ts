@@ -307,7 +307,7 @@ export const tunerDeployment =
 										},
 										livenessProbe: {
 											httpGet: {
-												path: "/api/v1/health",
+												path: "/v1/health",
 												port: "http",
 											},
 											initialDelaySeconds: 10,
@@ -317,7 +317,7 @@ export const tunerDeployment =
 										},
 										readinessProbe: {
 											httpGet: {
-												path: "/api/v1/health",
+												path: "/v1/health",
 												port: "http",
 											},
 											initialDelaySeconds: 5,
@@ -327,7 +327,7 @@ export const tunerDeployment =
 										},
 										startupProbe: {
 											httpGet: {
-												path: "/api/v1/health",
+												path: "/v1/health",
 												port: "http",
 											},
 											initialDelaySeconds: 5,

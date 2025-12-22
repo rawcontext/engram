@@ -100,7 +100,7 @@ uv run mypy src
 
 **Health Check**
 ```bash
-curl http://localhost:5002/health
+curl http://localhost:5002/v1/health
 ```
 
 Response:
@@ -114,19 +114,19 @@ Response:
 
 **Readiness Probe** (for Kubernetes)
 ```bash
-curl http://localhost:5002/ready
+curl http://localhost:5002/v1/ready
 ```
 
 **Prometheus Metrics**
 ```bash
-curl http://localhost:5002/metrics
+curl http://localhost:5002/v1/metrics
 ```
 
 ### Vector Search
 
 **Standard Search**
 ```bash
-curl -X POST http://localhost:5002/search \
+curl -X POST http://localhost:5002/v1/search \
   -H "Content-Type: application/json" \
   -d '{
     "text": "How do I implement OAuth2?",
@@ -159,7 +159,7 @@ curl -X POST http://localhost:5002/search \
 Uses LLM-based query expansion with diverse rewriting strategies (DMQR-RAG):
 
 ```bash
-curl -X POST http://localhost:5002/search/multi-query \
+curl -X POST http://localhost:5002/v1/search/multi-query \
   -H "Content-Type: application/json" \
   -d '{
     "text": "OAuth2 authentication implementation",
@@ -184,7 +184,7 @@ curl -X POST http://localhost:5002/search/multi-query \
 Two-stage hierarchical retrieval for multi-session reasoning:
 
 ```bash
-curl -X POST http://localhost:5002/search/session-aware \
+curl -X POST http://localhost:5002/v1/search/session-aware \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What did we discuss about Docker?",
@@ -204,7 +204,7 @@ curl -X POST http://localhost:5002/search/session-aware \
 Generate embeddings for external use:
 
 ```bash
-curl -X POST http://localhost:5002/embed \
+curl -X POST http://localhost:5002/v1/embed \
   -H "Content-Type: application/json" \
   -d '{
     "text": "async function example() { }",

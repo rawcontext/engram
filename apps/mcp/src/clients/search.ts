@@ -46,7 +46,7 @@ export class SearchClient {
 	}
 
 	async search(options: SearchOptions): Promise<SearchResponse> {
-		const url = `${this.baseUrl}/search`;
+		const url = `${this.baseUrl}/v1/search`;
 
 		const requestBody = {
 			text: options.text,

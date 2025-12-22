@@ -222,12 +222,12 @@ Once deployed, services are available at:
   - Recall: POST http://<SERVER_IP>:8080/v1/memory/recall
 
 - **Search**: http://<SERVER_IP>:5002
-  - Health: http://<SERVER_IP>:5002/health
-  - Search: POST http://<SERVER_IP>:5002/search
-  - Metrics: http://<SERVER_IP>:5002/metrics
+  - Health: http://<SERVER_IP>:5002/v1/health
+  - Search: POST http://<SERVER_IP>:5002/v1/search
+  - Metrics: http://<SERVER_IP>:5002/v1/metrics
 
 - **Tuner**: http://<SERVER_IP>:8000
-  - Health: http://<SERVER_IP>:8000/api/v1/health
+  - Health: http://<SERVER_IP>:8000/v1/health
   - API Docs: http://<SERVER_IP>:8000/docs
 
 ## Data Persistence
@@ -319,8 +319,8 @@ ssh engram@$SERVER_IP "netstat -tlnp | grep -E '8080|5002|8000'"
 
 # Test service connectivity
 ssh engram@$SERVER_IP "curl http://localhost:8080/v1/health"
-ssh engram@$SERVER_IP "curl http://localhost:5002/health"
-ssh engram@$SERVER_IP "curl http://localhost:8000/api/v1/health"
+ssh engram@$SERVER_IP "curl http://localhost:5002/v1/health"
+ssh engram@$SERVER_IP "curl http://localhost:8000/v1/health"
 ```
 
 ## Cost Optimization

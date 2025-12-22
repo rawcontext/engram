@@ -470,7 +470,7 @@ type SearchResult {
 
 **Solutions**:
 1. Verify Qdrant is running: `curl http://localhost:6333/collections`
-2. Check search service: `curl http://localhost:5002/health`
+2. Check search service: `curl http://localhost:5002/v1/health`
 3. Ensure documents are indexed (search service must be running)
 4. Try a broader query or disable reranking
 5. Check search service logs for errors
