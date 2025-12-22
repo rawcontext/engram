@@ -218,6 +218,22 @@ jobs:
             GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
             EOF
 
+      - name: Run auth database migrations
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/engram
+            # Wait for postgres to be ready
+            until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U ${POSTGRES_USER:-engram}; do
+              echo "Waiting for postgres..."
+              sleep 2
+            done
+            # Run auth migrations on the engram database
+            cat /opt/engram/scripts/migrate-auth.sql | docker compose -f docker-compose.prod.yml exec -T postgres psql -U ${POSTGRES_USER:-engram} -d engram || echo "Migration may have already been applied"
+
   # Deploy API service
   deploy-api:
     runs-on: ubuntu-latest

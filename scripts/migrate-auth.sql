@@ -1,12 +1,6 @@
--- Create databases for different services
--- Note: These only run on initial container creation
-CREATE DATABASE engram;
-CREATE DATABASE optuna;
-
--- Connect to engram database to create auth tables
-\c engram;
-
 -- Better Auth tables for Observatory authentication
+-- Run this on the engram database
+
 -- User table
 CREATE TABLE IF NOT EXISTS "user" (
     id TEXT PRIMARY KEY,
