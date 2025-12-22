@@ -1,5 +1,6 @@
-FROM oven/bun:1.3.5 AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
+RUN npm install -g bun@1.3.5
 COPY . .
 RUN bun install --frozen-lockfile
 RUN bun run build --filter=observatory...
