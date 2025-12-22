@@ -30,6 +30,8 @@ export class NatsClient implements MessageClient {
 
 	async getProducer(): Promise<Producer> {
 		await this.ensureConnected();
+		const js = this.js;
+		if (!js) throw new Error("JetStream not connected");
 
 		// Return a producer-like wrapper that uses JetStream publish
 		const producer: Producer = {
@@ -39,7 +41,7 @@ export class NatsClient implements MessageClient {
 				// Map Kafka topic names to NATS subjects
 				const subject = this.topicToSubject(opts.topic);
 				for (const msg of opts.messages) {
-					await this.js!.publish(subject, msg.value, {
+					await js.publish(subject, msg.value, {
 						msgID: msg.key,
 					});
 				}
@@ -51,8 +53,11 @@ export class NatsClient implements MessageClient {
 
 	async getConsumer(config: ConsumerConfig): Promise<Consumer> {
 		await this.ensureConnected();
+		const nc = this.nc;
+		const js = this.js;
+		if (!nc || !js) throw new Error("NATS not connected");
 
-		const jsm = await jetstreamManager(this.nc!);
+		const jsm = await jetstreamManager(nc);
 
 		// Create a wrapper that provides Kafka-compatible API
 		const consumer: Consumer = {
@@ -84,13 +89,14 @@ export class NatsClient implements MessageClient {
 					}
 				}
 
-				const c = await this.js!.consumers.get(stream, config.groupId);
+				const c = await js.consumers.get(stream, config.groupId);
 				const messages = await c.consume();
 
 				for await (const msg of messages) {
 					try {
+						const headerKey = msg.headers?.get("key");
 						const kafkaMessage: KafkaMessage = {
-							key: msg.headers?.get("key") ? Buffer.from(msg.headers.get("key")!) : undefined,
+							key: headerKey ? Buffer.from(headerKey) : undefined,
 							value: Buffer.from(msg.data),
 							offset: String(msg.seq),
 							timestamp: String(Number(msg.info.timestampNanos) / 1_000_000),
@@ -103,7 +109,7 @@ export class NatsClient implements MessageClient {
 						});
 
 						msg.ack();
-					} catch (error) {
+					} catch {
 						msg.nak();
 					}
 				}
@@ -119,8 +125,9 @@ export class NatsClient implements MessageClient {
 	 */
 	async sendEvent(topic: string, key: string, message: unknown): Promise<void> {
 		await this.ensureConnected();
+		if (!this.js) throw new Error("JetStream not connected");
 		const subject = this.topicToSubject(topic);
-		await this.js!.publish(subject, JSON.stringify(message), {
+		await this.js.publish(subject, JSON.stringify(message), {
 			msgID: key,
 		});
 	}

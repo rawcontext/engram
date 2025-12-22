@@ -1,6 +1,7 @@
 "use client";
 
 import { signOut, useSession } from "@lib/auth-client";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 export function UserMenu() {
@@ -83,7 +84,13 @@ export function UserMenu() {
 				aria-haspopup="true"
 			>
 				{user.image ? (
-					<img src={user.image} alt={user.name || "User"} className="avatar" />
+					<Image
+						src={user.image}
+						alt={user.name || "User"}
+						className="avatar"
+						width={32}
+						height={32}
+					/>
 				) : (
 					<div className="avatar-fallback">{initials}</div>
 				)}

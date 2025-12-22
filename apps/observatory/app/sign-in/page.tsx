@@ -41,7 +41,7 @@ export default function SignInPage() {
 			}));
 		};
 
-		const draw = (time: number) => {
+		const draw = (_time: number) => {
 			ctx.fillStyle = "rgba(8, 10, 15, 0.15)";
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 
