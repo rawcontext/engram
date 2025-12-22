@@ -334,36 +334,28 @@ export async function getSessionTimeline(sessionId: string): Promise<TimelineDat
 		sessionId,
 	});
 
-	// Build maps of turnId -> child nodes using Map.groupBy (ES2024)
+	// Build maps of turnId -> child nodes
 	// Type-safe: filter guarantees turnId/r/tc exist, use type assertions
-	const reasoningRowsByTurn = Array.isArray(reasoningResult)
-		? Map.groupBy(
-				reasoningResult.filter((row) => row.turnId && row.r),
-				(row) => row.turnId as string,
-			)
-		: new Map<string, { turnId?: string; r?: FalkorNode }[]>();
-
 	const reasoningByTurn = new Map<string, FalkorNode[]>();
-	for (const [turnId, rows] of reasoningRowsByTurn) {
-		reasoningByTurn.set(
-			turnId,
-			rows.map((row) => row.r as FalkorNode),
-		);
+	if (Array.isArray(reasoningResult)) {
+		for (const row of reasoningResult) {
+			if (row.turnId && row.r) {
+				const existing = reasoningByTurn.get(row.turnId) ?? [];
+				existing.push(row.r);
+				reasoningByTurn.set(row.turnId, existing);
+			}
+		}
 	}
 
-	const toolCallRowsByTurn = Array.isArray(toolCallResult)
-		? Map.groupBy(
-				toolCallResult.filter((row) => row.turnId && row.tc),
-				(row) => row.turnId as string,
-			)
-		: new Map<string, { turnId?: string; tc?: FalkorNode }[]>();
-
 	const toolCallByTurn = new Map<string, FalkorNode[]>();
-	for (const [turnId, rows] of toolCallRowsByTurn) {
-		toolCallByTurn.set(
-			turnId,
-			rows.map((row) => row.tc as FalkorNode),
-		);
+	if (Array.isArray(toolCallResult)) {
+		for (const row of toolCallResult) {
+			if (row.turnId && row.tc) {
+				const existing = toolCallByTurn.get(row.turnId) ?? [];
+				existing.push(row.tc);
+				toolCallByTurn.set(row.turnId, existing);
+			}
+		}
 	}
 
 	const timeline: TimelineEvent[] = [];
