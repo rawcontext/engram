@@ -194,3 +194,28 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  observatory:
+    build:
+      context: .
+      dockerfile: apps/observatory/Dockerfile
+    platform: linux/amd64
+    ports:
+      - "5000:3000"
+    environment:
+      - NODE_ENV=production
+      - API_URL=http://api:8080
+      - SEARCH_URL=http://search:5002
+      - FALKORDB_URL=redis://falkordb:6379
+    depends_on:
+      api:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

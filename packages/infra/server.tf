@@ -50,6 +50,7 @@ resource "hcloud_server" "engram" {
       - ufw allow 8080/tcp  # API
       - ufw allow 5002/tcp  # Search
       - ufw allow 8000/tcp  # Tuner
+      - ufw allow 5000/tcp  # Observatory
       - ufw --force enable
 
       # Create application directory

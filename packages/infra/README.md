@@ -1,382 +1,246 @@
 # @engram/infra
 
-Infrastructure-as-Code using Pulumi for GCP deployment.
+Infrastructure-as-Code using OpenTofu for Hetzner Cloud deployment.
 
 ## Overview
 
-Manages Engram's production infrastructure on Google Cloud Platform, including a GKE Autopilot cluster, VPC networking, and Kubernetes workloads for databases, streaming, and services. All infrastructure is conditionally deployed based on the `devEnabled` configuration flag to control costs.
+Manages Engram's production infrastructure on Hetzner Cloud with DNS via Vercel. All services run on a single Hetzner server using Docker Compose.
 
 ## Prerequisites
 
-- [Pulumi CLI](https://www.pulumi.com/docs/install/)
-- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
-- [gke-gcloud-auth-plugin](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin)
-- GCP project with billing enabled
+- [OpenTofu](https://opentofu.org/docs/intro/install/) (>= 1.8.0)
+- [hcloud CLI](https://github.com/hetznercloud/cli) (optional, for manual management)
 
-## Setup
+## Quick Start
 
 ```bash
-# Login to Pulumi
-pulumi login
+cd packages/infra
 
-# Login to GCP
-gcloud auth application-default login
+# Initialize OpenTofu (first time only)
+tofu init -backend-config="conn_str=$TOFU_PG_CONN_STR"
 
-# Select stack
-pulumi stack select dev
+# Preview changes
+npm run plan
 
-# Install gke-gcloud-auth-plugin for kubectl
-gcloud components install gke-gcloud-auth-plugin
+# Apply changes
+npm run up
+
+# View outputs
+npm run output
 ```
-
-## Deployment
-
-### Quick Start
-
-```bash
-# From packages/infra directory
-npm run preview    # Preview changes
-npm run up         # Deploy infrastructure
-npm run destroy    # Destroy infrastructure
-```
-
-### Cost Control
-
-The infrastructure includes a master on/off switch for development environments:
-
-```bash
-# Turn on infrastructure (creates GKE cluster and all workloads)
-npm run wake
-
-# Turn off infrastructure (removes expensive resources)
-npm run sleep
-
-# Check current status
-npm run status
-```
-
-Or manually:
-
-```bash
-pulumi config set devEnabled true   # Enable
-pulumi config set devEnabled false  # Disable
-pulumi up                           # Apply changes
-```
-
-When `devEnabled=false`, only inexpensive resources (VPC, NAT, GCS buckets, secrets) are created. GKE cluster and all Kubernetes workloads are skipped.
 
 ## Infrastructure Components
 
-### Networking
+### Hetzner Cloud Server
 
-**Module:** `src/network.ts`
+- **Type:** `cpx31` (4 vCPU, 8GB RAM, 80GB SSD)
+- **Location:** Ashburn, VA (configurable)
+- **OS:** Ubuntu 24.04
+- **User:** `engram` with passwordless sudo
 
-- VPC network (`engram-network`) with manual subnet configuration
-- Regional subnet with private Google access enabled
-- Cloud Router for NAT gateway
-- Cloud NAT for egress traffic from private GKE nodes
-- Error-only logging for NAT gateway
+**Cloud-init provisioning:**
+- Docker and Docker Compose v2
+- UFW firewall configured
+- Application directory at `/opt/engram`
 
-**Exports:** `network`, `subnet`, `router`, `nat`
+### DNS (Vercel)
 
-### GKE Autopilot Cluster
+**Domain:** `statient.com`
 
-**Module:** `src/gke.ts`
+| Subdomain | Service | Port |
+|-----------|---------|------|
+| api.statient.com | API | 8080 |
+| search.statient.com | Search | 5002 |
+| tuner.statient.com | Tuner | 8000 |
+| observatory.statient.com | Observatory | 5000 |
 
-- Fully-managed GKE Autopilot cluster
-- Automatic node provisioning and scaling
-- Vertical Pod Autoscaling enabled
-- Regular release channel for automatic upgrades
-- Deletion protection enabled for `prod` stack
-- Conditionally created when `devEnabled=true`
+### Firewall Rules
 
-**Exports:** `cluster`, `kubeconfig`
+Both Hetzner Cloud firewall and UFW are configured:
 
-**Kubeconfig:** Generated dynamically using `gke-gcloud-auth-plugin` for authentication
-
-### Secret Manager
-
-**Module:** `src/secrets.ts`
-
-- Google Generative AI API key (for Gemini-based reranking and query expansion)
-- Automatic replication across regions
-- Secrets created as containers only—values must be set manually:
-
-```bash
-echo -n "your-api-key" | gcloud secrets versions add google-generative-ai-api-key --data-file=-
-```
-
-**Exports:** `googleGenerativeAiApiKeySecret`
-
-### Kubernetes Workloads
-
-All workloads run in the `engram` namespace and are conditionally created when `devEnabled=true`.
-
-**Module:** `src/k8s/`
-
-#### FalkorDB (Graph Database)
-
-**File:** `src/k8s/falkordb.ts`
-
-- StatefulSet with Redis protocol compatibility
-- Image: `falkordb/falkordb:v4.2.1`
-- Storage: 50Gi persistent volume (`standard-rwo`)
-- Replicas: 1 (dev), 3 (prod)
-- Headless service for stable network identity
-- Liveness/readiness probes via `redis-cli ping`
-
-**Connection:** `redis://falkordb.engram.svc.cluster.local:6379`
-
-#### Qdrant (Vector Database)
-
-**File:** `src/k8s/qdrant.ts`
-
-- Deployed via Helm chart (`qdrant/qdrant` v0.10.1)
-- Image: `qdrant/qdrant:v1.12.1`
-- Storage: 50Gi persistent volume
-- Replicas: 1 (dev), 3 (prod)
-- Clustering enabled for multi-replica deployments
-- HTTP and gRPC endpoints
-
-**Connections:**
-- HTTP: `http://qdrant.engram.svc.cluster.local:6333`
-- gRPC: `qdrant.engram.svc.cluster.local:6334`
-
-#### Redpanda (Kafka-Compatible Streaming)
-
-**File:** `src/k8s/redpanda.ts`
-
-- Deployed via Helm chart (`redpanda/redpanda` v5.9.4)
-- Image: `docker.redpanda.com/redpandadata/redpanda:v24.2.1`
-- Storage: 50Gi persistent volume
-- Replicas: 1 (dev), 3 (prod)
-- Schema Registry enabled
-- Internal-only access (no external listeners)
-
-**Connections:**
-- Kafka: `redpanda.engram.svc.cluster.local:9092`
-- Schema Registry: `redpanda.engram.svc.cluster.local:8081`
-
-#### Tuner Service (Hyperparameter Optimization)
-
-**File:** `src/k8s/tuner.ts`
-
-Complete Optuna-based hyperparameter tuning stack:
-
-**PostgreSQL (Optuna Persistence):**
-- StatefulSet running `postgres:17-alpine`
-- Storage: 10Gi persistent volume
-- Credentials configured via environment variables or secrets
-- Connection: `postgresql://tuner-postgres.engram.svc.cluster.local:5432/optuna`
-
-**Tuner API:**
-- Deployment with 2 replicas
-- Image: `gcr.io/{gcp-project}/engram-tuner:v0.1.0`
-- FastAPI service with Optuna integration
-- Rolling updates with zero downtime
-- Topology spread for high availability
-- Connection: `http://tuner.engram.svc.cluster.local:8000`
-
-**Optuna Dashboard:**
-- Deployment with 1 replica
-- Image: `ghcr.io/optuna/optuna-dashboard:v0.17.0`
-- Visualization interface for studies
-- Connection: `http://tuner-dashboard.engram.svc.cluster.local:8080`
-
-#### Automated Backups
-
-**File:** `src/k8s/backups.ts`
-
-- GCS bucket with 30-day retention policy (configurable)
-- CronJobs for daily backups of all databases:
-  - FalkorDB: 2 AM UTC (RDB dump)
-  - Qdrant: 3 AM UTC (snapshots)
-  - Redpanda: 4 AM UTC (metadata)
-- Backups stored in `gs://{project}-engram-backups/`
-
-**Exports:** `backupBucket`, `backupSchedules`
-
-#### Network Policies
-
-**File:** `src/k8s/network-policy.ts`
-
-Implements least-privilege network segmentation:
-
-- FalkorDB: Accessible only by memory, ingestion, mcp services and backup jobs
-- Qdrant: Accessible only by search, memory services and backup jobs
-- Redpanda: Accessible only by ingestion, memory services and backup jobs
-- Default deny-all ingress policy for namespace
-
-#### RBAC
-
-**File:** `src/k8s/rbac.ts`
-
-Service accounts with minimal required permissions:
-
-- `memory-sa`: Access to ConfigMaps, Secrets, and Pods
-- `ingestion-sa`: Access to ConfigMaps, Secrets, and Pods
-- `search-sa`: Access to ConfigMaps, Secrets, and Pods
-- `mcp-sa`: Access to ConfigMaps, Secrets, and Pods
-- `backup-sa`: ClusterRole for accessing PVCs and storage
-
-**Exports:** `memoryServiceAccount`, `ingestionServiceAccount`, `searchServiceAccount`, `mcpServiceAccount`
+| Port | Service |
+|------|---------|
+| 22 | SSH |
+| 80 | HTTP |
+| 443 | HTTPS |
+| 8080 | API |
+| 5002 | Search |
+| 8000 | Tuner |
+| 5000 | Observatory |
 
 ## Configuration
 
-### Stack Configuration Files
+### Variables
 
-**Pulumi.yaml** (Project definition):
-```yaml
-name: engram-infra
-runtime:
-  name: nodejs
-  options:
-    typescript: true
-main: src/
-description: Engram Infrastructure - GCP resources for services
-```
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `hcloud_token` | Yes | - | Hetzner Cloud API token |
+| `vercel_api_token` | Yes | - | Vercel API token for DNS |
+| `vercel_team_id` | No | - | Vercel team ID |
+| `server_name` | No | `engram` | Server hostname |
+| `server_type` | No | `cpx31` | Hetzner server type |
+| `location` | No | `ash` | Datacenter location |
+| `domain` | No | `statient.com` | Domain for DNS records |
 
-**Pulumi.dev.yaml** (Stack-specific config):
-```yaml
-config:
-  gcp:project: your-project-id
-  gcp:region: us-central1
-  engram-infra:devEnabled: "true"
-```
+### State Backend
 
-### Configuration Options
-
-**Module:** `src/config.ts`
-
-| Config Key | Default | Description |
-|------------|---------|-------------|
-| `gcp:project` | *(required)* | GCP project ID |
-| `gcp:region` | `us-central1` | GCP region for resources |
-| `devEnabled` | `true` | Master switch for expensive resources (GKE, workloads) |
-| `networkCidr` | `10.0.0.0/16` | VPC CIDR range |
-| `backupRetentionDays` | `30` | GCS backup retention period |
-
-**Environment-specific behavior:**
-- `environment = prod`: 3 database replicas, deletion protection enabled
-- `environment != prod`: 1 database replica, deletion protection disabled
-
-### Tuner Secrets
-
-Set via environment variables or Kubernetes secrets:
+Uses PostgreSQL for remote state storage:
 
 ```bash
-# PostgreSQL credentials (defaults shown)
-TUNER_POSTGRES_USER=postgres
-TUNER_POSTGRES_PASSWORD=CHANGE_ME_IN_PRODUCTION
+# Initialize with PostgreSQL backend
+tofu init -backend-config="conn_str=postgres://user:pass@host:5432/dbname?sslmode=require"
+```
 
-# Database URL (auto-generated from above if not set)
-TUNER_DATABASE_URL=postgresql://postgres:password@tuner-postgres.engram.svc.cluster.local:5432/optuna
+## GitHub Actions CI/CD
+
+### Required Secrets
+
+Configure these in GitHub repository settings:
+
+#### Infrastructure Secrets
+| Secret | Description |
+|--------|-------------|
+| `HCLOUD_TOKEN` | Hetzner Cloud API token |
+| `VERCEL_API_TOKEN` | Vercel API token |
+| `VERCEL_TEAM_ID` | Vercel team ID (optional) |
+| `TOFU_PG_CONN_STR` | PostgreSQL connection string for OpenTofu state |
+| `HETZNER_SERVER_IP` | Server IP address |
+| `HETZNER_SSH_PRIVATE_KEY` | SSH private key for deployment |
+
+#### Application Secrets
+| Secret | Description |
+|--------|-------------|
+| `POSTGRES_USER` | PostgreSQL username |
+| `POSTGRES_PASSWORD` | PostgreSQL password |
+| `POSTGRES_DB` | PostgreSQL database name |
+| `QDRANT_COLLECTION` | Qdrant collection name |
+| `QDRANT_TURNS_COLLECTION` | Qdrant turns collection |
+| `HF_API_TOKEN` | Hugging Face API token |
+
+#### CI Secrets (optional)
+| Secret | Description |
+|--------|-------------|
+| `TURBO_TOKEN` | Turbo remote cache token |
+| `TURBO_TEAM` | Turbo team ID |
+| `TURBO_REMOTE_CACHE_SIGNATURE_KEY` | Cache signing key |
+
+### Required Variables
+
+Configure these in GitHub repository settings:
+
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `EMBEDDER_BACKEND` | `huggingface` | Embedder backend |
+| `EMBEDDER_DEVICE` | `cpu` | Device for embeddings |
+| `EMBEDDER_TEXT_MODEL` | `BAAI/bge-small-en-v1.5` | Text embedding model |
+| `SEARCH_DEFAULT_STRATEGY` | `dense` | Default search strategy |
+| `CORS_ORIGINS` | `["https://observatory.statient.com"]` | CORS origins |
+
+### Smart Deployments
+
+The CI/CD pipeline automatically detects which services changed:
+
+- **Infrastructure changes** (`packages/infra/**`) → OpenTofu apply
+- **API changes** (`apps/api/**`, `packages/{common,logger,events,storage,graph}/**`) → Deploy API
+- **Search changes** (`apps/search/**`) → Deploy Search
+- **Tuner changes** (`apps/tuner/**`) → Deploy Tuner
+- **Observatory changes** (`apps/observatory/**`) → Deploy Observatory
+- **Ingestion changes** (`apps/ingestion/**`, `packages/{common,logger,events,storage,parser}/**`) → Deploy Ingestion
+- **Memory changes** (`apps/memory/**`, `packages/{common,logger,events,storage,graph}/**`) → Deploy Memory
+
+Only changed services are rebuilt and redeployed.
+
+### Manual Deployment
+
+Use workflow dispatch to force deployments:
+
+```bash
+# Via GitHub CLI
+gh workflow run deploy.yml -f force_deploy_all=true
+
+# Force infrastructure only
+gh workflow run deploy.yml -f force_infra=true
+```
+
+## NPM Scripts
+
+```bash
+npm run init      # tofu init
+npm run validate  # tofu validate
+npm run fmt       # tofu fmt -recursive
+npm run plan      # tofu plan
+npm run up        # tofu apply -auto-approve
+npm run down      # tofu destroy -auto-approve
+npm run output    # tofu output
+npm run state     # tofu state list
 ```
 
 ## Outputs
 
-Access deployed infrastructure details:
+| Output | Description |
+|--------|-------------|
+| `server_id` | Hetzner server ID |
+| `server_ip` | Public IPv4 address |
+| `server_ipv6` | Public IPv6 address |
+| `server_status` | Server status |
+| `ssh_command` | SSH command to connect |
+| `deploy_command` | Deploy script path |
+| `api_url` | API service URL |
+| `search_url` | Search service URL |
+| `tuner_url` | Tuner service URL |
+| `observatory_url` | Observatory UI URL |
 
-```bash
-# Get all outputs
-pulumi stack output
-
-# Get kubeconfig for kubectl access
-pulumi stack output kubeconfig --show-secrets > ~/.kube/engram-config
-export KUBECONFIG=~/.kube/engram-config
-kubectl get pods -n engram
-```
-
-**Available outputs:**
-- `cluster`: GKE cluster resource
-- `kubeconfig`: Kubectl configuration with gke-gcloud-auth-plugin
-- `namespace`: Engram Kubernetes namespace
-- `falkordbEndpoint`, `qdrantEndpoint`, `qdrantGrpcEndpoint`, `redpandaEndpoint`, `redpandaSchemaRegistryEndpoint`
-- `tunerEndpoint`, `dashboardEndpoint`, `postgresEndpoint`
-- `backupBucket`, `backupSchedules`
-- Service accounts: `memoryServiceAccount`, `ingestionServiceAccount`, `searchServiceAccount`, `mcpServiceAccount`
-
-## Directory Structure
+## File Structure
 
 ```
 packages/infra/
-├── src/
-│   ├── index.ts              # Main entry point, re-exports all resources
-│   ├── config.ts             # Centralized configuration and devEnabled switch
-│   ├── network.ts            # VPC, subnet, router, NAT
-│   ├── gke.ts                # GKE Autopilot cluster
-│   ├── secrets.ts            # Secret Manager secrets
-│   ├── k8s/
-│   │   ├── index.ts          # Kubernetes workload aggregator
-│   │   ├── namespace.ts      # Engram namespace and K8s provider
-│   │   ├── falkordb.ts       # FalkorDB StatefulSet
-│   │   ├── qdrant.ts         # Qdrant Helm release
-│   │   ├── redpanda.ts       # Redpanda Helm release
-│   │   ├── tuner.ts          # Tuner stack (PostgreSQL, API, Dashboard)
-│   │   ├── backups.ts        # GCS bucket and backup CronJobs
-│   │   ├── rbac.ts           # Service accounts and role bindings
-│   │   └── network-policy.ts # Network segmentation policies
-│   └── testing.ts            # Test utilities
-├── Pulumi.yaml               # Project definition
-├── Pulumi.dev.yaml           # Dev stack configuration
-├── package.json
-└── README.md
+├── backend.tf      # PostgreSQL state backend
+├── dns.tf          # Vercel DNS records
+├── firewall.tf     # Hetzner Cloud firewall
+├── outputs.tf      # Terraform outputs
+├── providers.tf    # Provider configuration
+├── server.tf       # Hetzner server + cloud-init
+├── ssh.tf          # SSH key management
+├── variables.tf    # Input variables
+├── versions.tf     # Provider versions
+├── tests/          # OpenTofu tests
+├── package.json    # NPM scripts
+└── README.md       # This file
 ```
 
-## Dependencies
-
-**From `package.json`:**
-
-```json
-{
-  "dependencies": {
-    "@pulumi/gcp": "^9.6.0",
-    "@pulumi/kubernetes": "^4.24.1",
-    "@pulumi/pulumi": "^3.213.0"
-  }
-}
-```
-
-## Common Tasks
-
-### Accessing the Cluster
+## Manual Server Access
 
 ```bash
-# Get kubeconfig
-pulumi stack output kubeconfig --show-secrets > ~/.kube/engram-config
-export KUBECONFIG=~/.kube/engram-config
+# SSH to server
+ssh engram@$(tofu output -raw server_ip)
 
-# View pods
-kubectl get pods -n engram
+# Or use the output command
+$(tofu output -raw ssh_command)
 
-# Port-forward to services
-kubectl port-forward -n engram svc/tuner-dashboard 8080:8080
-kubectl port-forward -n engram svc/tuner 8000:8000
-kubectl port-forward -n engram svc/qdrant 6333:6333
+# View service logs
+ssh engram@IP 'cd /opt/engram && docker compose -f docker-compose.prod.yml logs -f'
+
+# Restart all services
+ssh engram@IP 'cd /opt/engram && docker compose -f docker-compose.prod.yml restart'
+
+# View service status
+ssh engram@IP 'cd /opt/engram && docker compose -f docker-compose.prod.yml ps'
 ```
 
-### Monitoring Backups
+## Importing Existing Resources
+
+If you have existing resources to import:
 
 ```bash
-# List backup jobs
-kubectl get cronjobs -n engram
+# Import existing server
+npm run import:server
 
-# View backup job logs
-kubectl logs -n engram -l app.kubernetes.io/component=backup
+# Import existing SSH key
+npm run import:ssh
 
-# List backups in GCS
-gsutil ls gs://$(pulumi stack output backupBucket)/
-```
-
-### Updating Workloads
-
-```bash
-# Edit configuration
-pulumi config set backupRetentionDays 60
-
-# Preview changes
-npm run preview
-
-# Apply changes
-npm run up
+# Import DNS records (get IDs from Vercel)
+tofu import vercel_dns_record.api rec_xxxxx
+tofu import vercel_dns_record.search rec_xxxxx
+tofu import vercel_dns_record.tuner rec_xxxxx
+tofu import vercel_dns_record.observatory rec_xxxxx
 ```

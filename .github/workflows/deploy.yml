@@ -1,0 +1,436 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_deploy_all:
+        description: 'Force deploy all services'
+        required: false
+        default: 'false'
+        type: boolean
+      force_infra:
+        description: 'Force infrastructure apply'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  HETZNER_SERVER_IP: ${{ secrets.HETZNER_SERVER_IP }}
+
+jobs:
+  # Wait for CI to pass
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  # Detect which components changed
+  changes:
+    runs-on: ubuntu-latest
+    needs: ci
+    outputs:
+      infra: ${{ steps.filter.outputs.infra }}
+      api: ${{ steps.filter.outputs.api }}
+      search: ${{ steps.filter.outputs.search }}
+      tuner: ${{ steps.filter.outputs.tuner }}
+      observatory: ${{ steps.filter.outputs.observatory }}
+      ingestion: ${{ steps.filter.outputs.ingestion }}
+      memory: ${{ steps.filter.outputs.memory }}
+      docker_compose: ${{ steps.filter.outputs.docker_compose }}
+      any_service: ${{ steps.any.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            infra:
+              - 'packages/infra/**'
+            api:
+              - 'apps/api/**'
+              - 'packages/common/**'
+              - 'packages/logger/**'
+              - 'packages/events/**'
+              - 'packages/storage/**'
+              - 'packages/graph/**'
+            search:
+              - 'apps/search/**'
+            tuner:
+              - 'apps/tuner/**'
+            observatory:
+              - 'apps/observatory/**'
+            ingestion:
+              - 'apps/ingestion/**'
+              - 'packages/common/**'
+              - 'packages/logger/**'
+              - 'packages/events/**'
+              - 'packages/storage/**'
+              - 'packages/parser/**'
+            memory:
+              - 'apps/memory/**'
+              - 'packages/common/**'
+              - 'packages/logger/**'
+              - 'packages/events/**'
+              - 'packages/storage/**'
+              - 'packages/graph/**'
+            docker_compose:
+              - 'docker-compose.prod.yml'
+
+      - name: Check if any service changed
+        id: any
+        run: |
+          if [[ "${{ steps.filter.outputs.api }}" == "true" ]] || \
+             [[ "${{ steps.filter.outputs.search }}" == "true" ]] || \
+             [[ "${{ steps.filter.outputs.tuner }}" == "true" ]] || \
+             [[ "${{ steps.filter.outputs.observatory }}" == "true" ]] || \
+             [[ "${{ steps.filter.outputs.ingestion }}" == "true" ]] || \
+             [[ "${{ steps.filter.outputs.memory }}" == "true" ]] || \
+             [[ "${{ steps.filter.outputs.docker_compose }}" == "true" ]] || \
+             [[ "${{ inputs.force_deploy_all }}" == "true" ]]; then
+            echo "result=true" >> $GITHUB_OUTPUT
+          else
+            echo "result=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Infrastructure deployment with OpenTofu
+  infrastructure:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.infra == 'true' || inputs.force_infra == true
+    environment: production
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.8.0
+
+      - name: OpenTofu Init
+        working-directory: packages/infra
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+        run: |
+          tofu init -backend-config="conn_str=${{ secrets.TOFU_PG_CONN_STR }}"
+
+      - name: OpenTofu Validate
+        working-directory: packages/infra
+        run: tofu validate
+
+      - name: OpenTofu Plan
+        working-directory: packages/infra
+        env:
+          TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
+          TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
+        run: |
+          tofu plan -out=tfplan -no-color
+
+      - name: OpenTofu Apply
+        working-directory: packages/infra
+        env:
+          TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
+          TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
+        run: |
+          tofu apply -auto-approve tfplan
+
+      - name: Get Server IP
+        id: server
+        working-directory: packages/infra
+        run: |
+          echo "ip=$(tofu output -raw server_ip)" >> $GITHUB_OUTPUT
+
+    outputs:
+      server_ip: ${{ steps.server.outputs.ip }}
+
+  # Sync files to server (runs if any service changed)
+  sync:
+    runs-on: ubuntu-latest
+    needs: [changes, infrastructure]
+    if: |
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.any_service == 'true' &&
+      (needs.infrastructure.result == 'success' || needs.infrastructure.result == 'skipped')
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.HETZNER_SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Sync files to server
+        run: |
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '.venv' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude 'dist' \
+            --exclude 'data' \
+            --exclude '.turbo' \
+            --exclude '.next' \
+            --exclude '.terraform' \
+            --exclude 'terraform.tfstate*' \
+            . engram@${{ env.HETZNER_SERVER_IP }}:/opt/engram/
+
+      - name: Create .env file on server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          script: |
+            cat > /opt/engram/.env << 'EOF'
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            QDRANT_COLLECTION=${{ secrets.QDRANT_COLLECTION }}
+            QDRANT_TURNS_COLLECTION=${{ secrets.QDRANT_TURNS_COLLECTION }}
+            HF_API_TOKEN=${{ secrets.HF_API_TOKEN }}
+            EMBEDDER_BACKEND=${{ vars.EMBEDDER_BACKEND }}
+            EMBEDDER_DEVICE=${{ vars.EMBEDDER_DEVICE }}
+            EMBEDDER_TEXT_MODEL=${{ vars.EMBEDDER_TEXT_MODEL }}
+            SEARCH_DEFAULT_STRATEGY=${{ vars.SEARCH_DEFAULT_STRATEGY }}
+            CORS_ORIGINS=${{ vars.CORS_ORIGINS }}
+            EOF
+
+  # Deploy API service
+  deploy-api:
+    runs-on: ubuntu-latest
+    needs: [changes, sync]
+    if: |
+      always() &&
+      needs.sync.result == 'success' &&
+      (needs.changes.outputs.api == 'true' || inputs.force_deploy_all == true)
+    environment: production
+    steps:
+      - name: Deploy API
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          script: |
+            cd /opt/engram
+            echo "Building and deploying API..."
+            docker compose -f docker-compose.prod.yml build api
+            docker compose -f docker-compose.prod.yml up -d api
+            echo "Waiting for API health check..."
+            sleep 5
+            docker compose -f docker-compose.prod.yml ps api
+
+  # Deploy Search service
+  deploy-search:
+    runs-on: ubuntu-latest
+    needs: [changes, sync]
+    if: |
+      always() &&
+      needs.sync.result == 'success' &&
+      (needs.changes.outputs.search == 'true' || inputs.force_deploy_all == true)
+    environment: production
+    steps:
+      - name: Deploy Search
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          script: |
+            cd /opt/engram
+            echo "Building and deploying Search..."
+            docker compose -f docker-compose.prod.yml build search
+            docker compose -f docker-compose.prod.yml up -d search
+            echo "Waiting for Search health check..."
+            sleep 5
+            docker compose -f docker-compose.prod.yml ps search
+
+  # Deploy Tuner service
+  deploy-tuner:
+    runs-on: ubuntu-latest
+    needs: [changes, sync]
+    if: |
+      always() &&
+      needs.sync.result == 'success' &&
+      (needs.changes.outputs.tuner == 'true' || inputs.force_deploy_all == true)
+    environment: production
+    steps:
+      - name: Deploy Tuner
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          script: |
+            cd /opt/engram
+            echo "Building and deploying Tuner..."
+            docker compose -f docker-compose.prod.yml build tuner
+            docker compose -f docker-compose.prod.yml up -d tuner
+            echo "Waiting for Tuner health check..."
+            sleep 5
+            docker compose -f docker-compose.prod.yml ps tuner
+
+  # Deploy Observatory service
+  deploy-observatory:
+    runs-on: ubuntu-latest
+    needs: [changes, sync]
+    if: |
+      always() &&
+      needs.sync.result == 'success' &&
+      (needs.changes.outputs.observatory == 'true' || inputs.force_deploy_all == true)
+    environment: production
+    steps:
+      - name: Deploy Observatory
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          script: |
+            cd /opt/engram
+            echo "Building and deploying Observatory..."
+            docker compose -f docker-compose.prod.yml build observatory
+            docker compose -f docker-compose.prod.yml up -d observatory
+            echo "Waiting for Observatory health check..."
+            sleep 5
+            docker compose -f docker-compose.prod.yml ps observatory
+
+  # Deploy Ingestion service
+  deploy-ingestion:
+    runs-on: ubuntu-latest
+    needs: [changes, sync]
+    if: |
+      always() &&
+      needs.sync.result == 'success' &&
+      (needs.changes.outputs.ingestion == 'true' || inputs.force_deploy_all == true)
+    environment: production
+    steps:
+      - name: Deploy Ingestion
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          script: |
+            cd /opt/engram
+            echo "Building and deploying Ingestion..."
+            docker compose -f docker-compose.prod.yml build ingestion
+            docker compose -f docker-compose.prod.yml up -d ingestion
+            echo "Waiting for Ingestion health check..."
+            sleep 5
+            docker compose -f docker-compose.prod.yml ps ingestion
+
+  # Deploy Memory service
+  deploy-memory:
+    runs-on: ubuntu-latest
+    needs: [changes, sync]
+    if: |
+      always() &&
+      needs.sync.result == 'success' &&
+      (needs.changes.outputs.memory == 'true' || inputs.force_deploy_all == true)
+    environment: production
+    steps:
+      - name: Deploy Memory
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          script: |
+            cd /opt/engram
+            echo "Building and deploying Memory..."
+            docker compose -f docker-compose.prod.yml build memory
+            docker compose -f docker-compose.prod.yml up -d memory
+            echo "Waiting for Memory startup..."
+            sleep 5
+            docker compose -f docker-compose.prod.yml ps memory
+
+  # Deploy databases/infrastructure services if docker-compose changed
+  deploy-infrastructure-services:
+    runs-on: ubuntu-latest
+    needs: [changes, sync]
+    if: |
+      always() &&
+      needs.sync.result == 'success' &&
+      (needs.changes.outputs.docker_compose == 'true' || inputs.force_deploy_all == true)
+    environment: production
+    steps:
+      - name: Deploy Infrastructure Services
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          script: |
+            cd /opt/engram
+            echo "Creating data directories..."
+            mkdir -p data/{qdrant,falkordb,postgres,redpanda}
+
+            echo "Pulling infrastructure images..."
+            docker compose -f docker-compose.prod.yml pull redpanda qdrant falkordb postgres
+
+            echo "Starting infrastructure services..."
+            docker compose -f docker-compose.prod.yml up -d redpanda qdrant falkordb postgres
+
+            echo "Waiting for services to be healthy..."
+            sleep 15
+            docker compose -f docker-compose.prod.yml ps
+
+  # Summary job
+  summary:
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - infrastructure
+      - sync
+      - deploy-api
+      - deploy-search
+      - deploy-tuner
+      - deploy-observatory
+      - deploy-ingestion
+      - deploy-memory
+      - deploy-infrastructure-services
+    if: always()
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Changed | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Infrastructure | ${{ needs.changes.outputs.infra }} | ${{ needs.infrastructure.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| API | ${{ needs.changes.outputs.api }} | ${{ needs.deploy-api.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Search | ${{ needs.changes.outputs.search }} | ${{ needs.deploy-search.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tuner | ${{ needs.changes.outputs.tuner }} | ${{ needs.deploy-tuner.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Observatory | ${{ needs.changes.outputs.observatory }} | ${{ needs.deploy-observatory.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Ingestion | ${{ needs.changes.outputs.ingestion }} | ${{ needs.deploy-ingestion.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Memory | ${{ needs.changes.outputs.memory }} | ${{ needs.deploy-memory.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Compose | ${{ needs.changes.outputs.docker_compose }} | ${{ needs.deploy-infrastructure-services.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Service URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- API: https://api.statient.com" >> $GITHUB_STEP_SUMMARY
+          echo "- Search: https://search.statient.com" >> $GITHUB_STEP_SUMMARY
+          echo "- Tuner: https://tuner.statient.com" >> $GITHUB_STEP_SUMMARY
+          echo "- Observatory: https://observatory.statient.com" >> $GITHUB_STEP_SUMMARY

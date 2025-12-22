@@ -52,6 +52,14 @@ resource "hcloud_firewall" "engram" {
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 
+  # Observatory (5000)
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "5000"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
+
   # ICMP (ping)
   rule {
     direction  = "in"
