@@ -15,7 +15,8 @@ RUN addgroup -S engram && adduser -S engram -G engram
 # Next.js standalone output
 COPY --from=builder /app/apps/observatory/.next/standalone ./
 COPY --from=builder /app/apps/observatory/.next/static ./apps/observatory/.next/static
-COPY --from=builder /app/apps/observatory/public ./apps/observatory/public
+# Public folder is optional
+RUN mkdir -p ./apps/observatory/public
 
 USER engram
 EXPOSE 3000
