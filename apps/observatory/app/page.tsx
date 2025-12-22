@@ -9,6 +9,7 @@ import { SearchSettings, type SearchSettingsState } from "./components/SearchSet
 import { SessionBrowser } from "./components/SessionBrowser";
 import { Particles } from "./components/shared";
 import { SystemFooter } from "./components/shared/SystemFooter";
+import { UserMenu } from "./components/UserMenu";
 import { useSearch } from "./hooks/useSearch";
 
 // Dynamically import Three.js background to avoid SSR issues
@@ -142,7 +143,7 @@ export default function HomePage() {
 						padding: "0 2rem",
 						display: "flex",
 						alignItems: "center",
-						gap: "1.5rem",
+						justifyContent: "space-between",
 					}}
 				>
 					{/* Gradient accent line at bottom */}
@@ -167,35 +168,41 @@ export default function HomePage() {
 						/>
 					</div>
 
-					{/* Logo */}
-					<EngramLogo />
+					{/* Left side: Logo and branding */}
+					<div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+						{/* Logo */}
+						<EngramLogo />
 
-					{/* Name & Tagline */}
-					<div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-						<h1
-							className="font-display text-glow"
-							style={{
-								fontSize: "2rem",
-								fontWeight: 700,
-								letterSpacing: "0.1em",
-								marginBottom: "0.25rem",
-								lineHeight: 1,
-							}}
-						>
-							ENGRAM
-						</h1>
-						<p
-							style={{
-								color: "rgb(148,163,184)",
-								fontSize: "0.65rem",
-								letterSpacing: "0.3em",
-								textTransform: "uppercase",
-								lineHeight: 1,
-							}}
-						>
-							Neural Observatory
-						</p>
+						{/* Name & Tagline */}
+						<div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+							<h1
+								className="font-display text-glow"
+								style={{
+									fontSize: "2rem",
+									fontWeight: 700,
+									letterSpacing: "0.1em",
+									marginBottom: "0.25rem",
+									lineHeight: 1,
+								}}
+							>
+								ENGRAM
+							</h1>
+							<p
+								style={{
+									color: "rgb(148,163,184)",
+									fontSize: "0.65rem",
+									letterSpacing: "0.3em",
+									textTransform: "uppercase",
+									lineHeight: 1,
+								}}
+							>
+								Neural Observatory
+							</p>
+						</div>
 					</div>
+
+					{/* Right side: User Menu */}
+					<UserMenu />
 				</div>
 			</header>
 

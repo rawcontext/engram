@@ -1,6 +1,7 @@
-import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import type { NextResponse } from "next/server";
 import { apiError } from "./api-response";
+import { auth, type Session } from "./auth";
 
 export enum UserRole {
 	ADMIN = "admin",
@@ -23,27 +24,54 @@ export class ForbiddenError extends Error {
 }
 
 /**
+ * Extract user role from session.
+ * Currently returns USER for all authenticated users.
+ * Can be extended to read from user metadata.
+ */
+function getUserRole(_session: Session): UserRole {
+	// TODO: Read role from session.user metadata when implemented
+	return UserRole.USER;
+}
+
+/**
+ * Gets the current session from Better Auth.
+ * Returns null if not authenticated.
+ */
+export async function getSession(): Promise<Session | null> {
+	const session = await auth.api.getSession({
+		headers: await headers(),
+	});
+	return session;
+}
+
+/**
  * Checks if the current user has the required role.
  * Throws AuthorizationError or ForbiddenError if not.
  */
 export async function requireRole(requiredRole: UserRole) {
-	const { userId, sessionClaims } = await auth();
+	const session = await getSession();
 
-	if (!userId) {
+	if (!session) {
 		throw new AuthorizationError("User not authenticated");
 	}
 
-	const metadata = sessionClaims?.metadata as { role?: string } | undefined;
-	const userRole = metadata?.role;
+	// For now, all authenticated users are treated as USER role
+	// Role-based access can be extended by storing roles in user metadata
+	// TODO: Implement role storage in Better Auth user metadata
+	const userRole = getUserRole(session);
 
-	if (userRole !== requiredRole && userRole !== UserRole.ADMIN) {
-		// User is not admin and doesn't have required role
+	// Admin role has access to everything
+	if (userRole === UserRole.ADMIN) {
+		return;
+	}
+
+	// Check if user has the required role
+	if (userRole !== requiredRole) {
 		if (requiredRole === UserRole.ADMIN) {
 			throw new ForbiddenError(
 				`User role '${userRole}' does not match required role '${requiredRole}'`,
 			);
 		}
-
 		throw new ForbiddenError("Insufficient permissions");
 	}
 }

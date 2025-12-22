@@ -13,6 +13,8 @@ const nextConfig = {
 		// FalkorDB and its dependency @js-temporal/polyfill have BigInt bundling issues
 		"falkordb",
 		"@js-temporal/polyfill",
+		// PostgreSQL driver for Better Auth
+		"pg",
 	],
 };
 

@@ -223,6 +223,12 @@ services:
       - API_URL=http://api:8080
       - SEARCH_URL=http://search:5002
       - FALKORDB_URL=redis://falkordb:6379
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=https://observatory.statient.com
+      - NEXT_PUBLIC_BETTER_AUTH_URL=https://observatory.statient.com
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram
     depends_on:
       api:
         condition: service_healthy
