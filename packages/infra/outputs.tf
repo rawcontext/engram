@@ -43,3 +43,8 @@ output "tuner_url" {
   description = "Tuner service URL"
   value       = "https://tuner.${var.domain}"
 }
+
+output "observatory_url" {
+  description = "Observatory UI URL"
+  value       = "https://observatory.${var.domain}"
+}
