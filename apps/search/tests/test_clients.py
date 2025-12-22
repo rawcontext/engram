@@ -1,99 +1,122 @@
-"""Tests for Kafka, Redis, and HuggingFace client wrappers."""
+"""Tests for NATS, Redis, and HuggingFace client wrappers."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.clients import (
-    ConsumerConfig,
     ConsumerStatusUpdate,
     HuggingFaceReranker,
-    KafkaClient,
+    NatsClient,
+    NatsClientConfig,
     RedisPublisher,
     RedisSubscriber,
     SessionUpdate,
 )
 
 
-class TestKafkaClient:
-    """Tests for KafkaClient wrapper."""
+class TestNatsClient:
+    """Tests for NatsClient wrapper."""
 
     @pytest.mark.asyncio
-    async def test_get_producer(self) -> None:
-        """Test getting producer creates it on first call."""
-        with patch("src.clients.kafka.AIOKafkaProducer") as mock_producer_class:
-            mock_producer = AsyncMock()
-            mock_producer_class.return_value = mock_producer
+    async def test_connect(self) -> None:
+        """Test connecting to NATS."""
+        with patch("src.clients.nats.nats.connect") as mock_connect:
+            mock_js = MagicMock()
+            mock_nc = AsyncMock()
+            mock_nc.jetstream = MagicMock(return_value=mock_js)
+            mock_connect.return_value = mock_nc
 
-            client = KafkaClient(bootstrap_servers=["localhost:9092"])
+            config = NatsClientConfig(servers="nats://localhost:4222")
+            client = NatsClient(config=config)
+            await client.connect()
 
-            # Get producer
-            producer = await client.get_producer()
-            mock_producer.start.assert_called_once()
-            assert producer == mock_producer
-
-            # Get producer again - should return same instance
-            producer2 = await client.get_producer()
-            assert producer2 == mock_producer
-            # Should not start again
-            assert mock_producer.start.call_count == 1
+            mock_connect.assert_called_once()
+            assert client._nc is not None
 
             await client.close()
 
     @pytest.mark.asyncio
-    async def test_create_consumer(self) -> None:
-        """Test consumer creation."""
-        with patch("src.clients.kafka.AIOKafkaConsumer") as mock_consumer_class:
-            mock_consumer = AsyncMock()
-            mock_consumer_class.return_value = mock_consumer
+    async def test_close_without_connection(self) -> None:
+        """Test close works even without connection."""
+        config = NatsClientConfig(servers="nats://localhost:4222")
+        client = NatsClient(config=config)
+        # Should not raise
+        await client.close()
 
-            client = KafkaClient()
+    def test_topic_to_subject_mapping(self) -> None:
+        """Test Kafka topic to NATS subject mapping."""
+        config = NatsClientConfig(servers="nats://localhost:4222")
+        client = NatsClient(config=config)
 
-            consumer = await client.create_consumer(topics=["test-topic"], group_id="test-group")
+        # Test explicit mappings
+        assert client._topic_to_subject("raw_events") == "events.raw"
+        assert client._topic_to_subject("parsed_events") == "events.parsed"
+        assert client._topic_to_subject("memory.turn_finalized") == "memory.turns.finalized"
+        assert client._topic_to_subject("memory.node_created") == "memory.nodes.created"
 
-            mock_consumer.start.assert_called_once()
-            assert consumer == mock_consumer
+        # Test fallback (replace underscores with dots)
+        assert client._topic_to_subject("some_custom_topic") == "some.custom.topic"
 
-            await client.close()
+    def test_subject_to_stream_mapping(self) -> None:
+        """Test subject to stream mapping."""
+        config = NatsClientConfig(servers="nats://localhost:4222")
+        client = NatsClient(config=config)
+
+        assert client._subject_to_stream("events.raw") == "EVENTS"
+        assert client._subject_to_stream("events.parsed") == "EVENTS"
+        assert client._subject_to_stream("memory.turns.finalized") == "MEMORY"
+        assert client._subject_to_stream("dlq.ingestion") == "DLQ"
+
+    def test_subject_to_stream_unknown_raises(self) -> None:
+        """Test unknown subject raises ValueError."""
+        config = NatsClientConfig(servers="nats://localhost:4222")
+        client = NatsClient(config=config)
+
+        with pytest.raises(ValueError, match="Unknown stream"):
+            client._subject_to_stream("unknown.subject")
 
     @pytest.mark.asyncio
-    async def test_send_event(self) -> None:
-        """Test sending events."""
-        with patch("src.clients.kafka.AIOKafkaProducer") as mock_producer_class:
-            mock_producer = AsyncMock()
-            mock_producer_class.return_value = mock_producer
+    async def test_publish(self) -> None:
+        """Test publishing a message."""
+        with patch("src.clients.nats.nats.connect") as mock_connect:
+            mock_js = MagicMock()
+            mock_js.publish = AsyncMock()
+            mock_nc = AsyncMock()
+            mock_nc.jetstream = MagicMock(return_value=mock_js)
+            mock_connect.return_value = mock_nc
 
-            client = KafkaClient()
+            config = NatsClientConfig(servers="nats://localhost:4222")
+            client = NatsClient(config=config)
+            await client.connect()
 
-            await client.send_event("test-topic", "test-key", {"data": "value"})
+            await client.publish(
+                topic="parsed_events",
+                key="test-key",
+                message={"type": "test", "data": "hello"}
+            )
 
-            mock_producer.send_and_wait.assert_called_once()
-            call_kwargs = mock_producer.send_and_wait.call_args
-            assert call_kwargs[0][0] == "test-topic"
+            mock_js.publish.assert_called_once()
+            call_args = mock_js.publish.call_args
+            assert call_args[0][0] == "events.parsed"  # Subject
 
             await client.close()
 
     @pytest.mark.asyncio
     async def test_context_manager(self) -> None:
         """Test async context manager protocol."""
-        with patch("src.clients.kafka.AIOKafkaProducer") as mock_producer_class:
-            mock_producer = AsyncMock()
-            mock_producer_class.return_value = mock_producer
+        with patch("src.clients.nats.nats.connect") as mock_connect:
+            mock_js = MagicMock()
+            mock_nc = AsyncMock()
+            mock_nc.jetstream = MagicMock(return_value=mock_js)
+            mock_connect.return_value = mock_nc
 
-            async with KafkaClient() as client:
-                # Create producer to have something to close
-                await client.get_producer()
-                assert client._producer is not None
+            config = NatsClientConfig(servers="nats://localhost:4222")
+            async with NatsClient(config=config) as client:
+                assert client._nc is not None
 
-            # Should close on exit
-            mock_producer.stop.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_close_without_connections(self) -> None:
-        """Test close works even without any connections."""
-        client = KafkaClient()
-        # Should not raise
-        await client.close()
+            mock_nc.drain.assert_called_once()
+            mock_nc.close.assert_called_once()
 
 
 class TestRedisPublisher:
@@ -522,21 +545,16 @@ class TestPydanticModels:
         assert status.service_id == "search-1"
         assert status.timestamp == 1234567890
 
-    def test_consumer_config_model(self) -> None:
-        """Test ConsumerConfig model with defaults."""
-        config = ConsumerConfig(group_id="test-group")
+    def test_nats_client_config_model(self) -> None:
+        """Test NatsClientConfig model with defaults."""
+        config = NatsClientConfig(servers="nats://localhost:4222")
 
-        assert config.group_id == "test-group"
-        assert config.auto_offset_reset == "earliest"
-        assert config.enable_auto_commit is True
+        assert config.servers == "nats://localhost:4222"
 
         # Test custom values
-        config2 = ConsumerConfig(
-            group_id="test-group", auto_offset_reset="latest", enable_auto_commit=False
-        )
+        config2 = NatsClientConfig(servers="nats://nats.example.com:4222")
 
-        assert config2.auto_offset_reset == "latest"
-        assert config2.enable_auto_commit is False
+        assert config2.servers == "nats://nats.example.com:4222"
 
 
 class TestHuggingFaceReranker:

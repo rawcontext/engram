@@ -9,7 +9,7 @@ echo "=============================================="
 
 # Start Docker containers (exclude services that don't work on ARM64)
 echo "Starting Docker containers..."
-docker-compose -f docker-compose.dev.yml up -d redpanda falkordb qdrant postgres
+docker-compose -f docker-compose.dev.yml up -d nats falkordb qdrant postgres
 
 # Wait for services to be healthy
 echo "Waiting for infrastructure to be ready..."
@@ -47,7 +47,7 @@ echo "  Ingestion: npm run -w @engram/ingestion dev"
 echo "  Search:    http://localhost:5002"
 echo ""
 echo "Infrastructure:"
-echo "  Redpanda:  localhost:19092 (Kafka)"
+echo "  NATS:      localhost:4222 (JetStream)"
 echo "  FalkorDB:  localhost:6379"
 echo "  Qdrant:    localhost:6333"
 echo "  Postgres:  localhost:5432"
