@@ -1,13 +1,24 @@
 """Comprehensive tests for API routes."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from src.api.router import router
+from src.middleware.auth import ApiKeyContext
 from src.retrieval.types import RerankerTier
+
+# Mock API key context for authenticated requests
+MOCK_API_KEY_CONTEXT = ApiKeyContext(
+    key_id="test-key-id",
+    key_prefix="engram_test_abc123...",
+    key_type="test",
+    user_id="test-user",
+    scopes=["memory:read", "memory:write", "search:read"],
+    rate_limit_rpm=1000,
+)
 
 
 @pytest.fixture
@@ -77,10 +88,19 @@ def app_with_mocks(
 
 @pytest.fixture
 async def client(app_with_mocks):
-    """Create async test client."""
-    transport = ASGITransport(app=app_with_mocks)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+    """Create async test client with mocked authentication."""
+    # Mock the auth handler to return a valid context
+    mock_handler = AsyncMock()
+    mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+
+    with patch("src.middleware.auth._auth_handler", mock_handler):
+        transport = ASGITransport(app=app_with_mocks)
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+        ) as ac:
+            yield ac
 
 
 class TestHealthEndpoint:
@@ -275,14 +295,23 @@ class TestSearchEndpoint:
         app.include_router(router)
         app.state.qdrant = MagicMock()
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/v1/search",
-                json={"text": "test", "limit": 10},
-            )
+        # Mock auth handler for this test
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
 
-        assert response.status_code == 503
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            ) as client:
+                response = await client.post(
+                    "/v1/search",
+                    json={"text": "test", "limit": 10},
+                )
+
+            assert response.status_code == 503
 
     async def test_search_error(self, client: AsyncClient, mock_search_retriever) -> None:
         """Test search error handling."""
@@ -338,14 +367,23 @@ class TestEmbedEndpoint:
         app = FastAPI()
         app.include_router(router)
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/v1/embed",
-                json={"text": "test", "embedder_type": "text"},
-            )
+        # Mock auth handler for this test
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
 
-        assert response.status_code == 503
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            ) as client:
+                response = await client.post(
+                    "/v1/embed",
+                    json={"text": "test", "embedder_type": "text"},
+                )
+
+            assert response.status_code == 503
 
     async def test_embed_error(self, client: AsyncClient, mock_embedder_factory) -> None:
         """Test embed error handling."""
@@ -440,14 +478,23 @@ class TestMultiQuerySearchEndpoint:
         app = FastAPI()
         app.include_router(router)
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/v1/search/multi-query",
-                json={"text": "test", "limit": 10},
-            )
+        # Mock auth handler for this test
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
 
-        assert response.status_code == 503
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            ) as client:
+                response = await client.post(
+                    "/v1/search/multi-query",
+                    json={"text": "test", "limit": 10},
+                )
+
+            assert response.status_code == 503
 
     async def test_multi_query_error(self, client: AsyncClient, mock_multi_query_retriever) -> None:
         """Test multi-query error handling."""
@@ -518,14 +565,23 @@ class TestSessionAwareSearchEndpoint:
         app = FastAPI()
         app.include_router(router)
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/v1/search/session-aware",
-                json={"query": "test"},
-            )
+        # Mock auth handler for this test
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
 
-        assert response.status_code == 503
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            ) as client:
+                response = await client.post(
+                    "/v1/search/session-aware",
+                    json={"query": "test"},
+                )
+
+            assert response.status_code == 503
 
     async def test_session_aware_error(
         self, client: AsyncClient, mock_session_aware_retriever
