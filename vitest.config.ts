@@ -15,7 +15,6 @@ export default defineConfig({
 		environment: "node",
 		testTimeout: 30000,
 		hookTimeout: 30000,
-		setupFiles: ["./packages/infra/vitest.setup.ts"],
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json-summary", "html"],
@@ -37,10 +36,6 @@ export default defineConfig({
 				"**/packages/parser/src/diff.ts",
 				"**/packages/parser/src/thinking.ts",
 				"**/packages/vfs/src/interfaces.ts",
-				// Infra files with untestable environmental branches
-				"**/packages/infra/src/k8s/rbac.ts",
-				"**/packages/infra/src/k8s/network-policy.ts",
-				"**/packages/infra/src/k8s/tuner.ts",
 				// Native Kafka module files (use createRequire, can't be mocked)
 				"**/packages/storage/src/kafka.ts",
 				"**/packages/storage/src/consumer-readiness.ts",

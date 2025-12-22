@@ -49,6 +49,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS api_keys_updated_at ON api_keys;
 CREATE TRIGGER api_keys_updated_at
     BEFORE UPDATE ON api_keys
     FOR EACH ROW
@@ -90,6 +91,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS api_usage_updated_at ON api_usage;
 CREATE TRIGGER api_usage_updated_at
     BEFORE UPDATE ON api_usage
     FOR EACH ROW

@@ -65,6 +65,10 @@ class Settings(BaseSettings):
         default=0.5, description="Minimum score for hybrid retrieval"
     )
     search_rerank_depth: int = Field(default=30, description="Number of results to rerank")
+    search_default_strategy: str = Field(
+        default="hybrid",
+        description="Default search strategy: 'dense', 'sparse', or 'hybrid'. Use 'dense' when sparse embeddings are unavailable (huggingface backend).",
+    )
 
     # Embedders
     embedder_device: str = Field(

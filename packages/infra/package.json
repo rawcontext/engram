@@ -2,26 +2,19 @@
 	"name": "@engram/infra",
 	"version": "0.0.0",
 	"private": true,
-	"main": "src/index.ts",
-	"devDependencies": {
-		"@engram/tsconfig": "*",
-		"@types/node": "^25.0.3"
-	},
-	"dependencies": {
-		"@pulumi/gcp": "^9.6.0",
-		"@pulumi/kubernetes": "^4.24.1",
-		"@pulumi/pulumi": "^3.213.0"
-	},
 	"scripts": {
-		"build": "echo 'Pulumi compiles TypeScript directly'",
-		"typecheck": "tsgo --noEmit",
-		"preview": "pulumi preview",
-		"up": "pulumi up",
-		"destroy": "pulumi destroy",
-		"wake": "pulumi config set devEnabled true && pulumi up --yes",
-		"sleep": "pulumi config set devEnabled false && pulumi up --yes",
-		"status": "pulumi config get devEnabled 2>/dev/null || echo 'true (default)'",
-		"lint": "biome check .",
-		"format": "biome format ."
+		"init": "tofu init",
+		"validate": "tofu validate",
+		"fmt": "tofu fmt -recursive",
+		"plan": "tofu plan",
+		"up": "tofu apply -auto-approve",
+		"down": "tofu destroy -auto-approve",
+		"output": "tofu output",
+		"test": "tofu test",
+		"test:unit": "tofu test -filter=tests/server.tftest.hcl -filter=tests/firewall.tftest.hcl -filter=tests/ssh.tftest.hcl",
+		"refresh": "tofu refresh",
+		"state": "tofu state list",
+		"import:server": "tofu import hcloud_server.engram $(hcloud server describe engram -o json | jq -r .id)",
+		"import:ssh": "tofu import hcloud_ssh_key.engram $(hcloud ssh-key describe engram-key -o json | jq -r .id)"
 	}
 }

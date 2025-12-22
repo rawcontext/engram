@@ -15,11 +15,12 @@ if ! command -v hcloud &> /dev/null; then
     exit 1
 fi
 
-SERVER_IP=$(hcloud server ip engram-kbrm 2>/dev/null)
+SERVER_NAME="${HETZNER_SERVER_NAME:-engram}"
+SERVER_IP=$(hcloud server ip "$SERVER_NAME" 2>/dev/null)
 if [ -z "$SERVER_IP" ]; then
-    echo -e "${RED}Error: Server 'engram-kbrm' not found.${NC}"
-    echo "Create it first with:"
-    echo "  hcloud server create --name engram-kbrm --type cpx31 --image ubuntu-24.04 --location ash --ssh-key <key-name>"
+    echo -e "${RED}Error: Server '$SERVER_NAME' not found.${NC}"
+    echo "Create it first with OpenTofu:"
+    echo "  cd packages/infra && tofu apply"
     exit 1
 fi
 

@@ -1,7 +1,0 @@
-name: engram-infra
-runtime:
-  name: nodejs
-  options:
-    typescript: true
-main: src/
-description: Engram Infrastructure - GCP resources for benchmark and services

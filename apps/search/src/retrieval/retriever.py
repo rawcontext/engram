@@ -102,8 +102,12 @@ class SearchRetriever:
         fetch_limit = max(rerank_depth, limit) if rerank else limit
 
         # Determine strategy using classifier if not provided
-        strategy: SearchStrategy | str = user_strategy or SearchStrategy.HYBRID
-        if not user_strategy:
+        # Use config default (allows forcing dense when sparse unavailable)
+        default_strategy = SearchStrategy(self.settings.search_default_strategy)
+        strategy: SearchStrategy | str = user_strategy or default_strategy
+        # Only use classifier for auto-selection when default is hybrid
+        # This allows forcing dense mode when sparse embeddings are unavailable
+        if not user_strategy and default_strategy == SearchStrategy.HYBRID:
             classification = self.classifier.classify(text)
             strategy = classification["strategy"]
 
@@ -610,8 +614,12 @@ class SearchRetriever:
         fetch_limit = max(rerank_depth, limit) if rerank else limit
 
         # Determine strategy using classifier if not provided
-        strategy: SearchStrategy | str = user_strategy or SearchStrategy.HYBRID
-        if not user_strategy:
+        # Use config default (allows forcing dense when sparse unavailable)
+        default_strategy = SearchStrategy(self.settings.search_default_strategy)
+        strategy: SearchStrategy | str = user_strategy or default_strategy
+        # Only use classifier for auto-selection when default is hybrid
+        # This allows forcing dense mode when sparse embeddings are unavailable
+        if not user_strategy and default_strategy == SearchStrategy.HYBRID:
             classification = self.classifier.classify(text)
             strategy = classification["strategy"]
 

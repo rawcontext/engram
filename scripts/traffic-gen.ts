@@ -18,7 +18,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { generateEventId, RawStreamEventSchema, type RawStreamEvent } from "@engram/events";
+import { generateEventId, type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
 import { createKafkaClient } from "@engram/storage";
 
 // Parse CLI arguments
