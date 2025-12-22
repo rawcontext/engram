@@ -2,7 +2,6 @@
 
 // Implementation exports
 export * from "./blob";
-export * from "./consumer-readiness";
 export * from "./falkor";
 export type {
 	BlobStore,

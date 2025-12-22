@@ -27,28 +27,16 @@ services:
   # ===================
   # DATABASES
   # ===================
-  redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:v23.3.1
-    command:
-      - redpanda start
-      - --smp 2
-      - --memory 2G
-      - --reserve-memory 0M
-      - --overprovisioned
-      - --node-id 0
-      - --check=false
-      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
-      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
-      - --set redpanda.group_new_member_join_timeout=120000
-      - --set redpanda.group_initial_rebalance_delay=10000
+  nats:
+    image: nats:2.12-alpine
+    command: ["--jetstream", "--store_dir=/data", "-m", "8222"]
     volumes:
-      - ./data/redpanda:/var/lib/redpanda/data
+      - ./data/nats:/data
     healthcheck:
-      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      test: ["CMD", "wget", "--spider", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 
   qdrant:
@@ -101,11 +89,11 @@ services:
     platform: linux/amd64
     environment:
       - NODE_ENV=production
-      - REDPANDA_BROKERS=redpanda:9092
+      - NATS_URL=nats://nats:4222
       - REDIS_URL=redis://falkordb:6379
       - PORT=5001
     depends_on:
-      redpanda:
+      nats:
         condition: service_healthy
       falkordb:
         condition: service_healthy
@@ -124,11 +112,11 @@ services:
     platform: linux/amd64
     environment:
       - NODE_ENV=production
-      - REDPANDA_BROKERS=redpanda:9092
+      - NATS_URL=nats://nats:4222
       - FALKORDB_URL=redis://falkordb:6379
       - REDIS_URL=redis://falkordb:6379
     depends_on:
-      redpanda:
+      nats:
         condition: service_healthy
       falkordb:
         condition: service_healthy
@@ -143,7 +131,7 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-engram_memory}
       - QDRANT_TURNS_COLLECTION=${QDRANT_TURNS_COLLECTION:-engram_turns}
-      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - NATS_URL=nats://nats:4222
       - REDIS_URL=redis://falkordb:6379
       - HF_API_TOKEN=${HF_API_TOKEN}
       - EMBEDDER_BACKEND=${EMBEDDER_BACKEND:-huggingface}
@@ -155,7 +143,7 @@ services:
     depends_on:
       qdrant:
         condition: service_healthy
-      redpanda:
+      nats:
         condition: service_healthy
       falkordb:
         condition: service_healthy

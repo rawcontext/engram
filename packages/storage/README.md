@@ -1,6 +1,6 @@
 # @engram/storage
 
-Unified storage client layer for Engram's infrastructure backends. Provides clean abstractions for FalkorDB (graph), Kafka/Redpanda (messaging), PostgreSQL (relational), Redis (pub/sub), and blob storage (GCS/filesystem).
+Unified storage client layer for Engram's infrastructure backends. Provides clean abstractions for FalkorDB (graph), NATS JetStream (messaging), PostgreSQL (relational), Redis (pub/sub), and blob storage (GCS/filesystem).
 
 ## Overview
 
@@ -46,26 +46,27 @@ await client.disconnect();
 - `FalkorEdge<T>`: Graph edge/relationship with typed properties
 - `QueryParams`: Cypher parameter types
 
-### Kafka/Redpanda (Message Queue)
+### NATS JetStream (Message Queue)
 
-Message queue client using Confluent's Kafka JavaScript library with KafkaJS-compatible API.
+Message queue client using NATS JetStream with Kafka-compatible API for easy migration.
 
 ```typescript
-import { createKafkaClient } from "@engram/storage/kafka";
+import { createNatsClient } from "@engram/storage/nats";
 
-// Create client (reads REDPANDA_BROKERS env var)
-const kafka = createKafkaClient("my-service");
+// Create client (reads NATS_URL env var)
+const nats = createNatsClient("my-service");
+await nats.connect();
 
 // Get producer
-const producer = await kafka.getProducer();
+const producer = await nats.getProducer();
 await producer.send({
-  topic: "parsed_events",
+  topic: "parsed_events",  // Maps to NATS subject "events.parsed"
   messages: [{ key: "session-123", value: JSON.stringify(event) }]
 });
 
 // Get consumer
-const consumer = await kafka.getConsumer({ groupId: "memory-group" });
-await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
+const consumer = await nats.getConsumer({ groupId: "memory-group" });
+await consumer.subscribe({ topic: "parsed_events" });
 await consumer.run({
   eachMessage: async ({ topic, partition, message }) => {
     const data = JSON.parse(message.value.toString());
@@ -74,17 +75,23 @@ await consumer.run({
 });
 
 // Cleanup
-await kafka.disconnect();
+await nats.disconnect();
 ```
 
 **Environment Variables:**
-- `REDPANDA_BROKERS`: Comma-separated broker list (default: `localhost:19092`)
+- `NATS_URL`: NATS server URL (default: `nats://localhost:4222`)
 
 **Key Features:**
-- Automatic topic creation
-- Session-based partition ordering (same key → same partition)
-- Connection pooling and reuse
-- KafkaJS-compatible API surface
+- JetStream durable consumers for reliable delivery
+- Topic-to-subject mapping for Kafka compatibility
+- Three streams: EVENTS, MEMORY, DLQ
+- Kafka-compatible API surface for easy migration
+
+**Topic Mappings:**
+- `raw_events` → `events.raw`
+- `parsed_events` → `events.parsed`
+- `memory.turn_finalized` → `memory.turns.finalized`
+- `memory.node_created` → `memory.nodes.created`
 
 ### PostgreSQL (Relational Database)
 
@@ -216,49 +223,6 @@ const content = await fsStore.load(uri1);
 - Path traversal protection
 - Lazy GCS client initialization
 
-## Consumer Readiness
-
-Utilities for checking Kafka consumer group readiness before starting producers.
-
-```typescript
-import { waitForConsumers, checkConsumerGroups } from "@engram/storage";
-
-// Wait for consumers to be ready
-const result = await waitForConsumers({
-  groupIds: ["memory-group", "search-group", "control-group"],
-  brokers: "localhost:19092",
-  timeoutMs: 30000,
-  pollIntervalMs: 2000,
-  minMembers: 1,
-  logger: console.log
-});
-
-if (result.success) {
-  console.log("All consumers ready:", result.groups);
-  // Start producing events
-} else {
-  console.error("Timeout waiting for consumers:", result.error);
-}
-
-// Check current status without waiting
-const statuses = await checkConsumerGroups(
-  ["memory-group", "search-group"],
-  "localhost:19092"
-);
-
-for (const status of statuses) {
-  console.log(`${status.groupId}: ${status.stateName} (${status.memberCount} members)`);
-}
-```
-
-**Consumer States:**
-- `STABLE`: Ready for message processing
-- `PREPARING_REBALANCE`: Rebalancing in progress
-- `COMPLETING_REBALANCE`: Rebalancing completing
-- `EMPTY`: No members
-- `DEAD`: Group deleted
-- `UNKNOWN`: State unknown
-
 ## Type Exports
 
 ### Interfaces
@@ -296,21 +260,10 @@ import type {
 } from "@engram/storage/redis";
 ```
 
-### Consumer Readiness Types
-
-```typescript
-import type {
-  ConsumerGroupStatus,
-  ConsumerGroupState,
-  WaitForConsumersConfig,
-  WaitResult
-} from "@engram/storage";
-```
-
 ## Dependencies
 
 - **FalkorDB**: `falkordb` (graph database client)
-- **Kafka**: `@confluentinc/kafka-javascript` (message queue client)
+- **NATS**: `@nats-io/jetstream`, `@nats-io/transport-node` (message queue client)
 - **PostgreSQL**: `pg` (relational database client)
 - **Redis**: `redis` (pub/sub client)
 - **Google Cloud Storage**: `@google-cloud/storage` (blob storage, optional)
@@ -318,8 +271,8 @@ import type {
 ## Architecture Notes
 
 - All clients support lazy initialization and connection pooling
-- Message ordering is guaranteed per-partition using message keys
+- Message ordering is guaranteed per-stream using message keys
 - Blob storage uses SHA-256 content addressing for deduplication
 - FalkorDB queries return typed results for compile-time safety
 - Redis pub/sub supports both global and session-specific channels
-- Consumer readiness checks prevent message loss during startup
+- Consumer status is tracked via Redis pub/sub heartbeats

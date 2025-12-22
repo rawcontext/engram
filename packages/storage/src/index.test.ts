@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createFalkorClient, FalkorClient } from "./falkor";
-import { createKafkaClient, KafkaClient } from "./kafka";
+import { createNatsClient, NatsClient } from "./nats";
 
 /**
  * Storage Package Unit Tests
  *
  * These tests verify the interface contracts of the storage clients.
  * Integration tests requiring actual database connections should be run separately
- * with real FalkorDB and Kafka instances.
+ * with real FalkorDB and NATS instances.
  */
 describe("Storage Package", () => {
 	describe("FalkorClient", () => {
@@ -35,9 +35,9 @@ describe("Storage Package", () => {
 		});
 	});
 
-	describe("KafkaClient", () => {
+	describe("NatsClient", () => {
 		it("should create a client with defaults", () => {
-			const client = createKafkaClient("test-client");
+			const client = createNatsClient("test-client");
 			expect(client).toBeDefined();
 			expect(typeof client.getProducer).toBe("function");
 			expect(typeof client.getConsumer).toBe("function");
@@ -46,7 +46,7 @@ describe("Storage Package", () => {
 		});
 
 		it("should implement MessageClient interface", () => {
-			const client = new KafkaClient();
+			const client = new NatsClient();
 			// Verify interface compliance
 			expect(client).toHaveProperty("getProducer");
 			expect(client).toHaveProperty("getConsumer");

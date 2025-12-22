@@ -94,7 +94,7 @@ export interface ConsumerConfig {
 }
 
 /**
- * MessageClient abstracts message queue operations (e.g., Kafka/Redpanda).
+ * MessageClient abstracts message queue operations (e.g., NATS JetStream).
  * Enables switching between message brokers without changing consumer code.
  */
 export interface MessageClient {

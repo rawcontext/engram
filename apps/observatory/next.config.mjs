@@ -9,7 +9,6 @@ const nextConfig = {
 		"pino-pretty",
 		"thread-stream",
 		"sonic-boom",
-		"@confluentinc/kafka-javascript",
 		// FalkorDB and its dependency @js-temporal/polyfill have BigInt bundling issues
 		"falkordb",
 		"@js-temporal/polyfill",
