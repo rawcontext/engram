@@ -1,5 +1,5 @@
-# Optional: Hetzner Cloud-level firewall
-# This adds network-level protection in addition to UFW on the server
+# Hetzner Cloud-level firewall
+# Only expose SSH, HTTP, and HTTPS - Caddy handles reverse proxying
 
 resource "hcloud_firewall" "engram" {
   name = "engram-firewall"
@@ -12,7 +12,7 @@ resource "hcloud_firewall" "engram" {
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 
-  # HTTP
+  # HTTP (Caddy)
   rule {
     direction  = "in"
     protocol   = "tcp"
@@ -20,43 +20,11 @@ resource "hcloud_firewall" "engram" {
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 
-  # HTTPS
+  # HTTPS (Caddy)
   rule {
     direction  = "in"
     protocol   = "tcp"
     port       = "443"
-    source_ips = ["0.0.0.0/0", "::/0"]
-  }
-
-  # API (8080)
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "8080"
-    source_ips = ["0.0.0.0/0", "::/0"]
-  }
-
-  # Search (5002)
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "5002"
-    source_ips = ["0.0.0.0/0", "::/0"]
-  }
-
-  # Tuner (8000)
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "8000"
-    source_ips = ["0.0.0.0/0", "::/0"]
-  }
-
-  # Observatory (5000)
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "5000"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 

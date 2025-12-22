@@ -41,16 +41,12 @@ resource "hcloud_server" "engram" {
       - systemctl enable docker
       - systemctl start docker
 
-      # Configure firewall (UFW)
+      # Configure firewall (UFW) - only HTTP/HTTPS, Caddy handles reverse proxying
       - ufw default deny incoming
       - ufw default allow outgoing
       - ufw allow OpenSSH
-      - ufw allow 80/tcp    # HTTP
-      - ufw allow 443/tcp   # HTTPS
-      - ufw allow 8080/tcp  # API
-      - ufw allow 5002/tcp  # Search
-      - ufw allow 8000/tcp  # Tuner
-      - ufw allow 5000/tcp  # Observatory
+      - ufw allow 80/tcp    # HTTP (Caddy)
+      - ufw allow 443/tcp   # HTTPS (Caddy)
       - ufw --force enable
 
       # Create application directory

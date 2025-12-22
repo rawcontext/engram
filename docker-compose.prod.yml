@@ -2,6 +2,29 @@ name: engram
 
 services:
   # ===================
+  # REVERSE PROXY
+  # ===================
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy/data:/data
+      - ./data/caddy/config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      search:
+        condition: service_healthy
+      tuner:
+        condition: service_healthy
+      observatory:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===================
   # DATABASES
   # ===================
   redpanda:
@@ -116,8 +139,6 @@ services:
       context: ./apps/search
       dockerfile: Dockerfile
     platform: linux/amd64
-    ports:
-      - "5002:5002"
     environment:
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-engram_memory}
@@ -151,8 +172,6 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     platform: linux/amd64
-    ports:
-      - "8080:8080"
     environment:
       - NODE_ENV=production
       - POSTGRES_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-engram}
@@ -179,8 +198,6 @@ services:
       context: ./apps/tuner
       dockerfile: Dockerfile
     platform: linux/amd64
-    ports:
-      - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/optuna
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000","http://localhost:5173","http://localhost:8080"]}
@@ -200,8 +217,6 @@ services:
       context: .
       dockerfile: apps/observatory/Dockerfile
     platform: linux/amd64
-    ports:
-      - "5000:3000"
     environment:
       - NODE_ENV=production
       - API_URL=http://api:8080

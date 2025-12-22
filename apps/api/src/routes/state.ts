@@ -56,8 +56,8 @@ export function createStateRoutes({ stateRepo, apiKeyRepo, logger }: StateRoutes
 		const state = await stateRepo.get(STATE_ID);
 
 		if (!state) {
-			// Return empty state if none exists
-			return c.json({});
+			// Return 404 if no state exists (per HTTP backend protocol)
+			return c.body(null, 404);
 		}
 
 		return c.json(state.state);
