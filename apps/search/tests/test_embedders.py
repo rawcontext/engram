@@ -4,10 +4,14 @@ import numpy as np
 import pytest
 
 from src.config import Settings
-from src.embedders import (
+from src.embedders import EmbedderFactory
+
+# Skip entire module if optional ML dependencies are not installed
+pytest.importorskip("sentence_transformers", reason="sentence-transformers not installed")
+
+from src.embedders import (  # noqa: E402
     CodeEmbedder,
     ColBERTEmbedder,
-    EmbedderFactory,
     SparseEmbedder,
     TextEmbedder,
 )

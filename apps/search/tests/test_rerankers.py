@@ -5,14 +5,17 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from src.rerankers import (
+# Skip entire module if optional ML dependencies are not installed
+pytest.importorskip("sentence_transformers", reason="sentence-transformers not installed")
+
+from src.rerankers import (  # noqa: E402
     CrossEncoderReranker,
     FlashRankReranker,
     LLMReranker,
     RankedResult,
     RerankerRouter,
 )
-from src.utils.rate_limiter import RateLimitError, SlidingWindowRateLimiter
+from src.utils.rate_limiter import RateLimitError, SlidingWindowRateLimiter  # noqa: E402
 
 # Test data
 SAMPLE_QUERY = "What is the capital of France?"

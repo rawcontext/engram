@@ -4,9 +4,11 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
-import torch
 
-from src.chunking import ChunkBoundary, LateChunker, LateChunkResult
+# Skip entire module if optional ML dependencies are not installed
+torch = pytest.importorskip("torch", reason="torch not installed")
+
+from src.chunking import ChunkBoundary, LateChunker, LateChunkResult  # noqa: E402
 
 
 class TestChunkBoundary:

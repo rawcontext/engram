@@ -5,7 +5,10 @@ from unittest.mock import AsyncMock, MagicMock
 import numpy as np
 import pytest
 
-from src.chunking import Chunk, ChunkingConfig, SemanticChunker
+# Skip entire module if optional ML dependencies are not installed
+pytest.importorskip("sentence_transformers", reason="sentence-transformers not installed")
+
+from src.chunking import Chunk, ChunkingConfig, SemanticChunker  # noqa: E402
 
 
 class TestChunkingConfig:
