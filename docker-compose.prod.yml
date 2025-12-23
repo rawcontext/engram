@@ -208,6 +208,7 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
+      - PORT=3000
       - API_URL=http://api:6174
       - SEARCH_URL=http://search:6176
       - FALKORDB_URL=redis://falkordb:6379

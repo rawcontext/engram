@@ -26,5 +26,5 @@ COPY --from=builder /app/apps/observatory/package.json ./apps/observatory/
 USER engram
 EXPOSE 3000
 WORKDIR /app/apps/observatory
-# Use custom server with WebSocket support via bun + tsx
-CMD ["bun", "run", "--bun", "tsx", "server.ts"]
+# Use custom server with WebSocket support - bun natively runs TypeScript
+CMD ["bun", "run", "server.ts"]
