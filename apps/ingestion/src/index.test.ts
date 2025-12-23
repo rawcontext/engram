@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { createNodeLogger } from "@engram/logger";
 import { DiffExtractor, Redactor, ThinkingExtractor } from "@engram/parser";
-import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Create mocks before mock.module
 const mockSendEvent = mock(async () => {});
@@ -14,6 +14,17 @@ const mockNatsClient = {
 // Mock @engram/storage at module level so createIngestionServer uses mocked NATS
 mock.module("@engram/storage", () => ({
 	createNatsClient: mock(() => mockNatsClient),
+	createFalkorClient: mock(() => ({
+		query: mock(async () => []),
+		connect: mock(async () => {}),
+		disconnect: mock(async () => {}),
+		isConnected: mock(() => false),
+	})),
+	createBlobStore: mock(() => ({
+		save: mock(async () => "blob://test"),
+		load: mock(async () => Buffer.from("{}")),
+		exists: mock(async () => false),
+	})),
 }));
 
 // Import after mock is set up

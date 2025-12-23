@@ -399,6 +399,7 @@ describe("MemoryService", () => {
 		});
 
 		it("should use depth to control result limits", async () => {
+			mockFetch.mockClear();
 			const mockGraphClient = createMockGraphClient();
 			mockGraphClient.query.mockResolvedValue([]);
 

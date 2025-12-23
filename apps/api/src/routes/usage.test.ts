@@ -1,5 +1,5 @@
-import { Hono } from "hono";
 import { describe, expect, it, mock } from "bun:test";
+import { Hono } from "hono";
 import { createUsageRoutes } from "./usage";
 
 // Mock API key context middleware

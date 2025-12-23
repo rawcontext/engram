@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { GraphOperationError, SearchError } from "@engram/common";
 import type { GraphClient, ThoughtNode } from "@engram/storage";
-import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { SearchClient, SearchResponse, SearchResult } from "../clients/search.js";
 import {
 	ContextAssembler,

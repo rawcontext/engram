@@ -13,10 +13,10 @@ import { mock } from "bun:test";
 // FalkorDB Mocks
 // =============================================================================
 
-const mockQuery = mock();
-const mockConnect = mock();
-const mockIsConnected = mock();
-const mockDisconnect = mock();
+const mockQuery = mock(async () => []);
+const mockConnect = mock(async () => {});
+const mockIsConnected = mock(() => false);
+const mockDisconnect = mock(async () => {});
 
 const mockFalkorClient = {
 	query: mockQuery,
@@ -25,8 +25,17 @@ const mockFalkorClient = {
 	disconnect: mockDisconnect,
 };
 
+// Mock FalkorClient class that implements GraphClient interface
+class MockFalkorClient {
+	query = mockQuery;
+	connect = mockConnect;
+	isConnected = mockIsConnected;
+	disconnect = mockDisconnect;
+}
+
 mock.module("@engram/storage/falkor", () => ({
 	createFalkorClient: mock(() => mockFalkorClient),
+	FalkorClient: MockFalkorClient,
 }));
 
 // Also mock blob store
@@ -43,16 +52,38 @@ const mockNatsClientInstance = {
 		run: mock(async () => {}),
 		disconnect: mock(async () => {}),
 	})),
+	getProducer: mock(async () => ({
+		send: mock(async () => {}),
+		disconnect: mock(async () => {}),
+	})),
 	sendEvent: mock(async () => {}),
 	connect: mock(async () => {}),
 	disconnect: mock(async () => {}),
 };
 
+// Mock NatsClient class
+class MockNatsClient {
+	getConsumer = mock(async () => ({
+		subscribe: mock(async () => {}),
+		run: mock(async () => {}),
+		disconnect: mock(async () => {}),
+	}));
+	getProducer = mock(async () => ({
+		send: mock(async () => {}),
+		disconnect: mock(async () => {}),
+	}));
+	sendEvent = mock(async () => {});
+	connect = mock(async () => {});
+	disconnect = mock(async () => {});
+}
+
 // Mock the main @engram/storage entry point (re-exports)
 mock.module("@engram/storage", () => ({
 	createFalkorClient: mock(() => mockFalkorClient),
+	FalkorClient: MockFalkorClient,
 	createBlobStore: mock(() => mockBlobStore),
 	createNatsClient: mock(() => mockNatsClientInstance),
+	NatsClient: MockNatsClient,
 }));
 
 // =============================================================================
@@ -86,10 +117,8 @@ mock.module("@engram/storage/nats", () => ({
 		publishConsumerStatus: mock(async () => {}),
 		disconnect: mock(async () => {}),
 	})),
-	createNatsClient: mock(() => ({
-		connect: mock(async () => {}),
-		disconnect: mock(async () => {}),
-	})),
+	createNatsClient: mock(() => mockNatsClientInstance),
+	NatsClient: MockNatsClient,
 }));
 
 // =============================================================================

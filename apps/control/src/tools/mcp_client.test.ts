@@ -1,4 +1,4 @@
-import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 
 // Mock Client - must be defined before mock.module calls
 const mockConnect = mock(async () => {});

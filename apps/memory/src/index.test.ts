@@ -1,22 +1,20 @@
-import { afterEach, beforeEach, describe, expect, it, jest, mock } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, it, jest, mock } from "bun:test";
 
 // Use shared mocks from root preload (test-preload.ts)
 // Logger, storage (FalkorDB, NATS, BlobStore) are mocked there
 
-const mockGraphPruner = {
-	pruneHistory: mock(async () => ({ deleted: 10 })),
-};
+// Import real GraphPruner before any mocking
+import { GraphPruner } from "@engram/graph";
+
+// Mock pruneHistory on prototype (preserves class identity, avoids module cache pollution)
+const mockPruneHistory = mock(async () => ({ deleted: 10 }));
+const originalPruneHistory = GraphPruner.prototype.pruneHistory;
+GraphPruner.prototype.pruneHistory = mockPruneHistory;
 
 const mockMcpServer = {
 	tool: mock(),
 	connect: mock(async () => {}),
 };
-
-mock.module("@engram/graph", () => ({
-	GraphPruner: class {
-		pruneHistory = mockGraphPruner.pruneHistory;
-	},
-}));
 
 mock.module("@modelcontextprotocol/sdk/server/mcp.js", () => ({
 	McpServer: class {
@@ -29,8 +27,12 @@ mock.module("@modelcontextprotocol/sdk/server/stdio.js", () => ({
 	StdioServerTransport: mock(),
 }));
 
-// Import after mocking to ensure module-level code uses mocks
-import { GraphPruner } from "@engram/graph";
+// Restore original pruneHistory after all tests to prevent pollution
+afterAll(() => {
+	GraphPruner.prototype.pruneHistory = originalPruneHistory;
+	mock.restore();
+});
+
 import { createNodeLogger } from "@engram/logger";
 import {
 	createFalkorClient,
@@ -325,9 +327,7 @@ describe("Memory Service Deps", () => {
 
 describe("Module-level functions", () => {
 	beforeEach(() => {
-		mockGraphPruner.pruneHistory.mockClear();
-		mockLogger.info.mockClear();
-		mockLogger.error.mockClear();
+		mockPruneHistory.mockClear();
 	});
 
 	describe("Interval management", () => {
@@ -409,7 +409,7 @@ describe("Module-level functions", () => {
 			// Advance time past the prune interval (default 24 hours)
 			jest.advanceTimersByTime(24 * 60 * 60 * 1000);
 
-			expect(mockGraphPruner.pruneHistory).toHaveBeenCalled();
+			expect(mockPruneHistory).toHaveBeenCalled();
 
 			clearAllIntervals();
 			jest.useRealTimers();
@@ -418,7 +418,7 @@ describe("Module-level functions", () => {
 		it("should log success after pruning", () => {
 			jest.useFakeTimers();
 
-			mockGraphPruner.pruneHistory.mockResolvedValueOnce({ deleted: 5 });
+			mockPruneHistory.mockResolvedValueOnce({ deleted: 5 });
 
 			startPruningJob();
 
@@ -426,7 +426,7 @@ describe("Module-level functions", () => {
 			jest.advanceTimersByTime(24 * 60 * 60 * 1000);
 
 			// Pruning should have been called
-			expect(mockGraphPruner.pruneHistory).toHaveBeenCalled();
+			expect(mockPruneHistory).toHaveBeenCalled();
 
 			clearAllIntervals();
 			jest.useRealTimers();
@@ -435,7 +435,7 @@ describe("Module-level functions", () => {
 		it("should handle pruning errors gracefully", () => {
 			jest.useFakeTimers();
 
-			mockGraphPruner.pruneHistory.mockRejectedValueOnce(new Error("Prune failed"));
+			mockPruneHistory.mockRejectedValueOnce(new Error("Prune failed"));
 
 			startPruningJob();
 
@@ -493,11 +493,11 @@ describe("Module-level functions", () => {
 			clearAllIntervals();
 
 			// Reset mock and advance time - pruning should NOT be called since interval is cleared
-			mockGraphPruner.pruneHistory.mockClear();
+			mockPruneHistory.mockClear();
 			jest.advanceTimersByTime(24 * 60 * 60 * 1000);
 
 			// Pruning should not have been called after clearing
-			expect(mockGraphPruner.pruneHistory).not.toHaveBeenCalled();
+			expect(mockPruneHistory).not.toHaveBeenCalled();
 
 			jest.useRealTimers();
 		});

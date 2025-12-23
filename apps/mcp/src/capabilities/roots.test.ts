@@ -1,5 +1,5 @@
-import { createTestLogger } from "@engram/common/testing";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { createTestLogger } from "@engram/common/testing";
 import { RootsService } from "./roots";
 
 /**
@@ -27,6 +27,14 @@ describe("RootsService", () => {
 	let service: RootsService;
 
 	beforeEach(() => {
+		// Clear all mocks before each test
+		mockServer.server.listRoots.mockClear();
+		mockServer.server.setNotificationHandler.mockClear();
+		mockLogger.info.mockClear();
+		mockLogger.debug.mockClear();
+		mockLogger.warn.mockClear();
+		mockLogger.error.mockClear();
+
 		service = new RootsService(
 			mockServer as unknown as Parameters<typeof RootsService.prototype.constructor>[0],
 			mockLogger,

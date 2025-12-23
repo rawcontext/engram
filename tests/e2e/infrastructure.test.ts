@@ -1,12 +1,15 @@
-import { QdrantClient } from "@qdrant/js-client-rest";
 import { beforeAll, describe, expect, it } from "bun:test";
+import { QdrantClient } from "@qdrant/js-client-rest";
 import { createFalkorClient } from "../../packages/storage/src/index";
 
-// Real Clients
-const falkor = createFalkorClient();
-const qdrant = new QdrantClient({ url: "http://localhost:6333" });
+// Skip infrastructure tests when infrastructure isn't running
+const SKIP_INTEGRATION = process.env.SKIP_INTEGRATION === "true" || process.env.CI === "true";
 
-describe("Infrastructure E2E", () => {
+// Real Clients (only create if not skipping)
+const falkor = SKIP_INTEGRATION ? null : createFalkorClient();
+const qdrant = SKIP_INTEGRATION ? null : new QdrantClient({ url: "http://localhost:6333" });
+
+describe.skipIf(SKIP_INTEGRATION)("Infrastructure E2E", () => {
 	beforeAll(async () => {
 		// Wait for services to be ready
 		await new Promise((resolve) => setTimeout(resolve, 5000));

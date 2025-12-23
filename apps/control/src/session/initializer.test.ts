@@ -1,5 +1,5 @@
-import type { FalkorClient, GraphClient } from "@engram/storage";
 import { describe, expect, it, mock } from "bun:test";
+import type { FalkorClient, GraphClient } from "@engram/storage";
 import { createSessionInitializer, SessionInitializer } from "./initializer";
 
 describe("SessionInitializer", () => {

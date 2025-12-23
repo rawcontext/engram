@@ -30,5 +30,12 @@
 		"**/*.tsx",
 		".next/dev/types/**/*.ts"
 	],
-	"exclude": ["node_modules", "**/*.test.ts", "**/*.spec.ts", "app/e2e/**/*"]
+	"exclude": [
+		"node_modules",
+		"**/*.test.ts",
+		"**/*.spec.ts",
+		"app/e2e/**/*",
+		"**/test-preload.ts",
+		"e2e/**/*"
+	]
 }

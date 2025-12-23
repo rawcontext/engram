@@ -2,3 +2,11 @@
 # Root-level preload for monorepo-wide test mocking
 # Mocks module-level singletons (FalkorDB, NATS, Logger) before tests import them
 preload = ["./test-preload.ts"]
+
+# Exclude Playwright e2e tests (they use a different runner)
+# and other files that aren't Bun tests
+ignore = [
+  "**/*.spec.ts",
+  "**/playwright.config.ts",
+  "**/node_modules/**",
+]

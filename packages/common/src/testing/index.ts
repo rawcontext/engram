@@ -32,6 +32,8 @@
  * @module @engram/common/testing
  */
 
+import type { Mock } from "bun:test";
+import { mock } from "bun:test";
 import type {
 	FileTouchNode,
 	ObservationNode,
@@ -51,8 +53,6 @@ import type {
 	Producer,
 	RedisPublisher,
 } from "@engram/storage";
-import type { Mock } from "bun:test";
-import { mock } from "bun:test";
 
 // =============================================================================
 // ID Generation Utilities

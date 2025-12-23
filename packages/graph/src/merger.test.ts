@@ -1,5 +1,5 @@
-import type { FalkorClient } from "@engram/storage";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import type { FalkorClient } from "@engram/storage";
 import { GraphMerger } from "./merger";
 
 // Use shared logger mocks from root preload

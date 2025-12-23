@@ -1,5 +1,5 @@
-import { Hono } from "hono";
 import { describe, expect, it } from "bun:test";
+import { Hono } from "hono";
 import { createHealthRoutes } from "./health";
 
 describe("Health Routes", () => {

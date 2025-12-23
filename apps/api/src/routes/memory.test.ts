@@ -1,5 +1,5 @@
-import { Hono } from "hono";
 import { describe, expect, it, mock } from "bun:test";
+import { Hono } from "hono";
 import { createMemoryRoutes } from "./memory";
 
 // Mock API key context middleware
@@ -120,11 +120,9 @@ describe("Memory Routes", () => {
 	describe("POST /memory/recall", () => {
 		it("should search memories successfully", async () => {
 			const mockMemoryService = {
-				recall: vi
-					.fn()
-					.mockResolvedValue([
-						{ id: "m1", content: "Test memory", type: "fact", tags: [], score: 0.95 },
-					]),
+				recall: mock().mockResolvedValue([
+					{ id: "m1", content: "Test memory", type: "fact", tags: [], score: 0.95 },
+				]),
 			};
 
 			const app = createApp(mockMemoryService);
@@ -257,11 +255,9 @@ describe("Memory Routes", () => {
 	describe("POST /memory/context", () => {
 		it("should get context successfully", async () => {
 			const mockMemoryService = {
-				getContext: vi
-					.fn()
-					.mockResolvedValue([
-						{ type: "memory", content: "Relevant memory", relevance: 0.9, source: "memory:1" },
-					]),
+				getContext: mock().mockResolvedValue([
+					{ type: "memory", content: "Relevant memory", relevance: 0.9, source: "memory:1" },
+				]),
 			};
 
 			const app = createApp(mockMemoryService);

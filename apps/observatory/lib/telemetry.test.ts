@@ -1,5 +1,5 @@
-import type { NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import type { NextResponse } from "next/server";
 
 // Logger is mocked in root preload (test-preload.ts)
 const mockLoggerInfo = globalThis.__testMocks.logger.info;

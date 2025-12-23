@@ -1,5 +1,5 @@
-import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
 import type { SearchClient } from "../clients/search";
 import { MemoryRetriever } from "./memory-retriever";
 

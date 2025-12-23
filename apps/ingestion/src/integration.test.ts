@@ -1,6 +1,6 @@
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 
 const PORT = 5002; // Use different port than main service
 const BASE_URL = `http://localhost:${PORT}`;

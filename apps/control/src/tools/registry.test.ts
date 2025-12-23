@@ -178,10 +178,11 @@ describe("ToolRegistry", () => {
 		});
 
 		it("should cache tool embeddings", async () => {
-			// First call
+			// First call - embeds tools and query
 			await registry.selectTools("test query", 2);
 
-			// Clear mock call count
+			// Clear mock call count to verify second call behavior
+			mockSearchClient.embed.mockClear();
 
 			// Second call with different query
 			await registry.selectTools("another query", 2);

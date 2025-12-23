@@ -1,5 +1,5 @@
-import { createTestLogger } from "@engram/common/testing";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { createTestLogger } from "@engram/common/testing";
 import { ElicitationService } from "./elicitation";
 
 /**

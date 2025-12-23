@@ -1,5 +1,5 @@
-import { rm } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { rm } from "node:fs/promises";
 import { EvaluationCache } from "../src/executor/cache.js";
 import type { TrialMetrics } from "../src/executor/trial-runner.js";
 

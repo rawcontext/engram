@@ -1,4 +1,4 @@
-import { spyOn, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { SearchClient } from "./search";
 
 // Mock fetch globally
@@ -9,6 +9,8 @@ describe("SearchClient", () => {
 	const baseUrl = "http://localhost:5002";
 
 	beforeEach(() => {
+		// Clear fetch mock before each test
+		(global.fetch as Mock).mockClear();
 		client = new SearchClient(baseUrl);
 	});
 

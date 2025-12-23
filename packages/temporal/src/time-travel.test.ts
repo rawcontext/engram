@@ -1,5 +1,5 @@
-import { VirtualFileSystem } from "@engram/vfs";
 import { describe, expect, it, mock } from "bun:test";
+import { VirtualFileSystem } from "@engram/vfs";
 import type { Rehydrator } from "./rehydrator";
 import { TimeTravelService } from "./time-travel";
 

@@ -1,6 +1,6 @@
+import { describe, expect, it } from "bun:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { describe, expect, it } from "bun:test";
 
 const WASSETTE_PATH = `${process.env.HOME}/.local/bin/wassette`;
 

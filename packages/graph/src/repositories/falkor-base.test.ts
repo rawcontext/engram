@@ -1,5 +1,5 @@
-import type { GraphClient } from "@engram/storage";
 import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import type { GraphClient } from "@engram/storage";
 import { MAX_DATE } from "../utils/time";
 import { FalkorBaseRepository } from "./falkor-base";
 

@@ -1,5 +1,5 @@
-import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
 import { MemoryStore } from "./memory-store";
 
 // Create typed mock instances
@@ -10,6 +10,12 @@ describe("MemoryStore", () => {
 	let store: MemoryStore;
 
 	beforeEach(() => {
+		// Clear all mock call counts before each test
+		mockGraphClient.connect.mockClear();
+		mockGraphClient.disconnect.mockClear();
+		mockGraphClient.query.mockClear();
+		mockGraphClient.isConnected.mockClear();
+
 		store = new MemoryStore({
 			graphClient: mockGraphClient,
 			logger: mockLogger,
@@ -235,10 +241,13 @@ describe("MemoryStore", () => {
 		it("should not connect again if already connected", async () => {
 			await store.connect();
 
+			// Clear the call count to isolate the second call
+			mockGraphClient.connect.mockClear();
+
 			// Try to connect again
 			await store.connect();
 
-			// Should not have called connect again
+			// Should not have called connect again (already connected)
 			expect(mockGraphClient.connect).not.toHaveBeenCalled();
 		});
 

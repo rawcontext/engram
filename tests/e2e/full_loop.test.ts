@@ -1,10 +1,13 @@
+import { describe, expect, it } from "bun:test";
 import { RawStreamEventSchema } from "@engram/events";
 import { createNatsClient } from "@engram/storage";
-import { describe, expect, it } from "bun:test";
 
-const nats = createNatsClient("e2e-test");
+// Skip E2E tests when infrastructure isn't running
+const SKIP_INTEGRATION = process.env.SKIP_INTEGRATION === "true" || process.env.CI === "true";
 
-describe("E2E Full Loop", () => {
+const nats = SKIP_INTEGRATION ? null : createNatsClient("e2e-test");
+
+describe.skipIf(SKIP_INTEGRATION)("E2E Full Loop", () => {
 	it("should ingest and process event end-to-end", async () => {
 		const sessionId = crypto.randomUUID();
 		const eventId = crypto.randomUUID();

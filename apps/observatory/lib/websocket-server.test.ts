@@ -1,5 +1,5 @@
-import type { SessionUpdate } from "@engram/storage/nats";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import type { SessionUpdate } from "@engram/storage/nats";
 
 // =============================================================================
 // Mock Setup

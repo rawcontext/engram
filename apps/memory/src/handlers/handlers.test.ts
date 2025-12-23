@@ -1,5 +1,5 @@
-import type { ParsedStreamEvent } from "@engram/events";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import type { ParsedStreamEvent } from "@engram/events";
 import { ContentEventHandler } from "./content.handler";
 import { ControlEventHandler } from "./control.handler";
 import { DiffEventHandler } from "./diff.handler";
@@ -143,6 +143,16 @@ describe("ContentEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
+		// Clear shared mocks
+		mockGraphClient.connect.mockClear();
+		mockGraphClient.disconnect.mockClear();
+		mockGraphClient.query.mockClear();
+		mockGraphClient.isConnected.mockClear();
+		mockLogger.debug.mockClear();
+		mockLogger.info.mockClear();
+		mockLogger.warn.mockClear();
+		mockLogger.error.mockClear();
+
 		handler = new ContentEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -484,6 +494,16 @@ describe("ToolCallEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
+		// Clear shared mocks
+		mockGraphClient.connect.mockClear();
+		mockGraphClient.disconnect.mockClear();
+		mockGraphClient.query.mockClear();
+		mockGraphClient.isConnected.mockClear();
+		mockLogger.debug.mockClear();
+		mockLogger.info.mockClear();
+		mockLogger.warn.mockClear();
+		mockLogger.error.mockClear();
+
 		handler = new ToolCallEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -677,9 +697,9 @@ describe("ToolCallEventHandler", () => {
 		await handler.handle(event, turn, context);
 
 		// Should not try to create TRIGGERS edges
-		const triggersQuery = vi
-			.mocked(mockGraphClient.query)
-			.mock.calls.find((call) => call[0]?.includes("TRIGGERS"));
+		const triggersQuery = mockGraphClient.query.mock.calls.find((call: unknown[]) =>
+			(call[0] as string)?.includes("TRIGGERS"),
+		);
 		expect(triggersQuery).toBeUndefined();
 	});
 
@@ -1004,6 +1024,16 @@ describe("DiffEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
+		// Clear shared mocks
+		mockGraphClient.connect.mockClear();
+		mockGraphClient.disconnect.mockClear();
+		mockGraphClient.query.mockClear();
+		mockGraphClient.isConnected.mockClear();
+		mockLogger.debug.mockClear();
+		mockLogger.info.mockClear();
+		mockLogger.warn.mockClear();
+		mockLogger.error.mockClear();
+
 		handler = new DiffEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -1109,9 +1139,9 @@ describe("DiffEventHandler", () => {
 		await handler.handle(event, turn, context);
 
 		// Should have called graph to create DiffHunk node
-		const diffHunkQuery = vi
-			.mocked(mockGraphClient.query)
-			.mock.calls.find((call) => call[0]?.includes("CREATE (dh:DiffHunk"));
+		const diffHunkQuery = mockGraphClient.query.mock.calls.find((call: unknown[]) =>
+			(call[0] as string)?.includes("CREATE (dh:DiffHunk"),
+		);
 		expect(diffHunkQuery).toBeDefined();
 	});
 
@@ -1316,10 +1346,10 @@ describe("DiffEventHandler", () => {
 
 		await handler.handle(event, turn, context);
 
-		const updateCall = vi
-			.mocked(mockGraphClient.query)
-			.mock.calls.find((call) => call[0]?.includes("SET tc.file_path"));
-		expect(updateCall[1].diffPreview.length).toBe(500);
+		const updateCall = mockGraphClient.query.mock.calls.find((call: unknown[]) =>
+			(call[0] as string)?.includes("SET tc.file_path"),
+		);
+		expect((updateCall?.[1] as { diffPreview: string })?.diffPreview.length).toBe(500);
 	});
 
 	it("should handle diff when file is not in filesTouched yet", async () => {
@@ -1392,6 +1422,16 @@ describe("UsageEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
+		// Clear shared mocks
+		mockGraphClient.connect.mockClear();
+		mockGraphClient.disconnect.mockClear();
+		mockGraphClient.query.mockClear();
+		mockGraphClient.isConnected.mockClear();
+		mockLogger.debug.mockClear();
+		mockLogger.info.mockClear();
+		mockLogger.warn.mockClear();
+		mockLogger.error.mockClear();
+
 		handler = new UsageEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();

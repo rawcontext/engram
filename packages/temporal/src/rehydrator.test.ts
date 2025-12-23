@@ -1,4 +1,4 @@
-import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 
 // Mock @engram/storage before importing the unit under test
 const mockBlobStoreLoad = mock(async () => "{}");
@@ -12,6 +12,9 @@ mock.module("@engram/storage", () => ({
 	}),
 	createFalkorClient: () => ({
 		query: mockFalkorClientQuery,
+		connect: mock(async () => {}),
+		disconnect: mock(async () => {}),
+		isConnected: mock(() => false),
 	}),
 }));
 

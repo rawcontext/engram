@@ -1,9 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
+import { ThinkingExtractor } from "@engram/parser";
 import { ContextAssembler } from "../../apps/control/src/context/assembler";
 import { DecisionEngine } from "../../apps/control/src/engine/decision";
 import { McpToolAdapter, MultiMcpAdapter } from "../../apps/control/src/tools/mcp_client";
-// Import directly from source to avoid resolution issues in test environment without build
-import { ThinkingExtractor } from "../../packages/ingestion-core/src/index";
 
 // Mocks
 const mockMcp = new MultiMcpAdapter();

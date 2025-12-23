@@ -1,6 +1,6 @@
-import type { BlobStore, FalkorClient } from "@engram/storage";
 import type { Mock } from "bun:test";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import type { BlobStore, FalkorClient } from "@engram/storage";
 import { GraphPruner } from "./pruner";
 
 /**
