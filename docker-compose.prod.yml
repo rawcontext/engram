@@ -211,6 +211,7 @@ services:
       - API_URL=http://api:6174
       - SEARCH_URL=http://search:6176
       - FALKORDB_URL=redis://falkordb:6379
+      - NATS_URL=nats://nats:4222
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=https://observatory.statient.com
       - NEXT_PUBLIC_BETTER_AUTH_URL=https://observatory.statient.com
@@ -221,6 +222,8 @@ services:
       api:
         condition: service_healthy
       falkordb:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:

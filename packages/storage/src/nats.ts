@@ -369,7 +369,7 @@ export function createNatsPubSubSubscriber(): NatsPubSubSubscriber {
 	const ensureConnected = async (): Promise<NatsConnection> => {
 		if (nc && !nc.isClosed()) return nc;
 
-		const url = process.env.NATS_URL || "nats://localhost:4222";
+		const url = process.env.NATS_URL || "nats://localhost:6181";
 		nc = await connect({ servers: url, timeout: NATS_CONNECT_TIMEOUT_MS });
 		console.log("[NATS PubSub Subscriber] Connected");
 		return nc;
