@@ -24,14 +24,24 @@ Usage:
     embeddings = late_chunker.embed_chunks(full_text, chunk_texts)
 """
 
-from src.chunking.late import ChunkBoundary, LateChunker, LateChunkResult
 from src.chunking.semantic import Chunk, ChunkingConfig, SemanticChunker
 
-__all__ = [
-    "Chunk",
-    "ChunkBoundary",
-    "ChunkingConfig",
-    "LateChunker",
-    "LateChunkResult",
-    "SemanticChunker",
-]
+# Late chunking requires torch (optional dependency)
+try:
+    from src.chunking.late import ChunkBoundary, LateChunker, LateChunkResult
+
+    __all__ = [
+        "Chunk",
+        "ChunkBoundary",
+        "ChunkingConfig",
+        "LateChunker",
+        "LateChunkResult",
+        "SemanticChunker",
+    ]
+except ImportError:
+    # torch not installed - late chunking unavailable
+    __all__ = [
+        "Chunk",
+        "ChunkingConfig",
+        "SemanticChunker",
+    ]

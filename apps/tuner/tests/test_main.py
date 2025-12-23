@@ -99,8 +99,8 @@ class TestLifespan:
             mock_auth_handler.disconnect.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_lifespan_handles_auth_failure(self) -> None:
-        """Test that lifespan handles auth initialization failure gracefully."""
+    async def test_lifespan_raises_on_auth_failure(self) -> None:
+        """Test that lifespan raises RuntimeError when auth fails (security-critical)."""
         test_app = create_app()
 
         with patch("tuner.main.ApiKeyAuth") as mock_auth_class, patch(
@@ -113,9 +113,12 @@ class TestLifespan:
             mock_auth_handler.connect.side_effect = Exception("Auth failed")
             mock_auth_class.return_value = mock_auth_handler
 
-            async with lifespan(test_app):
-                # Should not raise, just log warning
-                pass
+            with pytest.raises(RuntimeError) as exc_info:
+                async with lifespan(test_app):
+                    pass
+
+            assert "Auth database connection failed" in str(exc_info.value)
+            assert "AUTH_ENABLED=false" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_lifespan_skips_auth_when_disabled(self) -> None:

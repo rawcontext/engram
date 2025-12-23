@@ -1,28 +1,29 @@
 """Tests for chunking module (semantic and late chunking)."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
 import pytest
 
-# Test imports from __init__.py to improve coverage
 from src.chunking import (
     Chunk,
-    ChunkBoundary,
     ChunkingConfig,
-    LateChunkResult,
     SemanticChunker,
 )
 
 # Conditionally import torch-dependent items
 try:
     import torch
-    from src.chunking import LateChunker
+
+    from src.chunking import ChunkBoundary, LateChunker, LateChunkResult
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
     torch = None  # type: ignore
     LateChunker = None  # type: ignore
+    ChunkBoundary = None  # type: ignore
+    LateChunkResult = None  # type: ignore
 
 
 class TestChunkingConfig:
@@ -87,6 +88,7 @@ class TestChunk:
         assert chunk.char_count == 11
 
 
+@pytest.mark.skipif(not TORCH_AVAILABLE, reason="torch not installed")
 class TestChunkBoundary:
     """Tests for ChunkBoundary dataclass."""
 
@@ -107,6 +109,7 @@ class TestChunkBoundary:
         assert boundary.end_char == 150
 
 
+@pytest.mark.skipif(not TORCH_AVAILABLE, reason="torch not installed")
 class TestLateChunkResult:
     """Tests for LateChunkResult dataclass."""
 
@@ -589,7 +592,7 @@ class TestSemanticChunker:
         ]
 
         sentences = ["Text", "__CODE_BLOCK_0__", "More text"]
-        breakpoints = await chunker._find_breakpoints(sentences)
+        await chunker._find_breakpoints(sentences)
 
         # Should only embed non-placeholder sentences
         assert mock_embedder.embed_batch.call_count == 1

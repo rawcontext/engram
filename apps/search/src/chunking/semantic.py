@@ -4,14 +4,25 @@ Uses embedding similarity between consecutive sentences to identify
 natural breakpoints in the text. Preserves code blocks intact.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 from pydantic import BaseModel, Field
 
-from src.embedders.text import TextEmbedder
+if TYPE_CHECKING:
+    from src.embedders.text import TextEmbedder
+
+
+class EmbedderProtocol(Protocol):
+    """Protocol for embedder interface used by SemanticChunker."""
+
+    async def embed_batch(self, texts: list[str], is_query: bool = False) -> list[Any]: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +114,7 @@ class SemanticChunker:
 
     def __init__(
         self,
-        embedder: TextEmbedder,
+        embedder: EmbedderProtocol | TextEmbedder,
         config: ChunkingConfig | None = None,
     ) -> None:
         """Initialize the semantic chunker.
