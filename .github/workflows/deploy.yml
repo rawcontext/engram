@@ -466,6 +466,14 @@ jobs:
             docker compose -f docker-compose.prod.yml stop caddy 2>/dev/null || true
             docker compose -f docker-compose.prod.yml rm -f caddy 2>/dev/null || true
 
+            echo "Removing orphan containers..."
+            docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
+            docker compose -f docker-compose.prod.yml up -d nats qdrant falkordb postgres
+
+            echo "Checking what's using port 80..."
+            sudo lsof -i :80 || echo "Nothing found on port 80"
+            sudo fuser -k 80/tcp 2>/dev/null || true
+
             echo "Pulling Caddy image..."
             docker compose -f docker-compose.prod.yml pull caddy
 
