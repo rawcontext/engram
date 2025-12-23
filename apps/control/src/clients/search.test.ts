@@ -1,18 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
-// Mock logger - must be defined before mock.module
-const mockCreateNodeLogger = mock(() => ({
-	info: mock(),
-	error: mock(),
-	warn: mock(),
-	debug: mock(),
-}));
+// Logger is mocked in root preload (test-preload.ts)
 
-mock.module("@engram/logger", () => ({
-	createNodeLogger: mockCreateNodeLogger,
-}));
-
-// Import after mocking
 import {
 	createSearchClient,
 	type EmbedResponse,
@@ -25,9 +14,6 @@ describe("SearchClient", () => {
 	let fetchMock: ReturnType<typeof mock>;
 
 	beforeEach(() => {
-		// Clear individual mocks
-		mockCreateNodeLogger.mockClear();
-
 		// Mock global fetch
 		fetchMock = mock();
 		global.fetch = fetchMock;

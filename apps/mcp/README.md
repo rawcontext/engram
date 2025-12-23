@@ -75,7 +75,7 @@ bun run infra:up
 This starts:
 - FalkorDB (graph database) on port 6379
 - Qdrant (vector store) on port 6333
-- Redpanda (event streaming) on port 9092
+- NATS (event streaming) on port 4222
 - Search service (Python/FastAPI) on port 5002
 
 ## Environment Variables
@@ -429,7 +429,7 @@ npm publish --access public
 - **Bitemporal Graph**: All nodes have `vt_start/vt_end` (valid time) and `tt_start/tt_end` (transaction time) for time-travel queries
 - **Hybrid Search**: Combines dense vector embeddings (semantic) with BM25 keyword search for optimal retrieval
 - **Memory Storage**: Memories are stored as graph nodes with relationships to sessions, files, and projects
-- **Event Streaming**: Integration with Kafka (Redpanda) for real-time event processing in the broader Engram system
+- **Event Streaming**: Integration with NATS JetStream for real-time event processing in the broader Engram system
 
 ## License
 

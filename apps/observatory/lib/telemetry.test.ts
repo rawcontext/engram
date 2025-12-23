@@ -1,13 +1,8 @@
 import type { NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
-// Mock @engram/logger before imports
-const mockLoggerInfo = mock();
-mock.module("@engram/logger", () => ({
-	createNodeLogger: () => ({
-		info: mockLoggerInfo,
-	}),
-}));
+// Logger is mocked in root preload (test-preload.ts)
+const mockLoggerInfo = globalThis.__testMocks.logger.info;
 
 import { trackUsage, withTelemetry } from "./telemetry";
 

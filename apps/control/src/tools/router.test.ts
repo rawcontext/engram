@@ -1,34 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
-// Mock dependencies - must be defined before mock.module calls
-const mockCreateNodeLogger = mock(() => ({
-	info: mock(),
-	error: mock(),
-	warn: mock(),
-	debug: mock(),
-}));
-
-const mockCreateFalkorClient = mock(() => ({
-	connect: mock().mockResolvedValue(undefined),
-	disconnect: mock().mockResolvedValue(undefined),
-	query: mock().mockResolvedValue([]),
-	isConnected: mock().mockReturnValue(false),
-}));
-
-const mockCreateBlobStore = mock(() => ({
-	save: mock().mockResolvedValue("blob://test"),
-	load: mock().mockResolvedValue(Buffer.from("{}")),
-	exists: mock().mockResolvedValue(false),
-}));
-
-mock.module("@engram/logger", () => ({
-	createNodeLogger: mockCreateNodeLogger,
-}));
-
-mock.module("@engram/storage", () => ({
-	createFalkorClient: mockCreateFalkorClient,
-	createBlobStore: mockCreateBlobStore,
-}));
+// Logger and storage are mocked in root preload (test-preload.ts)
 
 // Import after mocking
 import { VirtualFileSystem } from "@engram/vfs";
@@ -42,11 +14,6 @@ describe("ToolRouter", () => {
 	let router: ToolRouter;
 
 	beforeEach(() => {
-		// Clear individual mocks
-		mockCreateNodeLogger.mockClear();
-		mockCreateFalkorClient.mockClear();
-		mockCreateBlobStore.mockClear();
-
 		// Create real ExecutionService with a VFS
 		const vfs = new VirtualFileSystem();
 		executionService = new ExecutionService({ vfs });

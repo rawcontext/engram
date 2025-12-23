@@ -29,6 +29,32 @@ mock.module("@engram/storage/falkor", () => ({
 	createFalkorClient: mock(() => mockFalkorClient),
 }));
 
+// Also mock blob store
+const mockBlobStore = {
+	save: mock(async () => "blob://test"),
+	load: mock(async () => Buffer.from("{}")),
+	exists: mock(async () => false),
+};
+
+// Create a mock NATS client for @engram/storage
+const mockNatsClientInstance = {
+	getConsumer: mock(async () => ({
+		subscribe: mock(async () => {}),
+		run: mock(async () => {}),
+		disconnect: mock(async () => {}),
+	})),
+	sendEvent: mock(async () => {}),
+	connect: mock(async () => {}),
+	disconnect: mock(async () => {}),
+};
+
+// Mock the main @engram/storage entry point (re-exports)
+mock.module("@engram/storage", () => ({
+	createFalkorClient: mock(() => mockFalkorClient),
+	createBlobStore: mock(() => mockBlobStore),
+	createNatsClient: mock(() => mockNatsClientInstance),
+}));
+
 // =============================================================================
 // NATS Mocks
 // =============================================================================
@@ -67,17 +93,32 @@ mock.module("@engram/storage/nats", () => ({
 }));
 
 // =============================================================================
-// Logger Mocks (only exposed for packages that need it, not globally mocked)
+// Logger Mocks
 // =============================================================================
 
 const mockLoggerInfo = mock();
 const mockLoggerWarn = mock();
 const mockLoggerError = mock();
 const mockLoggerDebug = mock();
+const mockLoggerTrace = mock();
+const mockLoggerFatal = mock();
 
-// Note: Logger is NOT mocked globally because many tests have their own logger mocks.
-// Only packages with module-level logger singletons (like graph/merger.ts) need preload mocking.
-// Those packages should use their own bunfig.toml with a local preload.
+const mockLogger = {
+	info: mockLoggerInfo,
+	warn: mockLoggerWarn,
+	error: mockLoggerError,
+	debug: mockLoggerDebug,
+	trace: mockLoggerTrace,
+	fatal: mockLoggerFatal,
+};
+
+mock.module("@engram/logger", () => ({
+	createNodeLogger: mock(() => mockLogger),
+	pino: {
+		destination: mock((_fd: number) => ({ write: mock() })),
+	},
+	withTraceContext: mock((logger: unknown, _context: unknown) => logger),
+}));
 
 // =============================================================================
 // Export mocks for test files to access
@@ -100,10 +141,13 @@ declare global {
 			disconnect: typeof mockNatsDisconnect;
 		};
 		logger: {
+			instance: typeof mockLogger;
 			info: typeof mockLoggerInfo;
 			warn: typeof mockLoggerWarn;
 			error: typeof mockLoggerError;
 			debug: typeof mockLoggerDebug;
+			trace: typeof mockLoggerTrace;
+			fatal: typeof mockLoggerFatal;
 		};
 	};
 }
@@ -124,9 +168,12 @@ globalThis.__testMocks = {
 		disconnect: mockNatsDisconnect,
 	},
 	logger: {
+		instance: mockLogger,
 		info: mockLoggerInfo,
 		warn: mockLoggerWarn,
 		error: mockLoggerError,
 		debug: mockLoggerDebug,
+		trace: mockLoggerTrace,
+		fatal: mockLoggerFatal,
 	},
 };

@@ -25,16 +25,13 @@ describe("ElicitationService", () => {
 	let service: ElicitationService;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		service = new ElicitationService(
 			mockServer as unknown as Parameters<typeof ElicitationService.prototype.constructor>[0],
 			mockLogger,
 		);
 	});
 
-	afterEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	afterEach(() => {});
 
 	describe("enable", () => {
 		it("should enable elicitation capability", () => {

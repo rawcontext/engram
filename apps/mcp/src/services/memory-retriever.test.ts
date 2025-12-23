@@ -16,7 +16,6 @@ describe("MemoryRetriever", () => {
 	let retriever: MemoryRetriever;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		retriever = new MemoryRetriever({
 			graphClient: mockGraphClient,
 			searchClient: mockSearchClient,
@@ -24,9 +23,7 @@ describe("MemoryRetriever", () => {
 		});
 	});
 
-	afterEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	afterEach(() => {});
 
 	describe("recall", () => {
 		it("should combine results from Qdrant and graph search", async () => {

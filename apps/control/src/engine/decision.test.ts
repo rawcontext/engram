@@ -214,13 +214,10 @@ describe("DecisionEngine", () => {
 	});
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		mockGenerateText.mockReset();
 	});
 
-	afterEach(() => {
-		// vi.restoreAllMocks(); // TODO: Restore individual mocks
-	});
+	afterEach(() => {});
 
 	describe("constructor", () => {
 		it("should create engine with all dependencies", () => {

@@ -10,16 +10,13 @@ describe("MemoryStore", () => {
 	let store: MemoryStore;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		store = new MemoryStore({
 			graphClient: mockGraphClient,
 			logger: mockLogger,
 		});
 	});
 
-	afterEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	afterEach(() => {});
 
 	describe("createMemory", () => {
 		it("should create a new memory when no duplicate exists", async () => {
@@ -215,7 +212,6 @@ describe("MemoryStore", () => {
 		it("should not disconnect connection that was already connected", async () => {
 			// Simulate already connected state
 			await store.connect();
-			// vi.clearAllMocks(); // TODO: Clear individual mocks
 
 			// Create memory with already-connected store
 			mockGraphClient.query.mockResolvedValueOnce([]);
@@ -238,7 +234,6 @@ describe("MemoryStore", () => {
 
 		it("should not connect again if already connected", async () => {
 			await store.connect();
-			// vi.clearAllMocks(); // TODO: Clear individual mocks
 
 			// Try to connect again
 			await store.connect();

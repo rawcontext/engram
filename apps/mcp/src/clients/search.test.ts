@@ -9,13 +9,10 @@ describe("SearchClient", () => {
 	const baseUrl = "http://localhost:5002";
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		client = new SearchClient(baseUrl);
 	});
 
-	afterEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	afterEach(() => {});
 
 	describe("search", () => {
 		it("should make a POST request to /search endpoint", async () => {

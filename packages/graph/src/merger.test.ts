@@ -1,22 +1,9 @@
 import type { FalkorClient } from "@engram/storage";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-
-// Create mocks before mock.module
-const mockLoggerWarn = mock();
-const mockLoggerInfo = mock();
-
-// Mock logger BEFORE importing merger.ts (which creates module-level logger singleton)
-mock.module("@engram/logger", () => ({
-	createNodeLogger: () => ({
-		info: mockLoggerInfo,
-		warn: mockLoggerWarn,
-		error: mock(),
-		debug: mock(),
-	}),
-}));
-
-// Import after mocking
 import { GraphMerger } from "./merger";
+
+// Use shared logger mocks from root preload
+const { warn: mockLoggerWarn, info: mockLoggerInfo } = globalThis.__testMocks.logger;
 
 describe("GraphMerger", () => {
 	beforeEach(() => {

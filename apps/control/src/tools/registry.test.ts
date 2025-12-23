@@ -74,7 +74,6 @@ describe("ToolRegistry", () => {
 	];
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		mockSearchClient = createMockSearchClient();
 		registry = new ToolRegistry(mockSearchClient);
 
@@ -183,7 +182,6 @@ describe("ToolRegistry", () => {
 			await registry.selectTools("test query", 2);
 
 			// Clear mock call count
-			// vi.clearAllMocks(); // TODO: Clear individual mocks
 
 			// Second call with different query
 			await registry.selectTools("another query", 2);

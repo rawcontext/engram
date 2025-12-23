@@ -75,7 +75,6 @@ describe("TurnAggregator", () => {
 	let aggregator: TurnAggregator;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		mockGraphClient = createTestGraphClient();
 		mockLogger = createTestLogger();
 		mockNodeCreated = mock();
@@ -1075,8 +1074,6 @@ describe("TurnAggregator", () => {
 				createTestEvent({ type: "content", role: "user", content: "Second" }),
 				session2,
 			);
-
-			// vi.clearAllMocks(); // TODO: Clear individual mocks
 
 			// The first turn is already finalized because we started a new turn
 			// cleanupStaleTurns should still work on the second turn which is not finalized

@@ -143,7 +143,6 @@ describe("ContentEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new ContentEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -228,7 +227,6 @@ describe("ContentEventHandler", () => {
 		handler.cleanupTurn(turnId);
 
 		// Processing more content shouldn't trigger update immediately
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		turn.assistantContent = "x".repeat(500);
 		const event2 = createTestEvent({
 			type: "content",
@@ -328,7 +326,6 @@ describe("ThoughtEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new ThoughtEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -487,7 +484,6 @@ describe("ToolCallEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new ToolCallEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -1008,7 +1004,6 @@ describe("DiffEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new DiffEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -1397,7 +1392,6 @@ describe("UsageEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new UsageEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -1546,7 +1540,6 @@ describe("ControlEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new ControlEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();

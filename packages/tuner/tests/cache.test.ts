@@ -296,7 +296,8 @@ describe("EvaluationCache", () => {
 
 		it("should handle clear when cache dir does not exist", async () => {
 			const newCache = new EvaluationCache(".nonexistent-cache-dir-2");
-			await expect(newCache.clear()).resolves.not.toThrow();
+			// Should not throw - just verify it completes successfully
+			await newCache.clear();
 		});
 	});
 });

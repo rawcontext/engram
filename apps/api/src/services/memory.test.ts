@@ -18,13 +18,9 @@ describe("MemoryService", () => {
 		query: mock(),
 	});
 
-	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	beforeEach(() => {});
 
-	afterEach(() => {
-		// vi.restoreAllMocks(); // TODO: Restore individual mocks
-	});
+	afterEach(() => {});
 
 	describe("remember", () => {
 		it("should store new memory", async () => {

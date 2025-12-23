@@ -25,16 +25,13 @@ describe("SamplingService", () => {
 	let service: SamplingService;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		service = new SamplingService(
 			mockServer as unknown as Parameters<typeof SamplingService.prototype.constructor>[0],
 			mockLogger,
 		);
 	});
 
-	afterEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	afterEach(() => {});
 
 	describe("enable", () => {
 		it("should enable sampling capability", () => {

@@ -31,23 +31,9 @@ mock.module("../context/assembler", () => ({
 	}),
 }));
 
-// Mock storage
-mock.module("@engram/storage", () => ({
-	createFalkorClient: () => ({
-		connect: mock(async () => {}),
-	}),
-}));
-
-// Mock logger
-const mockLoggerInfo = mock();
-mock.module("@engram/logger", () => ({
-	createNodeLogger: () => ({
-		info: mockLoggerInfo,
-		error: mock(),
-		warn: mock(),
-		debug: mock(),
-	}),
-}));
+// Storage and logger are mocked in root preload (test-preload.ts)
+// Access shared logger mocks
+const mockLoggerInfo = globalThis.__testMocks.logger.info;
 
 // Import after mocks are set up
 import { createSessionManager, SessionManager } from "./manager";

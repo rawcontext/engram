@@ -103,8 +103,7 @@ Observatory communicates with the Python search service:
 - **Infrastructure**: Running via `bun run infra:up` from monorepo root
   - FalkorDB (Redis-based graph): port 6379
   - Qdrant (vector store): port 6333
-  - Redpanda (Kafka): port 19092
-  - Redis (pub/sub): port 6379
+  - NATS JetStream: port 4222
 
 ### Setup
 
@@ -232,7 +231,7 @@ apps/observatory/
 - **Real-time**: WebSocket (native `ws` library)
 - **Graph DB**: FalkorDB (via `@engram/storage`)
 - **Vector Search**: Qdrant (via Python search service)
-- **Streaming Events**: Redpanda/Kafka
+- **Streaming Events**: NATS JetStream
 
 ### API & GraphQL
 - **GraphQL**: GraphQL Yoga (lightweight, standards-compliant)
@@ -481,12 +480,11 @@ type SearchResult {
 
 **Solutions**:
 1. Start all services: `bun run dev` from monorepo root
-2. Check Redpanda: http://localhost:8080 (Redpanda Console)
-3. Verify consumer groups:
+2. Check NATS streams:
    ```bash
-   docker exec -it redpanda rpk group list
+   docker exec -it engram-nats-1 nats stream ls
    ```
-4. Check Redis pub/sub:
+3. Check Redis pub/sub:
    ```bash
    docker exec -it redis redis-cli
    > PSUBSCRIBE consumers:*

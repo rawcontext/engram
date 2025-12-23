@@ -43,13 +43,9 @@ function createTestContext(body: unknown): MockContext {
 }
 
 describe("Ingest Handlers", () => {
-	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	beforeEach(() => {});
 
-	afterEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	afterEach(() => {});
 
 	describe("handleIngestEvent", () => {
 		it("should accept valid tool_call event", async () => {
@@ -396,7 +392,6 @@ describe("Ingest Handlers", () => {
 			];
 
 			for (const { toolName, expectedType } of testCases) {
-				// vi.clearAllMocks(); // TODO: Clear individual mocks
 				const c = createTestContext({
 					client: "test",
 					session_id: "test",
@@ -564,7 +559,6 @@ describe("Ingest Handlers", () => {
 			];
 
 			for (const { client, expected } of testCases) {
-				// vi.clearAllMocks(); // TODO: Clear individual mocks
 				const c = createTestContext({
 					client,
 					session_id: "test",

@@ -184,7 +184,7 @@ bun run infra:up
 ```
 
 This starts:
-- Redpanda (Kafka) on `localhost:19092`
+- NATS JetStream on `localhost:4222`
 - FalkorDB (Redis protocol) on `localhost:6379`
 
 ## Configuration
@@ -194,7 +194,7 @@ This starts:
 | Variable | Description | Default |
 |:---------|:------------|:--------|
 | `PORT` | HTTP server port | `5001` |
-| `KAFKA_BROKERS` | Kafka broker addresses | `localhost:19092` |
+| `NATS_URL` | NATS connection URL | `nats://localhost:4222` |
 | `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
 
 ### Extractor Configuration
@@ -255,9 +255,9 @@ The service handles `SIGTERM` and `SIGINT` signals:
 
 ### Consumer Not Starting
 
-Check Kafka connectivity:
+Check NATS connectivity:
 ```bash
-docker exec -it redpanda rpk cluster info
+docker exec -it engram-nats-1 nats stream ls
 ```
 
 ### Events Not Being Parsed
@@ -273,7 +273,7 @@ Check if provider is supported:
 
 View DLQ events:
 ```bash
-docker exec -it redpanda rpk topic consume ingestion.dead_letter
+docker exec -it engram-nats-1 nats consumer info EVENTS dead_letter
 ```
 
 ### Memory Leaks from Extractors

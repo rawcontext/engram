@@ -27,16 +27,13 @@ describe("RootsService", () => {
 	let service: RootsService;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		service = new RootsService(
 			mockServer as unknown as Parameters<typeof RootsService.prototype.constructor>[0],
 			mockLogger,
 		);
 	});
 
-	afterEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	afterEach(() => {});
 
 	describe("enable", () => {
 		it("should enable roots capability", () => {

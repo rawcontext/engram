@@ -56,7 +56,6 @@ describe("loadConfig", () => {
 	const originalEnv = process.env;
 
 	beforeEach(() => {
-		// vi.resetModules(); // Not needed in Bun
 		process.env = { ...originalEnv };
 	});
 

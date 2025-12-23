@@ -69,7 +69,6 @@ describe("ContextAssembler", () => {
 	let mockSearchClient: SearchClient;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		mockGraphClient = createMockGraphClient();
 		mockSearchClient = createMockSearchClient();
 	});

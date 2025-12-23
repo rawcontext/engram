@@ -4,9 +4,7 @@ import { SearchPyError, search } from "./search-client";
 global.fetch = mock();
 
 describe("search-client", () => {
-	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	beforeEach(() => {});
 
 	describe("search", () => {
 		it("should make successful search request", async () => {

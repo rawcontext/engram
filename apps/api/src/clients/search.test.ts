@@ -15,11 +15,11 @@ describe("SearchClient", () => {
 	} as any;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
-
-	afterEach(() => {
-		// vi.restoreAllMocks(); // TODO: Restore individual mocks
+		mockFetch.mockClear();
+		mockLogger.debug.mockClear();
+		mockLogger.info.mockClear();
+		mockLogger.warn.mockClear();
+		mockLogger.error.mockClear();
 	});
 
 	describe("constructor", () => {

@@ -1,42 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest, mock } from "bun:test";
 
-// Use shared FalkorDB mocks from root preload (to avoid conflicts with other tests)
-const mockGraphClient = globalThis.__testMocks?.falkor?.client ?? {
-	connect: mock(async () => {}),
-	query: mock(async () => []),
-	disconnect: mock(async () => {}),
-	isConnected: mock(() => true),
-};
-
-const mockConsumer = {
-	subscribe: mock(async () => {}),
-	run: mock(async () => {}),
-	disconnect: mock(async () => {}),
-};
-
-const mockNatsClient = {
-	getConsumer: mock(async () => ({
-		subscribe: mock(async () => {}),
-		run: mock(async () => {}),
-		disconnect: mock(async () => {}),
-	})),
-	sendEvent: mock(async () => {}),
-};
-
-const mockNatsPubSub = {
-	publishSessionUpdate: mock(async () => {}),
-	publishGlobalSessionEvent: mock(async () => {}),
-	publishConsumerStatus: mock(async () => {}),
-	disconnect: mock(async () => {}),
-	connect: mock(async () => {}),
-};
-
-const mockLogger = {
-	info: mock(),
-	debug: mock(),
-	warn: mock(),
-	error: mock(),
-};
+// Use shared mocks from root preload (test-preload.ts)
+// Logger, storage (FalkorDB, NATS, BlobStore) are mocked there
 
 const mockGraphPruner = {
 	pruneHistory: mock(async () => ({ deleted: 10 })),
@@ -46,22 +11,6 @@ const mockMcpServer = {
 	tool: mock(),
 	connect: mock(async () => {}),
 };
-
-// Use root preload mocks for storage (to avoid conflicts with other tests)
-// Root preload mocks @engram/storage/falkor and @engram/storage/nats
-// We only mock @engram/storage to add createNatsClient
-mock.module("@engram/storage", () => ({
-	createFalkorClient: () => mockGraphClient,
-	createNatsClient: mock(() => mockNatsClient),
-}));
-
-mock.module("@engram/logger", () => ({
-	createNodeLogger: mock(() => mockLogger),
-	pino: {
-		destination: mock((_fd: number) => ({ write: mock() })),
-	},
-	withTraceContext: mock((logger, _context) => logger),
-}));
 
 mock.module("@engram/graph", () => ({
 	GraphPruner: class {
@@ -96,9 +45,7 @@ const { clearAllIntervals, createMemoryServiceDeps, startPruningJob, startTurnCl
 	await import("./index");
 
 describe("Memory Service Deps", () => {
-	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
-	});
+	beforeEach(() => {});
 
 	describe("createMemoryServiceDeps", () => {
 		it("should create default dependencies", () => {
