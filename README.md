@@ -93,20 +93,29 @@ Anthropic, OpenAI, Gemini, Claude Code, Cline, Codex, XAI, OpenCode
 
 ## Infrastructure
 
-All services use Kaprekar's constant (6174) as the base port - a number with unique mathematical convergence properties that mirrors Engram's goal of converging memory traces into coherent knowledge.
+All services use Kaprekar's constant (6174) as the base port.
 
+**Services**
 | Service | Port |
 |---------|------|
 | API | 6174 |
 | Ingestion | 6175 |
 | Search | 6176 |
-| Tuner | 6177 |
 | Observatory | 6178 |
+
+**Databases**
+| Service | Port |
+|---------|------|
 | FalkorDB | 6179 |
 | Qdrant | 6180 |
 | NATS | 6181 |
-| NATS Monitor | 6182 |
 | PostgreSQL | 6183 |
+
+**Dev Tools**
+| Service | Port |
+|---------|------|
+| Tuner | 6177 |
+| NATS Monitor | 6182 |
 | Optuna Dashboard | 6184 |
 
 ## License
