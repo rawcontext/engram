@@ -185,7 +185,8 @@ jobs:
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           script: |
             # Remove conflicting paths (directories that should be files)
-            rm -rf /opt/engram/configs/Caddyfile 2>/dev/null || true
+            # Use sudo to handle paths owned by root/docker
+            sudo rm -rf /opt/engram/configs/Caddyfile 2>/dev/null || true
 
       - name: Sync files to server
         run: |
