@@ -2,7 +2,7 @@
  * Tests for @engram/common/errors/base
  */
 
-import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { EngramError } from "./base";
 
 describe("EngramError", () => {

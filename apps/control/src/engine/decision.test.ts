@@ -1,4 +1,3 @@
-import type { Mock } from "bun:test";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Mock external dependencies before importing modules that use them

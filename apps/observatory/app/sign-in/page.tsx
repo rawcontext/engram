@@ -4,8 +4,8 @@ import { signIn } from "@lib/auth-client";
 import { useState } from "react";
 
 export default function SignInPage() {
-	const [error, setError] = useState<string | null>(null);
-	const [isLoading, setIsLoading] = useState(false);
+	const [_error, setError] = useState<string | null>(null);
+	const [_isLoading, setIsLoading] = useState(false);
 
 	const handleSignIn = async () => {
 		setError(null);

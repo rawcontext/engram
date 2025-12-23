@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
 import { MemoryStore } from "./memory-store";
 
