@@ -184,13 +184,15 @@ jobs:
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           script: |
-            # Remove conflicting paths (directories that should be files)
-            # Use sudo to handle paths owned by root/docker
+            # Remove conflicting paths and fix permissions
             sudo rm -rf /opt/engram/configs/Caddyfile 2>/dev/null || true
+            # Ensure configs directory exists with correct ownership
+            sudo mkdir -p /opt/engram/configs
+            sudo chown -R engram:engram /opt/engram/configs
 
       - name: Sync files to server
         run: |
-          rsync -avz --delete \
+          rsync -avz --delete --no-group --no-owner \
             --exclude '.git' \
             --exclude 'node_modules' \
             --exclude '.venv' \
