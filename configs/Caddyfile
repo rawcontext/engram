@@ -1,0 +1,15 @@
+api.statient.com {
+    reverse_proxy api:6174
+}
+
+search.statient.com {
+    reverse_proxy search:6176
+}
+
+tuner.statient.com {
+    reverse_proxy tuner:6177
+}
+
+observatory.statient.com {
+    reverse_proxy observatory:3000
+}

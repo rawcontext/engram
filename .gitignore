@@ -22,6 +22,7 @@ htmlcov/
 
 # Local configs (all local-only files organized here)
 configs/
+!configs/Caddyfile
 
 # Symlinks to local configs
 .env
