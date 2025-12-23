@@ -167,11 +167,19 @@ export default function KeysPage() {
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					background: `linear-gradient(180deg, rgba(8, 10, 15, 0.35) 0%, rgba(15, 20, 30, 0.3) 100%)`,
+					background: `linear-gradient(
+						180deg,
+						rgba(8, 10, 15, 0.35) 0%,
+						rgba(15, 20, 30, 0.3) 100%
+					)`,
 					backdropFilter: "blur(8px) saturate(150%)",
+					WebkitBackdropFilter: "blur(8px) saturate(150%)",
 					borderBottom: "1px solid rgba(0, 245, 212, 0.15)",
+					boxShadow:
+						"inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,0,0,0.1), 0 4px 30px rgba(0,0,0,0.3)",
 				}}
 			>
+				{/* Inner container matching body width */}
 				<div
 					style={{
 						width: "100%",
@@ -182,24 +190,61 @@ export default function KeysPage() {
 						justifyContent: "space-between",
 					}}
 				>
-					<div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-						<a href="/" style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-							<EngramLogo />
-							<div style={{ display: "flex", flexDirection: "column" }}>
-								<h1
-									className="font-display text-glow"
-									style={{ fontSize: "2rem", fontWeight: 700, letterSpacing: "0.1em" }}
-								>
-									ENGRAM
-								</h1>
-								<p
-									style={{ color: "rgb(148,163,184)", fontSize: "0.65rem", letterSpacing: "0.3em" }}
-								>
-									API Keys
-								</p>
-							</div>
-						</a>
+					{/* Gradient accent line at bottom */}
+					<div
+						style={{
+							position: "absolute",
+							bottom: 0,
+							left: "50%",
+							transform: "translateX(-50%)",
+							width: "100%",
+							maxWidth: "1600px",
+							padding: "0 2rem",
+							pointerEvents: "none",
+						}}
+					>
+						<div
+							style={{
+								width: "300px",
+								height: "1px",
+								background: "linear-gradient(90deg, rgba(251,191,36,0.4), transparent)",
+							}}
+						/>
 					</div>
+
+					{/* Left side: Logo and branding */}
+					<div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+						<a href="/" style={{ display: "block", flexShrink: 0 }}>
+							<EngramLogo />
+						</a>
+						<div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+							<h1
+								className="font-display text-glow"
+								style={{
+									fontSize: "2rem",
+									fontWeight: 700,
+									letterSpacing: "0.1em",
+									marginBottom: "0.25rem",
+									lineHeight: 1,
+								}}
+							>
+								ENGRAM
+							</h1>
+							<p
+								style={{
+									color: "rgb(148,163,184)",
+									fontSize: "0.65rem",
+									letterSpacing: "0.3em",
+									textTransform: "uppercase",
+									lineHeight: 1,
+								}}
+							>
+								API Keys
+							</p>
+						</div>
+					</div>
+
+					{/* Right side: User Menu */}
 					<UserMenu />
 				</div>
 			</header>

@@ -61,7 +61,47 @@ export function UserMenu() {
 	}
 
 	if (!session) {
-		return null;
+		return (
+			<a
+				href="/sign-in"
+				style={{
+					display: "flex",
+					alignItems: "center",
+					gap: "0.5rem",
+					padding: "0.5rem 1rem",
+					background: "linear-gradient(135deg, rgba(0, 245, 212, 0.1), rgba(56, 189, 248, 0.1))",
+					border: "1px solid rgba(0, 245, 212, 0.2)",
+					borderRadius: "6px",
+					color: "#00f5d4",
+					fontSize: "0.875rem",
+					fontWeight: 500,
+					textDecoration: "none",
+					transition: "all 0.15s ease",
+				}}
+				onMouseOver={(e) => {
+					e.currentTarget.style.background =
+						"linear-gradient(135deg, rgba(0, 245, 212, 0.2), rgba(56, 189, 248, 0.2))";
+					e.currentTarget.style.borderColor = "rgba(0, 245, 212, 0.3)";
+				}}
+				onFocus={(e) => {
+					e.currentTarget.style.background =
+						"linear-gradient(135deg, rgba(0, 245, 212, 0.2), rgba(56, 189, 248, 0.2))";
+					e.currentTarget.style.borderColor = "rgba(0, 245, 212, 0.3)";
+				}}
+				onMouseOut={(e) => {
+					e.currentTarget.style.background =
+						"linear-gradient(135deg, rgba(0, 245, 212, 0.1), rgba(56, 189, 248, 0.1))";
+					e.currentTarget.style.borderColor = "rgba(0, 245, 212, 0.2)";
+				}}
+				onBlur={(e) => {
+					e.currentTarget.style.background =
+						"linear-gradient(135deg, rgba(0, 245, 212, 0.1), rgba(56, 189, 248, 0.1))";
+					e.currentTarget.style.borderColor = "rgba(0, 245, 212, 0.2)";
+				}}
+			>
+				Sign in
+			</a>
+		);
 	}
 
 	const user = session.user;

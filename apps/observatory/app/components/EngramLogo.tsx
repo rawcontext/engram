@@ -327,6 +327,9 @@ export function EngramLogo({ size = 160 }: EngramLogoProps) {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 
+		// Track if this effect instance is still active (handles StrictMode)
+		let isActive = true;
+
 		const gl = canvas.getContext("webgl", {
 			alpha: true,
 			premultipliedAlpha: true,
@@ -376,14 +379,14 @@ export function EngramLogo({ size = 160 }: EngramLogoProps) {
 		gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 
 		// Activate WebGL program
-		const activateProgram = gl.useProgram.bind(gl);
-		activateProgram(program);
+		gl.useProgram(program);
 
 		const resolutionLoc = gl.getUniformLocation(program, "resolution");
 		const timeLoc = gl.getUniformLocation(program, "time");
 
 		const render = () => {
-			if (!glRef.current || !programRef.current) return;
+			// Check if this effect instance is still active
+			if (!isActive || !glRef.current || !programRef.current) return;
 
 			const time = (Date.now() - startTimeRef.current) / 1000;
 
@@ -402,7 +405,11 @@ export function EngramLogo({ size = 160 }: EngramLogoProps) {
 		render();
 
 		return () => {
+			isActive = false;
 			cancelAnimationFrame(animationRef.current);
+			glRef.current = null;
+			programRef.current = null;
+			gl.deleteBuffer(buffer);
 			gl.deleteProgram(program);
 			gl.deleteShader(vs);
 			gl.deleteShader(fs);

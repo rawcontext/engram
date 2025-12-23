@@ -90,33 +90,23 @@ const fetcher = async (
 
 		if (!res.ok) {
 			const errorText = await res.text();
-			console.error("[Search] HTTP error:", {
-				status: res.status,
-				statusText: res.statusText,
-				body: errorText,
-				query: body.query,
-			});
+			console.error(
+				`[Search] HTTP error: ${res.status} ${res.statusText} - query="${body.query}" body="${errorText}"`,
+			);
 			throw new Error(`Search failed: ${res.status} ${res.statusText}`);
 		}
 
 		const json: ApiResponse = await res.json();
 
 		if (!json.success || !json.data) {
-			console.error("[Search] API error:", {
-				error: json.error,
-				query: body.query,
-			});
+			console.error(`[Search] API error: ${json.error} - query="${body.query}"`);
 			throw new Error(json.error || "Search failed");
 		}
 
 		return json.data;
 	} catch (error) {
 		if (error instanceof Error) {
-			console.error("[Search] Request failed:", {
-				message: error.message,
-				query: body.query,
-				error,
-			});
+			console.error(`[Search] Request failed: ${error.message} - query="${body.query}"`);
 		}
 		throw error;
 	}

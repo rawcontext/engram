@@ -35,3 +35,4 @@ docker-compose.dev.yml
 # Benchmark artifacts
 packages/benchmark/results/
 packages/benchmark/*-report.md
+.mcp.json

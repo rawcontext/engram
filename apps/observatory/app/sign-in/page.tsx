@@ -1,13 +1,29 @@
 "use client";
 
 import { signIn } from "@lib/auth-client";
+import { useState } from "react";
 
 export default function SignInPage() {
+	const [error, setError] = useState<string | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+
 	const handleSignIn = async () => {
-		await signIn.social({
-			provider: "google",
-			callbackURL: "/",
-		});
+		setError(null);
+		setIsLoading(true);
+		try {
+			const result = await signIn.social({
+				provider: "google",
+				callbackURL: "/",
+			});
+			if (result?.error) {
+				setError(result.error.message || "Sign in failed");
+			}
+		} catch (err) {
+			console.error("Sign in error:", err);
+			setError(err instanceof Error ? err.message : "Failed to connect to auth service");
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	return (

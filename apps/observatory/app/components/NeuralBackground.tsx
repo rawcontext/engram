@@ -333,7 +333,7 @@ export function NeuralBackground() {
 		>
 			<Canvas
 				camera={{ position: [0, 0, 8], fov: 60 }}
-				style={{ background: "transparent" }}
+				style={{ background: "transparent", pointerEvents: "none" }}
 				gl={{ alpha: true, antialias: true }}
 			>
 				<Scene />

@@ -35,7 +35,7 @@ export const auth = betterAuth({
 		},
 	},
 	trustedOrigins: [
-		"http://localhost:5000",
+		"http://localhost:6178",
 		"http://localhost:3000",
 		"https://observatory.statient.com",
 	],
