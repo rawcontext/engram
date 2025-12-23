@@ -3,6 +3,7 @@ import type { GraphClient } from "@engram/storage";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger as honoLogger } from "hono/logger";
+import { createApiKeyAuth, requireScopes } from "../middleware/auth";
 import type { MemoryStore } from "../services/memory-store";
 import {
 	handleIngestEvent,
@@ -16,21 +17,29 @@ export interface IngestRouterOptions {
 	memoryStore: MemoryStore;
 	graphClient: GraphClient;
 	logger: Logger;
+	authEnabled?: boolean;
+	authPostgresUrl?: string;
+}
+
+export interface IngestRouterResult {
+	app: Hono;
+	close: () => Promise<void>;
 }
 
 /**
  * Create the HTTP ingest router with all endpoints
  */
-export function createIngestRouter(options: IngestRouterOptions) {
-	const { memoryStore, graphClient, logger } = options;
+export function createIngestRouter(options: IngestRouterOptions): IngestRouterResult {
+	const { memoryStore, graphClient, logger, authEnabled = true, authPostgresUrl } = options;
 
 	const app = new Hono();
+	let authClose: (() => Promise<void>) | undefined;
 
 	// Middleware
 	app.use("*", cors());
 	app.use("*", honoLogger());
 
-	// Health check
+	// Health check (public)
 	app.get("/health", (c) => {
 		return c.json({
 			status: "healthy",
@@ -39,6 +48,19 @@ export function createIngestRouter(options: IngestRouterOptions) {
 		});
 	});
 
+	// Protected routes
+	const protectedRoutes = new Hono();
+
+	if (authEnabled && authPostgresUrl) {
+		const auth = createApiKeyAuth({ logger, postgresUrl: authPostgresUrl });
+		authClose = auth.close;
+		protectedRoutes.use("*", auth.middleware);
+		protectedRoutes.use("*", requireScopes("memory:write", "ingest:write"));
+		logger.info("API key authentication enabled for ingest routes");
+	} else {
+		logger.warn("API key authentication DISABLED for ingest routes (AUTH_ENABLED=false)");
+	}
+
 	// Handler dependencies
 	const deps: IngestHandlerDeps = {
 		memoryStore,
@@ -46,11 +68,13 @@ export function createIngestRouter(options: IngestRouterOptions) {
 		logger,
 	};
 
-	// Ingest endpoints
-	app.post("/ingest/event", (c) => handleIngestEvent(c, deps));
-	app.post("/ingest/tool", (c) => handleToolIngest(c, deps));
-	app.post("/ingest/prompt", (c) => handlePromptIngest(c, deps));
-	app.post("/ingest/session", (c) => handleSessionIngest(c, deps));
+	// Ingest endpoints (protected)
+	protectedRoutes.post("/ingest/event", (c) => handleIngestEvent(c, deps));
+	protectedRoutes.post("/ingest/tool", (c) => handleToolIngest(c, deps));
+	protectedRoutes.post("/ingest/prompt", (c) => handlePromptIngest(c, deps));
+	protectedRoutes.post("/ingest/session", (c) => handleSessionIngest(c, deps));
+
+	app.route("/", protectedRoutes);
 
 	// Error handler
 	app.onError((err, c) => {
@@ -63,7 +87,14 @@ export function createIngestRouter(options: IngestRouterOptions) {
 		return c.json({ error: "Not found" }, 404);
 	});
 
-	return app;
+	return {
+		app,
+		close: async () => {
+			if (authClose) {
+				await authClose();
+			}
+		},
+	};
 }
 
 /**
@@ -73,7 +104,7 @@ export async function startIngestServer(
 	options: IngestRouterOptions & { port: number },
 ): Promise<{ close: () => Promise<void> }> {
 	const { port, logger, ...routerOptions } = options;
-	const app = createIngestRouter({ ...routerOptions, logger });
+	const { app, close: closeRouter } = createIngestRouter({ ...routerOptions, logger });
 
 	// Use Node.js native server via Hono's serve
 	const { serve } = await import("@hono/node-server");
@@ -87,6 +118,7 @@ export async function startIngestServer(
 	return {
 		close: async () => {
 			server.close();
+			await closeRouter();
 			logger.info("HTTP ingest server stopped");
 		},
 	};

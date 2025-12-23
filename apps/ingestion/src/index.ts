@@ -11,6 +11,7 @@ import {
 } from "@engram/parser";
 import { createNatsClient } from "@engram/storage";
 import { createNatsPubSubPublisher } from "@engram/storage/nats";
+import { authenticateRequest, closeAuth, initAuth } from "./auth";
 
 /**
  * Dependencies for IngestionProcessor construction.
@@ -431,6 +432,11 @@ export function createIngestionServer(port = 5001, maxBodySize = 50 * 1024 * 102
 		}
 
 		if (url.pathname === "/ingest" && req.method === "POST") {
+			// Authenticate request before processing
+			const authorized = await authenticateRequest(req, res, ["memory:write", "ingest:write"]);
+			if (!authorized) {
+				return; // Response already sent by authenticateRequest
+			}
 			let rawBody: unknown;
 			let body = "";
 			let bodySize = 0;
@@ -512,6 +518,14 @@ export function createIngestionServer(port = 5001, maxBodySize = 50 * 1024 * 102
 const isMainModule =
 	import.meta.url === `file://${process.argv[1]}` || process.env.NODE_ENV === "production";
 if (isMainModule) {
+	// Initialize authentication
+	initAuth({
+		enabled: process.env.AUTH_ENABLED !== "false",
+		postgresUrl:
+			process.env.AUTH_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/engram",
+		logger,
+	});
+
 	// Start Consumer
 	startConsumer().catch((err) => logger.error({ err }, "Consumer startup failed"));
 
@@ -521,5 +535,13 @@ if (isMainModule) {
 	server.listen(PORT, () => {
 		logger.info({ port: PORT }, "Ingestion Service running");
 	});
+
+	// Handle shutdown
+	const handleShutdown = async (signal: string) => {
+		logger.info({ signal }, "Shutting down auth...");
+		await closeAuth();
+	};
+	process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+	process.on("SIGINT", () => handleShutdown("SIGINT"));
 }
 /* v8 ignore stop */

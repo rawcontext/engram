@@ -69,7 +69,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info("API key authentication initialized")
         except Exception as e:
             logger.error(f"Failed to initialize auth: {e}")
-            logger.warning("Service starting without authentication (INSECURE)")
+            raise RuntimeError(
+                f"Auth database connection failed: {e}. "
+                "Set AUTH_ENABLED=false to run without authentication (NOT RECOMMENDED)."
+            ) from e
     else:
         logger.warning("API key authentication DISABLED (AUTH_ENABLED=false)")
 

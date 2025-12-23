@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import type { NextResponse } from "next/server";
+import { Pool } from "pg";
 import { apiError } from "./api-response";
 import { auth, type Session } from "./auth";
 
@@ -25,11 +26,18 @@ export class ForbiddenError extends Error {
 
 /**
  * Extract user role from session.
- * Currently returns USER for all authenticated users.
- * Can be extended to read from user metadata.
+ * Reads the role from the user's metadata field in Better Auth.
+ * Defaults to USER role if not set or invalid.
  */
-function getUserRole(_session: Session): UserRole {
-	// TODO: Read role from session.user metadata when implemented
+function getUserRole(session: Session): UserRole {
+	const roleValue = session.user.role;
+
+	// Validate and return the role
+	if (roleValue && Object.values(UserRole).includes(roleValue as UserRole)) {
+		return roleValue as UserRole;
+	}
+
+	// Default to USER role if not set or invalid
 	return UserRole.USER;
 }
 
@@ -55,9 +63,6 @@ export async function requireRole(requiredRole: UserRole) {
 		throw new AuthorizationError("User not authenticated");
 	}
 
-	// For now, all authenticated users are treated as USER role
-	// Role-based access can be extended by storing roles in user metadata
-	// TODO: Implement role storage in Better Auth user metadata
 	const userRole = getUserRole(session);
 
 	// Admin role has access to everything
@@ -75,6 +80,19 @@ export async function requireRole(requiredRole: UserRole) {
 		throw new ForbiddenError("Insufficient permissions");
 	}
 }
+
+/**
+ * Higher-order function to protect API routes with authentication.
+ * Just checks that a session exists, no role requirements.
+ */
+export const withAuth =
+	(handler: (req: Request) => Promise<NextResponse>) => async (req: Request) => {
+		const session = await getSession();
+		if (!session) {
+			return apiError("User not authenticated", "UNAUTHORIZED", 401);
+		}
+		return handler(req);
+	};
 
 /**
  * Higher-order function to protect API routes with RBAC.
@@ -97,3 +115,23 @@ export const withRole =
 			return apiError("Internal Authorization Error", "AUTH_ERROR", 500);
 		}
 	};
+
+/**
+ * Sets the role for a user in the database.
+ * This should only be called by administrators or system processes.
+ * Requires direct database access.
+ *
+ * @param userId - The user ID to update
+ * @param role - The role to assign
+ */
+export async function setUserRole(userId: string, role: UserRole): Promise<void> {
+	const pool = new Pool({
+		connectionString: process.env.AUTH_DATABASE_URL,
+	});
+
+	try {
+		await pool.query("UPDATE user SET role = $1 WHERE id = $2", [role, userId]);
+	} finally {
+		await pool.end();
+	}
+}

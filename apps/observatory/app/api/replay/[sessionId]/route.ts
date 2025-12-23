@@ -1,5 +1,6 @@
 import { apiError, apiSuccess } from "@lib/api-response";
 import { getSessionTimeline } from "@lib/graph-queries";
+import { getSession } from "@lib/rbac";
 import { z } from "zod";
 
 export const _ReplayParams = z.object({
@@ -11,6 +12,11 @@ export const _ReplayParams = z.object({
  * @pathParams ReplayParams
  */
 export async function GET(_request: Request, props: { params: Promise<{ sessionId: string }> }) {
+	const session = await getSession();
+	if (!session) {
+		return apiError("User not authenticated", "UNAUTHORIZED", 401);
+	}
+
 	try {
 		const params = await props.params;
 		const { sessionId } = params;

@@ -1,3 +1,5 @@
+import { apiError } from "@lib/api-response";
+import { getSession } from "@lib/rbac";
 import { NextResponse } from "next/server";
 
 /**
@@ -42,7 +44,11 @@ export interface ConsumerStatusResponse {
  * Note: For real-time updates, use the WebSocket endpoint at /ws/consumers
  * which receives heartbeats from services via Redis pub/sub.
  */
-export async function GET(): Promise<NextResponse<ConsumerStatusResponse>> {
+export async function GET(): Promise<NextResponse> {
+	const session = await getSession();
+	if (!session) {
+		return apiError("User not authenticated", "UNAUTHORIZED", 401);
+	}
 	// With NATS, we don't have a direct Admin API to check consumer groups.
 	// Consumer status is tracked via Redis pub/sub heartbeats from services.
 	// This endpoint returns unknown status - the WebSocket endpoint provides

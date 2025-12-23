@@ -1,4 +1,5 @@
 import { apiError, apiSuccess } from "@lib/api-response";
+import { withAuth } from "@lib/rbac";
 import { type RerankerTier, search } from "@lib/search-client";
 import { validate } from "@lib/validate";
 import { z } from "zod";
@@ -59,7 +60,7 @@ const RERANKER_MODEL = "Xenova/bge-reranker-base";
  * @body SearchRequestSchema
  * @response SearchResponseSchema
  */
-export const POST = async (req: Request) => {
+export const POST = withAuth(async (req: Request) => {
 	return validate(SearchRequestSchema)(req, async (data) => {
 		const { query, limit, filters, settings, rerank, rerankTier, rerankDepth } = data;
 
@@ -121,4 +122,4 @@ export const POST = async (req: Request) => {
 			return apiError(message, "SEARCH_FAILED");
 		}
 	});
-};
+});

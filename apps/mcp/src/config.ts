@@ -14,6 +14,10 @@ export const ConfigSchema = z.object({
 	// HTTP server settings
 	httpPort: z.number().int().min(1).max(65535).default(3010),
 
+	// HTTP authentication
+	authEnabled: z.boolean().default(true),
+	authPostgresUrl: z.string().optional(),
+
 	// Local mode: Database connections
 	falkordbUrl: z.string().url().default("redis://localhost:6379"),
 	qdrantUrl: z.string().url().default("http://localhost:6333"),
@@ -55,6 +59,9 @@ export function loadConfig(): Config {
 		engramApiUrl: process.env.ENGRAM_API_URL,
 		transport: process.env.MCP_TRANSPORT ?? "stdio",
 		httpPort: process.env.MCP_HTTP_PORT ? Number.parseInt(process.env.MCP_HTTP_PORT, 10) : 3010,
+		authEnabled: process.env.AUTH_ENABLED !== "false",
+		authPostgresUrl:
+			process.env.AUTH_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/engram",
 		falkordbUrl: process.env.FALKORDB_URL ?? "redis://localhost:6379",
 		qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6333",
 		searchUrl: process.env.SEARCH_URL ?? "http://localhost:5002",

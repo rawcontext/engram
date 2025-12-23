@@ -12,7 +12,7 @@
  * - POST /ingest/session - Session lifecycle events
  */
 
-import { createLogger } from "@engram/logger";
+import { createNodeLogger } from "@engram/logger";
 import { FalkorClient } from "@engram/storage";
 import { serve } from "@hono/node-server";
 import { loadConfig } from "./config";
@@ -22,9 +22,10 @@ import { MemoryStore } from "./services";
 async function main() {
 	const config = loadConfig();
 
-	const logger = createLogger({
+	const logger = createNodeLogger({
+		service: "engram-mcp",
 		level: config.logLevel,
-		component: "mcp-http-server",
+		base: { component: "mcp-http-server" },
 	});
 
 	logger.info({ port: config.httpPort }, "Starting Engram MCP HTTP ingest server");
@@ -33,11 +34,13 @@ async function main() {
 	const graphClient = new FalkorClient(config.falkordbUrl);
 	const memoryStore = new MemoryStore({ graphClient, logger });
 
-	// Create the ingest router
-	const app = createIngestRouter({
+	// Create the ingest router with auth
+	const { app, close: closeRouter } = createIngestRouter({
 		memoryStore,
 		graphClient,
 		logger,
+		authEnabled: config.authEnabled,
+		authPostgresUrl: config.authPostgresUrl,
 	});
 
 	// Start the server
@@ -61,10 +64,11 @@ async function main() {
 	);
 
 	// Handle shutdown
-	const shutdown = () => {
+	const shutdown = async () => {
 		logger.info("Shutting down...");
 		server.close();
-		graphClient.disconnect().catch(() => {});
+		await closeRouter();
+		await graphClient.disconnect().catch(() => {});
 		process.exit(0);
 	};
 

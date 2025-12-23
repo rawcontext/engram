@@ -1,12 +1,13 @@
 import { apiError, apiSuccess } from "@lib/api-response";
 import { getAllSessions } from "@lib/graph-queries";
+import { withAuth } from "@lib/rbac";
 
 /**
  * List all sessions with metadata
  * @queryParams limit - Max sessions to return (default 50)
  * @queryParams offset - Pagination offset (default 0)
  */
-export async function GET(request: Request) {
+export const GET = withAuth(async (request: Request) => {
 	try {
 		const { searchParams } = new URL(request.url);
 		const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100);
@@ -24,4 +25,4 @@ export async function GET(request: Request) {
 		const message = error instanceof Error ? error.message : String(error);
 		return apiError(message, "SESSIONS_QUERY_FAILED");
 	}
-}
+});

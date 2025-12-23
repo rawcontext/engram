@@ -1,5 +1,6 @@
 import { apiError, apiSuccess } from "@lib/api-response";
 import { getSessionLineage } from "@lib/graph-queries";
+import { getSession } from "@lib/rbac";
 import { z } from "zod";
 
 export const _LineageParams = z.object({
@@ -24,6 +25,11 @@ export const _LineageResponse = z.object({
  * @response LineageResponse
  */
 export async function GET(_request: Request, props: { params: Promise<{ sessionId: string }> }) {
+	const session = await getSession();
+	if (!session) {
+		return apiError("User not authenticated", "UNAUTHORIZED", 401);
+	}
+
 	try {
 		const params = await props.params;
 		const { sessionId } = params;
