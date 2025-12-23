@@ -95,28 +95,11 @@ Anthropic, OpenAI, Gemini, Claude Code, Cline, Codex, XAI, OpenCode
 
 All services use Kaprekar's constant (6174) as the base port.
 
-**Services**
-| Service | Port |
-|---------|------|
-| API | 6174 |
-| Ingestion | 6175 |
-| Search | 6176 |
-| Observatory | 6178 |
+**Services**: API `6174` · Ingestion `6175` · Observatory `6178` · Search `6176`
 
-**Databases**
-| Service | Port |
-|---------|------|
-| FalkorDB | 6179 |
-| Qdrant | 6180 |
-| NATS | 6181 |
-| PostgreSQL | 6183 |
+**Databases**: FalkorDB `6179` · NATS `6181` · PostgreSQL `6183` · Qdrant `6180`
 
-**Dev Tools**
-| Service | Port |
-|---------|------|
-| Tuner | 6177 |
-| NATS Monitor | 6182 |
-| Optuna Dashboard | 6184 |
+**Dev Tools**: NATS Monitor `6182` · Optuna Dashboard `6184` · Tuner `6177`
 
 ## License
 

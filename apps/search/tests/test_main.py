@@ -126,13 +126,14 @@ class TestLifespan:
         with patch("src.main.get_settings") as mock_fn:
             settings = MagicMock()
             settings.debug = False
+            settings.auth_enabled = False  # Disable auth for tests
             settings.qdrant_url = "http://localhost:6333"
             settings.qdrant_collection = "test_collection"
             settings.embedder_device = "cpu"
             settings.embedder_preload = False
             settings.reranker_llm_model = "gpt-4o-mini"
             settings.search_host = "0.0.0.0"
-            settings.search_port = 5002
+            settings.search_port = 6176
             settings.cors_origins = ["*"]
             mock_fn.return_value = settings
             yield settings
@@ -228,6 +229,7 @@ class TestLifespan:
         ):
             settings = MagicMock()
             settings.debug = False
+            settings.auth_enabled = False
             settings.qdrant_url = "http://localhost:6333"
             settings.qdrant_collection = "test"
             settings.embedder_device = "cpu"
@@ -264,6 +266,7 @@ class TestLifespan:
         ):
             settings = MagicMock()
             settings.debug = False
+            settings.auth_enabled = False
             settings.qdrant_url = "http://localhost:6333"
             settings.qdrant_collection = "test"
             settings.embedder_device = "cpu"
@@ -342,7 +345,7 @@ class TestRun:
         ):
             settings = MagicMock()
             settings.search_host = "0.0.0.0"
-            settings.search_port = 5002
+            settings.search_port = 6176
             settings.debug = False
             mock_settings.return_value = settings
 
@@ -353,7 +356,7 @@ class TestRun:
             mock_run.assert_called_once_with(
                 "src.main:app",
                 host="0.0.0.0",
-                port=5002,
+                port=6176,
                 reload=False,
                 log_level="info",
             )

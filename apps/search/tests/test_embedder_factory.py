@@ -1,11 +1,21 @@
 """Tests for EmbedderFactory."""
 
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.config import Settings
 from src.embedders.factory import EmbedderFactory
+
+
+# Create mock modules for embedders that may not be installed
+def _create_mock_module(class_name: str) -> MagicMock:
+    """Create a mock module with a mock class."""
+    mock_module = MagicMock()
+    mock_class = MagicMock()
+    setattr(mock_module, class_name, mock_class)
+    return mock_module
 
 
 class TestEmbedderFactory:
@@ -57,14 +67,16 @@ class TestEmbedderFactory:
         """Test get_text_embedder with local backend."""
         mock_settings.embedder_backend = "local"
 
-        with patch("src.embedders.text.TextEmbedder") as MockTextEmbedder:
-            mock_embedder = MagicMock()
-            MockTextEmbedder.return_value = mock_embedder
+        # Create mock module and class
+        mock_module = MagicMock()
+        mock_embedder = MagicMock()
+        mock_module.TextEmbedder = MagicMock(return_value=mock_embedder)
 
+        with patch.dict(sys.modules, {"src.embedders.text": mock_module}):
             result = await factory.get_text_embedder()
 
             assert result == mock_embedder
-            MockTextEmbedder.assert_called_once_with(
+            mock_module.TextEmbedder.assert_called_once_with(
                 model_name=mock_settings.embedder_text_model,
                 device=mock_settings.embedder_device,
                 batch_size=mock_settings.embedder_batch_size,
@@ -107,14 +119,15 @@ class TestEmbedderFactory:
         """Test get_code_embedder with local backend."""
         mock_settings.embedder_backend = "local"
 
-        with patch("src.embedders.code.CodeEmbedder") as MockCodeEmbedder:
-            mock_embedder = MagicMock()
-            MockCodeEmbedder.return_value = mock_embedder
+        mock_module = MagicMock()
+        mock_embedder = MagicMock()
+        mock_module.CodeEmbedder = MagicMock(return_value=mock_embedder)
 
+        with patch.dict(sys.modules, {"src.embedders.code": mock_module}):
             result = await factory.get_code_embedder()
 
             assert result == mock_embedder
-            MockCodeEmbedder.assert_called_once()
+            mock_module.CodeEmbedder.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_get_code_embedder_huggingface(
@@ -148,14 +161,15 @@ class TestEmbedderFactory:
     @pytest.mark.asyncio
     async def test_get_sparse_embedder(self, factory: EmbedderFactory) -> None:
         """Test get_sparse_embedder."""
-        with patch("src.embedders.sparse.SparseEmbedder") as MockSparseEmbedder:
-            mock_embedder = MagicMock()
-            MockSparseEmbedder.return_value = mock_embedder
+        mock_module = MagicMock()
+        mock_embedder = MagicMock()
+        mock_module.SparseEmbedder = MagicMock(return_value=mock_embedder)
 
+        with patch.dict(sys.modules, {"src.embedders.sparse": mock_module}):
             result = await factory.get_sparse_embedder()
 
             assert result == mock_embedder
-            MockSparseEmbedder.assert_called_once()
+            mock_module.SparseEmbedder.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_get_sparse_embedder_cached(self, factory: EmbedderFactory) -> None:
@@ -355,11 +369,11 @@ class TestEmbedderFactory:
         """Test concurrent calls to get_text_embedder return same instance."""
         import asyncio
 
+        mock_module = MagicMock()
         mock_embedder = MagicMock()
+        mock_module.TextEmbedder = MagicMock(return_value=mock_embedder)
 
-        with patch("src.embedders.text.TextEmbedder") as MockTextEmbedder:
-            MockTextEmbedder.return_value = mock_embedder
-
+        with patch.dict(sys.modules, {"src.embedders.text": mock_module}):
             # Call concurrently
             results = await asyncio.gather(
                 factory.get_text_embedder(),
@@ -370,4 +384,4 @@ class TestEmbedderFactory:
             # All should return the same instance
             assert all(r == mock_embedder for r in results)
             # Factory should only create one instance due to lock
-            assert MockTextEmbedder.call_count == 1
+            assert mock_module.TextEmbedder.call_count == 1

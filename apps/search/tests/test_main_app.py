@@ -467,7 +467,7 @@ class TestLifespanWithConsumer:
         mock_multi_query_retriever,
         mock_session_retriever,
     ) -> None:
-        """Test lifespan handles auth connection failure."""
+        """Test lifespan raises when auth connection fails."""
         with (
             patch("src.main.get_settings") as mock_settings_fn,
             patch("src.main.ApiKeyAuth") as mock_auth_cls,
@@ -480,7 +480,7 @@ class TestLifespanWithConsumer:
             settings.embedder_preload = False
             settings.reranker_llm_model = "gpt-4o-mini"
             settings.search_host = "0.0.0.0"
-            settings.search_port = 5002
+            settings.search_port = 6176
             settings.cors_origins = ["*"]
             settings.nats_consumer_enabled = False
             settings.auth_enabled = True
@@ -493,9 +493,10 @@ class TestLifespanWithConsumer:
 
             app = FastAPI()
 
-            # Should not raise - service starts without auth
-            async with lifespan(app):
-                pass
+            # Should raise RuntimeError when auth fails
+            with pytest.raises(RuntimeError, match="Auth database connection failed"):
+                async with lifespan(app):
+                    pass
 
     async def test_lifespan_auth_disconnect_error(
         self,
