@@ -60,6 +60,15 @@ export function createStateRoutes({ stateRepo, apiKeyRepo, logger }: StateRoutes
 			return c.body(null, 404);
 		}
 
+		// Validate state has required version field (OpenTofu/Terraform requirement)
+		const stateData = state.state as { version?: number };
+		if (typeof stateData.version !== "number") {
+			logger.warn("Invalid state format detected - missing version field, returning 404");
+			// Delete the invalid state so it can be recreated properly
+			await stateRepo.delete(STATE_ID);
+			return c.body(null, 404);
+		}
+
 		return c.json(state.state);
 	});
 

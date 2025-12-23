@@ -92,12 +92,21 @@ export class StateRepository {
 		const existing = await this.get(id);
 
 		if (!existing) {
-			// Create empty state with lock
+			// Create valid empty state with lock
+			// OpenTofu/Terraform requires a state with at least a "version" field
+			const emptyState = {
+				version: 4,
+				terraform_version: "1.8.0",
+				serial: 0,
+				lineage: crypto.randomUUID(),
+				outputs: {},
+				resources: [],
+			};
 			await this.db.query(
 				`INSERT INTO tofu_state (id, state, lock_id, lock_info, locked_at)
-				 VALUES ($1, '{}', $2, $3, NOW())
+				 VALUES ($1, $2, $3, $4, NOW())
 				 ON CONFLICT (id) DO NOTHING`,
-				[id, lockInfo.ID, JSON.stringify(lockInfo)],
+				[id, JSON.stringify(emptyState), lockInfo.ID, JSON.stringify(lockInfo)],
 			);
 		}
 
