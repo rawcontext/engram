@@ -1,3 +1,4 @@
+export { EngramCloudClient, type EngramCloudClientOptions } from "./cloud";
 export {
 	MemoryRetriever,
 	type MemoryRetrieverOptions,

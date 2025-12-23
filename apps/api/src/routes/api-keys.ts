@@ -1,5 +1,7 @@
+import { randomBytes } from "node:crypto";
 import type { Logger } from "@engram/logger";
 import { Hono } from "hono";
+import { ulid } from "ulid";
 import { z } from "zod";
 import type { ApiKeyRepository } from "../db/api-keys";
 import type { ApiKeyContext } from "../middleware/auth";
@@ -11,9 +13,28 @@ type Env = {
 };
 
 // Request schemas
+const CreateApiKeySchema = z.object({
+	name: z.string().min(1).max(100),
+	description: z.string().max(500).optional(),
+	scopes: z
+		.array(z.enum(["memory:read", "memory:write", "query:read", "keys:manage"]))
+		.min(1)
+		.optional(),
+	expiresInDays: z.number().int().min(1).max(365).optional(),
+});
+
 const RevokeApiKeySchema = z.object({
 	keyId: z.string().min(1),
 });
+
+/**
+ * Generate a secure API key
+ * Format: engram_live_<32 random hex chars>
+ */
+function generateApiKey(): string {
+	const randomPart = randomBytes(16).toString("hex");
+	return `engram_live_${randomPart}`;
+}
 
 export interface ApiKeyRoutesOptions {
 	apiKeyRepo: ApiKeyRepository;
@@ -70,6 +91,91 @@ export function createApiKeyRoutes(options: ApiKeyRoutesOptions) {
 			});
 		} catch (error) {
 			logger.error({ error }, "Error listing API keys");
+			throw error;
+		}
+	});
+
+	// POST /v1/keys - Create a new API key
+	app.post("/", async (c) => {
+		try {
+			const body = await c.req.json();
+			const parsed = CreateApiKeySchema.safeParse(body);
+
+			if (!parsed.success) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "VALIDATION_ERROR",
+							message: "Invalid request body",
+							details: parsed.error.issues,
+						},
+					},
+					400,
+				);
+			}
+
+			const apiKey = c.get("apiKey") as ApiKeyContext;
+
+			// Must have a userId to create keys
+			if (!apiKey.userId) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "FORBIDDEN",
+							message: "API key is not associated with a user",
+						},
+					},
+					403,
+				);
+			}
+
+			const { name, description, scopes, expiresInDays } = parsed.data;
+
+			// Generate key
+			const key = generateApiKey();
+			const id = ulid();
+
+			// Calculate expiration
+			const expiresAt = expiresInDays
+				? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
+				: undefined;
+
+			// Create the key
+			const createdKey = await apiKeyRepo.create({
+				id,
+				key,
+				keyType: "live",
+				name,
+				description,
+				userId: apiKey.userId,
+				scopes: scopes ?? ["memory:read", "memory:write", "query:read"],
+				expiresAt,
+			});
+
+			logger.info({ id: createdKey.id, name }, "API key created");
+
+			// Return the key - this is the only time it's visible
+			return c.json({
+				success: true,
+				data: {
+					id: createdKey.id,
+					key, // Only returned on creation!
+					keyPrefix: createdKey.keyPrefix,
+					name: createdKey.name,
+					description: createdKey.description,
+					scopes: createdKey.scopes,
+					expiresAt: createdKey.expiresAt,
+					createdAt: createdKey.createdAt,
+				},
+				meta: {
+					usage: { operation: "create_key" },
+					warning: "Save this key now - it won't be shown again!",
+				},
+			});
+		} catch (error) {
+			logger.error({ error }, "Error creating API key");
 			throw error;
 		}
 	});
