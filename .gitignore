@@ -2,7 +2,6 @@ node_modules
 .turbo
 dist
 .next
-.env
 *.log
 docker-compose.override.yml
 .DS_Store
@@ -21,11 +20,17 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Beads (local issue tracker)
-.beads/
+# Local configs (all local-only files organized here)
+configs/
 
-# Documentation (local only)
+# Symlinks to local configs
+.env
+.beads
 docs/
+apps/*/.env
+Caddyfile
+docker-compose.dev.yml
+docker-compose.prod.yml
 
 # Benchmark artifacts
 packages/benchmark/results/
