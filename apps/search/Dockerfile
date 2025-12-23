@@ -40,6 +40,7 @@ RUN useradd --create-home --shell /bin/bash appuser && \
     chown -R appuser:appuser /app
 USER appuser
 
+# Service configuration - port must match docker-compose and Caddyfile
 EXPOSE 6176
 
 # Health check

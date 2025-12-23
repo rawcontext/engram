@@ -22,7 +22,7 @@ COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# Production stage
+# Production stage - port 6177 for service
 FROM python:3.13-slim
 
 WORKDIR /app

@@ -279,7 +279,7 @@ jobs:
           script: |
             cd /opt/engram
             echo "Building and deploying Search..."
-            docker compose -f docker-compose.prod.yml build search
+            docker compose -f docker-compose.prod.yml build --no-cache search
             docker compose -f docker-compose.prod.yml up -d --force-recreate search
             echo "Waiting for Search health check..."
             sleep 5
@@ -305,7 +305,7 @@ jobs:
           script: |
             cd /opt/engram
             echo "Building and deploying Tuner..."
-            docker compose -f docker-compose.prod.yml build tuner
+            docker compose -f docker-compose.prod.yml build --no-cache tuner
             docker compose -f docker-compose.prod.yml up -d --force-recreate tuner
             echo "Waiting for Tuner health check..."
             sleep 5
