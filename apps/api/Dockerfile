@@ -14,5 +14,5 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
 USER engram
-EXPOSE 8080
+EXPOSE 6174
 CMD ["bun", "run", "apps/api/src/index.ts"]

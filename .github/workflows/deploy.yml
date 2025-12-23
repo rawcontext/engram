@@ -421,6 +421,43 @@ jobs:
             sleep 15
             docker compose -f docker-compose.prod.yml ps
 
+  # Start Caddy reverse proxy (after all services are deployed)
+  deploy-caddy:
+    runs-on: ubuntu-latest
+    needs:
+      - sync
+      - deploy-api
+      - deploy-search
+      - deploy-tuner
+      - deploy-observatory
+    if: |
+      always() &&
+      needs.sync.result == 'success' &&
+      (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped') &&
+      (needs.deploy-search.result == 'success' || needs.deploy-search.result == 'skipped') &&
+      (needs.deploy-tuner.result == 'success' || needs.deploy-tuner.result == 'skipped') &&
+      (needs.deploy-observatory.result == 'success' || needs.deploy-observatory.result == 'skipped')
+    environment: production
+    steps:
+      - name: Start Caddy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          command_timeout: 5m
+          script: |
+            cd /opt/engram
+            echo "Pulling Caddy image..."
+            docker compose -f docker-compose.prod.yml pull caddy
+
+            echo "Starting Caddy..."
+            docker compose -f docker-compose.prod.yml up -d caddy
+
+            echo "Waiting for Caddy to be ready..."
+            sleep 10
+            docker compose -f docker-compose.prod.yml ps caddy
+
   # Summary job
   summary:
     runs-on: ubuntu-latest
@@ -435,6 +472,7 @@ jobs:
       - deploy-ingestion
       - deploy-memory
       - deploy-infrastructure-services
+      - deploy-caddy
     if: always()
     steps:
       - name: Deployment Summary
@@ -451,6 +489,7 @@ jobs:
           echo "| Ingestion | ${{ needs.changes.outputs.ingestion }} | ${{ needs.deploy-ingestion.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Memory | ${{ needs.changes.outputs.memory }} | ${{ needs.deploy-memory.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker Compose | ${{ needs.changes.outputs.docker_compose }} | ${{ needs.deploy-infrastructure-services.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Caddy | - | ${{ needs.deploy-caddy.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Service URLs" >> $GITHUB_STEP_SUMMARY
           echo "- API: https://api.statient.com" >> $GITHUB_STEP_SUMMARY
