@@ -1,7 +1,11 @@
 import type { SessionUpdate } from "@engram/storage/nats";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
-// Create mocks before mock.module
+// =============================================================================
+// Mock Setup
+// =============================================================================
+
+// Create graph-queries mocks BEFORE importing websocket-server
 const mockGetSessionLineage = mock(async () => ({
 	nodes: [{ id: "node1", label: "Node 1" }],
 	links: [],
@@ -16,25 +20,7 @@ const mockGetSessionsForWebSocket = mock(async () => ({
 	recent: [],
 }));
 
-const mockSubscribe = mock(async (_channel: string, _callback: (data: any) => void) => {
-	return mock();
-});
-
-const mockSubscribeToConsumerStatus = mock(async (_callback: (data: any) => void) => {
-	return mock();
-});
-
-const mockCreateNatsPubSubSubscriber = mock(() => ({
-	subscribe: mockSubscribe,
-	subscribeToConsumerStatus: mockSubscribeToConsumerStatus,
-}));
-
-// Mock @engram/storage/nats
-mock.module("@engram/storage/nats", () => ({
-	createNatsPubSubSubscriber: mockCreateNatsPubSubSubscriber,
-}));
-
-// Mock graph-queries
+// Mock graph-queries before websocket-server imports it
 mock.module("./graph-queries", () => ({
 	getSessionLineage: mockGetSessionLineage,
 	getSessionTimeline: mockGetSessionTimeline,
@@ -49,16 +35,26 @@ mock.module("node:module", () => ({
 				create: mock(() => ({
 					connect: mock(),
 					disconnect: mock(),
-					describeGroups: mock((_groups, _opts, callback) => {
-						callback(null, [{ groupId: "test-group", state: 3, members: [{}] }]);
-					}),
+					describeGroups: mock(
+						(
+							_groups: unknown,
+							_opts: unknown,
+							callback: (err: unknown, result: unknown[]) => void,
+						) => {
+							callback(null, [{ groupId: "test-group", state: 3, members: [{}] }]);
+						},
+					),
 				})),
 			},
 		})),
 	),
 }));
 
-// Import after mocks are set up
+// Access NATS mocks from preload (for module-level singleton in websocket-server)
+const { subscribe: mockSubscribe, subscribeToConsumerStatus: mockSubscribeToConsumerStatus } =
+	globalThis.__testMocks.nats;
+
+// Import module under test (NATS singleton uses mocked client from preload)
 import {
 	cleanupWebSocketServer,
 	handleConsumerStatusConnection,
@@ -66,15 +62,13 @@ import {
 	handleSessionsConnection,
 } from "./websocket-server";
 
-// Skip: Bun's mock.module can't intercept module-level singletons (NATS connection)
-describe.skip("websocket-server", () => {
+describe("websocket-server", () => {
 	beforeEach(() => {
 		mockGetSessionLineage.mockClear();
 		mockGetSessionTimeline.mockClear();
 		mockGetSessionsForWebSocket.mockClear();
 		mockSubscribe.mockClear();
 		mockSubscribeToConsumerStatus.mockClear();
-		mockCreateNatsPubSubSubscriber.mockClear();
 
 		// Reset mock implementations to defaults
 		mockGetSessionLineage.mockImplementation(async () => ({

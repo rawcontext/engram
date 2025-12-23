@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 const mockLoggerWarn = mock();
 const mockLoggerInfo = mock();
 
+// Mock logger BEFORE importing merger.ts (which creates module-level logger singleton)
 mock.module("@engram/logger", () => ({
 	createNodeLogger: () => ({
 		info: mockLoggerInfo,
@@ -91,8 +92,7 @@ describe("GraphMerger", () => {
 		expect(mockQuery).toHaveBeenCalledTimes(1);
 	});
 
-	it.skip("should skip invalid rows with insufficient elements", async () => {
-		// Skipped: Bun's mock.module doesn't intercept module-level logger calls
+	it("should skip invalid rows with insufficient elements", async () => {
 		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with insufficient elements
@@ -113,8 +113,7 @@ describe("GraphMerger", () => {
 		);
 	});
 
-	it.skip("should skip rows with invalid type", async () => {
-		// Skipped: Bun's mock.module doesn't intercept module-level logger calls
+	it("should skip rows with invalid type", async () => {
 		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with non-string type
@@ -133,8 +132,7 @@ describe("GraphMerger", () => {
 		expect(mockLoggerWarn).toHaveBeenCalledWith("Skipping row - type is not a string");
 	});
 
-	it.skip("should skip rows with invalid isOutgoing", async () => {
-		// Skipped: Bun's mock.module doesn't intercept module-level logger calls
+	it("should skip rows with invalid isOutgoing", async () => {
 		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with non-boolean isOutgoing
@@ -153,8 +151,7 @@ describe("GraphMerger", () => {
 		expect(mockLoggerWarn).toHaveBeenCalledWith("Skipping row - isOutgoing is not a boolean");
 	});
 
-	it.skip("should skip rows with invalid neighborId", async () => {
-		// Skipped: Bun's mock.module doesn't intercept module-level logger calls
+	it("should skip rows with invalid neighborId", async () => {
 		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with non-string neighborId
@@ -213,8 +210,7 @@ describe("GraphMerger", () => {
 		expect(createCall[1]).toMatchObject({ props: {} });
 	});
 
-	it.skip("should log merge completion", async () => {
-		// Skipped: Bun's mock.module doesn't intercept module-level logger calls
+	it("should log merge completion", async () => {
 		const mockQuery = mock(async () => []);
 
 		const mockFalkor = {

@@ -1,0 +1,5 @@
+[test]
+# Preload mocks before test files import modules with singletons
+# This fixes the Bun mock.module limitation with module-level singletons
+# Note: Preload is in lib/ so relative mock paths resolve correctly
+preload = ["./lib/test-preload.ts"]

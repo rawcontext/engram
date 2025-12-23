@@ -1,0 +1,4 @@
+[test]
+# Root-level preload for monorepo-wide test mocking
+# Mocks module-level singletons (FalkorDB, NATS, Logger) before tests import them
+preload = ["./test-preload.ts"]

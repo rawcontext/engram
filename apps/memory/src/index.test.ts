@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, jest, mock } from "bun:test";
 
-// Create shared mocks before mock.module
-const mockGraphClient = {
+// Use shared FalkorDB mocks from root preload (to avoid conflicts with other tests)
+const mockGraphClient = globalThis.__testMocks?.falkor?.client ?? {
 	connect: mock(async () => {}),
 	query: mock(async () => []),
 	disconnect: mock(async () => {}),
@@ -47,14 +47,12 @@ const mockMcpServer = {
 	connect: mock(async () => {}),
 };
 
-// Mock modules
+// Use root preload mocks for storage (to avoid conflicts with other tests)
+// Root preload mocks @engram/storage/falkor and @engram/storage/nats
+// We only mock @engram/storage to add createNatsClient
 mock.module("@engram/storage", () => ({
-	createFalkorClient: mock(() => mockGraphClient),
+	createFalkorClient: () => mockGraphClient,
 	createNatsClient: mock(() => mockNatsClient),
-}));
-
-mock.module("@engram/storage/nats", () => ({
-	createNatsPubSubPublisher: mock(() => mockNatsPubSub),
 }));
 
 mock.module("@engram/logger", () => ({
@@ -378,10 +376,11 @@ describe("Memory Service Deps", () => {
 	});
 });
 
-describe.skip("Module-level functions", () => {
-	// Skipped: Bun doesn't support fake timers yet
+describe("Module-level functions", () => {
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
+		mockGraphPruner.pruneHistory.mockClear();
+		mockLogger.info.mockClear();
+		mockLogger.error.mockClear();
 	});
 
 	describe("Interval management", () => {
@@ -455,19 +454,49 @@ describe.skip("Module-level functions", () => {
 			expect(typeof intervalId).toBe("object");
 		});
 
-		it.skip("should execute pruning on interval", async () => {
-			// Skip: Bun doesn't support fake timers (vi.advanceTimersByTimeAsync)
+		it("should execute pruning on interval", () => {
+			jest.useFakeTimers();
+
 			startPruningJob();
-			await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000);
+
+			// Advance time past the prune interval (default 24 hours)
+			jest.advanceTimersByTime(24 * 60 * 60 * 1000);
+
 			expect(mockGraphPruner.pruneHistory).toHaveBeenCalled();
+
+			clearAllIntervals();
+			jest.useRealTimers();
 		});
 
-		it.skip("should log success after pruning", async () => {
-			// Skip: Bun doesn't support fake timers (vi.advanceTimersByTimeAsync)
+		it("should log success after pruning", () => {
+			jest.useFakeTimers();
+
+			mockGraphPruner.pruneHistory.mockResolvedValueOnce({ deleted: 5 });
+
+			startPruningJob();
+
+			// Advance time to trigger pruning
+			jest.advanceTimersByTime(24 * 60 * 60 * 1000);
+
+			// Pruning should have been called
+			expect(mockGraphPruner.pruneHistory).toHaveBeenCalled();
+
+			clearAllIntervals();
+			jest.useRealTimers();
 		});
 
-		it.skip("should handle pruning errors gracefully", async () => {
-			// Skip: Bun doesn't support fake timers (vi.advanceTimersByTimeAsync)
+		it("should handle pruning errors gracefully", () => {
+			jest.useFakeTimers();
+
+			mockGraphPruner.pruneHistory.mockRejectedValueOnce(new Error("Prune failed"));
+
+			startPruningJob();
+
+			// Advance time to trigger pruning - should not throw
+			expect(() => jest.advanceTimersByTime(24 * 60 * 60 * 1000)).not.toThrow();
+
+			clearAllIntervals();
+			jest.useRealTimers();
 		});
 	});
 
@@ -491,14 +520,39 @@ describe.skip("Module-level functions", () => {
 			expect(typeof intervalId).toBe("object");
 		});
 
-		it.skip("should handle cleanup errors gracefully", async () => {
-			// Skip: Bun doesn't support fake timers (vi.advanceTimersByTimeAsync)
+		it("should handle cleanup errors gracefully", () => {
+			jest.useFakeTimers();
+
+			// Start the cleanup job
+			const intervalId = startTurnCleanupJob();
+			expect(intervalId).toBeDefined();
+
+			// Advance time to trigger cleanup - should not throw even if cleanup has issues
+			expect(() => jest.advanceTimersByTime(60 * 1000)).not.toThrow();
+
+			clearAllIntervals();
+			jest.useRealTimers();
 		});
 	});
 
 	describe("clearAllIntervals", () => {
-		it.skip("should clear pruning interval when set", () => {
-			// Skip: Bun doesn't support fake timers (vi.advanceTimersByTime)
+		it("should clear pruning interval when set", () => {
+			jest.useFakeTimers();
+
+			// Start pruning job
+			startPruningJob();
+
+			// Clear all intervals
+			clearAllIntervals();
+
+			// Reset mock and advance time - pruning should NOT be called since interval is cleared
+			mockGraphPruner.pruneHistory.mockClear();
+			jest.advanceTimersByTime(24 * 60 * 60 * 1000);
+
+			// Pruning should not have been called after clearing
+			expect(mockGraphPruner.pruneHistory).not.toHaveBeenCalled();
+
+			jest.useRealTimers();
 		});
 
 		it("should clear turn cleanup interval when set", () => {

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, jest, mock } from "bun:test";
 
 // Mock DecisionEngine
 const mockHandleInput = mock(async () => {});
@@ -85,9 +85,30 @@ describe("SessionManager", () => {
 		manager.shutdown();
 	});
 
-	// Skip timer-dependent tests since Bun doesn't support fake timers the same way
-	it.skip("should cleanup stale sessions", async () => {
-		// This test requires fake timers which aren't available in Bun
+	it("should cleanup stale sessions", async () => {
+		jest.useFakeTimers();
+
+		const mockToolAdapter = {
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
+		};
+
+		const manager = new SessionManager({
+			toolAdapter: mockToolAdapter,
+		});
+
+		// Create a session
+		await manager.handleInput("sess-stale", "test");
+		expect(mockStart).toHaveBeenCalledTimes(1);
+
+		// Advance time past SESSION_ENGINE_TTL_MS (1 hour) + cleanup interval (5 minutes)
+		jest.advanceTimersByTime(65 * 60 * 1000); // 65 minutes
+
+		// Session should have been cleaned up
+		expect(mockStop).toHaveBeenCalled();
+
+		manager.shutdown();
+		jest.useRealTimers();
 	});
 
 	it("should shutdown and clear all sessions", async () => {
@@ -109,9 +130,36 @@ describe("SessionManager", () => {
 		expect(mockStop).toHaveBeenCalledTimes(2);
 	});
 
-	// Skip timer-dependent tests since Bun doesn't support fake timers the same way
-	it.skip("should update last access time on subsequent calls", async () => {
-		// This test requires fake timers which aren't available in Bun
+	it("should update last access time on subsequent calls", async () => {
+		jest.useFakeTimers();
+
+		const mockToolAdapter = {
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
+		};
+
+		const manager = new SessionManager({
+			toolAdapter: mockToolAdapter,
+		});
+
+		// Create a session
+		await manager.handleInput("sess-active", "test");
+
+		// Advance time by 30 minutes (not stale yet)
+		jest.advanceTimersByTime(30 * 60 * 1000);
+
+		// Access the session again - this should update lastAccess
+		await manager.handleInput("sess-active", "test again");
+
+		// Advance time by another 40 minutes (would be stale from first access, but not from second)
+		jest.advanceTimersByTime(40 * 60 * 1000);
+
+		// Session should NOT be cleaned up because lastAccess was updated
+		// Engine should still be active (only 1 engine created, not stopped yet)
+		expect(mockStart).toHaveBeenCalledTimes(1);
+
+		manager.shutdown();
+		jest.useRealTimers();
 	});
 
 	it("should create manager via factory function", () => {
@@ -189,8 +237,40 @@ describe("SessionManager", () => {
 		manager.shutdown();
 	});
 
-	// Skip timer-dependent tests since Bun doesn't support fake timers the same way
-	it.skip("should run cleanup at correct interval", async () => {
-		// This test requires fake timers which aren't available in Bun
+	it("should run cleanup at correct interval", async () => {
+		jest.useFakeTimers();
+
+		const mockToolAdapter = {
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
+		};
+
+		const manager = new SessionManager({
+			toolAdapter: mockToolAdapter,
+		});
+
+		// Create a stale session
+		await manager.handleInput("sess-interval", "test");
+
+		// Advance time past TTL but before first cleanup interval (< 5 min)
+		jest.advanceTimersByTime(4 * 60 * 1000); // 4 minutes
+
+		// Session should NOT be cleaned up yet (cleanup runs every 5 minutes)
+		expect(mockStop).not.toHaveBeenCalled();
+
+		// Advance past first cleanup interval
+		jest.advanceTimersByTime(2 * 60 * 1000); // Now at 6 minutes, but session is only 6 min old
+
+		// Still not stale (needs 60+ min inactivity)
+		expect(mockStop).not.toHaveBeenCalled();
+
+		// Advance to make session stale (past 60 min) and past next cleanup
+		jest.advanceTimersByTime(60 * 60 * 1000); // Now session is 66 min old
+
+		// Cleanup should have run and removed the stale session
+		expect(mockStop).toHaveBeenCalled();
+
+		manager.shutdown();
+		jest.useRealTimers();
 	});
 });

@@ -1,31 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 // =============================================================================
-// Mock Setup
+// Mock Setup - Uses preloaded mocks from test/preload.ts
 // =============================================================================
 
-// Create mocks before setting up mock.module
-const mockQuery = mock();
-const mockConnect = mock();
-const mockIsConnected = mock();
-const mockDisconnect = mock();
-
-// Create the mock client object
-const mockFalkorClient = {
+// Access preloaded mocks (set up before module-level singletons are created)
+const {
 	query: mockQuery,
 	connect: mockConnect,
 	isConnected: mockIsConnected,
 	disconnect: mockDisconnect,
-};
+} = globalThis.__testMocks.falkor;
 
-// Mock the FalkorClient before importing the module under test
-mock.module("@engram/storage/falkor", () => {
-	return {
-		createFalkorClient: mock(() => mockFalkorClient),
-	};
-});
-
-// Import after mock is set up
+// Import module under test (singleton already uses mocked client from preload)
 import {
 	EDGE_TYPES,
 	getAllSessions,
@@ -184,8 +171,7 @@ describe("graph-queries", () => {
 	// =========================================================================
 	// getSessionLineage
 	// =========================================================================
-	// Skip: Bun's mock.module can't intercept module-level singletons
-	describe.skip("getSessionLineage", () => {
+	describe("getSessionLineage", () => {
 		it("should return empty nodes and links when session not found", async () => {
 			// Arrange
 			mockQuery
@@ -928,8 +914,7 @@ describe("graph-queries", () => {
 	// =========================================================================
 	// getSessionTimeline
 	// =========================================================================
-	// Skip: Bun's mock.module can't intercept module-level singletons
-	describe.skip("getSessionTimeline", () => {
+	describe("getSessionTimeline", () => {
 		it("should return empty timeline when session has no turns", async () => {
 			// Arrange
 			mockQuery
@@ -1390,8 +1375,7 @@ describe("graph-queries", () => {
 	// =========================================================================
 	// getAllSessions
 	// =========================================================================
-	// Skip: Bun's mock.module can't intercept module-level singletons
-	describe.skip("getAllSessions", () => {
+	describe("getAllSessions", () => {
 		it("should return empty sessions when no sessions exist", async () => {
 			// Arrange
 			mockQuery
@@ -1782,8 +1766,7 @@ describe("graph-queries", () => {
 	// =========================================================================
 	// getSessionsForWebSocket
 	// =========================================================================
-	// Skip: Bun's mock.module can't intercept module-level singletons
-	describe.skip("getSessionsForWebSocket", () => {
+	describe("getSessionsForWebSocket", () => {
 		it("should return empty active and recent when no sessions", async () => {
 			// Arrange
 			mockQuery.mockResolvedValueOnce([]);
@@ -2055,8 +2038,7 @@ describe("graph-queries", () => {
 	// =========================================================================
 	// Error Handling
 	// =========================================================================
-	// Skip: Bun's mock.module can't intercept module-level singletons
-	describe.skip("error handling", () => {
+	describe("error handling", () => {
 		it("getSessionLineage should propagate query errors", async () => {
 			// Arrange
 			mockQuery.mockRejectedValueOnce(new Error("Database connection failed"));
