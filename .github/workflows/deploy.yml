@@ -462,11 +462,15 @@ jobs:
           script: |
             cd /opt/engram
 
+            echo "Stopping old Caddy container..."
+            docker compose -f docker-compose.prod.yml stop caddy 2>/dev/null || true
+            docker compose -f docker-compose.prod.yml rm -f caddy 2>/dev/null || true
+
             echo "Pulling Caddy image..."
             docker compose -f docker-compose.prod.yml pull caddy
 
             echo "Starting Caddy..."
-            docker compose -f docker-compose.prod.yml up -d --force-recreate caddy
+            docker compose -f docker-compose.prod.yml up -d caddy
 
             echo "Waiting for Caddy to be ready..."
             sleep 10
