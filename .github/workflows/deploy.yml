@@ -462,23 +462,20 @@ jobs:
           script: |
             cd /opt/engram
 
-            echo "Stopping old Caddy container..."
-            docker compose -f docker-compose.prod.yml stop caddy 2>/dev/null || true
-            docker compose -f docker-compose.prod.yml rm -f caddy 2>/dev/null || true
-
-            echo "Removing orphan containers..."
+            echo "Stopping all containers and removing orphans..."
             docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
-            docker compose -f docker-compose.prod.yml up -d nats qdrant falkordb postgres
 
-            echo "Checking what's using port 80..."
-            sudo lsof -i :80 || echo "Nothing found on port 80"
+            echo "Killing any process on port 80/443..."
             sudo fuser -k 80/tcp 2>/dev/null || true
+            sudo fuser -k 443/tcp 2>/dev/null || true
+            sleep 2
 
-            echo "Pulling Caddy image..."
-            docker compose -f docker-compose.prod.yml pull caddy
+            echo "Restarting docker to clear port allocations..."
+            sudo systemctl restart docker
+            sleep 5
 
-            echo "Starting Caddy..."
-            docker compose -f docker-compose.prod.yml up -d caddy
+            echo "Starting all services..."
+            docker compose -f docker-compose.prod.yml up -d
 
             echo "Waiting for Caddy to be ready..."
             sleep 10
