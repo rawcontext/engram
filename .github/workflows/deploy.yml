@@ -459,6 +459,13 @@ jobs:
           command_timeout: 5m
           script: |
             cd /opt/engram
+
+            # Debug: Check Caddyfile exists and is a file
+            echo "Checking Caddyfile..."
+            ls -la configs/Caddyfile || echo "Caddyfile not found!"
+            file configs/Caddyfile || echo "Cannot determine file type"
+            cat configs/Caddyfile || echo "Cannot read Caddyfile"
+
             echo "Pulling Caddy image..."
             docker compose -f docker-compose.prod.yml pull caddy
 
