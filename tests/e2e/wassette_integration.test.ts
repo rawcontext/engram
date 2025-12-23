@@ -4,7 +4,8 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 const WASSETTE_PATH = `${process.env.HOME}/.local/bin/wassette`;
 
-describe("Wassette Integration", () => {
+// Skip in CI - requires local wassette binary at ~/.local/bin/wassette
+describe.skipIf(process.env.CI === "true")("Wassette Integration", () => {
 	it("should connect to wassette binary and list tools", async () => {
 		const transport = new StdioClientTransport({
 			command: WASSETTE_PATH,
