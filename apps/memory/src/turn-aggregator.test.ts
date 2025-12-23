@@ -42,7 +42,7 @@ function createMockHandler(
 
 // Mock EventHandlerRegistry
 function createMockRegistry(handlers: EventHandler[] = []): MockEventHandlerRegistry {
-	const mock = {
+	const mockRegistry = {
 		register: mock(),
 		getHandler: mock((event: ParsedStreamEvent) => handlers.find((h) => h.canHandle(event))),
 		getHandlers: mock((event: ParsedStreamEvent) => handlers.filter((h) => h.canHandle(event))),
@@ -54,7 +54,7 @@ function createMockRegistry(handlers: EventHandler[] = []): MockEventHandlerRegi
 		},
 	};
 	// Cast to the interface - the mock satisfies the shape required by TurnAggregator
-	return mock as unknown as MockEventHandlerRegistry;
+	return mockRegistry as unknown as MockEventHandlerRegistry;
 }
 
 // Helper to create test events
@@ -433,9 +433,9 @@ describe("TurnAggregator", () => {
 
 				// Should log that no active turn exists (because invalid role won't start turn)
 				// But content is present, so it creates a turn with placeholder
-				const createCalls = vi
-					.mocked(mockGraphClient.query)
-					.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
+				const createCalls = (mockGraphClient.query as any).mock.calls.filter((call: any[]) =>
+					call[0]?.includes("CREATE (t:Turn"),
+				);
 				// The content triggers auto-creation with placeholder
 				expect(createCalls.length).toBe(1);
 				expect(createCalls[0][1].userContent).toBe("[No user message captured]");
@@ -765,9 +765,9 @@ describe("TurnAggregator", () => {
 				);
 
 				// Verify both sessions have their own turns
-				const createCalls = vi
-					.mocked(mockGraphClient.query)
-					.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
+				const createCalls = (mockGraphClient.query as any).mock.calls.filter((call: any[]) =>
+					call[0]?.includes("CREATE (t:Turn"),
+				);
 
 				expect(createCalls.length).toBe(2);
 				expect(createCalls[0][1].sessionId).toBe(sessionId1);
@@ -849,9 +849,9 @@ describe("TurnAggregator", () => {
 
 				await aggregator.processEvent(event, sessionId);
 
-				const createCall = vi
-					.mocked(mockGraphClient.query)
-					.mock.calls.find((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
+				const createCall = (mockGraphClient.query as any).mock.calls.find((call: any[]) =>
+					call[0]?.includes("CREATE (t:Turn"),
+				);
 				expect(createCall[1].userContent.length).toBeLessThanOrEqual(10000);
 			});
 
@@ -896,12 +896,9 @@ describe("TurnAggregator", () => {
 				);
 
 				// Session-2 should start at index 0
-				const session2Call = vi
-					.mocked(mockGraphClient.query)
-					.mock.calls.find(
-						(call: any[]) =>
-							call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === sessionId2,
-					);
+				const session2Call = (mockGraphClient.query as any).mock.calls.find(
+					(call: any[]) => call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === sessionId2,
+				);
 				expect(session2Call[1].sequenceIndex).toBe(0);
 			});
 		});
@@ -1052,11 +1049,9 @@ describe("TurnAggregator", () => {
 			await agg.cleanupStaleTurns(-1);
 
 			// Check that our specific session was cleaned up (module-level state may have others)
-			const cleanupCalls = vi
-				.mocked(mockLogger.info)
-				.mock.calls.filter(
-					(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
-				);
+			const cleanupCalls = (mockLogger.info as any).mock.calls.filter(
+				(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
+			);
 			expect(cleanupCalls.length).toBe(1);
 		});
 
@@ -1088,9 +1083,9 @@ describe("TurnAggregator", () => {
 			await agg.cleanupStaleTurns(-1);
 
 			// Should cleanup the second session (not finalized), but not repeatedly
-			const cleanupCalls = vi
-				.mocked(mockLogger.info)
-				.mock.calls.filter((call: any[]) => call[1] === "Cleaned up stale turn");
+			const cleanupCalls = (mockLogger.info as any).mock.calls.filter(
+				(call: any[]) => call[1] === "Cleaned up stale turn",
+			);
 			// Should have at least one cleanup (for session2)
 			expect(cleanupCalls.length).toBeGreaterThanOrEqual(1);
 		});
@@ -1113,11 +1108,9 @@ describe("TurnAggregator", () => {
 			await agg.cleanupStaleTurns(1000 * 60 * 60); // 1 hour
 
 			// Should NOT have cleaned up this specific session
-			const cleanupCalls = vi
-				.mocked(mockLogger.info)
-				.mock.calls.filter(
-					(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
-				);
+			const cleanupCalls = (mockLogger.info as any).mock.calls.filter(
+				(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
+			);
 			expect(cleanupCalls.length).toBe(0);
 		});
 
@@ -1139,11 +1132,9 @@ describe("TurnAggregator", () => {
 			await agg.cleanupStaleTurns();
 
 			// Recent turn should NOT be cleaned up
-			const cleanupCalls = vi
-				.mocked(mockLogger.info)
-				.mock.calls.filter(
-					(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
-				);
+			const cleanupCalls = (mockLogger.info as any).mock.calls.filter(
+				(call: any[]) => call[1] === "Cleaned up stale turn" && call[0]?.sessionId === sessionId,
+			);
 			expect(cleanupCalls.length).toBe(0);
 		});
 	});
@@ -1277,9 +1268,9 @@ describe("TurnAggregator", () => {
 				sessionId,
 			);
 
-			const finalizeCalls = vi
-				.mocked(mockGraphClient.query)
-				.mock.calls.filter((call: any[]) => call[0]?.includes("SET t.assistant_preview"));
+			const finalizeCalls = (mockGraphClient.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("SET t.assistant_preview"),
+			);
 
 			// Should only have finalized once
 			expect(finalizeCalls.length).toBe(1);
@@ -1360,9 +1351,9 @@ describe("TurnAggregator", () => {
 			);
 
 			// Get the create call for agg2 - should have sequenceIndex 0
-			const createCalls = vi
-				.mocked(mockGraphClient2.query)
-				.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
+			const createCalls = (mockGraphClient2.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("CREATE (t:Turn"),
+			);
 			expect(createCalls.length).toBe(1);
 			expect(createCalls[0][1].sequenceIndex).toBe(0);
 		});
@@ -1387,9 +1378,9 @@ describe("TurnAggregator", () => {
 			);
 
 			// Instance 1 should have sequence 0 and 1
-			const createCalls1 = vi
-				.mocked(mockGraphClient1.query)
-				.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
+			const createCalls1 = (mockGraphClient1.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("CREATE (t:Turn"),
+			);
 			expect(createCalls1[0][1].sequenceIndex).toBe(0);
 			expect(createCalls1[1][1].sequenceIndex).toBe(1);
 
@@ -1405,9 +1396,9 @@ describe("TurnAggregator", () => {
 				sessionId,
 			);
 
-			const createCalls2 = vi
-				.mocked(mockGraphClient2.query)
-				.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
+			const createCalls2 = (mockGraphClient2.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("CREATE (t:Turn"),
+			);
 			expect(createCalls2[0][1].sequenceIndex).toBe(0); // Fresh start
 		});
 	});
@@ -1441,9 +1432,9 @@ describe("TurnAggregator", () => {
 				sessionId,
 			);
 
-			const createCalls = vi
-				.mocked(mockGraph.query)
-				.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
+			const createCalls = (mockGraph.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("CREATE (t:Turn"),
+			);
 
 			// Should have 3 turns: index 0, 1, then 0 again after clear
 			expect(createCalls.length).toBe(3);
@@ -1479,11 +1470,9 @@ describe("TurnAggregator", () => {
 				session1,
 			);
 
-			const createCalls = vi
-				.mocked(mockGraph.query)
-				.mock.calls.filter(
-					(call: any[]) => call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === session1,
-				);
+			const createCalls = (mockGraph.query as any).mock.calls.filter(
+				(call: any[]) => call[0]?.includes("CREATE (t:Turn") && call[1]?.sessionId === session1,
+			);
 
 			expect(createCalls.length).toBe(2);
 			expect(createCalls[1][1].sequenceIndex).toBe(1); // Continues from 1
@@ -1503,9 +1492,9 @@ describe("TurnAggregator", () => {
 			await aggregator.processEvent(event, sessionId);
 
 			// No turn created because role=user but content is empty string (falsy)
-			const createCalls = vi
-				.mocked(mockGraphClient.query)
-				.mock.calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
+			const createCalls = (mockGraphClient.query as any).mock.calls.filter((call: any[]) =>
+				call[0]?.includes("CREATE (t:Turn"),
+			);
 			expect(createCalls.length).toBe(0);
 		});
 
@@ -1530,9 +1519,9 @@ describe("TurnAggregator", () => {
 			);
 
 			// The finalization query should truncate preview to 2000 chars
-			const finalizeCall = vi
-				.mocked(mockGraphClient.query)
-				.mock.calls.find((call: any[]) => call[0]?.includes("SET t.assistant_preview"));
+			const finalizeCall = (mockGraphClient.query as any).mock.calls.find((call: any[]) =>
+				call[0]?.includes("SET t.assistant_preview"),
+			);
 			expect(finalizeCall).toBeDefined();
 		});
 

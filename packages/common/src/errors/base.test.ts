@@ -6,7 +6,7 @@ import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
 import { EngramError } from "./base";
 
 describe("EngramError", () => {
-	let captureStackTraceSpy: ReturnType<typeof vi.spyOn> | undefined;
+	let captureStackTraceSpy: ReturnType<typeof spyOn> | undefined;
 
 	beforeEach(() => {
 		if (Error.captureStackTrace) {

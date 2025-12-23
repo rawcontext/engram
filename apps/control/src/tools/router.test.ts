@@ -1,32 +1,40 @@
-import { VirtualFileSystem } from "@engram/vfs";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
+// Mock dependencies - must be defined before mock.module calls
+const mockCreateNodeLogger = mock(() => ({
+	info: mock(),
+	error: mock(),
+	warn: mock(),
+	debug: mock(),
+}));
+
+const mockCreateFalkorClient = mock(() => ({
+	connect: mock().mockResolvedValue(undefined),
+	disconnect: mock().mockResolvedValue(undefined),
+	query: mock().mockResolvedValue([]),
+	isConnected: mock().mockReturnValue(false),
+}));
+
+const mockCreateBlobStore = mock(() => ({
+	save: mock().mockResolvedValue("blob://test"),
+	load: mock().mockResolvedValue(Buffer.from("{}")),
+	exists: mock().mockResolvedValue(false),
+}));
+
+mock.module("@engram/logger", () => ({
+	createNodeLogger: mockCreateNodeLogger,
+}));
+
+mock.module("@engram/storage", () => ({
+	createFalkorClient: mockCreateFalkorClient,
+	createBlobStore: mockCreateBlobStore,
+}));
+
+// Import after mocking
+import { VirtualFileSystem } from "@engram/vfs";
 import { ExecutionService } from "../execution";
 import type { MultiMcpAdapter } from "./mcp_client";
 import { createToolRouter, ToolRouter } from "./router";
-
-// Mock dependencies
-vi.mock("@engram/logger", () => ({
-	createNodeLogger: mock(() => ({
-		info: mock(),
-		error: mock(),
-		warn: mock(),
-		debug: mock(),
-	})),
-}));
-
-vi.mock("@engram/storage", () => ({
-	createFalkorClient: mock(() => ({
-		connect: mock().mockResolvedValue(undefined),
-		disconnect: mock().mockResolvedValue(undefined),
-		query: mock().mockResolvedValue([]),
-		isConnected: mock().mockReturnValue(false),
-	})),
-	createBlobStore: mock(() => ({
-		save: mock().mockResolvedValue("blob://test"),
-		load: mock().mockResolvedValue(Buffer.from("{}")),
-		exists: mock().mockResolvedValue(false),
-	})),
-}));
 
 describe("ToolRouter", () => {
 	let executionService: ExecutionService;
@@ -34,7 +42,10 @@ describe("ToolRouter", () => {
 	let router: ToolRouter;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
+		// Clear individual mocks
+		mockCreateNodeLogger.mockClear();
+		mockCreateFalkorClient.mockClear();
+		mockCreateBlobStore.mockClear();
 
 		// Create real ExecutionService with a VFS
 		const vfs = new VirtualFileSystem();
@@ -42,9 +53,9 @@ describe("ToolRouter", () => {
 
 		// Create mock MCP adapter
 		mockMcpAdapter = {
-			listTools: vi
-				.fn()
-				.mockResolvedValue([{ name: "external_tool", description: "An external MCP tool" }]),
+			listTools: mock().mockResolvedValue([
+				{ name: "external_tool", description: "An external MCP tool" },
+			]),
 			callTool: mock().mockResolvedValue({
 				content: [{ type: "text", text: "MCP result" }],
 			}),

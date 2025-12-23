@@ -1,33 +1,41 @@
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+
+// Mock external dependencies - must be defined before mock.module calls
+const mockCreateNodeLogger = mock(() => ({
+	info: mock(),
+	error: mock(),
+	warn: mock(),
+	debug: mock(),
+}));
+
+const mockCreateFalkorClient = mock(() => ({
+	connect: mock().mockResolvedValue(undefined),
+	disconnect: mock().mockResolvedValue(undefined),
+	query: mock().mockResolvedValue([]),
+	isConnected: mock().mockReturnValue(false),
+}));
+
+const mockCreateBlobStore = mock(() => ({
+	save: mock().mockResolvedValue("blob://test"),
+	load: mock().mockResolvedValue(Buffer.from("{}")),
+	exists: mock().mockResolvedValue(false),
+}));
+
+mock.module("@engram/logger", () => ({
+	createNodeLogger: mockCreateNodeLogger,
+}));
+
+mock.module("@engram/storage", () => ({
+	createFalkorClient: mockCreateFalkorClient,
+	createBlobStore: mockCreateBlobStore,
+}));
+
+// Import after mocking
 import type { Logger } from "@engram/logger";
 import type { GraphClient } from "@engram/storage";
 import { Rehydrator, TimeTravelService } from "@engram/temporal";
 import { PatchManager, VirtualFileSystem } from "@engram/vfs";
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { createExecutionService, ExecutionService } from "./service";
-
-// Mock external dependencies
-vi.mock("@engram/logger", () => ({
-	createNodeLogger: mock(() => ({
-		info: mock(),
-		error: mock(),
-		warn: mock(),
-		debug: mock(),
-	})),
-}));
-
-vi.mock("@engram/storage", () => ({
-	createFalkorClient: mock(() => ({
-		connect: mock().mockResolvedValue(undefined),
-		disconnect: mock().mockResolvedValue(undefined),
-		query: mock().mockResolvedValue([]),
-		isConnected: mock().mockReturnValue(false),
-	})),
-	createBlobStore: mock(() => ({
-		save: mock().mockResolvedValue("blob://test"),
-		load: mock().mockResolvedValue(Buffer.from("{}")),
-		exists: mock().mockResolvedValue(false),
-	})),
-}));
 
 describe("ExecutionService", () => {
 	beforeEach(() => {

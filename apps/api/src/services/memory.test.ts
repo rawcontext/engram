@@ -3,7 +3,8 @@ import { MemoryService } from "./memory";
 
 // Mock fetch for SearchClient
 const mockFetch = mock();
-vi.stubGlobal("fetch", mockFetch);
+const originalFetch = globalThis.fetch;
+globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 describe("MemoryService", () => {
 	const mockLogger = {

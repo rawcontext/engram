@@ -378,6 +378,7 @@ describe("mapBenchmarkToTrialMetrics", () => {
 // NOTE: evaluateWithBenchmark involves spawning child processes which is difficult to test
 // in a unit test environment. The function is primarily tested via integration tests.
 describe.skip("evaluateWithBenchmark", () => {
+	// Skipped: Involves spawning child processes, tested via integration tests
 	let tmpDir: string;
 
 	beforeEach(async () => {

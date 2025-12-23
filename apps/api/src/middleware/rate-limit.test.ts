@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { describe, expect, it, mock } from "bun:test";
-import { rateLimiter } from "./rate-limit";
 
 // Mock Redis client
 const createMockRedisClient = () => {
@@ -25,9 +24,14 @@ const createMockRedisClient = () => {
 	return { mockClient, mockPipeline };
 };
 
-vi.mock("redis", () => ({
-	createClient: mock(),
+const mockCreateClient = mock();
+
+mock.module("redis", () => ({
+	createClient: mockCreateClient,
 }));
+
+// Import after mocking
+import { rateLimiter } from "./rate-limit";
 
 describe("Rate Limiter Middleware", () => {
 	it("should allow request when under rate limit", async () => {
@@ -35,8 +39,7 @@ describe("Rate Limiter Middleware", () => {
 		mockClient.isOpen = true;
 		mockPipeline.exec.mockResolvedValue([null, null, 5, null]); // 5 requests in window
 
-		const { createClient } = await import("redis");
-		(createClient as any).mockReturnValue(mockClient);
+		mockCreateClient.mockReturnValue(mockClient);
 
 		const mockLogger = {
 			debug: mock(),
@@ -70,8 +73,7 @@ describe("Rate Limiter Middleware", () => {
 		mockClient.isOpen = true;
 		mockPipeline.exec.mockResolvedValue([null, null, 61, null]); // 61 requests in window
 
-		const { createClient } = await import("redis");
-		(createClient as any).mockReturnValue(mockClient);
+		mockCreateClient.mockReturnValue(mockClient);
 
 		const mockLogger = {
 			debug: mock(),
@@ -125,8 +127,7 @@ describe("Rate Limiter Middleware", () => {
 		const { mockClient, mockPipeline } = createMockRedisClient();
 		mockPipeline.exec.mockResolvedValue([null, null, 1, null]);
 
-		const { createClient } = await import("redis");
-		(createClient as any).mockReturnValue(mockClient);
+		mockCreateClient.mockReturnValue(mockClient);
 
 		const mockLogger = {
 			debug: mock(),
@@ -165,8 +166,7 @@ describe("Rate Limiter Middleware", () => {
 			mockClient.isOpen = true;
 		});
 
-		const { createClient } = await import("redis");
-		(createClient as any).mockReturnValue(mockClient);
+		mockCreateClient.mockReturnValue(mockClient);
 
 		const mockLogger = {
 			debug: mock(),
@@ -204,8 +204,7 @@ describe("Rate Limiter Middleware", () => {
 		const { mockClient, mockPipeline } = createMockRedisClient();
 		mockPipeline.exec.mockResolvedValue([null, null, 1, null]);
 
-		const { createClient } = await import("redis");
-		(createClient as any).mockReturnValue(mockClient);
+		mockCreateClient.mockReturnValue(mockClient);
 
 		const mockLogger = {
 			debug: mock(),
@@ -235,8 +234,7 @@ describe("Rate Limiter Middleware", () => {
 		const { mockClient, mockPipeline } = createMockRedisClient();
 		mockPipeline.exec.mockRejectedValue(new Error("Redis connection failed"));
 
-		const { createClient } = await import("redis");
-		(createClient as any).mockReturnValue(mockClient);
+		mockCreateClient.mockReturnValue(mockClient);
 
 		const mockLogger = {
 			debug: mock(),
@@ -271,8 +269,7 @@ describe("Rate Limiter Middleware", () => {
 		mockClient.isOpen = true;
 		mockPipeline.exec.mockResolvedValue([null, null, 1, null]);
 
-		const { createClient } = await import("redis");
-		(createClient as any).mockReturnValue(mockClient);
+		mockCreateClient.mockReturnValue(mockClient);
 
 		const mockLogger = {
 			debug: mock(),
@@ -306,8 +303,7 @@ describe("Rate Limiter Middleware", () => {
 		const { mockClient } = createMockRedisClient();
 		mockClient.connect.mockRejectedValue(new Error("Connection failed"));
 
-		const { createClient } = await import("redis");
-		(createClient as any).mockReturnValue(mockClient);
+		mockCreateClient.mockReturnValue(mockClient);
 
 		const mockLogger = {
 			debug: mock(),
@@ -339,8 +335,7 @@ describe("Rate Limiter Middleware", () => {
 		mockClient.isOpen = true;
 		mockPipeline.exec.mockResolvedValue([null, null, 1, null]);
 
-		const { createClient } = await import("redis");
-		(createClient as any).mockReturnValue(mockClient);
+		mockCreateClient.mockReturnValue(mockClient);
 
 		const mockLogger = {
 			debug: mock(),

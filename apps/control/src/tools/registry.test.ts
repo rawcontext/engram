@@ -216,24 +216,19 @@ describe("ToolRegistry", () => {
 			};
 
 			// Create a mock search client that returns zero embeddings
+			let embedCallCount = 0;
 			const zeroVectorClient: SearchClient = {
 				search: mock(),
-				embed: vi
-					.fn()
-					.mockResolvedValueOnce({
-						// Query embedding - also zeros
+				embed: mock(() => {
+					embedCallCount++;
+					// Both query and tool embeddings return zeros
+					return Promise.resolve({
 						embedding: [0, 0, 0],
 						dimensions: 3,
 						embedder_type: "text",
 						took_ms: 10,
-					})
-					.mockResolvedValueOnce({
-						// Tool embedding - all zeros
-						embedding: [0, 0, 0],
-						dimensions: 3,
-						embedder_type: "text",
-						took_ms: 10,
-					}),
+					});
+				}),
 				health: mock(),
 			} as unknown as SearchClient;
 
@@ -275,31 +270,37 @@ describe("ToolRegistry", () => {
 
 			// Create a mock search client that returns embeddings of different sizes
 			// The query embedding will be compared against each tool embedding
+			let badEmbedCallCount = 0;
 			const badMockSearchClient: SearchClient = {
 				search: mock(),
-				embed: vi
-					.fn()
-					.mockResolvedValueOnce({
+				embed: mock(() => {
+					badEmbedCallCount++;
+					if (badEmbedCallCount === 1) {
 						// Query embedding (called first)
-						embedding: [1, 2, 3],
-						dimensions: 3,
-						embedder_type: "text",
-						took_ms: 10,
-					})
-					.mockResolvedValueOnce({
+						return Promise.resolve({
+							embedding: [1, 2, 3],
+							dimensions: 3,
+							embedder_type: "text",
+							took_ms: 10,
+						});
+					} else if (badEmbedCallCount === 2) {
 						// Tool 1 embedding - different length from query!
-						embedding: [1, 2, 3, 4, 5],
-						dimensions: 5,
-						embedder_type: "text",
-						took_ms: 10,
-					})
-					.mockResolvedValueOnce({
+						return Promise.resolve({
+							embedding: [1, 2, 3, 4, 5],
+							dimensions: 5,
+							embedder_type: "text",
+							took_ms: 10,
+						});
+					} else {
 						// Tool 2 embedding
-						embedding: [1, 2, 3, 4, 5, 6],
-						dimensions: 6,
-						embedder_type: "text",
-						took_ms: 10,
-					}),
+						return Promise.resolve({
+							embedding: [1, 2, 3, 4, 5, 6],
+							dimensions: 6,
+							embedder_type: "text",
+							took_ms: 10,
+						});
+					}
+				}),
 				health: mock(),
 			} as unknown as SearchClient;
 

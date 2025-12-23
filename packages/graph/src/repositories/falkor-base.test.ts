@@ -1,6 +1,6 @@
 import type { GraphClient } from "@engram/storage";
-import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
-import { spyOn, MAX_DATE } from "../utils/time";
+import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { MAX_DATE } from "../utils/time";
 import { FalkorBaseRepository } from "./falkor-base";
 
 class TestRepository extends FalkorBaseRepository {

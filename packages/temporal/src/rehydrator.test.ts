@@ -2,16 +2,20 @@ import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Mock @engram/storage before importing the unit under test
 const mockBlobStoreLoad = mock(async () => "{}");
-vi.mock("@engram/storage", () => ({
+const mockBlobStoreSave = mock(async () => "blob://ref");
+const mockFalkorClientQuery = mock(async () => []);
+
+mock.module("@engram/storage", () => ({
 	createBlobStore: () => ({
 		load: mockBlobStoreLoad,
-		save: mock(async () => "blob://ref"),
+		save: mockBlobStoreSave,
 	}),
 	createFalkorClient: () => ({
-		query: mock(async () => []),
+		query: mockFalkorClientQuery,
 	}),
 }));
 
+// Import after mocking
 import type { FalkorClient } from "@engram/storage";
 import { createRehydrator, Rehydrator } from "./rehydrator";
 

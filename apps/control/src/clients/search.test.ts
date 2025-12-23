@@ -1,4 +1,18 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
+// Mock logger - must be defined before mock.module
+const mockCreateNodeLogger = mock(() => ({
+	info: mock(),
+	error: mock(),
+	warn: mock(),
+	debug: mock(),
+}));
+
+mock.module("@engram/logger", () => ({
+	createNodeLogger: mockCreateNodeLogger,
+}));
+
+// Import after mocking
 import {
 	createSearchClient,
 	type EmbedResponse,
@@ -6,22 +20,13 @@ import {
 	type SearchResponse,
 } from "./search";
 
-// Mock logger
-vi.mock("@engram/logger", () => ({
-	createNodeLogger: mock(() => ({
-		info: mock(),
-		error: mock(),
-		warn: mock(),
-		debug: mock(),
-	})),
-}));
-
 describe("SearchClient", () => {
 	let client: SearchClient;
 	let fetchMock: ReturnType<typeof mock>;
 
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
+		// Clear individual mocks
+		mockCreateNodeLogger.mockClear();
 
 		// Mock global fetch
 		fetchMock = mock();

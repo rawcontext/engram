@@ -1,13 +1,12 @@
 import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
-import { McpToolAdapter, MultiMcpAdapter } from "./mcp_client";
 
-// Mock Client
+// Mock Client - must be defined before mock.module calls
 const mockConnect = mock(async () => {});
 const mockListTools = mock(async () => ({ tools: [{ name: "test-tool" }] }));
 const mockCallTool = mock(async () => ({ content: [] }));
 const mockClose = mock(async () => {});
 
-vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
+mock.module("@modelcontextprotocol/sdk/client/index.js", () => ({
 	Client: class {
 		connect = mockConnect;
 		listTools = mockListTools;
@@ -17,9 +16,12 @@ vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
 }));
 
 // Mock Transport
-vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => ({
+mock.module("@modelcontextprotocol/sdk/client/stdio.js", () => ({
 	StdioClientTransport: class {},
 }));
+
+// Import after mocking
+import { McpToolAdapter, MultiMcpAdapter } from "./mcp_client";
 
 describe("MCP Client", () => {
 	beforeEach(() => {
@@ -70,7 +72,8 @@ describe("MCP Client", () => {
 			const adapter = new McpToolAdapter("echo");
 			await adapter.connect();
 
-			await expect(adapter.disconnect()).resolves.not.toThrow();
+			// disconnect() catches errors internally, so it should resolve successfully
+			await expect(adapter.disconnect()).resolves.toBeUndefined();
 		});
 
 		it("should not disconnect if not connected", async () => {

@@ -536,10 +536,15 @@ describe("ContextAssembler", () => {
 
 		it("should fall back to timestamp ordering when no NEXT chain results", async () => {
 			// Arrange
-			const queryMock = vi
-				.fn()
-				.mockResolvedValueOnce([]) // First query (NEXT chain) returns empty
-				.mockResolvedValueOnce([
+			let queryCallCount = 0;
+			const queryMock = mock(async () => {
+				queryCallCount++;
+				if (queryCallCount === 1) {
+					// First query (NEXT chain) returns empty
+					return [];
+				}
+				// Second query returns fallback content
+				return [
 					{
 						thought: createMockThoughtNode({
 							properties: {
@@ -554,7 +559,8 @@ describe("ContextAssembler", () => {
 							},
 						}),
 					},
-				]);
+				];
+			});
 
 			const graphClient = createMockGraphClient({
 				query: queryMock,
@@ -1077,7 +1083,9 @@ describe("ContextAssembler", () => {
 			});
 
 			// Act - should not throw
-			await expect(assembler.cleanup()).resolves.not.toThrow();
+			await assembler.cleanup();
+			// If we get here without throwing, the test passes
+			expect(true).toBe(true);
 		});
 
 		it("should not disconnect when connection is injected", async () => {

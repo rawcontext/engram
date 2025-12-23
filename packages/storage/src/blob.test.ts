@@ -1,6 +1,5 @@
 import * as fs from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { createBlobStore, FileSystemBlobStore, GCSBlobStore } from "./blob";
 
 // Mock functions for GCS operations
 const mockSave = mock();
@@ -15,12 +14,15 @@ const mockBucket = mock(() => ({
 	file: mockFile,
 }));
 
-// Mock the @google-cloud/storage module with a class
-vi.mock("@google-cloud/storage", () => ({
+// Mock the @google-cloud/storage module
+mock.module("@google-cloud/storage", () => ({
 	Storage: class MockStorage {
 		bucket = mockBucket;
 	},
 }));
+
+// Import after mocking
+import { createBlobStore, FileSystemBlobStore, GCSBlobStore } from "./blob";
 
 describe("Blob Storage", () => {
 	const testDir = `/tmp/engram-blob-test-${Date.now()}`;
@@ -207,7 +209,11 @@ describe("Blob Storage", () => {
 
 	describe("GCSBlobStore", () => {
 		beforeEach(() => {
-			// vi.clearAllMocks(); // TODO: Clear individual mocks
+			mockSave.mockClear();
+			mockDownload.mockClear();
+			mockExists.mockClear();
+			mockFile.mockClear();
+			mockBucket.mockClear();
 			// Reset default mock implementations
 			mockSave.mockResolvedValue(undefined);
 			mockExists.mockResolvedValue([true]);

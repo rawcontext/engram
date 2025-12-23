@@ -3,7 +3,8 @@ import { SearchClient } from "./search";
 
 // Mock fetch globally
 const mockFetch = mock();
-vi.stubGlobal("fetch", mockFetch);
+const originalFetch = globalThis.fetch;
+globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 describe("SearchClient", () => {
 	const mockLogger = {

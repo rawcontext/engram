@@ -1,16 +1,19 @@
 import type { NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { trackUsage, withTelemetry } from "./telemetry";
 
-vi.mock("@engram/logger", () => ({
+// Mock @engram/logger before imports
+const mockLoggerInfo = mock();
+mock.module("@engram/logger", () => ({
 	createNodeLogger: () => ({
-		info: mock(),
+		info: mockLoggerInfo,
 	}),
 }));
 
+import { trackUsage, withTelemetry } from "./telemetry";
+
 describe("telemetry", () => {
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
+		mockLoggerInfo.mockClear();
 	});
 
 	describe("trackUsage", () => {

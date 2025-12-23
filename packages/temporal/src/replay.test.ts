@@ -2,13 +2,16 @@ import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Mock @engram/storage before importing
 const mockBlobStoreRead = mock(async () => "{}");
-vi.mock("@engram/storage", () => ({
+const mockBlobStoreWrite = mock(async () => {});
+
+mock.module("@engram/storage", () => ({
 	createBlobStore: () => ({
 		read: mockBlobStoreRead,
-		write: mock(async () => {}),
+		write: mockBlobStoreWrite,
 	}),
 }));
 
+// Import after mocking
 import type { FalkorClient } from "@engram/storage";
 import { ReplayEngine } from "./replay";
 

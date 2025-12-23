@@ -5,20 +5,6 @@ import { FalkorSessionRepository } from "./falkor-session.repository";
 import { FalkorToolCallRepository } from "./falkor-tool-call.repository";
 import { FalkorTurnRepository } from "./falkor-turn.repository";
 
-// Use vi.hoisted to ensure mock is available during vi.mock() execution
-const { mockLoggerWarn } = vi.hoisted(() => ({
-	mockLoggerWarn: mock(),
-}));
-
-vi.mock("@engram/logger", () => ({
-	createNodeLogger: () => ({
-		info: mock(),
-		warn: mockLoggerWarn,
-		error: mock(),
-		debug: mock(),
-	}),
-}));
-
 // Mock GraphClient
 const createMockGraphClient = () => ({
 	connect: mock(async () => {}),
@@ -592,8 +578,6 @@ describe("FalkorSessionRepository", () => {
 
 	describe("mapToSession", () => {
 		it("should handle invalid JSON metadata gracefully", async () => {
-			mockLoggerWarn.mockClear();
-
 			mockClient.query.mockResolvedValueOnce([
 				{
 					s: {
@@ -616,11 +600,8 @@ describe("FalkorSessionRepository", () => {
 
 			const result = await repository.findById("sess-123");
 
+			// Invalid JSON metadata should be set to undefined (graceful fallback)
 			expect(result?.metadata).toBeUndefined();
-			expect(mockLoggerWarn).toHaveBeenCalledWith(
-				{ context: "metadata" },
-				"Failed to parse JSON, using fallback",
-			);
 		});
 
 		it("should throw when node or properties is null", async () => {

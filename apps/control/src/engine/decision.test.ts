@@ -1,29 +1,29 @@
+import type { Mock } from "bun:test";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+
+// Mock external dependencies before importing modules that use them
+const mockGenerateText = mock();
+const mockTool = mock((config: object) => ({
+	...config,
+	_isTool: true,
+}));
+
+mock.module("ai", () => ({
+	generateText: mockGenerateText,
+	tool: mockTool,
+}));
+
+mock.module("@ai-sdk/xai", () => ({
+	xai: mock(() => "mock-xai-model"),
+}));
+
+// Import after mocks are set up
 import {
 	convertMcpToolsToAiSdk,
 	createDecisionEngine,
 	DecisionEngine,
 	extractToolCalls,
 } from "./decision";
-
-// Mock external dependencies
-vi.mock("ai", () => ({
-	generateText: mock(),
-	tool: mock((config) => ({
-		...config,
-		_isTool: true,
-	})),
-}));
-
-vi.mock("@ai-sdk/xai", () => ({
-	xai: mock(() => "mock-xai-model"),
-}));
-
-// Import the mocked generateText for assertions
-import { generateText, tool } from "ai";
-
-const mockGenerateText = generateText as Mock;
-const mockTool = tool as Mock;
 
 describe("extractToolCalls", () => {
 	it("should return empty array when toolCalls is undefined", () => {
@@ -138,7 +138,7 @@ describe("extractToolCalls", () => {
 
 describe("convertMcpToolsToAiSdk", () => {
 	beforeEach(() => {
-		// vi.clearAllMocks(); // TODO: Clear individual mocks
+		mockTool.mockClear();
 	});
 
 	it("should return empty object for empty array", () => {

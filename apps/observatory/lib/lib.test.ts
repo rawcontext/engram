@@ -1,8 +1,6 @@
 import type { NextRequest } from "next/server";
 import { describe, expect, it, mock } from "bun:test";
 import { z } from "zod";
-import { apiError, apiSuccess } from "./api-response";
-import { validate } from "./validate";
 
 /**
  * Shape of mocked NextResponse.json() return value.
@@ -16,12 +14,15 @@ interface MockedResponse {
 	init: { status: number };
 }
 
-// Mock NextResponse
-vi.mock("next/server", () => ({
+// Mock NextResponse before imports
+mock.module("next/server", () => ({
 	NextResponse: {
 		json: (body: Record<string, unknown>, init?: { status: number }) => ({ body, init }),
 	},
 }));
+
+import { apiError, apiSuccess } from "./api-response";
+import { validate } from "./validate";
 
 describe("Interface Lib", () => {
 	describe("apiResponse", () => {
