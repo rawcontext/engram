@@ -1,0 +1,231 @@
+name: engram
+
+services:
+  # ===================
+  # REVERSE PROXY
+  # ===================
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy/data:/data
+      - ./data/caddy/config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      search:
+        condition: service_healthy
+      tuner:
+        condition: service_healthy
+      observatory:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===================
+  # DATABASES
+  # ===================
+  nats:
+    image: nats:2.12-alpine
+    command: ["--jetstream", "--store_dir=/data", "-m", "6182"]
+    volumes:
+      - ./data/nats:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:6182/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__ENABLE_TLS=false
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  falkordb:
+    image: falkordb/falkordb:latest
+    volumes:
+      - ./data/falkordb:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-engram}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./apps/api/src/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-engram}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ===================
+  # APPLICATIONS
+  # ===================
+  ingestion:
+    build:
+      context: .
+      dockerfile: apps/ingestion/Dockerfile
+    platform: linux/amd64
+    environment:
+      - NODE_ENV=production
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://falkordb:6379
+      - PORT=6175
+    depends_on:
+      nats:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:6175/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  memory:
+    build:
+      context: .
+      dockerfile: apps/memory/Dockerfile
+    platform: linux/amd64
+    environment:
+      - NODE_ENV=production
+      - NATS_URL=nats://nats:4222
+      - FALKORDB_URL=redis://falkordb:6379
+      - REDIS_URL=redis://falkordb:6379
+    depends_on:
+      nats:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  search:
+    build:
+      context: ./apps/search
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-engram_memory}
+      - QDRANT_TURNS_COLLECTION=${QDRANT_TURNS_COLLECTION:-engram_turns}
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://falkordb:6379
+      - HF_API_TOKEN=${HF_API_TOKEN}
+      - EMBEDDER_BACKEND=${EMBEDDER_BACKEND:-huggingface}
+      - EMBEDDER_DEVICE=${EMBEDDER_DEVICE:-cpu}
+      - EMBEDDER_TEXT_MODEL=${EMBEDDER_TEXT_MODEL:-BAAI/bge-small-en-v1.5}
+      - EMBEDDER_PRELOAD=${EMBEDDER_PRELOAD:-false}
+      - SEARCH_DEFAULT_STRATEGY=${SEARCH_DEFAULT_STRATEGY:-dense}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000","http://localhost:5173","http://localhost:8080"]}
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:6176/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    platform: linux/amd64
+    environment:
+      - NODE_ENV=production
+      - POSTGRES_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-engram}
+      - SEARCH_URL=http://search:6176
+      - FALKORDB_URL=redis://falkordb:6379
+      - PORT=6174
+    depends_on:
+      postgres:
+        condition: service_healthy
+      search:
+        condition: service_started
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:6174/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  tuner:
+    build:
+      context: ./apps/tuner
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/optuna
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000","http://localhost:5173","http://localhost:8080"]}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:6177/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  observatory:
+    build:
+      context: .
+      dockerfile: apps/observatory/Dockerfile
+    platform: linux/amd64
+    environment:
+      - NODE_ENV=production
+      - HOSTNAME=0.0.0.0
+      - API_URL=http://api:6174
+      - SEARCH_URL=http://search:6176
+      - FALKORDB_URL=redis://falkordb:6379
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=https://observatory.statient.com
+      - NEXT_PUBLIC_BETTER_AUTH_URL=https://observatory.statient.com
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram
+    depends_on:
+      api:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

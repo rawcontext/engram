@@ -30,7 +30,6 @@ docs/
 apps/*/.env
 Caddyfile
 docker-compose.dev.yml
-docker-compose.prod.yml
 .tool-versions
 
 # Benchmark artifacts
