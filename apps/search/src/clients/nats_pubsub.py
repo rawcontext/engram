@@ -12,6 +12,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -130,7 +131,7 @@ class NatsPubSubPublisher:
             type=update_type,
             sessionId=session_id,
             data=data,
-            timestamp=int(asyncio.get_event_loop().time() * 1000),
+            timestamp=int(time.time() * 1000),
         )
 
         await nc.publish(subject, message.model_dump_json().encode("utf-8"))
@@ -154,7 +155,7 @@ class NatsPubSubPublisher:
             type=event_type,
             sessionId="",  # Global event, not tied to specific session
             data=session_data,
-            timestamp=int(asyncio.get_event_loop().time() * 1000),
+            timestamp=int(time.time() * 1000),
         )
 
         await nc.publish(subject, message.model_dump_json().encode("utf-8"))
@@ -178,7 +179,7 @@ class NatsPubSubPublisher:
             type=status_type,
             groupId=group_id,
             serviceId=service_id,
-            timestamp=int(asyncio.get_event_loop().time() * 1000),
+            timestamp=int(time.time() * 1000),
         )
 
         await nc.publish(subject, message.model_dump_json().encode("utf-8"))

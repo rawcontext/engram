@@ -190,7 +190,7 @@ class TurnFinalizedConsumerConfig(BaseModel):
     group_id: str = Field(default="search-turns-indexer", description="Consumer group ID")
     batch_config: BatchConfig = Field(default_factory=BatchConfig)
     indexer_config: TurnsIndexerConfig = Field(default_factory=TurnsIndexerConfig)
-    heartbeat_interval_ms: int = Field(default=30000, description="Redis heartbeat interval")
+    heartbeat_interval_ms: int = Field(default=10000, description="NATS heartbeat interval")
     service_id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
 
 

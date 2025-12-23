@@ -1,4 +1,4 @@
-import { createLogger, type Logger } from "@engram/logger";
+import { createNodeLogger, type Logger } from "@engram/logger";
 
 export interface SearchFilters {
 	session_id?: string;
@@ -42,7 +42,12 @@ export class SearchClient {
 
 	constructor(baseUrl: string, logger?: Logger) {
 		this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
-		this.logger = logger ?? createLogger({ component: "SearchClient" });
+		this.logger =
+			logger ??
+			createNodeLogger({
+				service: "engram-mcp",
+				base: { component: "SearchClient" },
+			});
 	}
 
 	async search(options: SearchOptions): Promise<SearchResponse> {

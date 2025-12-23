@@ -1,4 +1,4 @@
-import { createLogger, type Logger } from "@engram/logger";
+import { createNodeLogger, type Logger } from "@engram/logger";
 import { FalkorClient, type GraphClient } from "@engram/storage";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
@@ -60,9 +60,10 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	// Initialize logger
 	const logger =
 		options.logger ??
-		createLogger({
+		createNodeLogger({
+			service: "engram-mcp",
 			level: config.logLevel,
-			component: "mcp-server",
+			base: { component: "mcp-server" },
 		});
 
 	// Detect mode

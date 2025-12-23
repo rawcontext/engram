@@ -143,6 +143,20 @@ export class ReplayEngine {
 				const path = args.path as string;
 				return { entries: vfs.readDir(path) };
 			}
+			case "create_directory":
+			case "make_directory":
+			case "mkdir": {
+				const path = args.path as string;
+				vfs.mkdir(path);
+				return { success: true };
+			}
+			case "check_file_exists":
+			case "file_exists":
+			case "path_exists":
+			case "exists": {
+				const path = args.path as string;
+				return { exists: vfs.exists(path) };
+			}
 			default:
 				return {
 					error: `Tool '${toolName}' replay not implemented`,

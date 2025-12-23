@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { createLogger } from "./index";
 import { createNodeLogger, withTenantContext, withTraceContext } from "./node";
 import { DEFAULT_REDACT_PATHS, mergeRedactPaths } from "./redaction";
 
@@ -168,33 +167,6 @@ describe("Logger Package", () => {
 
 			// Should still create child logger without errors
 			expect(child).toBeDefined();
-		});
-	});
-
-	describe("Legacy createLogger", () => {
-		it("should create a logger with default options", () => {
-			const logger = createLogger();
-			expect(logger).toBeDefined();
-			expect(logger.level).toBe("info");
-		});
-
-		it("should create a logger with custom level", () => {
-			const logger = createLogger({ level: "debug" });
-			expect(logger.level).toBe("debug");
-		});
-
-		it("should create a logger with component", () => {
-			const logger = createLogger({ component: "TestComponent" });
-			expect(logger.bindings()).toMatchObject({
-				component: "TestComponent",
-			});
-		});
-
-		it("should use engram-system as default service", () => {
-			const logger = createLogger();
-			expect(logger.bindings()).toMatchObject({
-				service: "engram-system",
-			});
 		});
 	});
 

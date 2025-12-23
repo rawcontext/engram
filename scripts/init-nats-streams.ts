@@ -11,8 +11,9 @@ const streams: StreamConfig[] = [
 	{
 		name: "EVENTS",
 		subjects: ["events.>"],
-		retention: "workqueue",
+		retention: "limits",
 		storage: "file",
+		max_age: 24 * 60 * 60 * 1_000_000_000, // 24 hours in nanoseconds
 		description: "Agent event streams (raw and parsed)",
 	},
 	{

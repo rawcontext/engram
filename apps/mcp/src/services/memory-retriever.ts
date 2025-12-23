@@ -1,5 +1,5 @@
 import type { MemoryNode, MemoryType } from "@engram/graph";
-import { createLogger, type Logger } from "@engram/logger";
+import { createNodeLogger, type Logger } from "@engram/logger";
 import { createFalkorClient, type GraphClient } from "@engram/storage";
 import { SearchClient } from "../clients/search";
 
@@ -49,7 +49,12 @@ export class MemoryRetriever {
 
 	constructor(options?: MemoryRetrieverOptions) {
 		this.graphClient = options?.graphClient ?? createFalkorClient();
-		this.logger = options?.logger ?? createLogger({ component: "MemoryRetriever" });
+		this.logger =
+			options?.logger ??
+			createNodeLogger({
+				service: "engram-mcp",
+				base: { component: "MemoryRetriever" },
+			});
 
 		// Handle searchClient: null = disabled, undefined = use default
 		if (options?.searchClient === null) {

@@ -1,6 +1,6 @@
 import type { Logger as PinoLogger, LoggerOptions as PinoOptions } from "pino";
 
-export type LogLevel = "debug" | "info" | "warn" | "error";
+export type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
 
 export interface BaseLogContext {
 	service?: string;

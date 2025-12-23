@@ -319,5 +319,5 @@ class TestTurnFinalizedConsumerConfig:
 
         assert config.topic == "memory.turn_finalized"
         assert config.group_id == "search-turns-indexer"
-        assert config.heartbeat_interval_ms == 30000
+        assert config.heartbeat_interval_ms == 10000
         assert config.service_id  # Should have a generated ID

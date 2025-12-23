@@ -298,15 +298,19 @@ export function cleanupWebSocketServer(): void {
 export async function handleConsumerStatusConnection(ws: WebSocket) {
 	console.log("[WS] Client connected to consumer status");
 
-	// Ensure NATS subscription is active
-	await initConsumerStatusSubscription();
-
 	// Track this client
 	connectedConsumerClients.add(ws);
 
-	// Send current status immediately
+	// Send current status immediately (before NATS subscription)
+	// This ensures the client gets a response even if NATS is unavailable
 	const status = buildConsumerStatusResponse();
 	ws.send(JSON.stringify({ type: "status", data: status }));
+
+	// Start NATS subscription in background (non-blocking)
+	// Don't await - let it connect asynchronously
+	initConsumerStatusSubscription().catch((err) => {
+		console.error("[WS Consumer] Background NATS subscription failed:", err);
+	});
 
 	ws.on("close", () => {
 		console.log("[WS] Client disconnected from consumer status");

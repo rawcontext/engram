@@ -1,4 +1,4 @@
-import { createLogger } from "@engram/logger";
+import { createNodeLogger } from "@engram/logger";
 import { FalkorClient, PostgresClient } from "@engram/storage";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
@@ -21,7 +21,11 @@ import { MemoryService } from "./services/memory";
 
 async function main() {
 	const config = loadConfig();
-	const logger = createLogger({ level: config.logLevel, component: "api" });
+	const logger = createNodeLogger({
+		service: "engram-api",
+		level: config.logLevel,
+		base: { component: "api" },
+	});
 
 	logger.info({ port: config.port }, "Starting Engram Cloud API");
 
@@ -128,7 +132,11 @@ async function main() {
 
 main().catch((err) => {
 	// Use basic logger since main() may have failed before logger was created
-	const fallbackLogger = createLogger({ level: "error", component: "api" });
+	const fallbackLogger = createNodeLogger({
+		service: "engram-api",
+		level: "error",
+		base: { component: "api" },
+	});
 	fallbackLogger.error({ err }, "Fatal error");
 	process.exit(1);
 });

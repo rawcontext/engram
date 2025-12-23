@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { type MemoryNode, MemoryNodeSchema, type MemoryType } from "@engram/graph";
-import { createLogger, type Logger } from "@engram/logger";
+import { createNodeLogger, type Logger } from "@engram/logger";
 import { createFalkorClient, type GraphClient } from "@engram/storage";
 import { ulid } from "ulid";
 
@@ -27,7 +27,12 @@ export class MemoryStore {
 
 	constructor(options?: MemoryStoreOptions) {
 		this.graphClient = options?.graphClient ?? createFalkorClient();
-		this.logger = options?.logger ?? createLogger({ component: "MemoryStore" });
+		this.logger =
+			options?.logger ??
+			createNodeLogger({
+				service: "engram-mcp",
+				base: { component: "MemoryStore" },
+			});
 	}
 
 	async connect(): Promise<void> {

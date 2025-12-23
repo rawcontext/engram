@@ -30,6 +30,9 @@ export interface ConsumerStatusUpdate {
 	timestamp: number;
 }
 
+// Connection timeout for NATS pub/sub (5 seconds)
+const NATS_CONNECT_TIMEOUT_MS = 5000;
+
 // Subject mappings for pub/sub (Core NATS, not JetStream)
 const PUBSUB_SUBJECTS = {
 	sessionUpdates: (sessionId: string) => `observatory.session.${sessionId}.updates`,
@@ -264,7 +267,7 @@ export function createNatsPubSubPublisher(): NatsPubSubPublisher {
 		connectPromise = (async () => {
 			try {
 				const url = process.env.NATS_URL || "nats://localhost:4222";
-				const newNc = await connect({ servers: url });
+				const newNc = await connect({ servers: url, timeout: NATS_CONNECT_TIMEOUT_MS });
 				nc = newNc;
 				console.log("[NATS PubSub Publisher] Connected");
 				return newNc;
@@ -367,7 +370,7 @@ export function createNatsPubSubSubscriber(): NatsPubSubSubscriber {
 		if (nc && !nc.isClosed()) return nc;
 
 		const url = process.env.NATS_URL || "nats://localhost:4222";
-		nc = await connect({ servers: url });
+		nc = await connect({ servers: url, timeout: NATS_CONNECT_TIMEOUT_MS });
 		console.log("[NATS PubSub Subscriber] Connected");
 		return nc;
 	};

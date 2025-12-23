@@ -311,9 +311,11 @@ class BenchmarkPipeline:
             }
 
         # Build evaluation metrics
+        # Filter out "overall" from by_ability since it's not a valid MemoryAbility
+        by_ability = {k: v for k, v in qa_metrics.items() if k != "overall"}
         metrics = EvaluationMetrics(
             overall=qa_metrics["overall"],
-            by_ability=qa_metrics,
+            by_ability=by_ability,
             retrieval=retrieval_metrics,
             abstention=abstention_metrics,
             ragas=ragas_metrics,

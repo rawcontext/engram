@@ -16,6 +16,16 @@ export const auth = betterAuth({
 			redirectURI: `${baseURL}/api/auth/callback/google`,
 		},
 	},
+	user: {
+		additionalFields: {
+			role: {
+				type: "string",
+				required: false,
+				defaultValue: "user",
+				input: false, // Don't allow users to set their own role
+			},
+		},
+	},
 	session: {
 		expiresIn: 60 * 60 * 24 * 7, // 7 days
 		updateAge: 60 * 60 * 24, // Update session every 24 hours

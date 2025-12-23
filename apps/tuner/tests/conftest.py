@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from tuner.api.health import router as health_router
+from tuner.middleware.auth import ApiKeyContext
 
 
 @pytest.fixture
@@ -75,3 +76,16 @@ def sample_search_space(
 ) -> list[dict[str, Any]]:
     """Sample search space with multiple parameter types."""
     return [sample_float_param, sample_int_param, sample_categorical_param]
+
+
+@pytest.fixture
+def mock_api_key_context() -> ApiKeyContext:
+    """Create a mock API key context for testing."""
+    return ApiKeyContext(
+        key_id="test-key-id",
+        key_prefix="engram_test",
+        key_type="test",
+        user_id="test-user",
+        scopes=["tuner:read", "tuner:write", "memory:write"],
+        rate_limit_rpm=1000,
+    )

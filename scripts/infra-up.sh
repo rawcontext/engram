@@ -20,20 +20,30 @@ echo ""
 echo "=== Infrastructure Status ==="
 docker ps --filter name=engram --format "table {{.Names}}\t{{.Status}}" | head -10
 
+# Initialize NATS JetStream streams
+echo ""
+echo "=== Initializing NATS Streams ==="
+bun run scripts/init-nats-streams.ts
+
 # Start TypeScript services
 echo ""
 echo "=== Starting TypeScript Services ==="
-bun run -w @engram/memory dev > /tmp/engram-memory.log 2>&1 &
+(cd apps/memory && bun run dev) > /tmp/engram-memory.log 2>&1 &
 echo "Memory service started (logs: /tmp/engram-memory.log)"
 
-bun run -w @engram/ingestion dev > /tmp/engram-ingestion.log 2>&1 &
+(cd apps/ingestion && bun run dev) > /tmp/engram-ingestion.log 2>&1 &
 echo "Ingestion service started (logs: /tmp/engram-ingestion.log)"
+
+(cd apps/control && bun run dev) > /tmp/engram-control.log 2>&1 &
+echo "Control service started (logs: /tmp/engram-control.log)"
+
+(cd apps/observatory && bun run dev) > /tmp/engram-observatory.log 2>&1 &
+echo "Observatory service started (logs: /tmp/engram-observatory.log)"
 
 # Start Python search service
 echo ""
 echo "=== Starting Python Services ==="
-cd apps/search && uv run search > /tmp/engram-search.log 2>&1 &
-cd ../..
+(cd apps/search && uv run search) > /tmp/engram-search.log 2>&1 &
 echo "Search service started (logs: /tmp/engram-search.log)"
 
 echo ""
@@ -42,9 +52,11 @@ echo "Engram Infrastructure Started"
 echo "=============================================="
 echo ""
 echo "Services:"
-echo "  Memory:    bun run -w @engram/memory dev"
-echo "  Ingestion: bun run -w @engram/ingestion dev"
-echo "  Search:    http://localhost:5002"
+echo "  Memory:      http://localhost:stdio (MCP)"
+echo "  Ingestion:   http://localhost:5001"
+echo "  Control:     http://localhost:stdio (MCP)"
+echo "  Observatory: http://localhost:5000"
+echo "  Search:      http://localhost:5002"
 echo ""
 echo "Infrastructure:"
 echo "  NATS:      localhost:4222 (JetStream)"

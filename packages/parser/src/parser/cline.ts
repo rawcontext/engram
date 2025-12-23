@@ -1,8 +1,11 @@
-import { createLogger } from "@engram/logger";
+import { createNodeLogger } from "@engram/logger";
 import type { ParserStrategy, StreamDelta } from "./interface";
 import { ClineApiDataSchema, ClineSayEventSchema, ClineToolDataSchema } from "./schemas";
 
-const logger = createLogger({ component: "ClineParser" });
+const logger = createNodeLogger({
+	service: "engram-parser",
+	base: { component: "ClineParser" },
+});
 
 /**
  * Parser for Cline CLI's `--output-format json` output.

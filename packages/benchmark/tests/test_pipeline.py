@@ -92,6 +92,8 @@ def test_pipeline_result_creation() -> None:
         retrieval=retrieval,
         reader_output=reader_output,
         ground_truth="Test answer",
+        retrieval_latency_ms=10.5,
+        reader_latency_ms=150.0,
     )
 
     assert result.question_id == "q1"

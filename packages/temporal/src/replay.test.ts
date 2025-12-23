@@ -138,6 +138,86 @@ describe("ReplayEngine", () => {
 		expect(result.success).toBe(true);
 	});
 
+	it("should handle mkdir tool", async () => {
+		mockFalkorQuery
+			.mockResolvedValueOnce([
+				{
+					id: "event-1",
+					name: "mkdir",
+					arguments: JSON.stringify({ path: "/newdir" }),
+					result: JSON.stringify({ success: true }),
+					vt_start: 1000,
+				},
+			])
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
+
+		const result = await engine.replay("session-1", "event-1");
+
+		expect(result.success).toBe(true);
+		expect(result.replayOutput).toEqual({ success: true });
+	});
+
+	it("should handle create_directory tool", async () => {
+		mockFalkorQuery
+			.mockResolvedValueOnce([
+				{
+					id: "event-1",
+					name: "create_directory",
+					arguments: JSON.stringify({ path: "/another/dir" }),
+					result: JSON.stringify({ success: true }),
+					vt_start: 1000,
+				},
+			])
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
+
+		const result = await engine.replay("session-1", "event-1");
+
+		expect(result.success).toBe(true);
+		expect(result.replayOutput).toEqual({ success: true });
+	});
+
+	it("should handle exists tool", async () => {
+		mockFalkorQuery
+			.mockResolvedValueOnce([
+				{
+					id: "event-1",
+					name: "exists",
+					arguments: JSON.stringify({ path: "/" }),
+					result: JSON.stringify({ exists: true }),
+					vt_start: 1000,
+				},
+			])
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
+
+		const result = await engine.replay("session-1", "event-1");
+
+		expect(result.success).toBe(true);
+		expect(result.replayOutput).toEqual({ exists: true });
+	});
+
+	it("should handle file_exists tool for non-existent path", async () => {
+		mockFalkorQuery
+			.mockResolvedValueOnce([
+				{
+					id: "event-1",
+					name: "file_exists",
+					arguments: JSON.stringify({ path: "/nonexistent.txt" }),
+					result: JSON.stringify({ exists: false }),
+					vt_start: 1000,
+				},
+			])
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([]);
+
+		const result = await engine.replay("session-1", "event-1");
+
+		expect(result.success).toBe(true);
+		expect(result.replayOutput).toEqual({ exists: false });
+	});
+
 	it("should handle unknown tools", async () => {
 		mockFalkorQuery
 			.mockResolvedValueOnce([

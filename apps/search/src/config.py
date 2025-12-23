@@ -50,7 +50,7 @@ class Settings(BaseSettings):
         default=True, description="Enable NATS consumer for turn indexing"
     )
     nats_consumer_group: str = Field(
-        default="search-turns-indexer", description="NATS consumer group ID"
+        default="search-group", description="NATS consumer group ID"
     )
 
     # Search defaults (to be used in Phase 4)

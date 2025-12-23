@@ -93,13 +93,22 @@ async def evaluate_qa(
 
 
 def _memory_ability_to_question_type(ability: MemoryAbility) -> QuestionType:
-    """Map MemoryAbility to a representative QuestionType."""
+    """
+    Map MemoryAbility to a representative QuestionType.
+
+    Note: ABS (Abstention) is a cross-cutting ability that can apply to any
+    underlying question type. It's identified by the _abs suffix on question_id,
+    not by a distinct QuestionType in the dataset schema. We map it to
+    SINGLE_SESSION_USER as most abstention questions in LongMemEval are based
+    on single-session IE scenarios. The actual abstention evaluation is handled
+    separately via AbstentionMetrics, not through question_type classification.
+    """
     ability_map: dict[str, QuestionType] = {
         "IE": QuestionType.SINGLE_SESSION_USER,
         "MR": QuestionType.MULTI_SESSION,
         "TR": QuestionType.TEMPORAL_REASONING,
         "KU": QuestionType.KNOWLEDGE_UPDATE,
-        "ABS": QuestionType.SINGLE_SESSION_USER,  # Placeholder for abstention
+        "ABS": QuestionType.SINGLE_SESSION_USER,
     }
     return ability_map[ability]
 

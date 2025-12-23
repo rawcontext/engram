@@ -138,18 +138,6 @@ const customLogger = pino({
 });
 ```
 
-### Legacy Compatibility
-
-```typescript
-import { createLogger } from "@engram/logger";
-
-// Legacy API (backward compatible)
-const logger = createLogger({
-  level: "info",
-  component: "my-component",
-});
-```
-
 ## Features
 
 ### Cloud Logging Compatibility
@@ -194,7 +182,6 @@ Prevents race conditions and post-destroy logging:
 - `withTenantContext(logger: Logger, tenant: TenantContext): Logger` - Add tenant context
 - `withTraceContext(logger: Logger, trace: TraceContext): Logger` - Add trace context
 - `mergeRedactPaths(customPaths?: readonly string[]): readonly string[]` - Merge custom redaction paths
-- `createLogger(options?: LegacyLoggerOptions): Logger` - Legacy API (backward compatible)
 
 ### Types
 
