@@ -24,7 +24,7 @@ htmlcov/
 # Beads (local issue tracker)
 .beads/
 
-# Documentation (generated/local)
+# Documentation (local only)
 docs/
 
 # Benchmark artifacts
