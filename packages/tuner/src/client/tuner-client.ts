@@ -37,7 +37,7 @@ export class TunerClient {
 	private readonly timeout: number;
 
 	constructor(options: TunerClientOptions = {}) {
-		this.baseUrl = options.baseUrl ?? "http://localhost:8000/v1";
+		this.baseUrl = options.baseUrl ?? "http://localhost:6177/v1";
 		this.timeout = options.timeout ?? 30000;
 	}
 

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.indexing.batch import BatchQueue, Document
+from src.indexing.batch import Document
 from src.indexing.consumer import (
     MemoryConsumerConfig,
     MemoryEventConsumer,

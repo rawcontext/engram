@@ -1,6 +1,5 @@
 """Comprehensive tests for main application module focusing on consumer lifecycle."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

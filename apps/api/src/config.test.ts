@@ -4,27 +4,27 @@ import { ConfigSchema, loadConfig } from "./config";
 describe("ConfigSchema", () => {
 	it("should validate correct config", () => {
 		const config = ConfigSchema.parse({
-			port: 8080,
-			falkordbUrl: "redis://localhost:6379",
-			postgresUrl: "postgresql://postgres:postgres@localhost:5432/engram",
-			redisUrl: "redis://localhost:6379",
-			searchUrl: "http://localhost:5002",
+			port: 6174,
+			falkordbUrl: "redis://localhost:6179",
+			postgresUrl: "postgresql://postgres:postgres@localhost:6183/engram",
+			redisUrl: "redis://localhost:6179",
+			searchUrl: "http://localhost:6176",
 			logLevel: "info",
 			rateLimitRpm: 60,
 		});
 
-		expect(config.port).toBe(8080);
+		expect(config.port).toBe(6174);
 		expect(config.logLevel).toBe("info");
 	});
 
 	it("should use default values when not provided", () => {
 		const config = ConfigSchema.parse({});
 
-		expect(config.port).toBe(8080);
-		expect(config.falkordbUrl).toBe("redis://localhost:6379");
-		expect(config.postgresUrl).toBe("postgresql://postgres:postgres@localhost:5432/engram");
-		expect(config.redisUrl).toBe("redis://localhost:6379");
-		expect(config.searchUrl).toBe("http://localhost:5002");
+		expect(config.port).toBe(6174);
+		expect(config.falkordbUrl).toBe("redis://localhost:6179");
+		expect(config.postgresUrl).toBe("postgresql://postgres:postgres@localhost:6183/engram");
+		expect(config.redisUrl).toBe("redis://localhost:6179");
+		expect(config.searchUrl).toBe("http://localhost:6176");
 		expect(config.logLevel).toBe("info");
 		expect(config.rateLimitRpm).toBe(60);
 	});
@@ -75,8 +75,8 @@ describe("loadConfig", () => {
 
 		const config = loadConfig();
 
-		expect(config.port).toBe(8080);
-		expect(config.falkordbUrl).toBe("redis://localhost:6379");
+		expect(config.port).toBe(6174);
+		expect(config.falkordbUrl).toBe("redis://localhost:6179");
 		expect(config.logLevel).toBe("info");
 		expect(config.rateLimitRpm).toBe(60);
 	});

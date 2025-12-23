@@ -28,7 +28,7 @@ class RetrievalConfig(BaseSettings):
 
     # Engram search settings
     search_url: str = Field(
-        default="http://localhost:5002", description="URL of the Engram search service"
+        default="http://localhost:6176", description="URL of the Engram search service"
     )
 
     # Retrieval parameters

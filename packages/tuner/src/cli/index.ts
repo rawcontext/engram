@@ -31,12 +31,12 @@ program
 	.option("--sampler <type>", "Sampler: tpe | gp | random | nsgaii | qmc", "tpe")
 	.option("--pruner <type>", "Pruner: hyperband | median | none", "hyperband")
 	.option("--preset <name>", "Search space preset: quick | standard | full", "standard")
-	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/v1")
+	.option("--service-url <url>", "Tuner service URL", "http://localhost:6177/v1")
 	.option("--continue", "Continue existing study instead of creating new", false)
 	// Benchmark options
 	.option("-l, --limit <n>", "Limit number of evaluation instances", parseInt)
 	.option("--llm <provider>", "LLM provider: stub | anthropic | openai | ollama", "stub")
-	.option("--qdrant-url <url>", "Qdrant URL", "http://localhost:6333")
+	.option("--qdrant-url <url>", "Qdrant URL", "http://localhost:6180")
 	// Cache options
 	.option("--cache", "Enable evaluation caching", true)
 	.option("--no-cache", "Disable evaluation caching")
@@ -50,7 +50,7 @@ program
 	.command("status")
 	.description("Check optimization study status")
 	.argument("<study>", "Study name")
-	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/v1")
+	.option("--service-url <url>", "Tuner service URL", "http://localhost:6177/v1")
 	.option("--format <type>", "Output format: table | json", "table")
 	.action(statusCommand);
 
@@ -58,7 +58,7 @@ program
 	.command("best")
 	.description("Get best parameters from a study")
 	.argument("<study>", "Study name")
-	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/v1")
+	.option("--service-url <url>", "Tuner service URL", "http://localhost:6177/v1")
 	.option("--export <path>", "Export to .env file")
 	.option("--format <type>", "Output format: table | json | env", "table")
 	.action(bestCommand);
@@ -66,7 +66,7 @@ program
 program
 	.command("list")
 	.description("List all studies")
-	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/v1")
+	.option("--service-url <url>", "Tuner service URL", "http://localhost:6177/v1")
 	.option("--format <type>", "Output format: table | json", "table")
 	.action(listCommand);
 
@@ -74,7 +74,7 @@ program
 	.command("delete")
 	.description("Delete a study")
 	.argument("<study>", "Study name")
-	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/v1")
+	.option("--service-url <url>", "Tuner service URL", "http://localhost:6177/v1")
 	.option("--force", "Skip confirmation prompt", false)
 	.action(deleteCommand);
 
@@ -82,7 +82,7 @@ program
 	.command("pareto")
 	.description("Get Pareto front from a multi-objective study")
 	.argument("<study>", "Study name")
-	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/v1")
+	.option("--service-url <url>", "Tuner service URL", "http://localhost:6177/v1")
 	.option("--format <type>", "Output format: table | json", "table")
 	.action(paretoCommand);
 
@@ -90,7 +90,7 @@ program
 	.command("importance")
 	.description("Analyze parameter importance")
 	.argument("<study>", "Study name")
-	.option("--service-url <url>", "Tuner service URL", "http://localhost:8000/v1")
+	.option("--service-url <url>", "Tuner service URL", "http://localhost:6177/v1")
 	.option("--format <type>", "Output format: table | json", "table")
 	.option("--target-idx <n>", "Target objective index (for multi-objective)", parseInt, 0)
 	.action(importanceCommand);

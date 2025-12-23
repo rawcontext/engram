@@ -421,7 +421,7 @@ export async function startConsumer() {
  * Create and configure the HTTP server.
  * Exported for testing purposes.
  */
-export function createIngestionServer(port = 5001, maxBodySize = 50 * 1024 * 1024) {
+export function createIngestionServer(port = 6175, maxBodySize = 50 * 1024 * 1024) {
 	const server = createServer(async (req, res) => {
 		const url = new URL(req.url || "", `http://localhost:${port}`);
 
@@ -522,7 +522,7 @@ if (isMainModule) {
 	initAuth({
 		enabled: process.env.AUTH_ENABLED !== "false",
 		postgresUrl:
-			process.env.AUTH_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/engram",
+			process.env.AUTH_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:6183/engram",
 		logger,
 	});
 
@@ -530,7 +530,7 @@ if (isMainModule) {
 	startConsumer().catch((err) => logger.error({ err }, "Consumer startup failed"));
 
 	// Start HTTP Server
-	const PORT = 5001;
+	const PORT = 6175;
 	const server = createIngestionServer(PORT);
 	server.listen(PORT, () => {
 		logger.info({ port: PORT }, "Ingestion Service running");

@@ -55,14 +55,14 @@ IMPORTANT: Run `uv run ruff check` and `uv run pytest` before committing.
 
 ```
 apps/
-├── api/         # Cloud REST API (Hono) - memory operations, API key auth, rate limiting (port 8080)
+├── api/         # Cloud REST API (Hono) - memory operations, API key auth, rate limiting (port 6174)
 ├── control/     # Session orchestration, XState decision engine, VFS, MCP tool integration
-├── ingestion/   # Event parsing pipeline, 8+ provider parsers, PII redaction (port 5001)
+├── ingestion/   # Event parsing pipeline, 8+ provider parsers, PII redaction (port 6175)
 ├── mcp/         # Engram MCP server - remember/recall/query/context tools (stdio + HTTP ingest)
-├── memory/      # Graph persistence, turn aggregation, real-time pub/sub (Kafka consumer)
-├── observatory/ # Neural Observatory - Next.js 16 real-time session visualization (port 5000)
-├── search/      # Python/FastAPI vector search - hybrid retrieval, multi-tier reranking (port 5002)
-└── tuner/       # Python/FastAPI hyperparameter optimization with Optuna (port 8000)
+├── memory/      # Graph persistence, turn aggregation, real-time pub/sub (NATS consumer)
+├── observatory/ # Neural Observatory - Next.js 16 real-time session visualization (port 6178)
+├── search/      # Python/FastAPI vector search - hybrid retrieval, multi-tier reranking (port 6176)
+└── tuner/       # Python/FastAPI hyperparameter optimization with Optuna (port 6177)
 
 packages/
 ├── benchmark/   # LongMemEval evaluation suite (Python) - MTEB/BEIR benchmarks
@@ -72,7 +72,7 @@ packages/
 ├── infra/       # Pulumi IaC for GCP/GKE (VPC, GKE Autopilot, databases)
 ├── logger/      # Pino structured logging with PII redaction and lifecycle management
 ├── parser/      # Provider stream parsers, ThinkingExtractor, DiffExtractor, Redactor
-├── storage/     # FalkorDB, Kafka, PostgreSQL, Redis, GCS/blob clients
+├── storage/     # FalkorDB, NATS, PostgreSQL, Redis, GCS/blob clients
 ├── temporal/    # Rehydrator, TimeTravelService, ReplayEngine for time-travel
 ├── tsconfig/    # Shared TypeScript configuration (base.json)
 ├── tuner/       # TypeScript client, CLI, and trial executor for tuner service
@@ -81,9 +81,9 @@ packages/
 
 ## Architecture Quick Reference
 
-**Data Flow**: External Agent → Ingestion → Kafka → Memory → FalkorDB → Search → Qdrant
+**Data Flow**: External Agent → Ingestion → NATS → Memory → FalkorDB → Search → Qdrant
 
-**Storage**: FalkorDB (graph), Qdrant (vectors), Redpanda (events), Redis (pub/sub), PostgreSQL (API keys, Optuna)
+**Storage**: FalkorDB (graph), Qdrant (vectors), NATS+JetStream (events), PostgreSQL (API keys, Optuna)
 
 **Bitemporal**: All nodes have `vt_start/vt_end` (valid time) + `tt_start/tt_end` (transaction time)
 
@@ -170,7 +170,7 @@ bun run preview     # Preview changes
 bun run up          # Deploy
 ```
 
-**Services**: FalkorDB (6379), Qdrant (6333), Redpanda (9092/19092), Redis (6379), PostgreSQL (5432)
+**Services**: API (6174), Ingestion (6175), Search (6176), Tuner (6177), Observatory (6178), FalkorDB (6179), Qdrant (6180), NATS (6181), PostgreSQL (6183)
 
 ## External Tools
 
@@ -213,7 +213,7 @@ YOU MUST:
 YOU MUST NOT:
 1. Use `import type` for NestJS DI tokens (breaks injection)
 2. Create new packages without updating turbo.json
-3. Modify Kafka topics without updating consumers
+3. Modify NATS subjects without updating consumers
 4. Skip the parser registry when adding providers
 5. Assume library APIs from training data—verify with Context7 + web search
 6. Include meta commentary about development process in code or docs (e.g., "Phase 1 of migration", "implements the plan from...", "this is a temporary solution until..."). Code should describe what it does, not its place in a roadmap.
@@ -238,28 +238,27 @@ YOU MUST NOT:
 ## Debugging
 
 ```bash
-# View Kafka topics
-docker exec -it redpanda rpk topic list
-docker exec -it redpanda rpk topic consume parsed_events
+# View NATS streams
+docker exec -it engram-nats-1 nats stream ls
 
 # Query FalkorDB
-docker exec -it falkordb redis-cli
+docker exec -it engram-falkordb-1 redis-cli
 > GRAPH.QUERY engram "MATCH (n) RETURN n LIMIT 5"
 
 # Check Qdrant collections
-curl http://localhost:6333/collections
+curl http://localhost:6180/collections
 
 # Search service health check
-curl http://localhost:5002/v1/health
+curl http://localhost:6176/v1/health
 
 # Search service metrics
-curl http://localhost:5002/v1/metrics
+curl http://localhost:6176/v1/metrics
 
 # Tuner service health
-curl http://localhost:8000/v1/health
+curl http://localhost:6177/v1/health
 
 # Optuna Dashboard
-open http://localhost:8081
+open http://localhost:6184
 ```
 
 ## Common Patterns
@@ -277,11 +276,8 @@ await writer.writeNode("Session", {
 
 **Publishing events**:
 ```typescript
-// See packages/storage/src/kafka.ts
-await producer.send({
-  topic: "parsed_events",
-  messages: [{ key: sessionId, value: JSON.stringify(event) }]
-});
+// See packages/storage/src/nats.ts
+await nats.sendEvent("events.parsed", sessionId, event);
 ```
 
 **Hybrid search (Python)**:

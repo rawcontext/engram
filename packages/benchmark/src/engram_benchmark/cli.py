@@ -152,7 +152,7 @@ def run(
             "--search-url",
             help="URL for Engram search-py service (only for --retriever=engram)",
         ),
-    ] = "http://localhost:5002",
+    ] = "http://localhost:6176",
     search_strategy: Annotated[
         str,
         typer.Option(

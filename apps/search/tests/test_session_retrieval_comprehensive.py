@@ -12,7 +12,6 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from qdrant_client.http import models
 
 from src.config import Settings
 from src.retrieval.session import (

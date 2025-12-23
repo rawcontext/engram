@@ -5,9 +5,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import FastAPI, HTTPException
-from fastapi.testclient import TestClient
-from httpx import ASGITransport, AsyncClient
+from fastapi import HTTPException
 
 from src.middleware.auth import (
     API_KEY_PATTERN,

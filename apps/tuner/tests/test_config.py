@@ -13,7 +13,7 @@ class TestSettings:
         """Test default settings values."""
         settings = Settings()
         assert settings.host == "0.0.0.0"
-        assert settings.port == 8000
+        assert settings.port == 6177
         assert settings.debug is False
         assert settings.default_sampler == "tpe"
         assert settings.default_pruner == "hyperband"
@@ -47,7 +47,7 @@ class TestSettings:
         """Test default database URL."""
         settings = Settings()
         assert "postgresql://" in str(settings.database_url)
-        assert "localhost:5432" in str(settings.database_url)
+        assert "localhost:6183" in str(settings.database_url)
 
     def test_settings_from_env(self) -> None:
         """Test loading settings from environment variables."""

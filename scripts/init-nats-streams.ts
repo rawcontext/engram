@@ -34,7 +34,7 @@ const streams: StreamConfig[] = [
 ];
 
 async function initStreams() {
-	const url = process.env.NATS_URL || "nats://localhost:4222";
+	const url = process.env.NATS_URL || "nats://localhost:6181";
 	console.log(`Connecting to NATS at ${url}...`);
 
 	const nc = await connect({ servers: url });

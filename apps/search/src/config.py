@@ -17,12 +17,12 @@ class Settings(BaseSettings):
 
     # Server
     search_host: str = Field(default="0.0.0.0", description="Server host")
-    search_port: int = Field(default=5002, description="Server port")
+    search_port: int = Field(default=6176, description="Server port")
     search_workers: int = Field(default=1, description="Number of worker processes")
     debug: bool = Field(default=False, description="Enable debug mode")
 
     # Qdrant
-    qdrant_url: str = Field(default="http://localhost:6333", description="Qdrant server URL")
+    qdrant_url: str = Field(default="http://localhost:6180", description="Qdrant server URL")
     qdrant_collection: str = Field(default="engram_turns", description="Qdrant collection name")
     qdrant_timeout: int = Field(default=30, description="Qdrant request timeout in seconds")
     qdrant_grpc_port: int | None = Field(default=None, description="Qdrant gRPC port (optional)")
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # PostgreSQL (for API key auth)
     postgres_url: str = Field(
-        default="postgresql://postgres:postgres@localhost:5432/engram",
+        default="postgresql://postgres:postgres@localhost:6183/engram",
         description="PostgreSQL connection URL for API key validation",
     )
     auth_enabled: bool = Field(
@@ -41,11 +41,11 @@ class Settings(BaseSettings):
 
     # FalkorDB (for backfill scripts)
     falkordb_url: str = Field(
-        default="redis://localhost:6379", description="FalkorDB connection URL"
+        default="redis://localhost:6179", description="FalkorDB connection URL"
     )
 
     # NATS (for turn indexing consumer)
-    nats_url: str = Field(default="nats://localhost:4222", description="NATS server URL")
+    nats_url: str = Field(default="nats://localhost:6181", description="NATS server URL")
     nats_consumer_enabled: bool = Field(
         default=True, description="Enable NATS consumer for turn indexing"
     )

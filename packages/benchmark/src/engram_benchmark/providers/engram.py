@@ -90,7 +90,7 @@ class EngramSearchClient:
 
     def __init__(
         self,
-        base_url: str = "http://localhost:5002",
+        base_url: str = "http://localhost:6176",
         timeout: float = 30.0,
         max_retries: int = 3,
     ) -> None:

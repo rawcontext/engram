@@ -77,7 +77,7 @@ export class NatsClient implements MessageClient {
 	private consumers: Consumer[] = [];
 	private url: string;
 
-	constructor(url: string = "localhost:4222") {
+	constructor(url: string = "localhost:6181") {
 		this.url = url;
 	}
 
@@ -240,7 +240,7 @@ export class NatsClient implements MessageClient {
 }
 
 export function createNatsClient(_clientId?: string): NatsClient {
-	const url = process.env.NATS_URL || "nats://localhost:4222";
+	const url = process.env.NATS_URL || "nats://localhost:6181";
 	return new NatsClient(url);
 }
 
@@ -266,7 +266,7 @@ export function createNatsPubSubPublisher(): NatsPubSubPublisher {
 
 		connectPromise = (async () => {
 			try {
-				const url = process.env.NATS_URL || "nats://localhost:4222";
+				const url = process.env.NATS_URL || "nats://localhost:6181";
 				const newNc = await connect({ servers: url, timeout: NATS_CONNECT_TIMEOUT_MS });
 				nc = newNc;
 				console.log("[NATS PubSub Publisher] Connected");

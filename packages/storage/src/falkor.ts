@@ -75,7 +75,7 @@ export class FalkorClient implements GraphClient {
 	private connected = false;
 	private connectionConfig: { username: string; password: string; host: string; port: number };
 
-	constructor(url: string = "redis://localhost:6379") {
+	constructor(url: string = "redis://localhost:6179") {
 		const urlObj = new URL(url);
 		// Store config but don't connect yet (lazy initialization)
 		this.connectionConfig = {
@@ -167,7 +167,7 @@ export class FalkorClient implements GraphClient {
 }
 
 export const createFalkorClient = () => {
-	const url = process.env.FALKORDB_URL || "redis://localhost:6379";
+	const url = process.env.FALKORDB_URL || "redis://localhost:6179";
 	return new FalkorClient(url);
 };
 

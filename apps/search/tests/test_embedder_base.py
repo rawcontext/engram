@@ -1,11 +1,10 @@
 """Tests for base embedder abstract class."""
 
-import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.embedders.base import BaseEmbedder, TORCH_AVAILABLE
+from src.embedders.base import TORCH_AVAILABLE, BaseEmbedder
 
 
 class ConcreteEmbedder(BaseEmbedder):

@@ -10,9 +10,8 @@ This test suite provides comprehensive coverage of SearchRetriever functionality
 - Strategy auto-selection
 """
 
-import asyncio
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from qdrant_client.http import models
@@ -23,7 +22,7 @@ from src.retrieval import (
     SearchRetriever,
     SearchStrategy,
 )
-from src.retrieval.types import RerankerTier, SearchFilters, SearchResultItem, TimeRange
+from src.retrieval.types import SearchFilters, SearchResultItem, TimeRange
 
 
 @pytest.fixture

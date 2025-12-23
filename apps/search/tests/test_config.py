@@ -14,7 +14,7 @@ class TestSettings:
             _env_file=None,  # Don't load .env file
         )
         assert settings.search_host == "0.0.0.0"
-        assert settings.search_port == 5002
+        assert settings.search_port == 6176
         assert settings.qdrant_collection == "engram_turns"
         assert settings.embedder_backend == "local"
 

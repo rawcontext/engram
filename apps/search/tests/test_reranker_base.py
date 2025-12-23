@@ -1,6 +1,5 @@
 """Comprehensive tests for base reranker module."""
 
-from unittest.mock import MagicMock, patch
 
 import pytest
 
