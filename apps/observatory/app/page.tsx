@@ -1,22 +1,14 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EngramLogo } from "./components/EngramLogo";
 import { SearchInput } from "./components/SearchInput";
 import { SearchResults } from "./components/SearchResults";
 import { SearchSettings, type SearchSettingsState } from "./components/SearchSettings";
 import { SessionBrowser } from "./components/SessionBrowser";
-import { Particles } from "./components/shared";
 import { SystemFooter } from "./components/shared/SystemFooter";
 import { UserMenu } from "./components/UserMenu";
 import { useSearch } from "./hooks/useSearch";
-
-// Dynamically import Three.js background to avoid SSR issues
-const NeuralBackground = dynamic(
-	() => import("./components/NeuralBackground").then((mod) => mod.NeuralBackground),
-	{ ssr: false },
-);
 
 // Default search settings
 const DEFAULT_SETTINGS: SearchSettingsState = {
@@ -103,14 +95,6 @@ export default function HomePage() {
 				paddingBottom: `${FOOTER_HEIGHT + 24}px`,
 			}}
 		>
-			{/* Background decorations - fixed to cover viewport including header */}
-			<div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1 }}>
-				<Suspense fallback={null}>
-					<NeuralBackground />
-				</Suspense>
-				<Particles count={30} />
-			</div>
-
 			{/* Fixed Header - Safe Area */}
 			<header
 				style={{
