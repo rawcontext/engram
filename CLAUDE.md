@@ -11,7 +11,7 @@ bun run infra:up         # Start NATS, FalkorDB, Qdrant, Postgres
 bun run infra:down       # Stop infrastructure
 bun run dev              # Start all apps in dev mode
 bun run build            # Build all apps/packages
-bun test                 # Run vitest
+bun run test             # Run vitest (NOT `bun test` - that uses Bun's native runner)
 bun run typecheck        # TypeScript validation
 bun run lint             # Biome linting
 bun run format           # Biome formatting
