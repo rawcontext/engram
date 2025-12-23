@@ -9,12 +9,22 @@ WORKDIR /app
 ENV NODE_ENV=production
 RUN addgroup -S engram && adduser -S engram -G engram
 
-# Next.js standalone output
-COPY --from=builder /app/apps/observatory/.next/standalone ./
-COPY --from=builder /app/apps/observatory/.next/static ./apps/observatory/.next/static
+# Copy full workspace for custom server dependencies
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/packages ./packages
+
+# Next.js standalone output (we use .next but not server.js)
+COPY --from=builder /app/apps/observatory/.next ./apps/observatory/.next
 RUN mkdir -p ./apps/observatory/public
+
+# Custom server source and WebSocket handlers
+COPY --from=builder /app/apps/observatory/server.ts ./apps/observatory/
+COPY --from=builder /app/apps/observatory/lib ./apps/observatory/lib
+COPY --from=builder /app/apps/observatory/package.json ./apps/observatory/
 
 USER engram
 EXPOSE 3000
 WORKDIR /app/apps/observatory
-CMD ["bun", "run", "server.js"]
+# Use custom server with WebSocket support via bun + tsx
+CMD ["bun", "run", "--bun", "tsx", "server.ts"]
