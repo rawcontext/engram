@@ -34,16 +34,6 @@
 			"cache": false,
 			"persistent": true
 		},
-		"//#test:ts:run": {
-			"inputs": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "vitest.config.ts"],
-			"outputs": ["coverage/**"],
-			"env": ["VITEST"]
-		},
-		"//#test:ts:watch": {
-			"cache": false,
-			"persistent": true,
-			"interactive": true
-		},
 		"test": {
 			"inputs": ["src/**/*.py", "tests/**/*.py", "pyproject.toml"],
 			"outputs": ["coverage/**", ".coverage", "htmlcov/**"],

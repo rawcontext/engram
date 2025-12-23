@@ -1,5 +1,5 @@
 import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import {
 	handleIngestEvent,
 	handlePromptIngest,
@@ -10,7 +10,7 @@ import {
 
 // Mock dependencies with properly typed factories
 const mockMemoryStore = {
-	createMemory: vi.fn(),
+	createMemory: mock(),
 };
 
 const mockGraphClient = createTestGraphClient();
@@ -27,28 +27,28 @@ const deps: IngestHandlerDeps = {
  */
 interface MockContext {
 	req: {
-		json: ReturnType<typeof vi.fn>;
+		json: ReturnType<typeof mock>;
 	};
-	json: ReturnType<typeof vi.fn>;
+	json: ReturnType<typeof mock>;
 }
 
 // Helper to create test context
 function createTestContext(body: unknown): MockContext {
 	return {
 		req: {
-			json: vi.fn().mockResolvedValue(body),
+			json: mock().mockResolvedValue(body),
 		},
-		json: vi.fn((data: unknown, status?: number) => ({ data, status: status ?? 200 })),
+		json: mock((data: unknown, status?: number) => ({ data, status: status ?? 200 })),
 	};
 }
 
 describe("Ingest Handlers", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	afterEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("handleIngestEvent", () => {
@@ -396,7 +396,7 @@ describe("Ingest Handlers", () => {
 			];
 
 			for (const { toolName, expectedType } of testCases) {
-				vi.clearAllMocks();
+				// vi.clearAllMocks(); // TODO: Clear individual mocks
 				const c = createTestContext({
 					client: "test",
 					session_id: "test",
@@ -564,7 +564,7 @@ describe("Ingest Handlers", () => {
 			];
 
 			for (const { client, expected } of testCases) {
-				vi.clearAllMocks();
+				// vi.clearAllMocks(); // TODO: Clear individual mocks
 				const c = createTestContext({
 					client,
 					session_id: "test",

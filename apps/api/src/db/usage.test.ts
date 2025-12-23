@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { UsageRepository } from "./usage";
 
 describe("UsageRepository", () => {
 	const createMockDb = () => ({
-		query: vi.fn(),
-		queryOne: vi.fn(),
-		queryMany: vi.fn(),
+		query: mock(),
+		queryOne: mock(),
+		queryMany: mock(),
 	});
 
 	describe("trackRequest", () => {

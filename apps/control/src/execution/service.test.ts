@@ -2,40 +2,40 @@ import type { Logger } from "@engram/logger";
 import type { GraphClient } from "@engram/storage";
 import { Rehydrator, TimeTravelService } from "@engram/temporal";
 import { PatchManager, VirtualFileSystem } from "@engram/vfs";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { createExecutionService, ExecutionService } from "./service";
 
 // Mock external dependencies
 vi.mock("@engram/logger", () => ({
-	createNodeLogger: vi.fn(() => ({
-		info: vi.fn(),
-		error: vi.fn(),
-		warn: vi.fn(),
-		debug: vi.fn(),
+	createNodeLogger: mock(() => ({
+		info: mock(),
+		error: mock(),
+		warn: mock(),
+		debug: mock(),
 	})),
 }));
 
 vi.mock("@engram/storage", () => ({
-	createFalkorClient: vi.fn(() => ({
-		connect: vi.fn().mockResolvedValue(undefined),
-		disconnect: vi.fn().mockResolvedValue(undefined),
-		query: vi.fn().mockResolvedValue([]),
-		isConnected: vi.fn().mockReturnValue(false),
+	createFalkorClient: mock(() => ({
+		connect: mock().mockResolvedValue(undefined),
+		disconnect: mock().mockResolvedValue(undefined),
+		query: mock().mockResolvedValue([]),
+		isConnected: mock().mockReturnValue(false),
 	})),
-	createBlobStore: vi.fn(() => ({
-		save: vi.fn().mockResolvedValue("blob://test"),
-		load: vi.fn().mockResolvedValue(Buffer.from("{}")),
-		exists: vi.fn().mockResolvedValue(false),
+	createBlobStore: mock(() => ({
+		save: mock().mockResolvedValue("blob://test"),
+		load: mock().mockResolvedValue(Buffer.from("{}")),
+		exists: mock().mockResolvedValue(false),
 	})),
 }));
 
 describe("ExecutionService", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	afterEach(() => {
-		vi.restoreAllMocks();
+		// vi.restoreAllMocks(); // TODO: Restore individual mocks
 	});
 
 	describe("Construction", () => {
@@ -71,10 +71,10 @@ describe("ExecutionService", () => {
 
 		it("should use injected graphClient when provided", () => {
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockResolvedValue(undefined),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(true),
+				connect: mock().mockResolvedValue(undefined),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(true),
 			};
 
 			const service = new ExecutionService({ graphClient: mockGraphClient });
@@ -84,10 +84,10 @@ describe("ExecutionService", () => {
 
 		it("should use injected logger when provided", () => {
 			const mockLogger = {
-				info: vi.fn(),
-				error: vi.fn(),
-				warn: vi.fn(),
-				debug: vi.fn(),
+				info: mock(),
+				error: mock(),
+				warn: mock(),
+				debug: mock(),
 			} as unknown as Logger;
 
 			const service = new ExecutionService({ logger: mockLogger });
@@ -135,7 +135,7 @@ describe("ExecutionService", () => {
 
 		it("should handle non-Error exceptions", async () => {
 			const mockVfs = {
-				readFile: vi.fn().mockImplementation(() => {
+				readFile: mock().mockImplementation(() => {
 					throw "string error";
 				}),
 			} as unknown as VirtualFileSystem;
@@ -222,7 +222,7 @@ describe("ExecutionService", () => {
 
 		it("should handle non-Error exceptions in applySearchReplace", async () => {
 			const mockPatchManager = {
-				applySearchReplace: vi.fn().mockImplementation(() => {
+				applySearchReplace: mock().mockImplementation(() => {
 					throw "string error";
 				}),
 			} as unknown as PatchManager;
@@ -239,10 +239,10 @@ describe("ExecutionService", () => {
 	describe("listFilesAtTime", () => {
 		it("should return list of files", async () => {
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockResolvedValue(undefined),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(true),
+				connect: mock().mockResolvedValue(undefined),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(true),
 			};
 			const rehydrator = new Rehydrator({ graphClient: mockGraphClient });
 			const timeTravelService = new TimeTravelService(rehydrator);
@@ -261,10 +261,10 @@ describe("ExecutionService", () => {
 
 		it("should return error when connection fails", async () => {
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockRejectedValue(new Error("Connection failed")),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(false),
+				connect: mock().mockRejectedValue(new Error("Connection failed")),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(false),
 			};
 			const rehydrator = new Rehydrator({ graphClient: mockGraphClient });
 			const timeTravelService = new TimeTravelService(rehydrator);
@@ -282,12 +282,12 @@ describe("ExecutionService", () => {
 
 		it("should handle non-Error exceptions in listFilesAtTime", async () => {
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockImplementation(() => {
+				connect: mock().mockImplementation(() => {
 					throw "string error";
 				}),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(false),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(false),
 			};
 			const rehydrator = new Rehydrator({ graphClient: mockGraphClient });
 			const timeTravelService = new TimeTravelService(rehydrator);
@@ -304,12 +304,12 @@ describe("ExecutionService", () => {
 		});
 
 		it("should always disconnect graph client in finally block", async () => {
-			const disconnectMock = vi.fn().mockResolvedValue(undefined);
+			const disconnectMock = mock().mockResolvedValue(undefined);
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockRejectedValue(new Error("Connection failed")),
+				connect: mock().mockRejectedValue(new Error("Connection failed")),
 				disconnect: disconnectMock,
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(false),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(false),
 			};
 			const rehydrator = new Rehydrator({ graphClient: mockGraphClient });
 			const timeTravelService = new TimeTravelService(rehydrator);
@@ -369,10 +369,10 @@ describe("ExecutionService", () => {
 	describe("Time Travel", () => {
 		it("should get filesystem state at a point in time", async () => {
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockResolvedValue(undefined),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(true),
+				connect: mock().mockResolvedValue(undefined),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(true),
 			};
 			const rehydrator = new Rehydrator({ graphClient: mockGraphClient });
 			const timeTravelService = new TimeTravelService(rehydrator);
@@ -389,10 +389,10 @@ describe("ExecutionService", () => {
 
 		it("should get zipped state at a point in time", async () => {
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockResolvedValue(undefined),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(true),
+				connect: mock().mockResolvedValue(undefined),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(true),
 			};
 			const rehydrator = new Rehydrator({ graphClient: mockGraphClient });
 			const timeTravelService = new TimeTravelService(rehydrator);
@@ -564,18 +564,18 @@ describe("ExecutionService", () => {
 			const mockVfs = new VirtualFileSystem();
 			const mockPatchManager = new PatchManager(mockVfs);
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockResolvedValue(undefined),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(true),
+				connect: mock().mockResolvedValue(undefined),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(true),
 			};
 			const mockRehydrator = new Rehydrator({ graphClient: mockGraphClient });
 			const mockTimeTravel = new TimeTravelService(mockRehydrator);
 			const mockLogger = {
-				info: vi.fn(),
-				error: vi.fn(),
-				warn: vi.fn(),
-				debug: vi.fn(),
+				info: mock(),
+				error: mock(),
+				warn: mock(),
+				debug: mock(),
 			} as unknown as Logger;
 
 			const service = new ExecutionService({
@@ -599,14 +599,14 @@ describe("ExecutionService", () => {
 	describe("replayToolCall", () => {
 		it("should replay a tool call successfully", async () => {
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockResolvedValue(undefined),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(true),
+				connect: mock().mockResolvedValue(undefined),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(true),
 			};
 
 			const mockReplayEngine = {
-				replay: vi.fn().mockResolvedValue({
+				replay: mock().mockResolvedValue({
 					success: true,
 					matches: true,
 					originalOutput: "original",
@@ -630,14 +630,14 @@ describe("ExecutionService", () => {
 
 		it("should handle replay failures", async () => {
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockResolvedValue(undefined),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(true),
+				connect: mock().mockResolvedValue(undefined),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(true),
 			};
 
 			const mockReplayEngine = {
-				replay: vi.fn().mockResolvedValue({
+				replay: mock().mockResolvedValue({
 					success: false,
 					error: "Replay failed",
 				}),
@@ -656,14 +656,14 @@ describe("ExecutionService", () => {
 
 		it("should handle replay exceptions", async () => {
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockResolvedValue(undefined),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(true),
+				connect: mock().mockResolvedValue(undefined),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(true),
 			};
 
 			const mockReplayEngine = {
-				replay: vi.fn().mockRejectedValue(new Error("Replay exception")),
+				replay: mock().mockRejectedValue(new Error("Replay exception")),
 			};
 
 			const service = new ExecutionService({
@@ -680,14 +680,14 @@ describe("ExecutionService", () => {
 
 		it("should handle non-Error exceptions in replay", async () => {
 			const mockGraphClient: GraphClient = {
-				connect: vi.fn().mockResolvedValue(undefined),
-				disconnect: vi.fn().mockResolvedValue(undefined),
-				query: vi.fn().mockResolvedValue([]),
-				isConnected: vi.fn().mockReturnValue(true),
+				connect: mock().mockResolvedValue(undefined),
+				disconnect: mock().mockResolvedValue(undefined),
+				query: mock().mockResolvedValue([]),
+				isConnected: mock().mockReturnValue(true),
 			};
 
 			const mockReplayEngine = {
-				replay: vi.fn().mockRejectedValue("string error"),
+				replay: mock().mockRejectedValue("string error"),
 			};
 
 			const service = new ExecutionService({

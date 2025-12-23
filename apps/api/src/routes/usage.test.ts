@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { createUsageRoutes } from "./usage";
 
 // Mock API key context middleware
@@ -13,10 +13,10 @@ const mockApiKeyContext = {
 
 function createApp(usageRepo: any) {
 	const mockLogger = {
-		debug: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
+		debug: mock(),
+		info: mock(),
+		warn: mock(),
+		error: mock(),
 	};
 
 	const app = new Hono();
@@ -36,7 +36,7 @@ describe("Usage Routes", () => {
 	describe("GET /usage", () => {
 		it("should return usage summary by default", async () => {
 			const mockUsageRepo = {
-				getUsageSummary: vi.fn().mockResolvedValue({
+				getUsageSummary: mock().mockResolvedValue({
 					totalRequests: 1000,
 					totalErrors: 50,
 					operations: {
@@ -71,7 +71,7 @@ describe("Usage Routes", () => {
 
 		it("should calculate error rate as 0 when totalRequests is 0", async () => {
 			const mockUsageRepo = {
-				getUsageSummary: vi.fn().mockResolvedValue({
+				getUsageSummary: mock().mockResolvedValue({
 					totalRequests: 0,
 					totalErrors: 0,
 					operations: {},
@@ -90,7 +90,7 @@ describe("Usage Routes", () => {
 
 		it("should pass startDate and endDate query parameters", async () => {
 			const mockUsageRepo = {
-				getUsageSummary: vi.fn().mockResolvedValue({
+				getUsageSummary: mock().mockResolvedValue({
 					totalRequests: 100,
 					totalErrors: 5,
 					operations: { recall: 100 },
@@ -113,7 +113,7 @@ describe("Usage Routes", () => {
 
 		it("should return detailed usage when granularity=detailed", async () => {
 			const mockUsageRepo = {
-				getUsageStats: vi.fn().mockResolvedValue([
+				getUsageStats: mock().mockResolvedValue([
 					{
 						periodStart: new Date("2024-01-01T00:00:00Z"),
 						periodEnd: new Date("2024-01-01T01:00:00Z"),
@@ -150,7 +150,7 @@ describe("Usage Routes", () => {
 
 		it("should pass date filters to detailed usage", async () => {
 			const mockUsageRepo = {
-				getUsageStats: vi.fn().mockResolvedValue([]),
+				getUsageStats: mock().mockResolvedValue([]),
 			};
 
 			const app = createApp(mockUsageRepo);
@@ -168,7 +168,7 @@ describe("Usage Routes", () => {
 
 		it("should return 400 for invalid startDate", async () => {
 			const mockUsageRepo = {
-				getUsageSummary: vi.fn(),
+				getUsageSummary: mock(),
 			};
 
 			const app = createApp(mockUsageRepo);
@@ -183,7 +183,7 @@ describe("Usage Routes", () => {
 
 		it("should return 400 for invalid endDate", async () => {
 			const mockUsageRepo = {
-				getUsageSummary: vi.fn(),
+				getUsageSummary: mock(),
 			};
 
 			const app = createApp(mockUsageRepo);
@@ -197,7 +197,7 @@ describe("Usage Routes", () => {
 
 		it("should return 400 for invalid granularity", async () => {
 			const mockUsageRepo = {
-				getUsageSummary: vi.fn(),
+				getUsageSummary: mock(),
 			};
 
 			const app = createApp(mockUsageRepo);
@@ -211,14 +211,14 @@ describe("Usage Routes", () => {
 
 		it("should handle database errors", async () => {
 			const mockLogger = {
-				debug: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				debug: mock(),
+				info: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const mockUsageRepo = {
-				getUsageSummary: vi.fn().mockRejectedValue(new Error("Database error")),
+				getUsageSummary: mock().mockRejectedValue(new Error("Database error")),
 			};
 
 			const app = new Hono();

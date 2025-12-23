@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import {
 	createSearchClient,
 	type EmbedResponse,
@@ -8,23 +8,23 @@ import {
 
 // Mock logger
 vi.mock("@engram/logger", () => ({
-	createNodeLogger: vi.fn(() => ({
-		info: vi.fn(),
-		error: vi.fn(),
-		warn: vi.fn(),
-		debug: vi.fn(),
+	createNodeLogger: mock(() => ({
+		info: mock(),
+		error: mock(),
+		warn: mock(),
+		debug: mock(),
 	})),
 }));
 
 describe("SearchClient", () => {
 	let client: SearchClient;
-	let fetchMock: ReturnType<typeof vi.fn>;
+	let fetchMock: ReturnType<typeof mock>;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 
 		// Mock global fetch
-		fetchMock = vi.fn();
+		fetchMock = mock();
 		global.fetch = fetchMock;
 
 		client = new SearchClient("http://localhost:5002");
@@ -43,10 +43,10 @@ describe("SearchClient", () => {
 
 		it("should accept custom logger", () => {
 			const mockLogger = {
-				info: vi.fn(),
-				error: vi.fn(),
-				warn: vi.fn(),
-				debug: vi.fn(),
+				info: mock(),
+				error: mock(),
+				warn: mock(),
+				debug: mock(),
 			};
 
 			const client = new SearchClient("http://localhost:5002", mockLogger as any);

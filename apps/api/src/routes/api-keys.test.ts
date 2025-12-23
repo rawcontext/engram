@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { createApiKeyRoutes } from "./api-keys";
 
 // Mock API key context middleware
@@ -14,10 +14,10 @@ const mockApiKeyContext = {
 
 function createApp(apiKeyRepo: any) {
 	const mockLogger = {
-		debug: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
+		debug: mock(),
+		info: mock(),
+		warn: mock(),
+		error: mock(),
 	};
 
 	const app = new Hono();
@@ -37,7 +37,7 @@ describe("API Key Routes", () => {
 	describe("GET /keys", () => {
 		it("should list API keys for authenticated user", async () => {
 			const mockApiKeyRepo = {
-				listByUser: vi.fn().mockResolvedValue([
+				listByUser: mock().mockResolvedValue([
 					{
 						id: "key-1",
 						keyPrefix: "engram_live_123",
@@ -94,14 +94,14 @@ describe("API Key Routes", () => {
 
 		it("should return 403 if API key has no userId", async () => {
 			const mockApiKeyRepo = {
-				listByUser: vi.fn(),
+				listByUser: mock(),
 			};
 
 			const mockLogger = {
-				debug: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				debug: mock(),
+				info: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const app = new Hono();
@@ -126,14 +126,14 @@ describe("API Key Routes", () => {
 
 		it("should handle database errors", async () => {
 			const mockLogger = {
-				debug: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				debug: mock(),
+				info: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const mockApiKeyRepo = {
-				listByUser: vi.fn().mockRejectedValue(new Error("Database error")),
+				listByUser: mock().mockRejectedValue(new Error("Database error")),
 			};
 
 			const app = new Hono();
@@ -160,14 +160,14 @@ describe("API Key Routes", () => {
 	describe("POST /keys/revoke", () => {
 		it("should revoke API key successfully", async () => {
 			const mockApiKeyRepo = {
-				listByUser: vi.fn().mockResolvedValue([
+				listByUser: mock().mockResolvedValue([
 					{
 						id: "key-to-revoke",
 						keyPrefix: "engram_live_abc",
 						userId: "user-123",
 					},
 				]),
-				revoke: vi.fn().mockResolvedValue(undefined),
+				revoke: mock().mockResolvedValue(undefined),
 			};
 
 			const app = createApp(mockApiKeyRepo);
@@ -187,8 +187,8 @@ describe("API Key Routes", () => {
 
 		it("should return 400 for invalid request body", async () => {
 			const mockApiKeyRepo = {
-				listByUser: vi.fn(),
-				revoke: vi.fn(),
+				listByUser: mock(),
+				revoke: mock(),
 			};
 
 			const app = createApp(mockApiKeyRepo);
@@ -207,15 +207,15 @@ describe("API Key Routes", () => {
 
 		it("should return 403 if API key has no userId", async () => {
 			const mockApiKeyRepo = {
-				listByUser: vi.fn(),
-				revoke: vi.fn(),
+				listByUser: mock(),
+				revoke: mock(),
 			};
 
 			const mockLogger = {
-				debug: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				debug: mock(),
+				info: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const app = new Hono();
@@ -244,14 +244,14 @@ describe("API Key Routes", () => {
 
 		it("should return 404 if key not found or not owned by user", async () => {
 			const mockApiKeyRepo = {
-				listByUser: vi.fn().mockResolvedValue([
+				listByUser: mock().mockResolvedValue([
 					{
 						id: "key-1",
 						keyPrefix: "engram_live_abc",
 						userId: "user-123",
 					},
 				]),
-				revoke: vi.fn(),
+				revoke: mock(),
 			};
 
 			const app = createApp(mockApiKeyRepo);
@@ -271,15 +271,15 @@ describe("API Key Routes", () => {
 
 		it("should handle database errors", async () => {
 			const mockLogger = {
-				debug: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				debug: mock(),
+				info: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const mockApiKeyRepo = {
-				listByUser: vi.fn().mockRejectedValue(new Error("Database error")),
-				revoke: vi.fn(),
+				listByUser: mock().mockRejectedValue(new Error("Database error")),
+				revoke: mock(),
 			};
 
 			const app = new Hono();

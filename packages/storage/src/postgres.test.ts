@@ -1,13 +1,13 @@
 import type pg from "pg";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Hoist mocks so they're available before the module is loaded
 const { mockQuery, mockConnect, mockRelease, mockEnd, mockPoolQuery } = vi.hoisted(() => ({
-	mockQuery: vi.fn(),
-	mockConnect: vi.fn(),
-	mockRelease: vi.fn(),
-	mockEnd: vi.fn(),
-	mockPoolQuery: vi.fn(),
+	mockQuery: mock(),
+	mockConnect: mock(),
+	mockRelease: mock(),
+	mockEnd: mock(),
+	mockPoolQuery: mock(),
 }));
 
 vi.mock("pg", () => {
@@ -35,7 +35,7 @@ describe("PostgresClient", () => {
 	let client: PostgresClient;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		mockConnect.mockResolvedValue(mockClient);
 		mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
 		mockPoolQuery.mockResolvedValue({ rows: [], rowCount: 0 });
@@ -43,7 +43,7 @@ describe("PostgresClient", () => {
 	});
 
 	afterEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("connect", () => {

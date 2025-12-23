@@ -1,22 +1,22 @@
 import { createNodeLogger } from "@engram/logger";
 import { DiffExtractor, Redactor, ThinkingExtractor } from "@engram/parser";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Use vi.hoisted to create mocks that can be accessed in vi.mock factory
 const { mockSendEvent, mockNatsClient } = vi.hoisted(() => {
-	const mockSendEvent = vi.fn(async () => {});
+	const mockSendEvent = mock(async () => {});
 	const mockNatsClient = {
 		sendEvent: mockSendEvent,
-		getConsumer: vi.fn(),
-		connect: vi.fn(async () => {}),
-		disconnect: vi.fn(async () => {}),
+		getConsumer: mock(),
+		connect: mock(async () => {}),
+		disconnect: mock(async () => {}),
 	};
 	return { mockSendEvent, mockNatsClient };
 });
 
 // Mock @engram/storage at module level so createIngestionServer uses mocked NATS
 vi.mock("@engram/storage", () => ({
-	createNatsClient: vi.fn(() => mockNatsClient),
+	createNatsClient: mock(() => mockNatsClient),
 }));
 
 // Import after mock is set up
@@ -32,7 +32,7 @@ import {
 
 describe("Ingestion Service", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		// Clear extractor maps between tests
 		thinkingExtractors.clear();
 		diffExtractors.clear();
@@ -803,12 +803,12 @@ describe("Ingestion Service", () => {
 		it("should handle DLQ send failure gracefully", async () => {
 			// Mock NATS to fail on DLQ send
 			const failingNats = {
-				sendEvent: vi.fn(async (topic: string) => {
+				sendEvent: mock(async (topic: string) => {
 					if (topic === "ingestion.dead_letter") {
 						throw new Error("DLQ failed");
 					}
 				}),
-				getConsumer: vi.fn(),
+				getConsumer: mock(),
 			};
 
 			const processor = new IngestionProcessor(failingNats as any);
@@ -1070,12 +1070,12 @@ describe("Ingestion Service", () => {
 	describe("startConsumer", () => {
 		it("should start consumer and setup heartbeat", async () => {
 			const mockConsumer = {
-				subscribe: vi.fn(async () => {}),
-				run: vi.fn(async () => {}),
-				disconnect: vi.fn(async () => {}),
+				subscribe: mock(async () => {}),
+				run: mock(async () => {}),
+				disconnect: mock(async () => {}),
 			};
 
-			const mockGetConsumer = vi.fn(async () => mockConsumer);
+			const mockGetConsumer = mock(async () => mockConsumer);
 			const customNats = {
 				...mockNatsClient,
 				getConsumer: mockGetConsumer,
@@ -1083,8 +1083,8 @@ describe("Ingestion Service", () => {
 
 			// Mock createRedisPublisher
 			const mockRedis = {
-				publishConsumerStatus: vi.fn(async () => {}),
-				disconnect: vi.fn(async () => {}),
+				publishConsumerStatus: mock(async () => {}),
+				disconnect: mock(async () => {}),
 			};
 
 			// Import module to get access to startConsumer

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { SearchClient } from "../clients/index.js";
 import { type Tool, ToolRegistry } from "./registry.js";
 
@@ -18,8 +18,8 @@ const createMockSearchClient = (): SearchClient => {
 	mockEmbeddings.set("search the memory", [0.0, 0.1, 0.9, 0.7, 0.5, 0.3]); // Similar to search_memory
 
 	return {
-		search: vi.fn(),
-		embed: vi.fn((options) => {
+		search: mock(),
+		embed: mock((options) => {
 			const embedding = mockEmbeddings.get(options.text) || [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 			return Promise.resolve({
 				embedding,
@@ -28,7 +28,7 @@ const createMockSearchClient = (): SearchClient => {
 				took_ms: 10,
 			});
 		}),
-		health: vi.fn(),
+		health: mock(),
 	} as unknown as SearchClient;
 };
 
@@ -74,7 +74,7 @@ describe("ToolRegistry", () => {
 	];
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		mockSearchClient = createMockSearchClient();
 		registry = new ToolRegistry(mockSearchClient);
 
@@ -183,7 +183,7 @@ describe("ToolRegistry", () => {
 			await registry.selectTools("test query", 2);
 
 			// Clear mock call count
-			vi.clearAllMocks();
+			// vi.clearAllMocks(); // TODO: Clear individual mocks
 
 			// Second call with different query
 			await registry.selectTools("another query", 2);
@@ -217,7 +217,7 @@ describe("ToolRegistry", () => {
 
 			// Create a mock search client that returns zero embeddings
 			const zeroVectorClient: SearchClient = {
-				search: vi.fn(),
+				search: mock(),
 				embed: vi
 					.fn()
 					.mockResolvedValueOnce({
@@ -234,7 +234,7 @@ describe("ToolRegistry", () => {
 						embedder_type: "text",
 						took_ms: 10,
 					}),
-				health: vi.fn(),
+				health: mock(),
 			} as unknown as SearchClient;
 
 			const zeroRegistry = new ToolRegistry(zeroVectorClient);
@@ -276,7 +276,7 @@ describe("ToolRegistry", () => {
 			// Create a mock search client that returns embeddings of different sizes
 			// The query embedding will be compared against each tool embedding
 			const badMockSearchClient: SearchClient = {
-				search: vi.fn(),
+				search: mock(),
 				embed: vi
 					.fn()
 					.mockResolvedValueOnce({
@@ -300,7 +300,7 @@ describe("ToolRegistry", () => {
 						embedder_type: "text",
 						took_ms: 10,
 					}),
-				health: vi.fn(),
+				health: mock(),
 			} as unknown as SearchClient;
 
 			const badRegistry = new ToolRegistry(badMockSearchClient);

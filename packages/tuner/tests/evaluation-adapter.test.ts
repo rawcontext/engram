@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { spyOn, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { BenchmarkReport } from "../src/executor/benchmark-types.js";
 import type { TrialConfig } from "../src/executor/config-mapper.js";
 import {
@@ -441,7 +441,7 @@ describe.skip("evaluateWithBenchmark", () => {
 	it("should handle progress callbacks", async () => {
 		const progressUpdates: Array<{ stage: string; percent: number }> = [];
 
-		const mockSpawn = vi.fn(() => {
+		const mockSpawn = mock(() => {
 			const EventEmitter = require("node:events");
 			const proc = new EventEmitter();
 			proc.stdout = new EventEmitter();
@@ -482,7 +482,7 @@ describe.skip("evaluateWithBenchmark", () => {
 
 		// Mock fs.promises.readdir to return our report
 		const originalReaddir = fs.readdir;
-		vi.spyOn(fs, "readdir").mockResolvedValue(["report_test.json"] as any);
+		spyOn(fs, "readdir").mockResolvedValue(["report_test.json"] as any);
 
 		try {
 			await evaluateWithBenchmark(baseTrialConfig, {
@@ -494,12 +494,12 @@ describe.skip("evaluateWithBenchmark", () => {
 
 			expect(progressUpdates.length).toBeGreaterThan(0);
 		} finally {
-			vi.spyOn(fs, "readdir").mockRestore();
+			spyOn(fs, "readdir").mockRestore();
 		}
 	});
 
 	it("should handle benchmark process errors", async () => {
-		const mockSpawn = vi.fn(() => {
+		const mockSpawn = mock(() => {
 			const EventEmitter = require("node:events");
 			const proc = new EventEmitter();
 			proc.stdout = new EventEmitter();
@@ -524,7 +524,7 @@ describe.skip("evaluateWithBenchmark", () => {
 	});
 
 	it("should handle non-zero exit code", async () => {
-		const mockSpawn = vi.fn(() => {
+		const mockSpawn = mock(() => {
 			const EventEmitter = require("node:events");
 			const proc = new EventEmitter();
 			proc.stdout = new EventEmitter();
@@ -550,7 +550,7 @@ describe.skip("evaluateWithBenchmark", () => {
 	});
 
 	it("should throw when no JSON report found", async () => {
-		const mockSpawn = vi.fn(() => {
+		const mockSpawn = mock(() => {
 			const EventEmitter = require("node:events");
 			const proc = new EventEmitter();
 			proc.stdout = new EventEmitter();
@@ -568,7 +568,7 @@ describe.skip("evaluateWithBenchmark", () => {
 		}));
 
 		// Mock readdir to return no JSON files
-		vi.spyOn(fs, "readdir").mockResolvedValue(["other.txt"] as any);
+		spyOn(fs, "readdir").mockResolvedValue(["other.txt"] as any);
 
 		try {
 			await expect(
@@ -577,12 +577,12 @@ describe.skip("evaluateWithBenchmark", () => {
 				}),
 			).rejects.toThrow("No JSON report found");
 		} finally {
-			vi.spyOn(fs, "readdir").mockRestore();
+			spyOn(fs, "readdir").mockRestore();
 		}
 	});
 
 	it("should throw when JSON parsing fails", async () => {
-		const mockSpawn = vi.fn(() => {
+		const mockSpawn = mock(() => {
 			const EventEmitter = require("node:events");
 			const proc = new EventEmitter();
 			proc.stdout = new EventEmitter();
@@ -603,7 +603,7 @@ describe.skip("evaluateWithBenchmark", () => {
 		const reportPath = path.join(tmpDir, "report_invalid.json");
 		await fs.writeFile(reportPath, "{ invalid json }");
 
-		vi.spyOn(fs, "readdir").mockResolvedValue(["report_invalid.json"] as any);
+		spyOn(fs, "readdir").mockResolvedValue(["report_invalid.json"] as any);
 
 		try {
 			await expect(
@@ -612,12 +612,12 @@ describe.skip("evaluateWithBenchmark", () => {
 				}),
 			).rejects.toThrow("Failed to parse benchmark report JSON");
 		} finally {
-			vi.spyOn(fs, "readdir").mockRestore();
+			spyOn(fs, "readdir").mockRestore();
 		}
 	});
 
 	it("should throw when JSON is not an object", async () => {
-		const mockSpawn = vi.fn(() => {
+		const mockSpawn = mock(() => {
 			const EventEmitter = require("node:events");
 			const proc = new EventEmitter();
 			proc.stdout = new EventEmitter();
@@ -638,7 +638,7 @@ describe.skip("evaluateWithBenchmark", () => {
 		const reportPath = path.join(tmpDir, "report_array.json");
 		await fs.writeFile(reportPath, "[]");
 
-		vi.spyOn(fs, "readdir").mockResolvedValue(["report_array.json"] as any);
+		spyOn(fs, "readdir").mockResolvedValue(["report_array.json"] as any);
 
 		try {
 			await expect(
@@ -647,7 +647,7 @@ describe.skip("evaluateWithBenchmark", () => {
 				}),
 			).rejects.toThrow("Invalid benchmark report: expected an object");
 		} finally {
-			vi.spyOn(fs, "readdir").mockRestore();
+			spyOn(fs, "readdir").mockRestore();
 		}
 	});
 });

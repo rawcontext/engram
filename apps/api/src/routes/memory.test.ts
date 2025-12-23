@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { createMemoryRoutes } from "./memory";
 
 // Mock API key context middleware
@@ -13,10 +13,10 @@ const mockApiKeyContext = {
 
 function createApp(memoryService: any) {
 	const mockLogger = {
-		debug: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
+		debug: mock(),
+		info: mock(),
+		warn: mock(),
+		error: mock(),
 	};
 
 	const app = new Hono();
@@ -36,7 +36,7 @@ describe("Memory Routes", () => {
 	describe("POST /memory/remember", () => {
 		it("should store memory successfully", async () => {
 			const mockMemoryService = {
-				remember: vi.fn().mockResolvedValue({
+				remember: mock().mockResolvedValue({
 					id: "memory-123",
 					stored: true,
 					duplicate: false,
@@ -67,7 +67,7 @@ describe("Memory Routes", () => {
 		});
 
 		it("should return 400 for invalid request body", async () => {
-			const mockMemoryService = { remember: vi.fn() };
+			const mockMemoryService = { remember: mock() };
 			const app = createApp(mockMemoryService);
 
 			const res = await app.request("/memory/remember", {
@@ -85,7 +85,7 @@ describe("Memory Routes", () => {
 		});
 
 		it("should return 400 for content exceeding max length", async () => {
-			const mockMemoryService = { remember: vi.fn() };
+			const mockMemoryService = { remember: mock() };
 			const app = createApp(mockMemoryService);
 
 			const res = await app.request("/memory/remember", {
@@ -101,7 +101,7 @@ describe("Memory Routes", () => {
 
 		it("should accept valid memory types", async () => {
 			const mockMemoryService = {
-				remember: vi.fn().mockResolvedValue({ id: "m1", stored: true, duplicate: false }),
+				remember: mock().mockResolvedValue({ id: "m1", stored: true, duplicate: false }),
 			};
 			const app = createApp(mockMemoryService);
 
@@ -144,7 +144,7 @@ describe("Memory Routes", () => {
 
 		it("should pass filters to recall", async () => {
 			const mockMemoryService = {
-				recall: vi.fn().mockResolvedValue([]),
+				recall: mock().mockResolvedValue([]),
 			};
 
 			const app = createApp(mockMemoryService);
@@ -168,7 +168,7 @@ describe("Memory Routes", () => {
 		});
 
 		it("should return 400 for empty query", async () => {
-			const mockMemoryService = { recall: vi.fn() };
+			const mockMemoryService = { recall: mock() };
 			const app = createApp(mockMemoryService);
 
 			const res = await app.request("/memory/recall", {
@@ -181,7 +181,7 @@ describe("Memory Routes", () => {
 		});
 
 		it("should enforce limit bounds", async () => {
-			const mockMemoryService = { recall: vi.fn() };
+			const mockMemoryService = { recall: mock() };
 			const app = createApp(mockMemoryService);
 
 			// Limit too high
@@ -198,7 +198,7 @@ describe("Memory Routes", () => {
 	describe("POST /memory/query", () => {
 		it("should execute valid Cypher query", async () => {
 			const mockMemoryService = {
-				query: vi.fn().mockResolvedValue([{ id: "node-1" }]),
+				query: mock().mockResolvedValue([{ id: "node-1" }]),
 			};
 
 			const app = createApp(mockMemoryService);
@@ -222,7 +222,7 @@ describe("Memory Routes", () => {
 
 		it("should pass params to query", async () => {
 			const mockMemoryService = {
-				query: vi.fn().mockResolvedValue([]),
+				query: mock().mockResolvedValue([]),
 			};
 
 			const app = createApp(mockMemoryService);
@@ -241,7 +241,7 @@ describe("Memory Routes", () => {
 		});
 
 		it("should return 400 for empty query", async () => {
-			const mockMemoryService = { query: vi.fn() };
+			const mockMemoryService = { query: mock() };
 			const app = createApp(mockMemoryService);
 
 			const res = await app.request("/memory/query", {
@@ -284,7 +284,7 @@ describe("Memory Routes", () => {
 
 		it("should pass depth parameter", async () => {
 			const mockMemoryService = {
-				getContext: vi.fn().mockResolvedValue([]),
+				getContext: mock().mockResolvedValue([]),
 			};
 
 			const app = createApp(mockMemoryService);
@@ -298,7 +298,7 @@ describe("Memory Routes", () => {
 		});
 
 		it("should return 400 for invalid depth", async () => {
-			const mockMemoryService = { getContext: vi.fn() };
+			const mockMemoryService = { getContext: mock() };
 			const app = createApp(mockMemoryService);
 
 			const res = await app.request("/memory/context", {
@@ -312,7 +312,7 @@ describe("Memory Routes", () => {
 
 		it("should pass files parameter", async () => {
 			const mockMemoryService = {
-				getContext: vi.fn().mockResolvedValue([]),
+				getContext: mock().mockResolvedValue([]),
 			};
 
 			const app = createApp(mockMemoryService);
@@ -330,7 +330,7 @@ describe("Memory Routes", () => {
 		});
 
 		it("should return 400 for empty task", async () => {
-			const mockMemoryService = { getContext: vi.fn() };
+			const mockMemoryService = { getContext: mock() };
 			const app = createApp(mockMemoryService);
 
 			const res = await app.request("/memory/context", {
@@ -346,14 +346,14 @@ describe("Memory Routes", () => {
 	describe("Error handling", () => {
 		it("should handle service error in remember endpoint", async () => {
 			const mockLogger = {
-				debug: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				debug: mock(),
+				info: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const mockMemoryService = {
-				remember: vi.fn().mockRejectedValue(new Error("Service error")),
+				remember: mock().mockRejectedValue(new Error("Service error")),
 			};
 
 			const app = new Hono();
@@ -383,14 +383,14 @@ describe("Memory Routes", () => {
 
 		it("should handle service error in recall endpoint", async () => {
 			const mockLogger = {
-				debug: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				debug: mock(),
+				info: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const mockMemoryService = {
-				recall: vi.fn().mockRejectedValue(new Error("Service error")),
+				recall: mock().mockRejectedValue(new Error("Service error")),
 			};
 
 			const app = new Hono();
@@ -420,14 +420,14 @@ describe("Memory Routes", () => {
 
 		it("should handle service error in query endpoint", async () => {
 			const mockLogger = {
-				debug: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				debug: mock(),
+				info: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const mockMemoryService = {
-				query: vi.fn().mockRejectedValue(new Error("Service error")),
+				query: mock().mockRejectedValue(new Error("Service error")),
 			};
 
 			const app = new Hono();
@@ -457,14 +457,14 @@ describe("Memory Routes", () => {
 
 		it("should handle service error in context endpoint", async () => {
 			const mockLogger = {
-				debug: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				debug: mock(),
+				info: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const mockMemoryService = {
-				getContext: vi.fn().mockRejectedValue(new Error("Service error")),
+				getContext: mock().mockRejectedValue(new Error("Service error")),
 			};
 
 			const app = new Hono();

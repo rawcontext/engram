@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { requireAnyScope, requireScopes } from "./scopes";
 
 // Mock Hono context
@@ -7,11 +7,11 @@ function createMockContext(apiKey?: { keyId: string; scopes: string[] }) {
 	let responseStatus = 200;
 
 	return {
-		get: vi.fn((key: string) => {
+		get: mock((key: string) => {
 			if (key === "apiKey") return apiKey;
 			return undefined;
 		}),
-		json: vi.fn((body: unknown, status?: number) => {
+		json: mock((body: unknown, status?: number) => {
 			responseBody = body;
 			responseStatus = status ?? 200;
 			return { body, status: responseStatus };
@@ -25,7 +25,7 @@ describe("requireScopes middleware", () => {
 	it("should return 401 when no API key context exists", async () => {
 		const middleware = requireScopes("memory:read");
 		const ctx = createMockContext(undefined);
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -48,7 +48,7 @@ describe("requireScopes middleware", () => {
 			keyId: "key-123",
 			scopes: ["memory:read"],
 		});
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -76,7 +76,7 @@ describe("requireScopes middleware", () => {
 			keyId: "key-123",
 			scopes: ["memory:read", "memory:write"],
 		});
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -90,7 +90,7 @@ describe("requireScopes middleware", () => {
 			keyId: "key-123",
 			scopes: ["memory:read", "memory:write"],
 		});
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -113,7 +113,7 @@ describe("requireScopes middleware", () => {
 			keyId: "key-123",
 			scopes: ["memory:read", "memory:write", "query:read"],
 		});
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -125,7 +125,7 @@ describe("requireAnyScope middleware", () => {
 	it("should return 401 when no API key context exists", async () => {
 		const middleware = requireAnyScope("memory:read", "memory:write");
 		const ctx = createMockContext(undefined);
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -146,7 +146,7 @@ describe("requireAnyScope middleware", () => {
 			keyId: "key-123",
 			scopes: ["memory:read", "memory:write"],
 		});
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -171,7 +171,7 @@ describe("requireAnyScope middleware", () => {
 			keyId: "key-123",
 			scopes: ["memory:read"],
 		});
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -184,7 +184,7 @@ describe("requireAnyScope middleware", () => {
 			keyId: "key-123",
 			scopes: ["scope2"],
 		});
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 

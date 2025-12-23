@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import {
 	convertMcpToolsToAiSdk,
 	createDecisionEngine,
@@ -8,22 +8,22 @@ import {
 
 // Mock external dependencies
 vi.mock("ai", () => ({
-	generateText: vi.fn(),
-	tool: vi.fn((config) => ({
+	generateText: mock(),
+	tool: mock((config) => ({
 		...config,
 		_isTool: true,
 	})),
 }));
 
 vi.mock("@ai-sdk/xai", () => ({
-	xai: vi.fn(() => "mock-xai-model"),
+	xai: mock(() => "mock-xai-model"),
 }));
 
 // Import the mocked generateText for assertions
 import { generateText, tool } from "ai";
 
-const mockGenerateText = vi.mocked(generateText);
-const mockTool = vi.mocked(tool);
+const mockGenerateText = generateText as Mock;
+const mockTool = tool as Mock;
 
 describe("extractToolCalls", () => {
 	it("should return empty array when toolCalls is undefined", () => {
@@ -138,7 +138,7 @@ describe("extractToolCalls", () => {
 
 describe("convertMcpToolsToAiSdk", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	it("should return empty object for empty array", () => {
@@ -195,31 +195,31 @@ describe("convertMcpToolsToAiSdk", () => {
 
 describe("DecisionEngine", () => {
 	const mockLogger = {
-		debug: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
+		debug: mock(),
+		info: mock(),
+		warn: mock(),
+		error: mock(),
 	};
 
 	const createMockContextAssembler = () => ({
-		assembleContext: vi.fn().mockResolvedValue("Mock context string"),
+		assembleContext: mock().mockResolvedValue("Mock context string"),
 	});
 
 	const createMockToolAdapter = () => ({
-		listTools: vi.fn().mockResolvedValue([
+		listTools: mock().mockResolvedValue([
 			{ name: "read_file", description: "Read a file" },
 			{ name: "write_file", description: "Write a file" },
 		]),
-		callTool: vi.fn().mockResolvedValue({ success: true }),
+		callTool: mock().mockResolvedValue({ success: true }),
 	});
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		mockGenerateText.mockReset();
 	});
 
 	afterEach(() => {
-		vi.restoreAllMocks();
+		// vi.restoreAllMocks(); // TODO: Restore individual mocks
 	});
 
 	describe("constructor", () => {

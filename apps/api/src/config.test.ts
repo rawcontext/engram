@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { ConfigSchema, loadConfig } from "./config";
 
 describe("ConfigSchema", () => {
@@ -56,7 +56,7 @@ describe("loadConfig", () => {
 	const originalEnv = process.env;
 
 	beforeEach(() => {
-		vi.resetModules();
+		// vi.resetModules(); // Not needed in Bun
 		process.env = { ...originalEnv };
 	});
 

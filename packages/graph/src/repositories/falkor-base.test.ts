@@ -1,6 +1,6 @@
 import type { GraphClient } from "@engram/storage";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MAX_DATE } from "../utils/time";
+import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
+import { spyOn, MAX_DATE } from "../utils/time";
 import { FalkorBaseRepository } from "./falkor-base";
 
 class TestRepository extends FalkorBaseRepository {
@@ -59,10 +59,10 @@ describe("FalkorBaseRepository", () => {
 
 	beforeEach(() => {
 		mockClient = {
-			connect: vi.fn(async () => {}),
-			disconnect: vi.fn(async () => {}),
-			query: vi.fn(async () => []),
-			isConnected: vi.fn(() => true),
+			connect: mock(async () => {}),
+			disconnect: mock(async () => {}),
+			query: mock(async () => []),
+			isConnected: mock(() => true),
 		} as unknown as GraphClient;
 
 		repository = new TestRepository(mockClient);
@@ -224,7 +224,7 @@ describe("FalkorBaseRepository", () => {
 	describe("query", () => {
 		it("should execute query through graphClient", async () => {
 			const mockData = [{ id: "123", name: "test" }];
-			vi.spyOn(mockClient, "query").mockResolvedValueOnce(mockData);
+			spyOn(mockClient, "query").mockResolvedValueOnce(mockData);
 
 			const result = await repository.testQuery("MATCH (n) RETURN n", { id: "123" });
 
@@ -234,7 +234,7 @@ describe("FalkorBaseRepository", () => {
 
 		it("should execute query without params", async () => {
 			const mockData = [{ count: 5 }];
-			vi.spyOn(mockClient, "query").mockResolvedValueOnce(mockData);
+			spyOn(mockClient, "query").mockResolvedValueOnce(mockData);
 
 			const result = await repository.testQuery("MATCH (n) RETURN count(n) as count");
 
@@ -245,7 +245,7 @@ describe("FalkorBaseRepository", () => {
 
 	describe("exists", () => {
 		it("should return true when node exists", async () => {
-			vi.spyOn(mockClient, "query").mockResolvedValueOnce([{ cnt: 1 }]);
+			spyOn(mockClient, "query").mockResolvedValueOnce([{ cnt: 1 }]);
 
 			const result = await repository.testExists("Session", "id: $id", { id: "123" });
 
@@ -257,7 +257,7 @@ describe("FalkorBaseRepository", () => {
 		});
 
 		it("should return false when node does not exist", async () => {
-			vi.spyOn(mockClient, "query").mockResolvedValueOnce([{ cnt: 0 }]);
+			spyOn(mockClient, "query").mockResolvedValueOnce([{ cnt: 0 }]);
 
 			const result = await repository.testExists("Session", "id: $id", { id: "999" });
 
@@ -265,7 +265,7 @@ describe("FalkorBaseRepository", () => {
 		});
 
 		it("should return false when query returns empty array", async () => {
-			vi.spyOn(mockClient, "query").mockResolvedValueOnce([]);
+			spyOn(mockClient, "query").mockResolvedValueOnce([]);
 
 			const result = await repository.testExists("Session", "id: $id", { id: "999" });
 
@@ -275,7 +275,7 @@ describe("FalkorBaseRepository", () => {
 
 	describe("softDelete", () => {
 		it("should close transaction time for node", async () => {
-			vi.spyOn(mockClient, "query").mockResolvedValueOnce([]);
+			spyOn(mockClient, "query").mockResolvedValueOnce([]);
 
 			await repository.testSoftDelete("Session", "123");
 
@@ -286,7 +286,7 @@ describe("FalkorBaseRepository", () => {
 		});
 
 		it("should only affect nodes with open transaction time", async () => {
-			vi.spyOn(mockClient, "query").mockResolvedValueOnce([]);
+			spyOn(mockClient, "query").mockResolvedValueOnce([]);
 
 			await repository.testSoftDelete("Turn", "turn-123");
 

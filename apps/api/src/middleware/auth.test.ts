@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { type ApiKeyAuthOptions, apiKeyAuth } from "./auth";
 
 // Mock Hono context
@@ -11,9 +11,9 @@ function createMockContext(headers: Record<string, string> = {}) {
 		req: {
 			header: (name: string) => headers[name],
 		},
-		set: vi.fn(),
-		get: vi.fn(),
-		json: vi.fn((body: unknown, status?: number) => {
+		set: mock(),
+		get: mock(),
+		json: mock((body: unknown, status?: number) => {
 			responseBody = body;
 			responseStatus = status ?? 200;
 			return { body, status: responseStatus };
@@ -27,10 +27,10 @@ function createMockContext(headers: Record<string, string> = {}) {
 
 describe("apiKeyAuth middleware", () => {
 	const mockLogger = {
-		debug: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
+		debug: mock(),
+		info: mock(),
+		warn: mock(),
+		error: mock(),
 	} as unknown as ApiKeyAuthOptions["logger"];
 
 	const validApiKey = "engram_live_abcdefghijklmnopqrstuvwxyz123456";
@@ -51,14 +51,14 @@ describe("apiKeyAuth middleware", () => {
 	};
 
 	it("should return 401 when Authorization header is missing", async () => {
-		const mockApiKeyRepo = { validate: vi.fn() };
+		const mockApiKeyRepo = { validate: mock() };
 		const middleware = apiKeyAuth({
 			logger: mockLogger,
 			apiKeyRepo: mockApiKeyRepo as unknown as ApiKeyAuthOptions["apiKeyRepo"],
 		});
 
 		const ctx = createMockContext({});
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -76,14 +76,14 @@ describe("apiKeyAuth middleware", () => {
 	});
 
 	it("should return 401 when Authorization header does not start with Bearer", async () => {
-		const mockApiKeyRepo = { validate: vi.fn() };
+		const mockApiKeyRepo = { validate: mock() };
 		const middleware = apiKeyAuth({
 			logger: mockLogger,
 			apiKeyRepo: mockApiKeyRepo as unknown as ApiKeyAuthOptions["apiKeyRepo"],
 		});
 
 		const ctx = createMockContext({ Authorization: "Basic abc123" });
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -101,14 +101,14 @@ describe("apiKeyAuth middleware", () => {
 	});
 
 	it("should return 401 when API key format is invalid", async () => {
-		const mockApiKeyRepo = { validate: vi.fn() };
+		const mockApiKeyRepo = { validate: mock() };
 		const middleware = apiKeyAuth({
 			logger: mockLogger,
 			apiKeyRepo: mockApiKeyRepo as unknown as ApiKeyAuthOptions["apiKeyRepo"],
 		});
 
 		const ctx = createMockContext({ Authorization: "Bearer invalid-key-format" });
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -127,7 +127,7 @@ describe("apiKeyAuth middleware", () => {
 
 	it("should return 500 when database validation fails", async () => {
 		const mockApiKeyRepo = {
-			validate: vi.fn().mockRejectedValue(new Error("Database error")),
+			validate: mock().mockRejectedValue(new Error("Database error")),
 		};
 		const middleware = apiKeyAuth({
 			logger: mockLogger,
@@ -135,7 +135,7 @@ describe("apiKeyAuth middleware", () => {
 		});
 
 		const ctx = createMockContext({ Authorization: `Bearer ${validApiKey}` });
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -154,7 +154,7 @@ describe("apiKeyAuth middleware", () => {
 
 	it("should return 401 when API key is not found in database", async () => {
 		const mockApiKeyRepo = {
-			validate: vi.fn().mockResolvedValue(null),
+			validate: mock().mockResolvedValue(null),
 		};
 		const middleware = apiKeyAuth({
 			logger: mockLogger,
@@ -162,7 +162,7 @@ describe("apiKeyAuth middleware", () => {
 		});
 
 		const ctx = createMockContext({ Authorization: `Bearer ${validApiKey}` });
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -181,7 +181,7 @@ describe("apiKeyAuth middleware", () => {
 
 	it("should call next and set apiKey context on valid authentication", async () => {
 		const mockApiKeyRepo = {
-			validate: vi.fn().mockResolvedValue(mockValidatedKey),
+			validate: mock().mockResolvedValue(mockValidatedKey),
 		};
 		const middleware = apiKeyAuth({
 			logger: mockLogger,
@@ -189,7 +189,7 @@ describe("apiKeyAuth middleware", () => {
 		});
 
 		const ctx = createMockContext({ Authorization: `Bearer ${validApiKey}` });
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 
@@ -210,7 +210,7 @@ describe("apiKeyAuth middleware", () => {
 	it("should accept test API keys", async () => {
 		const testApiKey = "engram_test_abcdefghijklmnopqrstuvwxyz123456";
 		const mockApiKeyRepo = {
-			validate: vi.fn().mockResolvedValue({
+			validate: mock().mockResolvedValue({
 				...mockValidatedKey,
 				keyType: "test",
 			}),
@@ -221,7 +221,7 @@ describe("apiKeyAuth middleware", () => {
 		});
 
 		const ctx = createMockContext({ Authorization: `Bearer ${testApiKey}` });
-		const next = vi.fn();
+		const next = mock();
 
 		await middleware(ctx as any, next);
 

@@ -1,6 +1,6 @@
 import { RawStreamEventSchema } from "@engram/events";
 import { createNatsClient } from "@engram/storage";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 const nats = createNatsClient("e2e-test");
 

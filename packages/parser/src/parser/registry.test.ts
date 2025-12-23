@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { AnthropicParser } from "./anthropic";
 import { OpenAIParser } from "./openai";
 import { createDefaultRegistry, defaultRegistry, ParserRegistry } from "./registry";

@@ -2,7 +2,7 @@
  * Tests for @engram/common/utils/format
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
 	formatBytes,
 	formatDuration,

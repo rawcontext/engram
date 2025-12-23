@@ -1,16 +1,16 @@
 import { VirtualFileSystem } from "@engram/vfs";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import type { Rehydrator } from "./rehydrator";
 import { TimeTravelService } from "./time-travel";
 
 // Mock VirtualFileSystem
 const mockVFS = new VirtualFileSystem();
 mockVFS.root = { "test.txt": "content" }; // simplistic mock of root
-mockVFS.readDir = vi.fn(() => ["test.txt"]);
+mockVFS.readDir = mock(() => ["test.txt"]);
 
 // Mock Rehydrator
 const mockRehydrator = {
-	rehydrate: vi.fn(async (_sessionId: string, _targetTime: number) => {
+	rehydrate: mock(async (_sessionId: string, _targetTime: number) => {
 		return mockVFS;
 	}),
 } as unknown as Rehydrator;
@@ -40,12 +40,12 @@ describe("TimeTravelService", () => {
 
 	it("listFiles should return empty array when path doesn't exist", async () => {
 		const errorVFS = new VirtualFileSystem();
-		errorVFS.readDir = vi.fn(() => {
+		errorVFS.readDir = mock(() => {
 			throw new Error("Directory not found");
 		});
 
 		const errorRehydrator = {
-			rehydrate: vi.fn(async () => errorVFS),
+			rehydrate: mock(async () => errorVFS),
 		} as unknown as Rehydrator;
 
 		const errorService = new TimeTravelService(errorRehydrator);

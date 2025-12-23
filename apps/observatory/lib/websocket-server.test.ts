@@ -1,5 +1,5 @@
 import type { SessionUpdate } from "@engram/storage/nats";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import {
 	cleanupWebSocketServer,
 	handleConsumerStatusConnection,
@@ -8,37 +8,37 @@ import {
 } from "./websocket-server";
 
 vi.mock("@engram/storage/nats", () => ({
-	createNatsPubSubSubscriber: vi.fn(() => ({
-		subscribe: vi.fn(async (_channel: string, _callback: (data: any) => void) => {
-			return vi.fn();
+	createNatsPubSubSubscriber: mock(() => ({
+		subscribe: mock(async (_channel: string, _callback: (data: any) => void) => {
+			return mock();
 		}),
-		subscribeToConsumerStatus: vi.fn(async (_callback: (data: any) => void) => {
-			return vi.fn();
+		subscribeToConsumerStatus: mock(async (_callback: (data: any) => void) => {
+			return mock();
 		}),
 	})),
 }));
 
 vi.mock("./graph-queries", () => ({
-	getSessionLineage: vi.fn(async () => ({
+	getSessionLineage: mock(async () => ({
 		nodes: [{ id: "node1", label: "Node 1" }],
 		links: [],
 	})),
-	getSessionTimeline: vi.fn(async () => ({
+	getSessionTimeline: mock(async () => ({
 		timeline: [{ id: "event1" }],
 	})),
-	getSessionsForWebSocket: vi.fn(async () => ({
+	getSessionsForWebSocket: mock(async () => ({
 		sessions: [{ id: "sess1", name: "Session 1" }],
 	})),
 }));
 
 vi.mock("node:module", () => ({
-	createRequire: vi.fn(() =>
-		vi.fn(() => ({
+	createRequire: mock(() =>
+		mock(() => ({
 			AdminClient: {
-				create: vi.fn(() => ({
-					connect: vi.fn(),
-					disconnect: vi.fn(),
-					describeGroups: vi.fn((_groups, _opts, callback) => {
+				create: mock(() => ({
+					connect: mock(),
+					disconnect: mock(),
+					describeGroups: mock((_groups, _opts, callback) => {
 						callback(null, [{ groupId: "test-group", state: 3, members: [{}] }]);
 					}),
 				})),
@@ -49,7 +49,7 @@ vi.mock("node:module", () => ({
 
 describe("websocket-server", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		cleanupWebSocketServer();
 	});
 
@@ -57,8 +57,8 @@ describe("websocket-server", () => {
 		it("should handle session connection and send initial data", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
@@ -71,15 +71,15 @@ describe("websocket-server", () => {
 
 		it("should handle session with no lineage data", async () => {
 			const { getSessionLineage } = await import("./graph-queries");
-			vi.mocked(getSessionLineage).mockResolvedValueOnce({
+			(getSessionLineage as Mock).mockResolvedValueOnce({
 				nodes: [],
 				links: [],
 			});
 
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionConnection(ws, "sess_empty");
@@ -92,14 +92,14 @@ describe("websocket-server", () => {
 
 		it("should handle session with no timeline data", async () => {
 			const { getSessionTimeline } = await import("./graph-queries");
-			vi.mocked(getSessionTimeline).mockResolvedValueOnce({
+			(getSessionTimeline as Mock).mockResolvedValueOnce({
 				timeline: [],
 			});
 
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionConnection(ws, "sess_empty");
@@ -112,12 +112,12 @@ describe("websocket-server", () => {
 
 		it("should handle initial fetch errors gracefully", async () => {
 			const { getSessionLineage } = await import("./graph-queries");
-			vi.mocked(getSessionLineage).mockRejectedValueOnce(new Error("Fetch error"));
+			(getSessionLineage as Mock).mockRejectedValueOnce(new Error("Fetch error"));
 
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionConnection(ws, "sess_error");
@@ -128,8 +128,8 @@ describe("websocket-server", () => {
 		it("should handle refresh message", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
@@ -144,8 +144,8 @@ describe("websocket-server", () => {
 		it("should handle invalid message gracefully", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
@@ -160,8 +160,8 @@ describe("websocket-server", () => {
 		it("should call unsubscribe on close", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
@@ -177,17 +177,17 @@ describe("websocket-server", () => {
 			const { createNatsPubSubSubscriber } = await import("@engram/storage/nats");
 			let subscribeCallback: ((data: SessionUpdate) => void) | null = null;
 
-			vi.mocked(createNatsPubSubSubscriber).mockReturnValueOnce({
-				subscribe: vi.fn(async (_channel: string, callback: (data: SessionUpdate) => void) => {
+			(createNatsPubSubSubscriber as Mock).mockReturnValueOnce({
+				subscribe: mock(async (_channel: string, callback: (data: SessionUpdate) => void) => {
 					subscribeCallback = callback;
-					return vi.fn();
+					return mock();
 				}),
 			} as any);
 
 			const ws = {
 				readyState: 3,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
@@ -212,8 +212,8 @@ describe("websocket-server", () => {
 		it("should handle sessions connection and send initial data", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionsConnection(ws);
@@ -225,12 +225,12 @@ describe("websocket-server", () => {
 
 		it("should handle initial sessions fetch error", async () => {
 			const { getSessionsForWebSocket } = await import("./graph-queries");
-			vi.mocked(getSessionsForWebSocket).mockRejectedValueOnce(new Error("Fetch error"));
+			(getSessionsForWebSocket as Mock).mockRejectedValueOnce(new Error("Fetch error"));
 
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionsConnection(ws);
@@ -241,8 +241,8 @@ describe("websocket-server", () => {
 		it("should handle refresh message", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionsConnection(ws);
@@ -257,8 +257,8 @@ describe("websocket-server", () => {
 		it("should handle subscribe message", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionsConnection(ws);
@@ -273,8 +273,8 @@ describe("websocket-server", () => {
 		it("should handle invalid message gracefully", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionsConnection(ws);
@@ -289,8 +289,8 @@ describe("websocket-server", () => {
 		it("should call unsubscribe on close", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionsConnection(ws);
@@ -306,17 +306,17 @@ describe("websocket-server", () => {
 			const { createNatsPubSubSubscriber } = await import("@engram/storage/nats");
 			let subscribeCallback: ((data: SessionUpdate) => void) | null = null;
 
-			vi.mocked(createNatsPubSubSubscriber).mockReturnValueOnce({
-				subscribe: vi.fn(async (_channel: string, callback: (data: SessionUpdate) => void) => {
+			(createNatsPubSubSubscriber as Mock).mockReturnValueOnce({
+				subscribe: mock(async (_channel: string, callback: (data: SessionUpdate) => void) => {
 					subscribeCallback = callback;
-					return vi.fn();
+					return mock();
 				}),
 			} as any);
 
 			const ws = {
 				readyState: 3,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleSessionsConnection(ws);
@@ -344,8 +344,8 @@ describe("websocket-server", () => {
 		it("should handle consumer status connection and send initial status", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleConsumerStatusConnection(ws);
@@ -358,8 +358,8 @@ describe("websocket-server", () => {
 		it("should handle refresh message", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleConsumerStatusConnection(ws);
@@ -374,8 +374,8 @@ describe("websocket-server", () => {
 		it("should handle invalid message gracefully", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleConsumerStatusConnection(ws);
@@ -390,8 +390,8 @@ describe("websocket-server", () => {
 		it("should remove client from set on close", async () => {
 			const ws = {
 				readyState: 1,
-				send: vi.fn(),
-				on: vi.fn(),
+				send: mock(),
+				on: mock(),
 			} as any;
 
 			await handleConsumerStatusConnection(ws);

@@ -1,16 +1,16 @@
 import type { NextResponse } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { trackUsage, withTelemetry } from "./telemetry";
 
 vi.mock("@engram/logger", () => ({
 	createNodeLogger: () => ({
-		info: vi.fn(),
+		info: mock(),
 	}),
 }));
 
 describe("telemetry", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("trackUsage", () => {
@@ -37,7 +37,7 @@ describe("telemetry", () => {
 
 	describe("withTelemetry", () => {
 		it("should call handler and track successful request", async () => {
-			const mockHandler = vi.fn().mockResolvedValue({
+			const mockHandler = mock().mockResolvedValue({
 				status: 200,
 			} as NextResponse);
 
@@ -51,7 +51,7 @@ describe("telemetry", () => {
 		});
 
 		it("should track failed request and rethrow error", async () => {
-			const mockHandler = vi.fn().mockRejectedValue(new Error("Handler error"));
+			const mockHandler = mock().mockRejectedValue(new Error("Handler error"));
 
 			const wrappedHandler = withTelemetry(mockHandler);
 			const req = new Request("http://example.com/api/test");
@@ -61,7 +61,7 @@ describe("telemetry", () => {
 		});
 
 		it("should track request with error status", async () => {
-			const mockHandler = vi.fn().mockResolvedValue({
+			const mockHandler = mock().mockResolvedValue({
 				status: 404,
 			} as NextResponse);
 
@@ -74,7 +74,7 @@ describe("telemetry", () => {
 		});
 
 		it("should handle handler with additional arguments", async () => {
-			const mockHandler = vi.fn().mockResolvedValue({
+			const mockHandler = mock().mockResolvedValue({
 				status: 200,
 			} as NextResponse);
 
@@ -89,7 +89,7 @@ describe("telemetry", () => {
 		});
 
 		it("should track duration correctly", async () => {
-			const mockHandler = vi.fn().mockImplementation(async () => {
+			const mockHandler = mock().mockImplementation(async () => {
 				await new Promise((resolve) => setTimeout(resolve, 10));
 				return { status: 200 } as NextResponse;
 			});
@@ -103,7 +103,7 @@ describe("telemetry", () => {
 		});
 
 		it("should use 500 status when response is null in finally block", async () => {
-			const mockHandler = vi.fn().mockImplementation(() => {
+			const mockHandler = mock().mockImplementation(() => {
 				throw new Error("Unexpected error");
 			});
 

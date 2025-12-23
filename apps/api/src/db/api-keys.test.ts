@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { ApiKeyRepository, hashApiKey } from "./api-keys";
 
 describe("hashApiKey", () => {
@@ -21,10 +21,10 @@ describe("hashApiKey", () => {
 
 describe("ApiKeyRepository", () => {
 	const createMockDb = () => ({
-		query: vi.fn(),
-		queryOne: vi.fn(),
-		queryMany: vi.fn(),
-		transaction: vi.fn(),
+		query: mock(),
+		queryOne: mock(),
+		queryMany: mock(),
+		transaction: mock(),
 	});
 
 	const sampleDbRow = {
@@ -239,7 +239,7 @@ describe("ApiKeyRepository", () => {
 		it("should revoke old key and create new one in transaction", async () => {
 			const mockDb = createMockDb();
 			const mockClient = {
-				query: vi.fn().mockResolvedValue({ rows: [sampleDbRow] }),
+				query: mock().mockResolvedValue({ rows: [sampleDbRow] }),
 			};
 			mockDb.transaction.mockImplementation(async (fn) => fn(mockClient));
 

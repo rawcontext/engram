@@ -2,7 +2,7 @@
  * Tests for @engram/common/errors/base
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
 import { EngramError } from "./base";
 
 describe("EngramError", () => {
@@ -10,7 +10,7 @@ describe("EngramError", () => {
 
 	beforeEach(() => {
 		if (Error.captureStackTrace) {
-			captureStackTraceSpy = vi.spyOn(Error, "captureStackTrace");
+			captureStackTraceSpy = spyOn(Error, "captureStackTrace");
 		}
 	});
 

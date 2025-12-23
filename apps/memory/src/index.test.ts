@@ -7,7 +7,7 @@ import {
 	type NatsPubSubPublisher,
 } from "@engram/storage";
 import { createNatsPubSubPublisher } from "@engram/storage/nats";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { TurnAggregator } from "./turn-aggregator";
 
 // Create shared mocks for module-level code using vi.hoisted to avoid initialization issues
@@ -22,63 +22,63 @@ const {
 } = vi.hoisted(() => {
 	return {
 		mockGraphClient: {
-			connect: vi.fn(async () => {}),
-			query: vi.fn(async () => []),
-			disconnect: vi.fn(async () => {}),
-			isConnected: vi.fn(() => true),
+			connect: mock(async () => {}),
+			query: mock(async () => []),
+			disconnect: mock(async () => {}),
+			isConnected: mock(() => true),
 		},
 		mockConsumer: {
-			subscribe: vi.fn(async () => {}),
-			run: vi.fn(async () => {}),
-			disconnect: vi.fn(async () => {}),
+			subscribe: mock(async () => {}),
+			run: mock(async () => {}),
+			disconnect: mock(async () => {}),
 		},
 		mockNatsClient: {
-			getConsumer: vi.fn(async () => ({
-				subscribe: vi.fn(async () => {}),
-				run: vi.fn(async () => {}),
-				disconnect: vi.fn(async () => {}),
+			getConsumer: mock(async () => ({
+				subscribe: mock(async () => {}),
+				run: mock(async () => {}),
+				disconnect: mock(async () => {}),
 			})),
-			sendEvent: vi.fn(async () => {}),
+			sendEvent: mock(async () => {}),
 		},
 		mockNatsPubSub: {
-			publishSessionUpdate: vi.fn(async () => {}),
-			publishGlobalSessionEvent: vi.fn(async () => {}),
-			publishConsumerStatus: vi.fn(async () => {}),
-			disconnect: vi.fn(async () => {}),
-			connect: vi.fn(async () => {}),
+			publishSessionUpdate: mock(async () => {}),
+			publishGlobalSessionEvent: mock(async () => {}),
+			publishConsumerStatus: mock(async () => {}),
+			disconnect: mock(async () => {}),
+			connect: mock(async () => {}),
 		},
 		mockLogger: {
-			info: vi.fn(),
-			debug: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			info: mock(),
+			debug: mock(),
+			warn: mock(),
+			error: mock(),
 		},
 		mockGraphPruner: {
-			pruneHistory: vi.fn(async () => ({ deleted: 10 })),
+			pruneHistory: mock(async () => ({ deleted: 10 })),
 		},
 		mockMcpServer: {
-			tool: vi.fn(),
-			connect: vi.fn(async () => {}),
+			tool: mock(),
+			connect: mock(async () => {}),
 		},
 	};
 });
 
 // Mock modules
 vi.mock("@engram/storage", () => ({
-	createFalkorClient: vi.fn(() => mockGraphClient),
-	createNatsClient: vi.fn(() => mockNatsClient),
+	createFalkorClient: mock(() => mockGraphClient),
+	createNatsClient: mock(() => mockNatsClient),
 }));
 
 vi.mock("@engram/storage/nats", () => ({
-	createNatsPubSubPublisher: vi.fn(() => mockNatsPubSub),
+	createNatsPubSubPublisher: mock(() => mockNatsPubSub),
 }));
 
 vi.mock("@engram/logger", () => ({
-	createNodeLogger: vi.fn(() => mockLogger),
+	createNodeLogger: mock(() => mockLogger),
 	pino: {
-		destination: vi.fn((_fd: number) => ({ write: vi.fn() })),
+		destination: mock((_fd: number) => ({ write: mock() })),
 	},
-	withTraceContext: vi.fn((logger, _context) => logger),
+	withTraceContext: mock((logger, _context) => logger),
 }));
 
 vi.mock("@engram/graph", () => ({
@@ -95,7 +95,7 @@ vi.mock("@modelcontextprotocol/sdk/server/mcp.js", () => ({
 }));
 
 vi.mock("@modelcontextprotocol/sdk/server/stdio.js", () => ({
-	StdioServerTransport: vi.fn(),
+	StdioServerTransport: mock(),
 }));
 
 // Import after mocking to ensure module-level code uses mocks
@@ -104,7 +104,7 @@ const { clearAllIntervals, createMemoryServiceDeps, startPruningJob, startTurnCl
 
 describe("Memory Service Deps", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("createMemoryServiceDeps", () => {
@@ -121,10 +121,10 @@ describe("Memory Service Deps", () => {
 
 		it("should use custom graph client when provided", () => {
 			const customGraphClient = {
-				connect: vi.fn(),
-				query: vi.fn(),
-				disconnect: vi.fn(),
-				isConnected: vi.fn(),
+				connect: mock(),
+				query: mock(),
+				disconnect: mock(),
+				isConnected: mock(),
 			} as unknown as GraphClient;
 
 			const deps = createMemoryServiceDeps({ graphClient: customGraphClient });
@@ -178,7 +178,7 @@ describe("Memory Service Deps", () => {
 		it("should create turn aggregator with onNodeCreated callback", async () => {
 			const deps = createMemoryServiceDeps();
 			const mockNats = deps.natsPubSub as unknown as {
-				publishSessionUpdate: ReturnType<typeof vi.fn>;
+				publishSessionUpdate: ReturnType<typeof mock>;
 			};
 
 			// Get the handler registry from aggregator
@@ -200,18 +200,18 @@ describe("Memory Service Deps", () => {
 
 		it("should handle errors in onNodeCreated callback gracefully", async () => {
 			const mockNats = {
-				publishSessionUpdate: vi.fn().mockRejectedValue(new Error("NATS error")),
-				publishGlobalSessionEvent: vi.fn(),
-				publishConsumerStatus: vi.fn(),
-				disconnect: vi.fn(),
-				connect: vi.fn(),
+				publishSessionUpdate: mock().mockRejectedValue(new Error("NATS error")),
+				publishGlobalSessionEvent: mock(),
+				publishConsumerStatus: mock(),
+				disconnect: mock(),
+				connect: mock(),
 			} as unknown as NatsPubSubPublisher;
 
 			const mockLogger = {
-				info: vi.fn(),
-				debug: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				info: mock(),
+				debug: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const deps = createMemoryServiceDeps({
@@ -245,10 +245,10 @@ describe("Memory Service Deps", () => {
 		it("should support partial dependency injection", () => {
 			const customLogger = createNodeLogger({ service: "test" });
 			const customGraphClient = {
-				connect: vi.fn(),
-				query: vi.fn(),
-				disconnect: vi.fn(),
-				isConnected: vi.fn(),
+				connect: mock(),
+				query: mock(),
+				disconnect: mock(),
+				isConnected: mock(),
 			} as unknown as GraphClient;
 
 			const deps = createMemoryServiceDeps({
@@ -264,18 +264,18 @@ describe("Memory Service Deps", () => {
 
 		it("should wire onNodeCreated callback to publish via NATS", async () => {
 			const mockNats = {
-				publishSessionUpdate: vi.fn().mockResolvedValue(undefined),
-				publishGlobalSessionEvent: vi.fn(),
-				publishConsumerStatus: vi.fn(),
-				disconnect: vi.fn(),
-				connect: vi.fn(),
+				publishSessionUpdate: mock().mockResolvedValue(undefined),
+				publishGlobalSessionEvent: mock(),
+				publishConsumerStatus: mock(),
+				disconnect: mock(),
+				connect: mock(),
 			} as unknown as NatsPubSubPublisher;
 
 			const mockLogger = {
-				info: vi.fn(),
-				debug: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				info: mock(),
+				debug: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const deps = createMemoryServiceDeps({
@@ -314,18 +314,18 @@ describe("Memory Service Deps", () => {
 
 		it("should handle NATS publish errors in onNodeCreated gracefully", async () => {
 			const mockNats = {
-				publishSessionUpdate: vi.fn().mockRejectedValue(new Error("NATS publish failed")),
-				publishGlobalSessionEvent: vi.fn(),
-				publishConsumerStatus: vi.fn(),
-				disconnect: vi.fn(),
-				connect: vi.fn(),
+				publishSessionUpdate: mock().mockRejectedValue(new Error("NATS publish failed")),
+				publishGlobalSessionEvent: mock(),
+				publishConsumerStatus: mock(),
+				disconnect: mock(),
+				connect: mock(),
 			} as unknown as NatsPubSubPublisher;
 
 			const mockLogger = {
-				info: vi.fn(),
-				debug: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				info: mock(),
+				debug: mock(),
+				warn: mock(),
+				error: mock(),
 			};
 
 			const deps = createMemoryServiceDeps({
@@ -377,7 +377,7 @@ describe("Memory Service Deps", () => {
 			createMemoryServiceDeps();
 
 			// Verify pino.destination was called with fd 2 (stderr)
-			const pinoMock = vi.mocked(createNodeLogger);
+			const pinoMock = createNodeLogger as Mock;
 			expect(pinoMock).toHaveBeenCalled();
 		});
 	});
@@ -385,7 +385,7 @@ describe("Memory Service Deps", () => {
 
 describe("Module-level functions", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		vi.useFakeTimers();
 	});
 
@@ -513,7 +513,7 @@ describe("Module-level functions", () => {
 
 		beforeEach(() => {
 			mockTurnAggregator = {
-				cleanupStaleTurns: vi.fn(async () => {}),
+				cleanupStaleTurns: mock(async () => {}),
 			};
 			// We need to inject this somehow - for now we'll just verify the interval is created
 		});

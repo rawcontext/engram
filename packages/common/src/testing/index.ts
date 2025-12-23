@@ -51,8 +51,8 @@ import type {
 	Producer,
 	RedisPublisher,
 } from "@engram/storage";
-import type { Mock } from "vitest";
-import { vi } from "vitest";
+import type { Mock } from "bun:test";
+import { mock } from "bun:test";
 
 // =============================================================================
 // ID Generation Utilities
@@ -101,7 +101,7 @@ export interface MockLogger {
 }
 
 /**
- * Create a mock Logger with vi.fn() stubs.
+ * Create a mock Logger with mock() stubs.
  * Compatible with pino's Logger interface for testing purposes.
  *
  * @example
@@ -113,18 +113,18 @@ export interface MockLogger {
  */
 export function createTestLogger(): MockLogger & Logger {
 	const mockLogger: MockLogger = {
-		trace: vi.fn(),
-		debug: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
-		fatal: vi.fn(),
-		child: vi.fn().mockReturnThis(),
+		trace: mock(),
+		debug: mock(),
+		info: mock(),
+		warn: mock(),
+		error: mock(),
+		fatal: mock(),
+		child: mock().mockReturnThis(),
 		level: "info",
-		bindings: vi.fn().mockReturnValue({}),
-		flush: vi.fn(),
-		isLevelEnabled: vi.fn().mockReturnValue(true),
-		silent: vi.fn(),
+		bindings: mock().mockReturnValue({}),
+		flush: mock(),
+		isLevelEnabled: mock().mockReturnValue(true),
+		silent: mock(),
 	};
 	return mockLogger as MockLogger & Logger;
 }
@@ -159,26 +159,26 @@ export function createTestBitemporalProps(overrides?: {
 // =============================================================================
 
 /**
- * Create a mock producer with vi.fn() stubs.
+ * Create a mock producer with mock() stubs.
  */
 export function createTestProducer(overrides?: Partial<Producer>): Producer {
 	return {
-		connect: vi.fn().mockResolvedValue(undefined),
-		disconnect: vi.fn().mockResolvedValue(undefined),
-		send: vi.fn().mockResolvedValue(undefined),
+		connect: mock().mockResolvedValue(undefined),
+		disconnect: mock().mockResolvedValue(undefined),
+		send: mock().mockResolvedValue(undefined),
 		...overrides,
 	};
 }
 
 /**
- * Create a mock consumer with vi.fn() stubs.
+ * Create a mock consumer with mock() stubs.
  */
 export function createTestConsumer(overrides?: Partial<Consumer>): Consumer {
 	return {
-		connect: vi.fn().mockResolvedValue(undefined),
-		disconnect: vi.fn().mockResolvedValue(undefined),
-		subscribe: vi.fn().mockResolvedValue(undefined),
-		run: vi.fn(),
+		connect: mock().mockResolvedValue(undefined),
+		disconnect: mock().mockResolvedValue(undefined),
+		subscribe: mock().mockResolvedValue(undefined),
+		run: mock(),
 		...overrides,
 	};
 }
@@ -188,28 +188,28 @@ export function createTestConsumer(overrides?: Partial<Consumer>): Consumer {
 // =============================================================================
 
 /**
- * Create a mock GraphClient with vi.fn() stubs.
+ * Create a mock GraphClient with mock() stubs.
  * All methods are mocked with sensible defaults that can be overridden.
  *
  * @example
  * ```ts
  * const graphClient = createTestGraphClient({
- *   query: vi.fn().mockResolvedValue([{ id: "123", name: "test" }]),
+ *   query: mock().mockResolvedValue([{ id: "123", name: "test" }]),
  * });
  * ```
  */
 export function createTestGraphClient(overrides?: Partial<GraphClient>): GraphClient {
 	return {
-		connect: vi.fn().mockResolvedValue(undefined),
-		disconnect: vi.fn().mockResolvedValue(undefined),
-		query: vi.fn().mockResolvedValue([]),
-		isConnected: vi.fn().mockReturnValue(true),
+		connect: mock().mockResolvedValue(undefined),
+		disconnect: mock().mockResolvedValue(undefined),
+		query: mock().mockResolvedValue([]),
+		isConnected: mock().mockReturnValue(true),
 		...overrides,
 	};
 }
 
 /**
- * Create a mock MessageClient with vi.fn() stubs.
+ * Create a mock MessageClient with mock() stubs.
  * Returns pre-configured mock producer and consumer instances.
  *
  * @example
@@ -225,15 +225,15 @@ export function createTestMessageClient(overrides?: Partial<MessageClient>): Mes
 	const mockConsumer = createTestConsumer();
 
 	return {
-		getProducer: vi.fn().mockResolvedValue(mockProducer),
-		getConsumer: vi.fn((_config: ConsumerConfig) => Promise.resolve(mockConsumer)),
-		disconnect: vi.fn().mockResolvedValue(undefined),
+		getProducer: mock().mockResolvedValue(mockProducer),
+		getConsumer: mock((_config: ConsumerConfig) => Promise.resolve(mockConsumer)),
+		disconnect: mock().mockResolvedValue(undefined),
 		...overrides,
 	};
 }
 
 /**
- * Create a mock RedisPublisher with vi.fn() stubs.
+ * Create a mock RedisPublisher with mock() stubs.
  *
  * @example
  * ```ts
@@ -244,26 +244,26 @@ export function createTestMessageClient(overrides?: Partial<MessageClient>): Mes
  */
 export function createTestRedisPublisher(overrides?: Partial<RedisPublisher>): RedisPublisher {
 	return {
-		publishSessionUpdate: vi.fn().mockResolvedValue(undefined),
-		disconnect: vi.fn().mockResolvedValue(undefined),
+		publishSessionUpdate: mock().mockResolvedValue(undefined),
+		disconnect: mock().mockResolvedValue(undefined),
 		...overrides,
 	};
 }
 
 /**
- * Create a mock BlobStore with vi.fn() stubs.
+ * Create a mock BlobStore with mock() stubs.
  *
  * @example
  * ```ts
  * const blobStore = createTestBlobStore({
- *   load: vi.fn().mockResolvedValue("file contents"),
+ *   load: mock().mockResolvedValue("file contents"),
  * });
  * ```
  */
 export function createTestBlobStore(overrides?: Partial<BlobStore>): BlobStore {
 	return {
-		save: vi.fn().mockResolvedValue("file://test/blob/abc123"),
-		load: vi.fn().mockResolvedValue(""),
+		save: mock().mockResolvedValue("file://test/blob/abc123"),
+		load: mock().mockResolvedValue(""),
 		...overrides,
 	};
 }

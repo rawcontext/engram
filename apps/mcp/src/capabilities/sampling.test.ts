@@ -1,5 +1,5 @@
 import { createTestLogger } from "@engram/common/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { SamplingService } from "./sampling";
 
 /**
@@ -7,14 +7,14 @@ import { SamplingService } from "./sampling";
  */
 interface MockMcpServer {
 	server: {
-		createMessage: ReturnType<typeof vi.fn>;
+		createMessage: ReturnType<typeof mock>;
 	};
 }
 
 // Mock the MCP server
 const mockServer: MockMcpServer = {
 	server: {
-		createMessage: vi.fn(),
+		createMessage: mock(),
 	},
 };
 
@@ -25,7 +25,7 @@ describe("SamplingService", () => {
 	let service: SamplingService;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		service = new SamplingService(
 			mockServer as unknown as Parameters<typeof SamplingService.prototype.constructor>[0],
 			mockLogger,
@@ -33,7 +33,7 @@ describe("SamplingService", () => {
 	});
 
 	afterEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("enable", () => {

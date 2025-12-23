@@ -1,24 +1,24 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { SearchClient } from "./search";
 
 // Mock fetch globally
-const mockFetch = vi.fn();
+const mockFetch = mock();
 vi.stubGlobal("fetch", mockFetch);
 
 describe("SearchClient", () => {
 	const mockLogger = {
-		debug: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
+		debug: mock(),
+		info: mock(),
+		warn: mock(),
+		error: mock(),
 	} as any;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	afterEach(() => {
-		vi.restoreAllMocks();
+		// vi.restoreAllMocks(); // TODO: Restore individual mocks
 	});
 
 	describe("constructor", () => {

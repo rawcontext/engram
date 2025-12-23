@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Mock @engram/storage before importing
-const mockBlobStoreRead = vi.fn(async () => "{}");
+const mockBlobStoreRead = mock(async () => "{}");
 vi.mock("@engram/storage", () => ({
 	createBlobStore: () => ({
 		read: mockBlobStoreRead,
-		write: vi.fn(async () => {}),
+		write: mock(async () => {}),
 	}),
 }));
 
@@ -13,12 +13,12 @@ import type { FalkorClient } from "@engram/storage";
 import { ReplayEngine } from "./replay";
 
 describe("ReplayEngine", () => {
-	let mockFalkorQuery: ReturnType<typeof vi.fn>;
+	let mockFalkorQuery: ReturnType<typeof mock>;
 	let mockFalkor: FalkorClient;
 	let engine: ReplayEngine;
 
 	beforeEach(() => {
-		mockFalkorQuery = vi.fn(async () => []);
+		mockFalkorQuery = mock(async () => []);
 		mockFalkor = {
 			query: mockFalkorQuery,
 		} as unknown as FalkorClient;
@@ -280,7 +280,7 @@ describe("ReplayEngine", () => {
 	it("should handle JSON.stringify errors in compareOutputs", async () => {
 		// Spy on JSON.stringify to make it throw
 		const originalStringify = JSON.stringify;
-		const stringifySpy = vi.spyOn(JSON, "stringify");
+		const stringifySpy = spyOn(JSON, "stringify");
 
 		let callCount = 0;
 		stringifySpy.mockImplementation((...args) => {
@@ -339,7 +339,7 @@ describe("ReplayEngine", () => {
 	it("should handle non-Error exceptions in replay", async () => {
 		// Mock rehydrate to throw a non-Error value
 		// @ts-expect-error - accessing private property for testing
-		const mockRehydrate = vi.spyOn(engine.rehydrator, "rehydrate");
+		const mockRehydrate = spyOn(engine.rehydrator, "rehydrate");
 		mockRehydrate.mockRejectedValueOnce("string error");
 
 		mockFalkorQuery.mockResolvedValueOnce([
@@ -362,7 +362,7 @@ describe("ReplayEngine", () => {
 
 	it("should handle when both original and replay outputs are null", async () => {
 		// Mock executeTool to return null
-		const mockExecuteTool = vi.spyOn(engine as any, "executeTool");
+		const mockExecuteTool = spyOn(engine as any, "executeTool");
 		mockExecuteTool.mockResolvedValueOnce(null);
 
 		mockFalkorQuery

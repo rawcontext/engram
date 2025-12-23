@@ -1,8 +1,8 @@
 import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
 import type { ParsedStreamEvent } from "@engram/events";
 import type { GraphClient } from "@engram/storage";
-import type { Mock } from "vitest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { EventHandler, EventHandlerRegistry, HandlerContext, HandlerResult } from "./handlers";
 import {
 	type NodeCreatedCallback,
@@ -35,17 +35,17 @@ function createMockHandler(
 ): EventHandler {
 	return {
 		eventType,
-		canHandle: vi.fn(canHandle),
-		handle: vi.fn().mockResolvedValue(result),
+		canHandle: mock(canHandle),
+		handle: mock().mockResolvedValue(result),
 	};
 }
 
 // Mock EventHandlerRegistry
 function createMockRegistry(handlers: EventHandler[] = []): MockEventHandlerRegistry {
 	const mock = {
-		register: vi.fn(),
-		getHandler: vi.fn((event: ParsedStreamEvent) => handlers.find((h) => h.canHandle(event))),
-		getHandlers: vi.fn((event: ParsedStreamEvent) => handlers.filter((h) => h.canHandle(event))),
+		register: mock(),
+		getHandler: mock((event: ParsedStreamEvent) => handlers.find((h) => h.canHandle(event))),
+		getHandlers: mock((event: ParsedStreamEvent) => handlers.filter((h) => h.canHandle(event))),
 		get handlerCount() {
 			return handlers.length;
 		},
@@ -75,10 +75,10 @@ describe("TurnAggregator", () => {
 	let aggregator: TurnAggregator;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		mockGraphClient = createTestGraphClient();
 		mockLogger = createTestLogger();
-		mockNodeCreated = vi.fn();
+		mockNodeCreated = mock();
 	});
 
 	describe("Constructor", () => {
@@ -214,7 +214,7 @@ describe("TurnAggregator", () => {
 				await aggregator.processEvent(event2, sessionId);
 
 				// Verify second turn has incremented sequence index
-				const calls = vi.mocked(mockGraphClient.query).mock.calls;
+				const calls = (mockGraphClient.query as Mock).mock.calls;
 				const createCalls = calls.filter((call: any[]) => call[0]?.includes("CREATE (t:Turn"));
 				expect(createCalls.length).toBe(2);
 				expect(createCalls[0][1].sequenceIndex).toBe(0);
@@ -319,7 +319,7 @@ describe("TurnAggregator", () => {
 
 				await agg.processEvent(event, sessionId);
 
-				const handleCall = vi.mocked(handler.handle).mock.calls[0];
+				const handleCall = (handler.handle as Mock).mock.calls[0];
 				expect(handleCall[0].event_id).toBeDefined();
 				expect(handleCall[0].event_id.length).toBeGreaterThan(0);
 			});
@@ -349,7 +349,7 @@ describe("TurnAggregator", () => {
 
 				await agg.processEvent(event, sessionId);
 
-				const handleCall = vi.mocked(handler.handle).mock.calls[0];
+				const handleCall = (handler.handle as Mock).mock.calls[0];
 				expect(handleCall[0].timestamp).toBeDefined();
 			});
 
@@ -381,7 +381,7 @@ describe("TurnAggregator", () => {
 
 				await agg.processEvent(event, sessionId);
 
-				const handleCall = vi.mocked(handler.handle).mock.calls[0];
+				const handleCall = (handler.handle as Mock).mock.calls[0];
 				const toolCall = handleCall[0].tool_call;
 				expect(toolCall.id).toMatch(/^call_/);
 				expect(toolCall.arguments_delta).toBe("{}");
@@ -416,7 +416,7 @@ describe("TurnAggregator", () => {
 
 				await agg.processEvent(event, sessionId);
 
-				const handleCall = vi.mocked(handler.handle).mock.calls[0];
+				const handleCall = (handler.handle as Mock).mock.calls[0];
 				expect(handleCall[0].diff.hunk).toBe("");
 			});
 
@@ -549,7 +549,7 @@ describe("TurnAggregator", () => {
 			it("should catch and log handler errors", async () => {
 				const sessionId = uniqueSessionId();
 				const errorHandler = createMockHandler("content", () => true);
-				vi.mocked(errorHandler.handle).mockRejectedValue(new Error("Handler failed"));
+				(errorHandler.handle as Mock).mockRejectedValue(new Error("Handler failed"));
 				const mockRegistry = createMockRegistry([errorHandler]);
 
 				const deps: TurnAggregatorDeps = {
@@ -831,7 +831,7 @@ describe("TurnAggregator", () => {
 				);
 
 				// Check that query includes NEXT edge logic
-				const queryCalls = vi.mocked(mockGraphClient.query).mock.calls;
+				const queryCalls = (mockGraphClient.query as Mock).mock.calls;
 				const createTurnCall = queryCalls.find((call: any[]) =>
 					call[0]?.includes("MERGE (p)-[:NEXT]->(t)"),
 				);
@@ -933,7 +933,7 @@ describe("TurnAggregator", () => {
 				sessionId,
 			);
 
-			const handleCall = vi.mocked(handler.handle).mock.calls[0];
+			const handleCall = (handler.handle as Mock).mock.calls[0];
 			const context = handleCall[2] as HandlerContext;
 
 			expect(context.sessionId).toBe(sessionId);
@@ -968,7 +968,7 @@ describe("TurnAggregator", () => {
 				sessionId,
 			);
 
-			const handleCall = vi.mocked(handler.handle).mock.calls[0];
+			const handleCall = (handler.handle as Mock).mock.calls[0];
 			const context = handleCall[2] as HandlerContext;
 
 			// Call emitNodeCreated via context
@@ -1081,7 +1081,7 @@ describe("TurnAggregator", () => {
 				session2,
 			);
 
-			vi.clearAllMocks();
+			// vi.clearAllMocks(); // TODO: Clear individual mocks
 
 			// The first turn is already finalized because we started a new turn
 			// cleanupStaleTurns should still work on the second turn which is not finalized
@@ -1217,7 +1217,7 @@ describe("TurnAggregator", () => {
 
 			// Make query fail during finalization
 			let callCount = 0;
-			vi.mocked(mockGraph.query).mockImplementation(async (query: string) => {
+			(mockGraph.query as Mock).mockImplementation(async (query: string) => {
 				callCount++;
 				// Only fail on the finalization query (which happens on second turn start)
 				if (callCount > 1 && query.includes("SET t.assistant_preview")) {
@@ -1638,7 +1638,7 @@ describe("TurnAggregator", () => {
 
 			await agg.processEvent(event, sessionId);
 
-			const handleCall = vi.mocked(handler.handle).mock.calls[0];
+			const handleCall = (handler.handle as Mock).mock.calls[0];
 			expect(handleCall[0].metadata).toEqual({ custom: "value" });
 		});
 
@@ -1667,7 +1667,7 @@ describe("TurnAggregator", () => {
 
 			await agg.processEvent(event, sessionId);
 
-			const handleCall = vi.mocked(handler.handle).mock.calls[0];
+			const handleCall = (handler.handle as Mock).mock.calls[0];
 			expect(handleCall[0].usage).toEqual({
 				input_tokens: 150,
 				output_tokens: 300,

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { createFalkorClient } from "./falkor";
 
 // Skip integration tests when infrastructure isn't running (CI has no FalkorDB)
@@ -158,7 +158,7 @@ describe.skipIf(SKIP_INTEGRATION)("FalkorClient", () => {
 		const originalConnect = FalkorDB.connect;
 		let attemptCount = 0;
 
-		FalkorDB.connect = vi.fn(async (...args: any[]) => {
+		FalkorDB.connect = mock(async (...args: any[]) => {
 			attemptCount++;
 			if (attemptCount === 1) {
 				throw new Error("Connection failed on first attempt");

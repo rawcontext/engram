@@ -1,6 +1,6 @@
 import { GraphOperationError, SearchError } from "@engram/common";
 import type { GraphClient, ThoughtNode } from "@engram/storage";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { SearchClient, SearchResponse, SearchResult } from "../clients/search.js";
 import {
 	ContextAssembler,
@@ -17,10 +17,10 @@ import {
  */
 function createMockGraphClient(overrides?: Partial<GraphClient>): GraphClient {
 	return {
-		connect: vi.fn(async () => {}),
-		disconnect: vi.fn(async () => {}),
-		query: vi.fn(async () => []),
-		isConnected: vi.fn(() => true),
+		connect: mock(async () => {}),
+		disconnect: mock(async () => {}),
+		query: mock(async () => []),
+		isConnected: mock(() => true),
 		...overrides,
 	};
 }
@@ -29,12 +29,12 @@ function createMockGraphClient(overrides?: Partial<GraphClient>): GraphClient {
  * Create a mock SearchClient
  */
 function createMockSearchClient(
-	overrides?: Partial<{ search: ReturnType<typeof vi.fn> }>,
+	overrides?: Partial<{ search: ReturnType<typeof mock> }>,
 ): SearchClient {
 	const defaultResponse: SearchResponse = { results: [], total: 0, took_ms: 1 };
 	return {
-		search: vi.fn(async () => defaultResponse),
-		health: vi.fn(async () => ({ status: "healthy", qdrant_connected: true })),
+		search: mock(async () => defaultResponse),
+		health: mock(async () => ({ status: "healthy", qdrant_connected: true })),
 		...overrides,
 	} as unknown as SearchClient;
 }
@@ -69,7 +69,7 @@ describe("ContextAssembler", () => {
 	let mockSearchClient: SearchClient;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		mockGraphClient = createMockGraphClient();
 		mockSearchClient = createMockSearchClient();
 	});
@@ -222,7 +222,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const graphClient = createMockGraphClient({
-				query: vi.fn(async () => mockHistory.map((h) => ({ thought: h }))),
+				query: mock(async () => mockHistory.map((h) => ({ thought: h }))),
 			});
 
 			const assembler = createContextAssembler({
@@ -269,7 +269,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const searchClient = createMockSearchClient({
-				search: vi.fn(async () => ({ results: mockSearchResults, total: 2, took_ms: 10 })),
+				search: mock(async () => ({ results: mockSearchResults, total: 2, took_ms: 10 })),
 			});
 
 			const assembler = createContextAssembler({
@@ -317,7 +317,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const searchClient = createMockSearchClient({
-				search: vi.fn(async () => ({ results: mockSearchResults, total: 2, took_ms: 10 })),
+				search: mock(async () => ({ results: mockSearchResults, total: 2, took_ms: 10 })),
 			});
 
 			const assembler = createContextAssembler({
@@ -336,7 +336,7 @@ describe("ContextAssembler", () => {
 		it("should handle empty search results", async () => {
 			// Arrange
 			const searchClient = createMockSearchClient({
-				search: vi.fn(async () => ({ results: [], total: 0, took_ms: 1 })),
+				search: mock(async () => ({ results: [], total: 0, took_ms: 1 })),
 			});
 
 			const assembler = createContextAssembler({
@@ -355,7 +355,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const searchClient = createMockSearchClient({
 				// Simulate search returning null results (edge case)
-				search: vi.fn(async () => ({
+				search: mock(async () => ({
 					results: null as unknown as SearchResponse["results"],
 					total: 0,
 					took_ms: 1,
@@ -404,7 +404,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const searchClient = createMockSearchClient({
-				search: vi.fn(async () => ({ results: mockSearchResults, total: 2, took_ms: 10 })),
+				search: mock(async () => ({ results: mockSearchResults, total: 2, took_ms: 10 })),
 			});
 
 			const assembler = createContextAssembler({
@@ -470,7 +470,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const searchClient = createMockSearchClient({
-				search: vi.fn(async () => ({ results: mockSearchResults, total: 5, took_ms: 10 })),
+				search: mock(async () => ({ results: mockSearchResults, total: 5, took_ms: 10 })),
 			});
 
 			const assembler = createContextAssembler({
@@ -497,7 +497,7 @@ describe("ContextAssembler", () => {
 	describe("fetchRecentHistory (via assembleContext)", () => {
 		it("should connect to graph before querying", async () => {
 			// Arrange
-			const connectMock = vi.fn(async () => {});
+			const connectMock = mock(async () => {});
 			const graphClient = createMockGraphClient({
 				connect: connectMock,
 			});
@@ -516,7 +516,7 @@ describe("ContextAssembler", () => {
 
 		it("should query with session ID parameter", async () => {
 			// Arrange
-			const queryMock = vi.fn(async () => []);
+			const queryMock = mock(async () => []);
 			const graphClient = createMockGraphClient({
 				query: queryMock,
 			});
@@ -615,7 +615,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const graphClient = createMockGraphClient({
-				query: vi.fn(async () => mockHistory.map((h) => ({ thought: h }))),
+				query: mock(async () => mockHistory.map((h) => ({ thought: h }))),
 			});
 
 			const assembler = createContextAssembler({
@@ -642,7 +642,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const graphError = new Error("Connection refused");
 			const graphClient = createMockGraphClient({
-				query: vi.fn().mockRejectedValue(graphError),
+				query: mock().mockRejectedValue(graphError),
 			});
 
 			const assembler = createContextAssembler({
@@ -659,7 +659,7 @@ describe("ContextAssembler", () => {
 		it("should include session ID in GraphOperationError", async () => {
 			// Arrange
 			const graphClient = createMockGraphClient({
-				query: vi.fn().mockRejectedValue(new Error("DB error")),
+				query: mock().mockRejectedValue(new Error("DB error")),
 			});
 
 			const assembler = createContextAssembler({
@@ -682,7 +682,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const searchError = new Error("Search unavailable");
 			const searchClient = createMockSearchClient({
-				search: vi.fn().mockRejectedValue(searchError),
+				search: mock().mockRejectedValue(searchError),
 			});
 
 			const assembler = createContextAssembler({
@@ -698,7 +698,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const originalError = new Error("Original DB error");
 			const graphClient = createMockGraphClient({
-				query: vi.fn().mockRejectedValue(originalError),
+				query: mock().mockRejectedValue(originalError),
 			});
 
 			const assembler = createContextAssembler({
@@ -720,7 +720,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const originalError = new Error("Original search error");
 			const searchClient = createMockSearchClient({
-				search: vi.fn().mockRejectedValue(originalError),
+				search: mock().mockRejectedValue(originalError),
 			});
 
 			const assembler = createContextAssembler({
@@ -742,7 +742,7 @@ describe("ContextAssembler", () => {
 			// Arrange
 			const longQuery = "A".repeat(200);
 			const searchClient = createMockSearchClient({
-				search: vi.fn().mockRejectedValue(new Error("Search failed")),
+				search: mock().mockRejectedValue(new Error("Search failed")),
 			});
 
 			const assembler = createContextAssembler({
@@ -764,7 +764,7 @@ describe("ContextAssembler", () => {
 		it("should handle non-Error exceptions in graph query", async () => {
 			// Arrange
 			const graphClient = createMockGraphClient({
-				query: vi.fn().mockRejectedValue("string error"),
+				query: mock().mockRejectedValue("string error"),
 			});
 
 			const assembler = createContextAssembler({
@@ -786,7 +786,7 @@ describe("ContextAssembler", () => {
 		it("should handle non-Error exceptions in search", async () => {
 			// Arrange
 			const searchClient = createMockSearchClient({
-				search: vi.fn().mockRejectedValue("string search error"),
+				search: mock().mockRejectedValue("string search error"),
 			});
 
 			const assembler = createContextAssembler({
@@ -829,7 +829,7 @@ describe("ContextAssembler", () => {
 			);
 
 			const graphClient = createMockGraphClient({
-				query: vi.fn(async () => longHistory.map((h) => ({ thought: h }))),
+				query: mock(async () => longHistory.map((h) => ({ thought: h }))),
 			});
 
 			const assembler = createContextAssembler({
@@ -877,7 +877,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const graphClient = createMockGraphClient({
-				query: vi.fn(async () => longHistory.map((h) => ({ thought: h }))),
+				query: mock(async () => longHistory.map((h) => ({ thought: h }))),
 			});
 
 			const assembler = createContextAssembler({
@@ -925,11 +925,11 @@ describe("ContextAssembler", () => {
 			];
 
 			const graphClient = createMockGraphClient({
-				query: vi.fn(async () => mockHistory.map((h) => ({ thought: h }))),
+				query: mock(async () => mockHistory.map((h) => ({ thought: h }))),
 			});
 
 			const searchClient = createMockSearchClient({
-				search: vi.fn(async () => ({ results: mockSearchResults, total: 1, took_ms: 10 })),
+				search: mock(async () => ({ results: mockSearchResults, total: 1, took_ms: 10 })),
 			});
 
 			const assembler = createContextAssembler({
@@ -969,7 +969,7 @@ describe("ContextAssembler", () => {
 	describe("search integration", () => {
 		it("should call search with correct parameters", async () => {
 			// Arrange
-			const searchMock = vi.fn(async () => ({ results: [], total: 0, took_ms: 1 }));
+			const searchMock = mock(async () => ({ results: [], total: 0, took_ms: 1 }));
 			const searchClient = createMockSearchClient({
 				search: searchMock,
 			});
@@ -1031,7 +1031,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const searchClient = createMockSearchClient({
-				search: vi.fn(async () => ({ results: mockSearchResults, total: 2, took_ms: 1 })),
+				search: mock(async () => ({ results: mockSearchResults, total: 2, took_ms: 1 })),
 			});
 
 			const assembler = createContextAssembler({
@@ -1054,7 +1054,7 @@ describe("ContextAssembler", () => {
 	describe("cleanup", () => {
 		it("should disconnect owned connection on cleanup", async () => {
 			// Arrange - assembler creates its own connection (connectionOwned = true)
-			const disconnectMock = vi.fn(async () => {});
+			const disconnectMock = mock(async () => {});
 			const mockGraphClient = createMockGraphClient({
 				disconnect: disconnectMock,
 			});
@@ -1082,7 +1082,7 @@ describe("ContextAssembler", () => {
 
 		it("should not disconnect when connection is injected", async () => {
 			// Arrange - inject graphClient (connectionOwned = false)
-			const disconnectMock = vi.fn(async () => {});
+			const disconnectMock = mock(async () => {});
 			const graphClient = createMockGraphClient({
 				disconnect: disconnectMock,
 			});
@@ -1154,7 +1154,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const graphClient = createMockGraphClient({
-				query: vi.fn(async () => mockHistory.map((h) => ({ thought: h }))),
+				query: mock(async () => mockHistory.map((h) => ({ thought: h }))),
 			});
 
 			const assembler = createContextAssembler({
@@ -1184,7 +1184,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const searchClient = createMockSearchClient({
-				search: vi.fn(async () => ({ results: mockSearchResults, total: 1, took_ms: 1 })),
+				search: mock(async () => ({ results: mockSearchResults, total: 1, took_ms: 1 })),
 			});
 
 			const assembler = createContextAssembler({
@@ -1218,7 +1218,7 @@ describe("ContextAssembler", () => {
 			];
 
 			const graphClient = createMockGraphClient({
-				query: vi.fn(async () => mockHistory.map((h) => ({ thought: h }))),
+				query: mock(async () => mockHistory.map((h) => ({ thought: h }))),
 			});
 
 			const assembler = createContextAssembler({

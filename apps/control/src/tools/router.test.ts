@@ -1,30 +1,30 @@
 import { VirtualFileSystem } from "@engram/vfs";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { ExecutionService } from "../execution";
 import type { MultiMcpAdapter } from "./mcp_client";
 import { createToolRouter, ToolRouter } from "./router";
 
 // Mock dependencies
 vi.mock("@engram/logger", () => ({
-	createNodeLogger: vi.fn(() => ({
-		info: vi.fn(),
-		error: vi.fn(),
-		warn: vi.fn(),
-		debug: vi.fn(),
+	createNodeLogger: mock(() => ({
+		info: mock(),
+		error: mock(),
+		warn: mock(),
+		debug: mock(),
 	})),
 }));
 
 vi.mock("@engram/storage", () => ({
-	createFalkorClient: vi.fn(() => ({
-		connect: vi.fn().mockResolvedValue(undefined),
-		disconnect: vi.fn().mockResolvedValue(undefined),
-		query: vi.fn().mockResolvedValue([]),
-		isConnected: vi.fn().mockReturnValue(false),
+	createFalkorClient: mock(() => ({
+		connect: mock().mockResolvedValue(undefined),
+		disconnect: mock().mockResolvedValue(undefined),
+		query: mock().mockResolvedValue([]),
+		isConnected: mock().mockReturnValue(false),
 	})),
-	createBlobStore: vi.fn(() => ({
-		save: vi.fn().mockResolvedValue("blob://test"),
-		load: vi.fn().mockResolvedValue(Buffer.from("{}")),
-		exists: vi.fn().mockResolvedValue(false),
+	createBlobStore: mock(() => ({
+		save: mock().mockResolvedValue("blob://test"),
+		load: mock().mockResolvedValue(Buffer.from("{}")),
+		exists: mock().mockResolvedValue(false),
 	})),
 }));
 
@@ -34,7 +34,7 @@ describe("ToolRouter", () => {
 	let router: ToolRouter;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 
 		// Create real ExecutionService with a VFS
 		const vfs = new VirtualFileSystem();
@@ -45,11 +45,11 @@ describe("ToolRouter", () => {
 			listTools: vi
 				.fn()
 				.mockResolvedValue([{ name: "external_tool", description: "An external MCP tool" }]),
-			callTool: vi.fn().mockResolvedValue({
+			callTool: mock().mockResolvedValue({
 				content: [{ type: "text", text: "MCP result" }],
 			}),
-			connectAll: vi.fn().mockResolvedValue(undefined),
-			disconnectAll: vi.fn().mockResolvedValue(undefined),
+			connectAll: mock().mockResolvedValue(undefined),
+			disconnectAll: mock().mockResolvedValue(undefined),
 		} as unknown as MultiMcpAdapter;
 
 		router = new ToolRouter(executionService, mockMcpAdapter);
@@ -74,7 +74,7 @@ describe("ToolRouter", () => {
 
 		it("should not duplicate execution tools from MCP", async () => {
 			// MCP also returns read_file
-			(mockMcpAdapter.listTools as ReturnType<typeof vi.fn>).mockResolvedValue([
+			(mockMcpAdapter.listTools as ReturnType<typeof mock>).mockResolvedValue([
 				{ name: "read_file", description: "MCP read_file" },
 				{ name: "external_tool", description: "External tool" },
 			]);
@@ -88,7 +88,7 @@ describe("ToolRouter", () => {
 		});
 
 		it("should handle MCP adapter connection failure gracefully", async () => {
-			(mockMcpAdapter.listTools as ReturnType<typeof vi.fn>).mockRejectedValue(
+			(mockMcpAdapter.listTools as ReturnType<typeof mock>).mockRejectedValue(
 				new Error("Connection failed"),
 			);
 
@@ -100,7 +100,7 @@ describe("ToolRouter", () => {
 		});
 
 		it("should use default description for MCP tools without description", async () => {
-			(mockMcpAdapter.listTools as ReturnType<typeof vi.fn>).mockResolvedValue([
+			(mockMcpAdapter.listTools as ReturnType<typeof mock>).mockResolvedValue([
 				{ name: "tool_without_desc" },
 			]);
 
@@ -172,7 +172,7 @@ describe("ToolRouter", () => {
 		it("should handle get_filesystem_snapshot errors", async () => {
 			const mockExecutionService = {
 				...executionService,
-				getFilesystemState: vi.fn().mockRejectedValue(new Error("Failed to get state")),
+				getFilesystemState: mock().mockRejectedValue(new Error("Failed to get state")),
 			} as unknown as ExecutionService;
 
 			const errorRouter = new ToolRouter(mockExecutionService, mockMcpAdapter);
@@ -201,7 +201,7 @@ describe("ToolRouter", () => {
 		it("should handle get_zipped_snapshot errors", async () => {
 			const mockExecutionService = {
 				...executionService,
-				getZippedState: vi.fn().mockRejectedValue(new Error("Failed to zip")),
+				getZippedState: mock().mockRejectedValue(new Error("Failed to zip")),
 			} as unknown as ExecutionService;
 
 			const errorRouter = new ToolRouter(mockExecutionService, mockMcpAdapter);
@@ -227,7 +227,7 @@ describe("ToolRouter", () => {
 
 			// All these tools should be handled without going to MCP
 			for (const tool of executionTools) {
-				mockMcpAdapter.callTool = vi.fn();
+				mockMcpAdapter.callTool = mock();
 				await router.callTool(tool, { path: "/test", session_id: "s1", timestamp: 0 });
 				expect(mockMcpAdapter.callTool).not.toHaveBeenCalled();
 			}
@@ -248,7 +248,7 @@ describe("ToolRouter", () => {
 		it("should handle non-Error exceptions in get_filesystem_snapshot", async () => {
 			const mockExecutionService = {
 				...executionService,
-				getFilesystemState: vi.fn().mockImplementation(() => {
+				getFilesystemState: mock().mockImplementation(() => {
 					throw "string error";
 				}),
 			} as unknown as ExecutionService;
@@ -267,7 +267,7 @@ describe("ToolRouter", () => {
 		it("should handle non-Error exceptions in get_zipped_snapshot", async () => {
 			const mockExecutionService = {
 				...executionService,
-				getZippedState: vi.fn().mockImplementation(() => {
+				getZippedState: mock().mockImplementation(() => {
 					throw "string error";
 				}),
 			} as unknown as ExecutionService;
@@ -305,7 +305,7 @@ describe("ToolRouter", () => {
 		});
 
 		it("should pass through MCP errors", async () => {
-			(mockMcpAdapter.callTool as ReturnType<typeof vi.fn>).mockResolvedValue({
+			(mockMcpAdapter.callTool as ReturnType<typeof mock>).mockResolvedValue({
 				content: [{ type: "text", text: "MCP error" }],
 				isError: true,
 			});

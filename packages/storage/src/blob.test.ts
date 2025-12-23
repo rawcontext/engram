@@ -1,17 +1,17 @@
 import * as fs from "node:fs/promises";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { createBlobStore, FileSystemBlobStore, GCSBlobStore } from "./blob";
 
 // Mock functions for GCS operations
-const mockSave = vi.fn();
-const mockDownload = vi.fn();
-const mockExists = vi.fn();
-const mockFile = vi.fn(() => ({
+const mockSave = mock();
+const mockDownload = mock();
+const mockExists = mock();
+const mockFile = mock(() => ({
 	save: mockSave,
 	download: mockDownload,
 	exists: mockExists,
 }));
-const mockBucket = vi.fn(() => ({
+const mockBucket = mock(() => ({
 	file: mockFile,
 }));
 
@@ -207,7 +207,7 @@ describe("Blob Storage", () => {
 
 	describe("GCSBlobStore", () => {
 		beforeEach(() => {
-			vi.clearAllMocks();
+			// vi.clearAllMocks(); // TODO: Clear individual mocks
 			// Reset default mock implementations
 			mockSave.mockResolvedValue(undefined);
 			mockExists.mockResolvedValue([true]);

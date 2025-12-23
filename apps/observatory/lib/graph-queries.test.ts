@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 // =============================================================================
 // Mock Setup
@@ -6,10 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Use vi.hoisted to create mocks that will be available during module hoisting
 const { mockQuery, mockConnect, mockIsConnected, mockDisconnect } = vi.hoisted(() => ({
-	mockQuery: vi.fn(),
-	mockConnect: vi.fn(),
-	mockIsConnected: vi.fn(),
-	mockDisconnect: vi.fn(),
+	mockQuery: mock(),
+	mockConnect: mock(),
+	mockIsConnected: mock(),
+	mockDisconnect: mock(),
 }));
 
 // Mock the FalkorClient before importing the module under test
@@ -154,11 +154,11 @@ function createMockEdge(
 
 describe("graph-queries", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	afterEach(() => {
-		vi.resetAllMocks();
+		// vi.resetAllMocks(); // TODO: Reset individual mocks
 	});
 
 	// =========================================================================

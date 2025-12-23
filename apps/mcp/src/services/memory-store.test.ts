@@ -1,5 +1,5 @@
 import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { MemoryStore } from "./memory-store";
 
 // Create typed mock instances
@@ -10,7 +10,7 @@ describe("MemoryStore", () => {
 	let store: MemoryStore;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		store = new MemoryStore({
 			graphClient: mockGraphClient,
 			logger: mockLogger,
@@ -18,7 +18,7 @@ describe("MemoryStore", () => {
 	});
 
 	afterEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("createMemory", () => {
@@ -215,7 +215,7 @@ describe("MemoryStore", () => {
 		it("should not disconnect connection that was already connected", async () => {
 			// Simulate already connected state
 			await store.connect();
-			vi.clearAllMocks();
+			// vi.clearAllMocks(); // TODO: Clear individual mocks
 
 			// Create memory with already-connected store
 			mockGraphClient.query.mockResolvedValueOnce([]);
@@ -238,7 +238,7 @@ describe("MemoryStore", () => {
 
 		it("should not connect again if already connected", async () => {
 			await store.connect();
-			vi.clearAllMocks();
+			// vi.clearAllMocks(); // TODO: Clear individual mocks
 
 			// Try to connect again
 			await store.connect();

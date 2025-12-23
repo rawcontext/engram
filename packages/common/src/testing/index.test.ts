@@ -3,7 +3,7 @@
  * These tests validate the mock factories and fixture helpers work correctly.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import {
 	createDeferred,
 	createTestBitemporalProps,
@@ -171,7 +171,7 @@ describe("createTestProducer", () => {
 
 	it("should allow overriding methods", async () => {
 		// Arrange
-		const customSend = vi.fn().mockResolvedValue(undefined);
+		const customSend = mock().mockResolvedValue(undefined);
 		const producer = createTestProducer({ send: customSend });
 
 		// Act
@@ -196,7 +196,7 @@ describe("createTestConsumer", () => {
 
 	it("should allow overriding methods", async () => {
 		// Arrange
-		const customSubscribe = vi.fn().mockResolvedValue(undefined);
+		const customSubscribe = mock().mockResolvedValue(undefined);
 		const consumer = createTestConsumer({ subscribe: customSubscribe });
 
 		// Act
@@ -241,7 +241,7 @@ describe("createTestGraphClient", () => {
 		// Arrange
 		const mockData = [{ id: "123", name: "test" }];
 		const client = createTestGraphClient({
-			query: vi.fn().mockResolvedValue(mockData),
+			query: mock().mockResolvedValue(mockData),
 		});
 
 		// Act
@@ -306,7 +306,7 @@ describe("createTestRedisPublisher", () => {
 
 	it("should allow overriding methods", async () => {
 		// Arrange
-		const customPublish = vi.fn().mockResolvedValue(undefined);
+		const customPublish = mock().mockResolvedValue(undefined);
 		const publisher = createTestRedisPublisher({
 			publishSessionUpdate: customPublish,
 		});
@@ -344,7 +344,7 @@ describe("createTestBlobStore", () => {
 
 	it("should allow overriding methods", async () => {
 		// Arrange
-		const customLoad = vi.fn().mockResolvedValue("custom content");
+		const customLoad = mock().mockResolvedValue("custom content");
 		const store = createTestBlobStore({
 			load: customLoad,
 		});

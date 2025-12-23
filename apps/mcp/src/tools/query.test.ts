@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 
 // Import the validation function by reading the module
 // We'll test the isReadOnlyCypher function indirectly through exports

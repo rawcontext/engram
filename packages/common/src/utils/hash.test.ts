@@ -2,7 +2,7 @@
  * Tests for @engram/common/utils/hash
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { hashObject, sha256Hash, sha256Short } from "./hash";
 
 describe("sha256Hash", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { ContextAssembler } from "../../apps/control/src/context/assembler";
 import { DecisionEngine } from "../../apps/control/src/engine/decision";
 import { McpToolAdapter, MultiMcpAdapter } from "../../apps/control/src/tools/mcp_client";
@@ -8,23 +8,23 @@ import { ThinkingExtractor } from "../../packages/ingestion-core/src/index";
 // Mocks
 const mockMcp = new MultiMcpAdapter();
 const mockAdapter = new McpToolAdapter("echo", []);
-mockAdapter.connect = vi.fn(async () => {});
-mockAdapter.listTools = vi.fn(async () => [{ name: "read_file", description: "read" }]);
-mockAdapter.callTool = vi.fn(async (name, args) => {
+mockAdapter.connect = mock(async () => {});
+mockAdapter.listTools = mock(async () => [{ name: "read_file", description: "read" }]);
+mockAdapter.callTool = mock(async (name, args) => {
 	console.log(`[MockExecution] Tool ${name} called with`, args);
 	return { content: [{ type: "text", text: "success" }] };
 });
 mockMcp.addAdapter(mockAdapter);
-mockMcp.callTool = vi.fn(async (name, args) => mockAdapter.callTool(name, args));
-mockMcp.listTools = vi.fn(async () => [{ name: "read_file", description: "read" }]);
+mockMcp.callTool = mock(async (name, args) => mockAdapter.callTool(name, args));
+mockMcp.listTools = mock(async () => [{ name: "read_file", description: "read" }]);
 
 const mockFalkor = {
-	connect: vi.fn(async () => {}),
-	query: vi.fn(async () => []),
+	connect: mock(async () => {}),
+	query: mock(async () => []),
 };
 
 const mockSearch = {
-	search: vi.fn(async () => []),
+	search: mock(async () => []),
 };
 
 describe("System E2E Simulation", () => {

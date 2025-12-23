@@ -1,28 +1,28 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { MemoryService } from "./memory";
 
 // Mock fetch for SearchClient
-const mockFetch = vi.fn();
+const mockFetch = mock();
 vi.stubGlobal("fetch", mockFetch);
 
 describe("MemoryService", () => {
 	const mockLogger = {
-		debug: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
+		debug: mock(),
+		info: mock(),
+		warn: mock(),
+		error: mock(),
 	} as any;
 
 	const createMockGraphClient = () => ({
-		query: vi.fn(),
+		query: mock(),
 	});
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	afterEach(() => {
-		vi.restoreAllMocks();
+		// vi.restoreAllMocks(); // TODO: Restore individual mocks
 	});
 
 	describe("remember", () => {

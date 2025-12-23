@@ -1,19 +1,19 @@
 import type { FalkorClient } from "@engram/storage";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { GraphMerger } from "./merger";
 
 // Use vi.hoisted to ensure mock is available during vi.mock() execution
 const { mockLoggerWarn, mockLoggerInfo } = vi.hoisted(() => ({
-	mockLoggerWarn: vi.fn(),
-	mockLoggerInfo: vi.fn(),
+	mockLoggerWarn: mock(),
+	mockLoggerInfo: mock(),
 }));
 
 vi.mock("@engram/logger", () => ({
 	createNodeLogger: () => ({
 		info: mockLoggerInfo,
 		warn: mockLoggerWarn,
-		error: vi.fn(),
-		debug: vi.fn(),
+		error: mock(),
+		debug: mock(),
 	}),
 }));
 
@@ -24,7 +24,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should move edges and delete source", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return one outgoing edge
 				return Promise.resolve([["LINKS_TO", true, "neighbor-123", { weight: 1 }]]);
@@ -52,7 +52,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should handle incoming edges", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return one incoming edge (isOutgoing = false)
 				return Promise.resolve([["POINTS_TO", false, "neighbor-456", { label: "test" }]]);
@@ -72,7 +72,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should handle non-array result from edges query", async () => {
-		const mockQuery = vi.fn(async (query: string, _params: any) => {
+		const mockQuery = mock(async (query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return non-array result (code returns early)
 				return "not-an-array" as any;
@@ -92,7 +92,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should skip invalid rows with insufficient elements", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with insufficient elements
 				return Promise.resolve([["INVALID", true]]);
@@ -113,7 +113,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should skip rows with invalid type", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with non-string type
 				return Promise.resolve([[123, true, "neighbor-123", {}]]);
@@ -132,7 +132,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should skip rows with invalid isOutgoing", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with non-boolean isOutgoing
 				return Promise.resolve([["LINKS_TO", "not-boolean", "neighbor-123", {}]]);
@@ -151,7 +151,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should skip rows with invalid neighborId", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return row with non-string neighborId
 				return Promise.resolve([["LINKS_TO", true, 999, {}]]);
@@ -170,7 +170,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should throw on invalid relationship type", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return edge with invalid relationship type
 				return Promise.resolve([["123_INVALID", true, "neighbor-123", {}]]);
@@ -190,7 +190,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should handle edge properties as array", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return edge with array as properties (should use empty object)
 				return Promise.resolve([["LINKS_TO", true, "neighbor-123", [1, 2, 3]]]);
@@ -210,7 +210,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should log merge completion", async () => {
-		const mockQuery = vi.fn(async () => []);
+		const mockQuery = mock(async () => []);
 
 		const mockFalkor = {
 			query: mockQuery,
@@ -226,7 +226,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should handle non-object properties gracefully", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return edge with null properties
 				return Promise.resolve([["LINKS_TO", true, "neighbor-123", null]]);
@@ -246,7 +246,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should handle undefined properties", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return edge with undefined properties
 				return Promise.resolve([["LINKS_TO", true, "neighbor-123", undefined]]);
@@ -266,7 +266,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should handle string properties", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Return edge with string properties
 				return Promise.resolve([["LINKS_TO", true, "neighbor-123", "not-an-object"]]);
@@ -286,7 +286,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should handle valid relationship types at the edge of regex", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Valid edge case: exactly 100 characters
 				const validType = `A${"a".repeat(99)}`;
@@ -306,7 +306,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should throw on relationship type that is too long", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				// Invalid: 101 characters (exceeds limit)
 				const invalidType = `A${"a".repeat(100)}`;
@@ -327,7 +327,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should throw on relationship type with invalid characters", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				return Promise.resolve([["INVALID-TYPE!", true, "neighbor-123", {}]]);
 			}
@@ -346,7 +346,7 @@ describe("GraphMerger", () => {
 	});
 
 	it("should handle multiple edges", async () => {
-		const mockQuery = vi.fn((query: string, _params: any) => {
+		const mockQuery = mock((query: string, _params: any) => {
 			if (query.includes("MATCH (s {id: $sourceId})-[r]-(n)")) {
 				return Promise.resolve([
 					["LINKS_TO", true, "neighbor-1", { weight: 1 }],

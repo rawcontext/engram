@@ -1,20 +1,20 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { spyOn, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { SearchClient } from "./search";
 
 // Mock fetch globally
-global.fetch = vi.fn();
+global.fetch = mock();
 
 describe("SearchClient", () => {
 	let client: SearchClient;
 	const baseUrl = "http://localhost:5002";
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		client = new SearchClient(baseUrl);
 	});
 
 	afterEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("search", () => {
@@ -39,7 +39,7 @@ describe("SearchClient", () => {
 				took_ms: 50,
 			};
 
-			vi.mocked(fetch).mockResolvedValueOnce({
+			(fetch as Mock).mockResolvedValueOnce({
 				ok: true,
 				json: async () => mockResponse,
 			} as Response);
@@ -60,7 +60,7 @@ describe("SearchClient", () => {
 				}),
 			);
 
-			const requestBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
+			const requestBody = JSON.parse((fetch as Mock).mock.calls[0][1]?.body as string);
 			expect(requestBody).toEqual({
 				text: "test query",
 				limit: 10,
@@ -82,7 +82,7 @@ describe("SearchClient", () => {
 				took_ms: 10,
 			};
 
-			vi.mocked(fetch).mockResolvedValueOnce({
+			(fetch as Mock).mockResolvedValueOnce({
 				ok: true,
 				json: async () => mockResponse,
 			} as Response);
@@ -101,7 +101,7 @@ describe("SearchClient", () => {
 				rerank_depth: 30,
 			});
 
-			const requestBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
+			const requestBody = JSON.parse((fetch as Mock).mock.calls[0][1]?.body as string);
 			expect(requestBody).toEqual({
 				text: "test query",
 				limit: 20,
@@ -125,7 +125,7 @@ describe("SearchClient", () => {
 				took_ms: 10,
 			};
 
-			vi.mocked(fetch).mockResolvedValueOnce({
+			(fetch as Mock).mockResolvedValueOnce({
 				ok: true,
 				json: async () => mockResponse,
 			} as Response);
@@ -136,7 +136,7 @@ describe("SearchClient", () => {
 		});
 
 		it("should throw error on failed request", async () => {
-			vi.mocked(fetch).mockResolvedValueOnce({
+			(fetch as Mock).mockResolvedValueOnce({
 				ok: false,
 				status: 500,
 				text: async () => "Internal Server Error",
@@ -150,7 +150,7 @@ describe("SearchClient", () => {
 		});
 
 		it("should handle network errors", async () => {
-			vi.mocked(fetch).mockRejectedValueOnce(new Error("Network error"));
+			(fetch as Mock).mockRejectedValueOnce(new Error("Network error"));
 
 			await expect(
 				client.search({
@@ -162,7 +162,7 @@ describe("SearchClient", () => {
 		it("should handle timeout", async () => {
 			// Mock fetch to reject with an abort error (simulating timeout)
 			const abortError = new DOMException("The operation was aborted", "AbortError");
-			vi.mocked(fetch).mockRejectedValueOnce(abortError);
+			(fetch as Mock).mockRejectedValueOnce(abortError);
 
 			await expect(
 				client.search({
@@ -172,10 +172,10 @@ describe("SearchClient", () => {
 		});
 
 		it("should set timeout of 30 seconds and clear it on success", async () => {
-			const setTimeoutSpy = vi.spyOn(global, "setTimeout");
-			const clearTimeoutSpy = vi.spyOn(global, "clearTimeout");
+			const setTimeoutSpy = spyOn(global, "setTimeout");
+			const clearTimeoutSpy = spyOn(global, "clearTimeout");
 
-			vi.mocked(fetch).mockResolvedValueOnce({
+			(fetch as Mock).mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({ results: [], total: 0, took_ms: 10 }),
 			} as Response);
@@ -197,14 +197,14 @@ describe("SearchClient", () => {
 
 			// Capture the timeout callback when setTimeout is called
 			const originalSetTimeout = global.setTimeout;
-			vi.spyOn(global, "setTimeout").mockImplementationOnce((cb, delay) => {
+			spyOn(global, "setTimeout").mockImplementationOnce((cb, delay) => {
 				timeoutCallback = cb as () => void;
 				// Call the original setTimeout to return a proper timer ID
 				return originalSetTimeout(() => {}, delay);
 			});
 
 			// Mock fetch to return a resolved promise quickly
-			vi.mocked(fetch).mockResolvedValueOnce({
+			(fetch as Mock).mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({ results: [], total: 0, took_ms: 10 }),
 			} as Response);
@@ -224,14 +224,14 @@ describe("SearchClient", () => {
 		});
 
 		it("should use default values for all optional parameters", async () => {
-			vi.mocked(fetch).mockResolvedValueOnce({
+			(fetch as Mock).mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({ results: [], total: 0, took_ms: 10 }),
 			} as Response);
 
 			await client.search({ text: "test" });
 
-			const requestBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
+			const requestBody = JSON.parse((fetch as Mock).mock.calls[0][1]?.body as string);
 			expect(requestBody).toEqual({
 				text: "test",
 				limit: 10,
@@ -258,10 +258,10 @@ describe("SearchClient", () => {
 
 		it("should create client with custom logger", () => {
 			const customLogger = {
-				debug: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
+				debug: mock(),
+				info: mock(),
+				warn: mock(),
+				error: mock(),
 			} as any;
 			const clientWithLogger = new SearchClient(baseUrl, customLogger);
 			expect(clientWithLogger).toBeDefined();

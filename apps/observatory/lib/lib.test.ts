@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { z } from "zod";
 import { apiError, apiSuccess } from "./api-response";
 import { validate } from "./validate";
@@ -86,7 +86,7 @@ describe("Interface Lib", () => {
 			const req: MockRequest = {
 				json: async () => ({ name: "test" }),
 			};
-			const next = vi.fn(async (data: { name: string }) => apiSuccess(data));
+			const next = mock(async (data: { name: string }) => apiSuccess(data));
 
 			const res = (await validate(schema)(
 				req as unknown as NextRequest,
@@ -101,7 +101,7 @@ describe("Interface Lib", () => {
 			const req: MockRequest = {
 				json: async () => ({ name: 123 }),
 			};
-			const next = vi.fn(async () => apiSuccess({}));
+			const next = mock(async () => apiSuccess({}));
 
 			const res = (await validate(schema)(
 				req as unknown as NextRequest,
@@ -119,7 +119,7 @@ describe("Interface Lib", () => {
 					throw new Error();
 				},
 			};
-			const next = vi.fn(async () => apiSuccess({}));
+			const next = mock(async () => apiSuccess({}));
 
 			const res = (await validate(schema)(
 				req as unknown as NextRequest,

@@ -1,5 +1,5 @@
 import type { FalkorClient } from "@engram/storage";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { GraphWriter } from "./graph";
 import type { BaseNode } from "./models/base";
 
@@ -7,16 +7,16 @@ import type { BaseNode } from "./models/base";
  * Mock FalkorClient type for testing GraphWriter.
  */
 interface MockFalkorClient {
-	connect: ReturnType<typeof vi.fn>;
-	query: ReturnType<typeof vi.fn>;
-	disconnect: ReturnType<typeof vi.fn>;
+	connect: ReturnType<typeof mock>;
+	query: ReturnType<typeof mock>;
+	disconnect: ReturnType<typeof mock>;
 }
 
 function createMockFalkorClient(): MockFalkorClient {
 	return {
-		connect: vi.fn(async () => {}),
-		query: vi.fn(async () => []),
-		disconnect: vi.fn(async () => {}),
+		connect: mock(async () => {}),
+		query: mock(async () => []),
+		disconnect: mock(async () => {}),
 	};
 }
 

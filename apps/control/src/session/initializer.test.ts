@@ -1,10 +1,10 @@
 import type { FalkorClient, GraphClient } from "@engram/storage";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { createSessionInitializer, SessionInitializer } from "./initializer";
 
 describe("SessionInitializer", () => {
 	it("should create a session if it does not exist", async () => {
-		const mockQuery = vi.fn((query: string, _params: Record<string, unknown>) => {
+		const mockQuery = mock((query: string, _params: Record<string, unknown>) => {
 			if (query.includes("MATCH")) return Promise.resolve([]); // Not found
 			return Promise.resolve([["s"]]); // Created
 		});
@@ -21,7 +21,7 @@ describe("SessionInitializer", () => {
 	});
 
 	it("should not create a session if it exists", async () => {
-		const mockQuery = vi.fn((_query: string, _params: Record<string, unknown>) => {
+		const mockQuery = mock((_query: string, _params: Record<string, unknown>) => {
 			return Promise.resolve([["existing"]]); // Found
 		});
 
@@ -44,17 +44,17 @@ describe("SessionInitializer", () => {
 
 	it("should create with new deps object constructor", async () => {
 		const mockGraphClient: GraphClient = {
-			connect: vi.fn(),
-			disconnect: vi.fn(),
-			query: vi.fn().mockResolvedValue([["existing"]]),
-			isConnected: vi.fn().mockReturnValue(true),
+			connect: mock(),
+			disconnect: mock(),
+			query: mock().mockResolvedValue([["existing"]]),
+			isConnected: mock().mockReturnValue(true),
 		};
 
 		const mockLogger = {
-			info: vi.fn(),
-			error: vi.fn(),
-			warn: vi.fn(),
-			debug: vi.fn(),
+			info: mock(),
+			error: mock(),
+			warn: mock(),
+			debug: mock(),
 		};
 
 		const initializer = new SessionInitializer({
@@ -75,10 +75,10 @@ describe("SessionInitializer", () => {
 
 	it("should create via factory function with deps", () => {
 		const mockGraphClient: GraphClient = {
-			connect: vi.fn(),
-			disconnect: vi.fn(),
-			query: vi.fn(),
-			isConnected: vi.fn(),
+			connect: mock(),
+			disconnect: mock(),
+			query: mock(),
+			isConnected: mock(),
 		};
 
 		const initializer = createSessionInitializer({
@@ -89,7 +89,7 @@ describe("SessionInitializer", () => {
 	});
 
 	it("should handle legacy FalkorClient constructor", async () => {
-		const mockQuery = vi.fn((query: string, _params: Record<string, unknown>) => {
+		const mockQuery = mock((query: string, _params: Record<string, unknown>) => {
 			if (query.includes("MATCH")) return Promise.resolve([]); // Not found
 			return Promise.resolve([["s"]]); // Created
 		});
@@ -106,7 +106,7 @@ describe("SessionInitializer", () => {
 	});
 
 	it("should handle non-array query results", async () => {
-		const mockQuery = vi.fn((_query: string, _params: Record<string, unknown>) => {
+		const mockQuery = mock((_query: string, _params: Record<string, unknown>) => {
 			// Return non-array that is truthy (edge case)
 			return Promise.resolve("not-an-array");
 		});
@@ -124,7 +124,7 @@ describe("SessionInitializer", () => {
 
 	it("should include bitemporal fields when creating session", async () => {
 		let createdFields: any = null;
-		const mockQuery = vi.fn((query: string, params: Record<string, unknown>) => {
+		const mockQuery = mock((query: string, params: Record<string, unknown>) => {
 			if (query.includes("MATCH")) return Promise.resolve([]); // Not found
 			if (query.includes("CREATE")) {
 				createdFields = params;

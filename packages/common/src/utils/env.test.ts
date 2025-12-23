@@ -2,7 +2,7 @@
  * Tests for @engram/common/utils/env
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { envArray, envBool, envFloat, envNum, envRequired, envStr } from "./env";
 
 describe("env utilities", () => {

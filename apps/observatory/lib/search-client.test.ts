@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { SearchPyError, search } from "./search-client";
 
-global.fetch = vi.fn();
+global.fetch = mock();
 
 describe("search-client", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("search", () => {
@@ -26,7 +26,7 @@ describe("search-client", () => {
 				took_ms: 50,
 			};
 
-			vi.mocked(fetch).mockResolvedValue({
+			(fetch as Mock).mockResolvedValue({
 				ok: true,
 				json: () => Promise.resolve(mockResponse),
 			} as Response);
@@ -49,7 +49,7 @@ describe("search-client", () => {
 		it("should use custom base URL when provided", async () => {
 			const mockResponse = { results: [], total: 0, took_ms: 10 };
 
-			vi.mocked(fetch).mockResolvedValue({
+			(fetch as Mock).mockResolvedValue({
 				ok: true,
 				json: () => Promise.resolve(mockResponse),
 			} as Response);
@@ -65,7 +65,7 @@ describe("search-client", () => {
 
 			const mockResponse = { results: [], total: 0, took_ms: 10 };
 
-			vi.mocked(fetch).mockResolvedValue({
+			(fetch as Mock).mockResolvedValue({
 				ok: true,
 				json: () => Promise.resolve(mockResponse),
 			} as Response);
@@ -83,7 +83,7 @@ describe("search-client", () => {
 
 			const mockResponse = { results: [], total: 0, took_ms: 10 };
 
-			vi.mocked(fetch).mockResolvedValue({
+			(fetch as Mock).mockResolvedValue({
 				ok: true,
 				json: () => Promise.resolve(mockResponse),
 			} as Response);
@@ -117,7 +117,7 @@ describe("search-client", () => {
 		});
 
 		it("should throw SearchPyError when response is not ok with JSON error", async () => {
-			vi.mocked(fetch).mockResolvedValue({
+			(fetch as Mock).mockResolvedValue({
 				ok: false,
 				status: 400,
 				json: () => Promise.resolve({ message: "Invalid request", code: "BAD_REQUEST" }),
@@ -137,7 +137,7 @@ describe("search-client", () => {
 		});
 
 		it("should throw SearchPyError when response is not ok with error field", async () => {
-			vi.mocked(fetch).mockResolvedValue({
+			(fetch as Mock).mockResolvedValue({
 				ok: false,
 				status: 500,
 				json: () => Promise.resolve({ error: "Internal server error" }),
@@ -154,7 +154,7 @@ describe("search-client", () => {
 		});
 
 		it("should throw SearchPyError with status text when JSON parsing fails", async () => {
-			vi.mocked(fetch).mockResolvedValue({
+			(fetch as Mock).mockResolvedValue({
 				ok: false,
 				status: 503,
 				statusText: "Service Unavailable",
@@ -172,7 +172,7 @@ describe("search-client", () => {
 		});
 
 		it("should use default error message when statusText is empty", async () => {
-			vi.mocked(fetch).mockResolvedValue({
+			(fetch as Mock).mockResolvedValue({
 				ok: false,
 				status: 500,
 				statusText: "",
@@ -190,7 +190,7 @@ describe("search-client", () => {
 		});
 
 		it("should use default error message when error body has no message or error field", async () => {
-			vi.mocked(fetch).mockResolvedValue({
+			(fetch as Mock).mockResolvedValue({
 				ok: false,
 				status: 400,
 				json: () => Promise.resolve({ someOtherField: "value" }),
@@ -206,7 +206,7 @@ describe("search-client", () => {
 		});
 
 		it("should throw SearchPyError when fetch throws network error", async () => {
-			vi.mocked(fetch).mockRejectedValue(new Error("Network error"));
+			(fetch as Mock).mockRejectedValue(new Error("Network error"));
 
 			try {
 				await search({ text: "test" });
@@ -220,7 +220,7 @@ describe("search-client", () => {
 		});
 
 		it("should throw SearchPyError for unknown errors", async () => {
-			vi.mocked(fetch).mockRejectedValue("Unknown error string");
+			(fetch as Mock).mockRejectedValue("Unknown error string");
 
 			try {
 				await search({ text: "test" });
@@ -233,7 +233,7 @@ describe("search-client", () => {
 
 		it("should rethrow SearchPyError without wrapping", async () => {
 			const originalError = new SearchPyError("Original error", 404, { custom: "data" });
-			vi.mocked(fetch).mockRejectedValue(originalError);
+			(fetch as Mock).mockRejectedValue(originalError);
 
 			try {
 				await search({ text: "test" });

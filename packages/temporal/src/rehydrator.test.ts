@@ -1,14 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Mock @engram/storage before importing the unit under test
-const mockBlobStoreLoad = vi.fn(async () => "{}");
+const mockBlobStoreLoad = mock(async () => "{}");
 vi.mock("@engram/storage", () => ({
 	createBlobStore: () => ({
 		load: mockBlobStoreLoad,
-		save: vi.fn(async () => "blob://ref"),
+		save: mock(async () => "blob://ref"),
 	}),
 	createFalkorClient: () => ({
-		query: vi.fn(async () => []),
+		query: mock(async () => []),
 	}),
 }));
 
@@ -21,7 +21,7 @@ describe("Rehydrator", () => {
 	let rehydrator: Rehydrator;
 
 	beforeEach(() => {
-		mockFalkorQuery = vi.fn(async () => []);
+		mockFalkorQuery = mock(async () => []);
 		mockFalkor = {
 			query: mockFalkorQuery,
 		} as unknown as FalkorClient;
@@ -229,12 +229,12 @@ describe("Rehydrator", () => {
 
 	it("should create rehydrator with deps object constructor", () => {
 		const customGraphClient = {
-			query: vi.fn(async () => []),
+			query: mock(async () => []),
 		} as unknown as FalkorClient;
 
 		const customBlobStore = {
-			load: vi.fn(async () => "{}"),
-			save: vi.fn(async () => "blob://ref"),
+			load: mock(async () => "{}"),
+			save: mock(async () => "blob://ref"),
 		};
 
 		const rehydrator = new Rehydrator({
@@ -262,8 +262,8 @@ describe("Rehydrator", () => {
 
 	it("should create rehydrator with only blobStore in deps (uses default graphClient)", () => {
 		const customBlobStore = {
-			load: vi.fn(async () => "{}"),
-			save: vi.fn(async () => "blob://ref"),
+			load: mock(async () => "{}"),
+			save: mock(async () => "blob://ref"),
 		};
 
 		const rehydrator = new Rehydrator({
@@ -279,7 +279,7 @@ describe("Rehydrator", () => {
 
 		// Mock JSON.parse to throw a non-Error value
 		const originalParse = JSON.parse;
-		const parseSpy = vi.spyOn(JSON, "parse");
+		const parseSpy = spyOn(JSON, "parse");
 		let parseCallCount = 0;
 		parseSpy.mockImplementation((text: string) => {
 			parseCallCount++;
@@ -353,7 +353,7 @@ describe("Rehydrator", () => {
 		const vfs = await import("@engram/vfs");
 
 		// Spy on applyUnifiedDiff
-		const spy = vi.spyOn(vfs.PatchManager.prototype, "applyUnifiedDiff");
+		const spy = spyOn(vfs.PatchManager.prototype, "applyUnifiedDiff");
 
 		// First patch succeeds, second throws non-Error
 		spy

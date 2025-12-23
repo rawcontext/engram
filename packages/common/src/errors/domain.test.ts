@@ -2,7 +2,7 @@
  * Tests for @engram/common/errors/domain
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
 	ContextAssemblyError,
 	ErrorCodes,

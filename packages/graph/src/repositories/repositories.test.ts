@@ -1,5 +1,5 @@
 import type { GraphClient } from "@engram/storage";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { FalkorReasoningRepository } from "./falkor-reasoning.repository";
 import { FalkorSessionRepository } from "./falkor-session.repository";
 import { FalkorToolCallRepository } from "./falkor-tool-call.repository";
@@ -7,24 +7,24 @@ import { FalkorTurnRepository } from "./falkor-turn.repository";
 
 // Use vi.hoisted to ensure mock is available during vi.mock() execution
 const { mockLoggerWarn } = vi.hoisted(() => ({
-	mockLoggerWarn: vi.fn(),
+	mockLoggerWarn: mock(),
 }));
 
 vi.mock("@engram/logger", () => ({
 	createNodeLogger: () => ({
-		info: vi.fn(),
+		info: mock(),
 		warn: mockLoggerWarn,
-		error: vi.fn(),
-		debug: vi.fn(),
+		error: mock(),
+		debug: mock(),
 	}),
 }));
 
 // Mock GraphClient
 const createMockGraphClient = () => ({
-	connect: vi.fn(async () => {}),
-	disconnect: vi.fn(async () => {}),
-	query: vi.fn(async () => []),
-	isConnected: vi.fn(() => true),
+	connect: mock(async () => {}),
+	disconnect: mock(async () => {}),
+	query: mock(async () => []),
+	isConnected: mock(() => true),
 });
 
 describe("FalkorSessionRepository", () => {

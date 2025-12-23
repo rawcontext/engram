@@ -1,5 +1,5 @@
 import { createTestLogger } from "@engram/common/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { ElicitationService } from "./elicitation";
 
 /**
@@ -7,14 +7,14 @@ import { ElicitationService } from "./elicitation";
  */
 interface MockMcpServer {
 	server: {
-		elicitInput: ReturnType<typeof vi.fn>;
+		elicitInput: ReturnType<typeof mock>;
 	};
 }
 
 // Mock the MCP server
 const mockServer: MockMcpServer = {
 	server: {
-		elicitInput: vi.fn(),
+		elicitInput: mock(),
 	},
 };
 
@@ -25,7 +25,7 @@ describe("ElicitationService", () => {
 	let service: ElicitationService;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		service = new ElicitationService(
 			mockServer as unknown as Parameters<typeof ElicitationService.prototype.constructor>[0],
 			mockLogger,
@@ -33,7 +33,7 @@ describe("ElicitationService", () => {
 	});
 
 	afterEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("enable", () => {

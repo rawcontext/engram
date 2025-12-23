@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { spyOn, beforeEach, describe, expect, it, mock } from "bun:test";
 import { McpToolAdapter, MultiMcpAdapter } from "./mcp_client";
 
 // Mock Client
-const mockConnect = vi.fn(async () => {});
-const mockListTools = vi.fn(async () => ({ tools: [{ name: "test-tool" }] }));
-const mockCallTool = vi.fn(async () => ({ content: [] }));
-const mockClose = vi.fn(async () => {});
+const mockConnect = mock(async () => {});
+const mockListTools = mock(async () => ({ tools: [{ name: "test-tool" }] }));
+const mockCallTool = mock(async () => ({ content: [] }));
+const mockClose = mock(async () => {});
 
 vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
 	Client: class {
@@ -136,7 +136,7 @@ describe("MCP Client", () => {
 		});
 
 		it("should handle refreshTools errors gracefully", async () => {
-			const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+			const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
 
 			mockListTools.mockRejectedValueOnce(new Error("Failed to list tools"));
 

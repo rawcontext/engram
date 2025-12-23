@@ -1,5 +1,5 @@
 import type { ParsedStreamEvent } from "@engram/events";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { ContentEventHandler } from "./content.handler";
 import { ControlEventHandler } from "./control.handler";
 import { DiffEventHandler } from "./diff.handler";
@@ -11,18 +11,18 @@ import { UsageEventHandler } from "./usage.handler";
 
 // Mock graph client
 const mockGraphClient = {
-	connect: vi.fn().mockResolvedValue(undefined),
-	disconnect: vi.fn().mockResolvedValue(undefined),
-	query: vi.fn().mockResolvedValue([]),
-	isConnected: vi.fn().mockReturnValue(true),
+	connect: mock().mockResolvedValue(undefined),
+	disconnect: mock().mockResolvedValue(undefined),
+	query: mock().mockResolvedValue([]),
+	isConnected: mock().mockReturnValue(true),
 };
 
 // Mock logger
 const mockLogger = {
-	debug: vi.fn(),
-	info: vi.fn(),
-	warn: vi.fn(),
-	error: vi.fn(),
+	debug: mock(),
+	info: mock(),
+	warn: mock(),
+	error: mock(),
 };
 
 // Helper to create test context
@@ -32,7 +32,7 @@ function createTestContext(overrides: Partial<HandlerContext> = {}): HandlerCont
 		turnId: "test-turn-456",
 		graphClient: mockGraphClient,
 		logger: mockLogger as unknown as HandlerContext["logger"],
-		emitNodeCreated: vi.fn(),
+		emitNodeCreated: mock(),
 		...overrides,
 	};
 }
@@ -143,7 +143,7 @@ describe("ContentEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new ContentEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -228,7 +228,7 @@ describe("ContentEventHandler", () => {
 		handler.cleanupTurn(turnId);
 
 		// Processing more content shouldn't trigger update immediately
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		turn.assistantContent = "x".repeat(500);
 		const event2 = createTestEvent({
 			type: "content",
@@ -328,7 +328,7 @@ describe("ThoughtEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new ThoughtEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -487,7 +487,7 @@ describe("ToolCallEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new ToolCallEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -1008,7 +1008,7 @@ describe("DiffEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new DiffEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -1397,7 +1397,7 @@ describe("UsageEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new UsageEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();
@@ -1546,7 +1546,7 @@ describe("ControlEventHandler", () => {
 	let turn: TurnState;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		handler = new ControlEventHandler();
 		context = createTestContext();
 		turn = createTestTurnState();

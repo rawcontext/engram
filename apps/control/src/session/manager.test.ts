@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { createSessionManager, SessionManager } from "./manager";
 
 // Mock DecisionEngine
-const mockHandleInput = vi.fn(async () => {});
-const mockStop = vi.fn();
-const mockStart = vi.fn();
+const mockHandleInput = mock(async () => {});
+const mockStop = mock();
+const mockStart = mock();
 vi.mock("../engine/decision", () => ({
 	DecisionEngine: class {
 		start = mockStart;
@@ -14,7 +14,7 @@ vi.mock("../engine/decision", () => ({
 }));
 
 // Mock Initializer
-const mockEnsureSession = vi.fn(async () => {});
+const mockEnsureSession = mock(async () => {});
 vi.mock("./initializer", () => ({
 	SessionInitializer: class {
 		ensureSession = mockEnsureSession;
@@ -27,31 +27,31 @@ vi.mock("./initializer", () => ({
 // Mock context assembler
 vi.mock("../context/assembler", () => ({
 	createContextAssembler: () => ({
-		assembleContext: vi.fn(async () => "context"),
+		assembleContext: mock(async () => "context"),
 	}),
 }));
 
 // Mock storage
 vi.mock("@engram/storage", () => ({
 	createFalkorClient: () => ({
-		connect: vi.fn(async () => {}),
+		connect: mock(async () => {}),
 	}),
 }));
 
 // Mock logger
-const mockLoggerInfo = vi.fn();
+const mockLoggerInfo = mock();
 vi.mock("@engram/logger", () => ({
 	createNodeLogger: () => ({
 		info: mockLoggerInfo,
-		error: vi.fn(),
-		warn: vi.fn(),
-		debug: vi.fn(),
+		error: mock(),
+		warn: mock(),
+		debug: mock(),
 	}),
 }));
 
 describe("SessionManager", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		vi.useFakeTimers();
 	});
 
@@ -61,8 +61,8 @@ describe("SessionManager", () => {
 
 	it("should spawn engine and dispatch input", async () => {
 		const mockToolAdapter = {
-			listTools: vi.fn(async () => []),
-			callTool: vi.fn(async () => ({})),
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
 		};
 
 		const manager = new SessionManager({
@@ -85,8 +85,8 @@ describe("SessionManager", () => {
 
 	it("should cleanup stale sessions", async () => {
 		const mockToolAdapter = {
-			listTools: vi.fn(async () => []),
-			callTool: vi.fn(async () => ({})),
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
 		};
 
 		const manager = new SessionManager({
@@ -111,8 +111,8 @@ describe("SessionManager", () => {
 
 	it("should shutdown and clear all sessions", async () => {
 		const mockToolAdapter = {
-			listTools: vi.fn(async () => []),
-			callTool: vi.fn(async () => ({})),
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
 		};
 
 		const manager = new SessionManager({
@@ -130,8 +130,8 @@ describe("SessionManager", () => {
 
 	it("should update last access time on subsequent calls", async () => {
 		const mockToolAdapter = {
-			listTools: vi.fn(async () => []),
-			callTool: vi.fn(async () => ({})),
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
 		};
 
 		const manager = new SessionManager({
@@ -156,8 +156,8 @@ describe("SessionManager", () => {
 
 	it("should create manager via factory function", () => {
 		const mockToolAdapter = {
-			listTools: vi.fn(async () => []),
-			callTool: vi.fn(async () => ({})),
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
 		};
 
 		const manager = createSessionManager({
@@ -171,8 +171,8 @@ describe("SessionManager", () => {
 
 	it("should not start cleanup job twice", () => {
 		const mockToolAdapter = {
-			listTools: vi.fn(async () => []),
-			callTool: vi.fn(async () => ({})),
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
 		};
 
 		const manager = new SessionManager({
@@ -190,30 +190,30 @@ describe("SessionManager", () => {
 
 	it("should accept injected dependencies", () => {
 		const mockToolAdapter = {
-			listTools: vi.fn(async () => []),
-			callTool: vi.fn(async () => ({})),
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
 		};
 
 		const mockContextAssembler = {
-			assembleContext: vi.fn(async () => "context"),
+			assembleContext: mock(async () => "context"),
 		};
 
 		const mockGraphClient = {
-			connect: vi.fn(async () => {}),
-			disconnect: vi.fn(async () => {}),
-			query: vi.fn(async () => []),
-			isConnected: vi.fn(() => false),
+			connect: mock(async () => {}),
+			disconnect: mock(async () => {}),
+			query: mock(async () => []),
+			isConnected: mock(() => false),
 		};
 
 		const mockSessionInitializer = {
-			ensureSession: vi.fn(async () => {}),
+			ensureSession: mock(async () => {}),
 		};
 
 		const mockLogger = {
-			info: vi.fn(),
-			error: vi.fn(),
-			warn: vi.fn(),
-			debug: vi.fn(),
+			info: mock(),
+			error: mock(),
+			warn: mock(),
+			debug: mock(),
 		};
 
 		const manager = new SessionManager({
@@ -231,8 +231,8 @@ describe("SessionManager", () => {
 
 	it("should run cleanup at correct interval", async () => {
 		const mockToolAdapter = {
-			listTools: vi.fn(async () => []),
-			callTool: vi.fn(async () => ({})),
+			listTools: mock(async () => []),
+			callTool: mock(async () => ({})),
 		};
 
 		const manager = new SessionManager({

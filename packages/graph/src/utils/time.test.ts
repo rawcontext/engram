@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { type Bitemporal, createBitemporal, MAX_DATE, now } from "./time";
 
 describe("Time Utils", () => {

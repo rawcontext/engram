@@ -1,23 +1,23 @@
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { rateLimiter } from "./rate-limit";
 
 // Mock Redis client
 const createMockRedisClient = () => {
 	const mockClient = {
 		isOpen: false,
-		connect: vi.fn().mockResolvedValue(undefined),
-		on: vi.fn(),
-		multi: vi.fn(),
-		quit: vi.fn(),
+		connect: mock().mockResolvedValue(undefined),
+		on: mock(),
+		multi: mock(),
+		quit: mock(),
 	};
 
 	const mockPipeline = {
-		zRemRangeByScore: vi.fn().mockReturnThis(),
-		zAdd: vi.fn().mockReturnThis(),
-		zCard: vi.fn().mockReturnThis(),
-		expire: vi.fn().mockReturnThis(),
-		exec: vi.fn(),
+		zRemRangeByScore: mock().mockReturnThis(),
+		zAdd: mock().mockReturnThis(),
+		zCard: mock().mockReturnThis(),
+		expire: mock().mockReturnThis(),
+		exec: mock(),
 	};
 
 	mockClient.multi.mockReturnValue(mockPipeline);
@@ -26,7 +26,7 @@ const createMockRedisClient = () => {
 };
 
 vi.mock("redis", () => ({
-	createClient: vi.fn(),
+	createClient: mock(),
 }));
 
 describe("Rate Limiter Middleware", () => {
@@ -39,10 +39,10 @@ describe("Rate Limiter Middleware", () => {
 		(createClient as any).mockReturnValue(mockClient);
 
 		const mockLogger = {
-			debug: vi.fn(),
-			info: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			debug: mock(),
+			info: mock(),
+			warn: mock(),
+			error: mock(),
 		};
 
 		const app = new Hono();
@@ -74,10 +74,10 @@ describe("Rate Limiter Middleware", () => {
 		(createClient as any).mockReturnValue(mockClient);
 
 		const mockLogger = {
-			debug: vi.fn(),
-			info: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			debug: mock(),
+			info: mock(),
+			warn: mock(),
+			error: mock(),
 		};
 
 		const app = new Hono();
@@ -104,10 +104,10 @@ describe("Rate Limiter Middleware", () => {
 
 	it("should skip rate limiting when no API key context", async () => {
 		const mockLogger = {
-			debug: vi.fn(),
-			info: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			debug: mock(),
+			info: mock(),
+			warn: mock(),
+			error: mock(),
 		};
 
 		const app = new Hono();
@@ -129,10 +129,10 @@ describe("Rate Limiter Middleware", () => {
 		(createClient as any).mockReturnValue(mockClient);
 
 		const mockLogger = {
-			debug: vi.fn(),
-			info: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			debug: mock(),
+			info: mock(),
+			warn: mock(),
+			error: mock(),
 		};
 
 		const app = new Hono();
@@ -169,10 +169,10 @@ describe("Rate Limiter Middleware", () => {
 		(createClient as any).mockReturnValue(mockClient);
 
 		const mockLogger = {
-			debug: vi.fn(),
-			info: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			debug: mock(),
+			info: mock(),
+			warn: mock(),
+			error: mock(),
 		};
 
 		const middleware = rateLimiter({
@@ -208,10 +208,10 @@ describe("Rate Limiter Middleware", () => {
 		(createClient as any).mockReturnValue(mockClient);
 
 		const mockLogger = {
-			debug: vi.fn(),
-			info: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			debug: mock(),
+			info: mock(),
+			warn: mock(),
+			error: mock(),
 		};
 
 		const app = new Hono();
@@ -239,10 +239,10 @@ describe("Rate Limiter Middleware", () => {
 		(createClient as any).mockReturnValue(mockClient);
 
 		const mockLogger = {
-			debug: vi.fn(),
-			info: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			debug: mock(),
+			info: mock(),
+			warn: mock(),
+			error: mock(),
 		};
 
 		const app = new Hono();
@@ -275,10 +275,10 @@ describe("Rate Limiter Middleware", () => {
 		(createClient as any).mockReturnValue(mockClient);
 
 		const mockLogger = {
-			debug: vi.fn(),
-			info: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			debug: mock(),
+			info: mock(),
+			warn: mock(),
+			error: mock(),
 		};
 
 		const app = new Hono();
@@ -310,10 +310,10 @@ describe("Rate Limiter Middleware", () => {
 		(createClient as any).mockReturnValue(mockClient);
 
 		const mockLogger = {
-			debug: vi.fn(),
-			info: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			debug: mock(),
+			info: mock(),
+			warn: mock(),
+			error: mock(),
 		};
 
 		const app = new Hono();
@@ -343,10 +343,10 @@ describe("Rate Limiter Middleware", () => {
 		(createClient as any).mockReturnValue(mockClient);
 
 		const mockLogger = {
-			debug: vi.fn(),
-			info: vi.fn(),
-			warn: vi.fn(),
-			error: vi.fn(),
+			debug: mock(),
+			info: mock(),
+			warn: mock(),
+			error: mock(),
 		};
 
 		const app = new Hono();

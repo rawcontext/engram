@@ -1,5 +1,5 @@
 import { createTestLogger } from "@engram/common/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { RootsService } from "./roots";
 
 /**
@@ -7,16 +7,16 @@ import { RootsService } from "./roots";
  */
 interface MockMcpServer {
 	server: {
-		listRoots: ReturnType<typeof vi.fn>;
-		setNotificationHandler: ReturnType<typeof vi.fn>;
+		listRoots: ReturnType<typeof mock>;
+		setNotificationHandler: ReturnType<typeof mock>;
 	};
 }
 
 // Mock the MCP server
 const mockServer: MockMcpServer = {
 	server: {
-		listRoots: vi.fn(),
-		setNotificationHandler: vi.fn(),
+		listRoots: mock(),
+		setNotificationHandler: mock(),
 	},
 };
 
@@ -27,7 +27,7 @@ describe("RootsService", () => {
 	let service: RootsService;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		service = new RootsService(
 			mockServer as unknown as Parameters<typeof RootsService.prototype.constructor>[0],
 			mockLogger,
@@ -35,7 +35,7 @@ describe("RootsService", () => {
 	});
 
 	afterEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("enable", () => {
@@ -100,7 +100,7 @@ describe("RootsService", () => {
 		});
 
 		it("should call onRootsChanged callback", async () => {
-			const callback = vi.fn();
+			const callback = mock();
 			service.onRootsChanged(callback);
 			service.enable();
 			mockServer.server.listRoots.mockResolvedValueOnce({

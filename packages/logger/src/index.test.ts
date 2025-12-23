@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { spyOn, describe, expect, it } from "bun:test";
 import { createNodeLogger, withTenantContext, withTraceContext } from "./node";
 import { DEFAULT_REDACT_PATHS, mergeRedactPaths } from "./redaction";
 
@@ -173,7 +173,7 @@ describe("Logger Package", () => {
 	describe("Lifecycle Management", () => {
 		it("should prevent logging after destroy", () => {
 			const logger = createNodeLogger({ service: "test" });
-			const infoSpy = vi.spyOn(console, "info");
+			const infoSpy = spyOn(console, "info");
 
 			// Log before destroy
 			logger.info("before destroy");
@@ -227,7 +227,7 @@ describe("Logger Package", () => {
 
 		it("should handle flush callback", () => {
 			const logger = createNodeLogger({ service: "test" });
-			const callback = vi.fn();
+			const callback = mock();
 
 			logger.flush?.(callback);
 
@@ -237,7 +237,7 @@ describe("Logger Package", () => {
 
 		it("should not flush when already destroyed", () => {
 			const logger = createNodeLogger({ service: "test" });
-			const callback = vi.fn();
+			const callback = mock();
 
 			logger.destroy?.();
 			logger.flush?.(callback);
@@ -273,7 +273,7 @@ describe("Logger Package", () => {
 
 		it("should handle flush when not active", () => {
 			const logger = createNodeLogger({ service: "test" });
-			const callback = vi.fn();
+			const callback = mock();
 
 			// Destroy first
 			logger.destroy?.();
@@ -423,7 +423,7 @@ describe("Logger Package", () => {
 	describe("Destination", () => {
 		it("should accept custom destination stream", () => {
 			const customDestination = {
-				write: vi.fn(),
+				write: mock(),
 			};
 
 			const logger = createNodeLogger({ service: "test" }, customDestination as any);

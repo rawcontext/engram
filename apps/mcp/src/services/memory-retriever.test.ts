@@ -1,5 +1,5 @@
 import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { SearchClient } from "../clients/search";
 import { MemoryRetriever } from "./memory-retriever";
 
@@ -9,14 +9,14 @@ const mockLogger = createTestLogger();
 
 // Mock the search client (using type assertion since SearchClient has specific shape)
 const mockSearchClient: SearchClient = {
-	search: vi.fn(),
+	search: mock(),
 } as SearchClient;
 
 describe("MemoryRetriever", () => {
 	let retriever: MemoryRetriever;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 		retriever = new MemoryRetriever({
 			graphClient: mockGraphClient,
 			searchClient: mockSearchClient,
@@ -25,13 +25,13 @@ describe("MemoryRetriever", () => {
 	});
 
 	afterEach(() => {
-		vi.clearAllMocks();
+		// vi.clearAllMocks(); // TODO: Clear individual mocks
 	});
 
 	describe("recall", () => {
 		it("should combine results from Qdrant and graph search", async () => {
 			// Search-py results
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [
 					{
 						id: "qdrant-1",
@@ -98,7 +98,7 @@ describe("MemoryRetriever", () => {
 			const sharedId = "shared-memory";
 
 			// Same memory in both Qdrant and graph
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [
 					{
 						id: sharedId,
@@ -142,7 +142,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should apply type filter to search", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [],
 				total: 0,
 				took_ms: 10,
@@ -166,7 +166,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should apply project filter to graph query", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [],
 				total: 0,
 				took_ms: 10,
@@ -183,7 +183,7 @@ describe("MemoryRetriever", () => {
 
 		it("should respect limit parameter", async () => {
 			// Return more results than limit
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: Array.from({ length: 10 }, (_, i) => ({
 					id: `result-${i}`,
 					score: 0.9 - i * 0.05,
@@ -209,7 +209,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should sort results by score descending", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [
 					{
 						id: "low",
@@ -252,7 +252,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should handle turn type mapping to thought search type", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [],
 				total: 0,
 				took_ms: 10,
@@ -308,7 +308,7 @@ describe("MemoryRetriever", () => {
 
 	describe("type filter handling", () => {
 		it("should skip type filter for turn in graph query", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [],
 				total: 0,
 				took_ms: 10,
@@ -325,7 +325,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should handle undefined search type filter", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [],
 				total: 0,
 				took_ms: 10,
@@ -344,7 +344,7 @@ describe("MemoryRetriever", () => {
 
 	describe("graph results edge cases", () => {
 		it("should handle non-array graph results", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [],
 				total: 0,
 				took_ms: 10,
@@ -359,7 +359,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should use default type when payload type missing", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [
 					{
 						id: "test-1",
@@ -388,7 +388,7 @@ describe("MemoryRetriever", () => {
 
 	describe("payload handling", () => {
 		it("should skip search results without node_id", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [
 					{
 						id: "missing-node-id",
@@ -414,7 +414,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should skip search results without content", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [
 					{
 						id: "missing-content",
@@ -440,7 +440,7 @@ describe("MemoryRetriever", () => {
 		});
 
 		it("should handle search result without timestamp", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [
 					{
 						id: "no-timestamp",
@@ -470,7 +470,7 @@ describe("MemoryRetriever", () => {
 
 	describe("graph result handling", () => {
 		it("should skip graph results without id", async () => {
-			vi.mocked(mockSearchClient.search).mockResolvedValueOnce({
+			(mockSearchClient.search as Mock).mockResolvedValueOnce({
 				results: [],
 				total: 0,
 				took_ms: 10,
@@ -496,7 +496,7 @@ describe("MemoryRetriever", () => {
 
 	describe("constructor options", () => {
 		it("should use provided search client", () => {
-			const customSearchClient = { search: vi.fn() } as unknown as SearchClient;
+			const customSearchClient = { search: mock() } as unknown as SearchClient;
 			const customRetriever = new MemoryRetriever({
 				graphClient: mockGraphClient,
 				searchClient: customSearchClient,
