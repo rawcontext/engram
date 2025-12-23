@@ -177,6 +177,16 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ env.HETZNER_SERVER_IP }} >> ~/.ssh/known_hosts
 
+      - name: Cleanup conflicting paths
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.HETZNER_SERVER_IP }}
+          username: engram
+          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          script: |
+            # Remove conflicting paths (directories that should be files)
+            rm -rf /opt/engram/configs/Caddyfile 2>/dev/null || true
+
       - name: Sync files to server
         run: |
           rsync -avz --delete \
