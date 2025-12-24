@@ -1,6 +1,7 @@
 /**
  * HTTP client for search service
- * Base URL: http://localhost:5002 (configurable via SEARCH_URL env var)
+ * Base URL: http://localhost:6176 (configurable via SEARCH_URL env var)
+ * Auth: Uses ENGRAM_API_KEY for service-to-service authentication
  */
 
 export type RerankerTier = "fast" | "accurate" | "code" | "llm";
@@ -55,7 +56,7 @@ export class SearchPyError extends Error {
 /**
  * Calls the search service /search endpoint
  * @param request Search request parameters
- * @param baseUrl Base URL for search service (default: SEARCH_URL env var or http://localhost:5002)
+ * @param baseUrl Base URL for search service (default: SEARCH_URL env var or http://localhost:6176)
  * @returns Search results
  * @throws SearchPyError on failure
  */
@@ -63,15 +64,22 @@ export async function search(
 	request: SearchPyRequest,
 	baseUrl?: string,
 ): Promise<SearchPyResponse> {
-	const url = baseUrl || process.env.SEARCH_URL || "http://localhost:5002";
+	const url = baseUrl || process.env.SEARCH_URL || "http://localhost:6176";
 	const endpoint = `${url}/v1/search`;
+	const apiKey = process.env.ENGRAM_API_KEY;
+
+	const headers: Record<string, string> = {
+		"Content-Type": "application/json",
+	};
+
+	if (apiKey) {
+		headers.Authorization = `Bearer ${apiKey}`;
+	}
 
 	try {
 		const response = await fetch(endpoint, {
 			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
+			headers,
 			body: JSON.stringify(request),
 		});
 

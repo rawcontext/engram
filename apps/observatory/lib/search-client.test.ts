@@ -1,10 +1,22 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { SearchPyError, search } from "./search-client";
 
 global.fetch = mock();
 
 describe("search-client", () => {
-	beforeEach(() => {});
+	const originalEngramApiKey = process.env.ENGRAM_API_KEY;
+
+	beforeEach(() => {
+		// Clear API key for tests that check exact headers
+		delete process.env.ENGRAM_API_KEY;
+	});
+
+	afterEach(() => {
+		// Restore original value
+		if (originalEngramApiKey) {
+			process.env.ENGRAM_API_KEY = originalEngramApiKey;
+		}
+	});
 
 	describe("search", () => {
 		it("should make successful search request", async () => {
@@ -33,7 +45,7 @@ describe("search-client", () => {
 
 			expect(result).toEqual(mockResponse);
 			expect(fetch).toHaveBeenCalledWith(
-				"http://localhost:5002/v1/search",
+				"http://localhost:6176/v1/search",
 				expect.objectContaining({
 					method: "POST",
 					headers: {
@@ -75,6 +87,29 @@ describe("search-client", () => {
 			process.env.SEARCH_URL = originalEnv;
 		});
 
+		it("should include Authorization header when ENGRAM_API_KEY is set", async () => {
+			process.env.ENGRAM_API_KEY = "test_api_key";
+			const mockResponse = { results: [], total: 0, took_ms: 10 };
+
+			(fetch as Mock).mockResolvedValue({
+				ok: true,
+				json: () => Promise.resolve(mockResponse),
+			} as Response);
+
+			await search({ text: "test" });
+
+			expect(fetch).toHaveBeenCalledWith(
+				"http://localhost:6176/v1/search",
+				expect.objectContaining({
+					headers: expect.objectContaining({
+						Authorization: "Bearer test_api_key",
+					}),
+				}),
+			);
+
+			delete process.env.ENGRAM_API_KEY;
+		});
+
 		it("should include all request parameters", async () => {
 			const originalEnv = process.env.SEARCH_URL;
 			delete process.env.SEARCH_URL;
@@ -103,7 +138,7 @@ describe("search-client", () => {
 
 			await search(request);
 
-			expect(fetch).toHaveBeenCalledWith("http://localhost:5002/v1/search", {
+			expect(fetch).toHaveBeenCalledWith("http://localhost:6176/v1/search", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
