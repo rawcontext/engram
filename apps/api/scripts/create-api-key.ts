@@ -5,10 +5,12 @@ import { ApiKeyRepository } from "../src/db/api-keys";
 
 /**
  * Generate a random API key
+ * Format: engram_(live|test)_<32 alphanumeric chars>
  */
 function generateApiKey(keyType: "live" | "test"): string {
 	const prefix = keyType === "live" ? "engram_live_" : "engram_test_";
-	const randomPart = randomBytes(24).toString("base64url").slice(0, 32);
+	// Use hex encoding (only 0-9a-f) to match the API key pattern regex
+	const randomPart = randomBytes(16).toString("hex");
 	return `${prefix}${randomPart}`;
 }
 
