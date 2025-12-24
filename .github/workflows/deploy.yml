@@ -479,7 +479,19 @@ jobs:
 
             echo "Waiting for Caddy to be ready..."
             sleep 10
-            docker compose -f docker-compose.prod.yml ps caddy
+            docker compose -f docker-compose.prod.yml ps
+
+            echo ""
+            echo "=== Container logs (last 50 lines each) ==="
+            echo ""
+            echo "--- Observatory ---"
+            docker compose -f docker-compose.prod.yml logs --tail=50 observatory 2>&1 || true
+            echo ""
+            echo "--- Search ---"
+            docker compose -f docker-compose.prod.yml logs --tail=50 search 2>&1 || true
+            echo ""
+            echo "--- Tuner ---"
+            docker compose -f docker-compose.prod.yml logs --tail=50 tuner 2>&1 || true
 
   # Summary job
   summary:
