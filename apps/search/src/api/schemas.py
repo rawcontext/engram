@@ -143,3 +143,25 @@ class SessionAwareResponse(BaseModel):
     results: list[SessionAwareResult] = Field(description="Search results with session context")
     total: int = Field(description="Total number of results")
     took_ms: int = Field(description="Time taken in milliseconds")
+
+
+class MemoryIndexRequest(BaseModel):
+    """Memory indexing request payload."""
+
+    id: str = Field(description="Memory node ID (ULID)")
+    content: str = Field(description="Memory content to embed and index")
+    type: str = Field(
+        default="context",
+        description="Memory type: decision, context, insight, preference, fact",
+    )
+    tags: list[str] = Field(default_factory=list, description="Tags for categorization")
+    project: str | None = Field(default=None, description="Project name")
+    source_session_id: str | None = Field(default=None, description="Source session ID")
+
+
+class MemoryIndexResponse(BaseModel):
+    """Memory indexing response."""
+
+    id: str = Field(description="Indexed memory ID")
+    indexed: bool = Field(description="Whether indexing succeeded")
+    took_ms: int = Field(description="Time taken in milliseconds")
