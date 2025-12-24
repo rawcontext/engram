@@ -4,7 +4,6 @@ import {
 	type BlobStore,
 	createBlobStore,
 	createFalkorClient,
-	type FalkorClient,
 	type GraphClient,
 } from "@engram/storage";
 import { PatchManager, VirtualFileSystem } from "@engram/vfs";
@@ -30,24 +29,9 @@ export class Rehydrator {
 	 * Create a Rehydrator with injectable dependencies.
 	 * @param deps - Optional dependencies. Defaults are used when not provided.
 	 */
-	constructor(deps?: RehydratorDeps);
-	/** @deprecated Use RehydratorDeps object instead */
-	constructor(falkor: FalkorClient);
-	constructor(depsOrFalkor?: RehydratorDeps | FalkorClient) {
-		if (depsOrFalkor === undefined) {
-			// No args: use defaults
-			this.graphClient = createFalkorClient();
-			this.blobStore = createBlobStore();
-		} else if ("query" in depsOrFalkor && typeof depsOrFalkor.query === "function") {
-			// Legacy constructor: FalkorClient directly
-			this.graphClient = depsOrFalkor as GraphClient;
-			this.blobStore = createBlobStore();
-		} else {
-			// New deps object constructor
-			const deps = depsOrFalkor as RehydratorDeps;
-			this.graphClient = deps.graphClient ?? createFalkorClient();
-			this.blobStore = deps.blobStore ?? createBlobStore();
-		}
+	constructor(deps?: RehydratorDeps) {
+		this.graphClient = deps?.graphClient ?? createFalkorClient();
+		this.blobStore = deps?.blobStore ?? createBlobStore();
 	}
 
 	async rehydrate(sessionId: string, targetTime: number = Date.now()): Promise<VirtualFileSystem> {

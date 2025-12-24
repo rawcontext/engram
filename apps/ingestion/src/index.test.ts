@@ -48,7 +48,7 @@ describe("Ingestion Service", () => {
 
 	describe("IngestionProcessor", () => {
 		it("should process event and publish parsed event", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const eventId = "550e8400-e29b-41d4-a716-446655440000";
 			const event = {
@@ -75,7 +75,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle unknown provider", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -91,7 +91,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should extract thinking content", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440001",
@@ -122,7 +122,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should extract diffs", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -157,7 +157,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should redact PII", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -188,7 +188,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include project metadata", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -220,7 +220,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle tool call events", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -246,7 +246,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle usage events", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -273,7 +273,7 @@ describe("Ingestion Service", () => {
 
 		it("should clean up stale extractors", async () => {
 			// This tests the cleanupStaleExtractors function indirectly
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			// Process multiple events to create extractors
 			for (let i = 0; i < 5; i++) {
@@ -299,7 +299,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should return ignored status when delta is null", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			// Anthropic event with no parseable content
 			const event = {
@@ -318,7 +318,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should reuse existing thinking extractor and update lastAccess", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			// First event creates extractor
 			const event1 = {
@@ -365,7 +365,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should reuse existing diff extractor and update lastAccess", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			// First event creates extractor
 			const event1 = {
@@ -411,7 +411,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should extract file path from tool call arguments", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -437,7 +437,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle tool call with path field", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			// Create event with tool call that has a path field
 			const event = {
@@ -461,7 +461,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle tool call with filename field", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -484,7 +484,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle invalid JSON in tool call arguments gracefully", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -508,7 +508,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include cost metadata", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -533,7 +533,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include timing metadata", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -557,7 +557,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include model metadata when parser provides it", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			// Use Anthropic which includes model in delta
 			const event = {
@@ -584,7 +584,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include stopReason metadata", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -608,7 +608,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should include cache metrics in usage", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -633,7 +633,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should infer event type from tool call when type is not set", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -658,7 +658,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should infer event type from usage when type is not set", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -682,7 +682,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should infer event type from content when type is not set", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -706,7 +706,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should use event_id as session_id when x-session-id header is missing", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const eventId = "550e8400-e29b-41d4-a716-446655440123";
 			const event = {
@@ -730,7 +730,7 @@ describe("Ingestion Service", () => {
 		});
 
 		it("should handle missing headers gracefully", async () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
+			const processor = new IngestionProcessor({ natsClient: mockNatsClient as any });
 
 			const event = {
 				event_id: "550e8400-e29b-41d4-a716-446655440123",
@@ -786,12 +786,6 @@ describe("Ingestion Service", () => {
 	});
 
 	describe("Constructor variants", () => {
-		it("should support legacy positional constructor", () => {
-			const processor = new IngestionProcessor(mockNatsClient as any);
-
-			expect(processor).toBeInstanceOf(IngestionProcessor);
-		});
-
 		it("should support deps object constructor", () => {
 			const processor = new IngestionProcessor({
 				natsClient: mockNatsClient as any,
@@ -819,7 +813,7 @@ describe("Ingestion Service", () => {
 				getConsumer: mock(),
 			};
 
-			const processor = new IngestionProcessor(failingNats as any);
+			const processor = new IngestionProcessor({ natsClient: failingNats as any });
 
 			// Send an invalid event that will trigger DLQ
 			const invalidEvent = {

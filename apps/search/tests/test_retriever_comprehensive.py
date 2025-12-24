@@ -467,51 +467,6 @@ class TestSearchRetrieverTurns:
         assert len(results) == 1
         assert results[0].id == "turn-1"
 
-    @pytest.mark.asyncio
-    async def test_search_turns_fallback_to_legacy(
-        self,
-        retriever: SearchRetriever,
-        mock_qdrant_client: MagicMock,
-    ) -> None:
-        """Test turn search falls back to legacy collection on empty results."""
-        # First call returns empty (turns collection)
-        # Second call returns results (legacy collection)
-        mock_result = create_mock_point("legacy-1", 0.8, {"content": "legacy result"})
-        mock_response_empty = MagicMock()
-        mock_response_empty.points = []
-        mock_response_legacy = MagicMock()
-        mock_response_legacy.points = [mock_result]
-
-        mock_qdrant_client.client.query_points = AsyncMock(
-            side_effect=[mock_response_empty, mock_response_legacy]
-        )
-
-        query = SearchQuery(text="test", limit=10, strategy=SearchStrategy.DENSE, rerank=False)
-        results = await retriever.search_turns(query, fallback_to_legacy=True)
-
-        # Should have fallen back and returned legacy results
-        assert len(results) == 1
-        assert results[0].id == "legacy-1"
-        assert mock_qdrant_client.client.query_points.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_search_turns_no_fallback(
-        self,
-        retriever: SearchRetriever,
-        mock_qdrant_client: MagicMock,
-    ) -> None:
-        """Test turn search with fallback disabled."""
-        mock_response = MagicMock()
-        mock_response.points = []
-        mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
-
-        query = SearchQuery(text="test", limit=10, rerank=False)
-        results = await retriever.search_turns(query, fallback_to_legacy=False)
-
-        assert len(results) == 0
-        assert mock_qdrant_client.client.query_points.call_count == 1
-
-
 class TestSearchRetrieverAggregation:
     """Test result aggregation and deduplication."""
 

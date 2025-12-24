@@ -1,7 +1,4 @@
-// Extractors (refactored with BaseTagExtractor)
-
-// Legacy re-exports for backward compatibility (deprecated)
-// These files now re-export from ./extractors
+// Extractors
 export { DiffExtractor } from "./diff";
 export * from "./extractors";
 // Parsers

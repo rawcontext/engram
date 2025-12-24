@@ -98,15 +98,6 @@ export const SelfInvokesEdgeSchema = BaseEdgeSchema.extend({
 });
 
 // =============================================================================
-// DEPRECATED: Legacy edges (kept for migration)
-// =============================================================================
-
-// DEPRECATED: Use CONTAINS/INVOKES instead
-export const MotivatedByEdgeSchema = BaseEdgeSchema.extend({
-	type: z.literal("MOTIVATED_BY"),
-});
-
-// =============================================================================
 // Edge type constants for use in queries
 // =============================================================================
 export const EdgeTypes = {
@@ -135,9 +126,6 @@ export const EdgeTypes = {
 
 	// MCP Self-Instrumentation
 	SELF_INVOKES: "SELF_INVOKES",
-
-	// Deprecated
-	MOTIVATED_BY: "MOTIVATED_BY",
 } as const;
 
 // Union of all edge types
@@ -154,7 +142,6 @@ export const EdgeSchema = z.union([
 	SameAsEdgeSchema,
 	TriggersEdgeSchema,
 	SelfInvokesEdgeSchema,
-	MotivatedByEdgeSchema,
 ]);
 
 export type Edge = z.infer<typeof EdgeSchema>;

@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { FalkorClient, GraphClient } from "@engram/storage";
+import type { GraphClient } from "@engram/storage";
 import { createSessionInitializer, SessionInitializer } from "./initializer";
 
 describe("SessionInitializer", () => {
@@ -9,11 +9,11 @@ describe("SessionInitializer", () => {
 			return Promise.resolve([["s"]]); // Created
 		});
 
-		const mockFalkor = {
+		const mockGraphClient = {
 			query: mockQuery,
-		} as unknown as FalkorClient;
+		} as unknown as GraphClient;
 
-		const initializer = new SessionInitializer(mockFalkor);
+		const initializer = new SessionInitializer({ graphClient: mockGraphClient });
 		await initializer.ensureSession("session-123");
 
 		expect(mockQuery).toHaveBeenCalledTimes(2);
@@ -25,11 +25,11 @@ describe("SessionInitializer", () => {
 			return Promise.resolve([["existing"]]); // Found
 		});
 
-		const mockFalkor = {
+		const mockGraphClient = {
 			query: mockQuery,
-		} as unknown as FalkorClient;
+		} as unknown as GraphClient;
 
-		const initializer = new SessionInitializer(mockFalkor);
+		const initializer = new SessionInitializer({ graphClient: mockGraphClient });
 		await initializer.ensureSession("session-123");
 
 		expect(mockQuery).toHaveBeenCalledTimes(1);
@@ -86,23 +86,6 @@ describe("SessionInitializer", () => {
 		});
 
 		expect(initializer).toBeInstanceOf(SessionInitializer);
-	});
-
-	it("should handle legacy FalkorClient constructor", async () => {
-		const mockQuery = mock((query: string, _params: Record<string, unknown>) => {
-			if (query.includes("MATCH")) return Promise.resolve([]); // Not found
-			return Promise.resolve([["s"]]); // Created
-		});
-
-		const mockFalkor = {
-			query: mockQuery,
-		} as unknown as FalkorClient;
-
-		// Use legacy constructor directly (passing FalkorClient, not deps object)
-		const initializer = new SessionInitializer(mockFalkor);
-		await initializer.ensureSession("legacy-session");
-
-		expect(mockQuery).toHaveBeenCalledTimes(2);
 	});
 
 	it("should handle non-array query results", async () => {

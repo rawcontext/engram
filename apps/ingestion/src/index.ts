@@ -93,41 +93,15 @@ export class IngestionProcessor {
 	 * Create an IngestionProcessor with injectable dependencies.
 	 * @param deps - Optional dependencies. Defaults are used when not provided.
 	 */
-	constructor(deps?: IngestionProcessorDeps);
-	/** @deprecated Use IngestionProcessorDeps object instead */
-	constructor(natsClient: ReturnType<typeof createNatsClient>);
-	constructor(depsOrNats?: IngestionProcessorDeps | ReturnType<typeof createNatsClient>) {
-		if (depsOrNats === undefined) {
-			// No args: use defaults
-			this.natsClient = createNatsClient("ingestion-service");
-			this.redactor = new Redactor();
-			this.logger = createNodeLogger({
+	constructor(deps?: IngestionProcessorDeps) {
+		this.natsClient = deps?.natsClient ?? createNatsClient("ingestion-service");
+		this.redactor = deps?.redactor ?? new Redactor();
+		this.logger =
+			deps?.logger ??
+			createNodeLogger({
 				service: "ingestion-service",
 				base: { component: "processor" },
 			});
-		} else if (
-			typeof depsOrNats === "object" &&
-			("natsClient" in depsOrNats || "redactor" in depsOrNats || "logger" in depsOrNats)
-		) {
-			// New deps object constructor
-			const deps = depsOrNats as IngestionProcessorDeps;
-			this.natsClient = deps.natsClient ?? createNatsClient("ingestion-service");
-			this.redactor = deps.redactor ?? new Redactor();
-			this.logger =
-				deps.logger ??
-				createNodeLogger({
-					service: "ingestion-service",
-					base: { component: "processor" },
-				});
-		} else {
-			// Legacy: natsClient directly (type assertion safe - if not deps, must be NatsClient)
-			this.natsClient = depsOrNats as ReturnType<typeof createNatsClient>;
-			this.redactor = new Redactor();
-			this.logger = createNodeLogger({
-				service: "ingestion-service",
-				base: { component: "processor" },
-			});
-		}
 	}
 
 	async processEvent(rawEvent: RawStreamEvent) {

@@ -13,19 +13,14 @@ const SearchRequestSchema = z.object({
 			type: z.enum(["thought", "code", "doc"]).optional(),
 		})
 		.optional(),
-	// Settings object (new format)
 	settings: z
 		.object({
-			rerank: z.boolean().optional(),
+			rerank: z.boolean().optional().default(true),
 			rerankTier: z.enum(["fast", "accurate", "code", "llm"]).optional(),
 			rerankDepth: z.number().optional(),
 			latencyBudgetMs: z.number().optional(),
 		})
 		.optional(),
-	// Legacy reranking options (for backwards compatibility)
-	rerank: z.boolean().optional().default(true),
-	rerankTier: z.enum(["fast", "accurate", "code", "llm"]).optional(),
-	rerankDepth: z.number().optional(),
 });
 
 export const _SearchResponseSchema = z.object({
@@ -62,14 +57,13 @@ const RERANKER_MODEL = "Xenova/bge-reranker-base";
  */
 export const POST = withAuth(async (req: Request) => {
 	return validate(SearchRequestSchema)(req, async (data) => {
-		const { query, limit, filters, settings, rerank, rerankTier, rerankDepth } = data;
+		const { query, limit, filters, settings } = data;
 
 		const startTime = performance.now();
 
-		// Merge settings (prioritize settings object over legacy params)
-		const effectiveRerank = settings?.rerank ?? rerank;
-		const effectiveRerankTier = settings?.rerankTier ?? rerankTier;
-		const effectiveRerankDepth = settings?.rerankDepth ?? rerankDepth;
+		const rerank = settings?.rerank ?? true;
+		const rerankTier = settings?.rerankTier;
+		const rerankDepth = settings?.rerankDepth;
 
 		try {
 			const response = await search({
@@ -77,16 +71,16 @@ export const POST = withAuth(async (req: Request) => {
 				limit,
 				filters,
 				strategy: "hybrid",
-				rerank: effectiveRerank,
-				rerank_tier: effectiveRerankTier as RerankerTier | undefined,
-				rerank_depth: effectiveRerankDepth,
+				rerank,
+				rerank_tier: rerankTier as RerankerTier | undefined,
+				rerank_depth: rerankDepth,
 			});
 
 			const totalLatency = performance.now() - startTime;
 
 			// Check if reranking was applied (results have reranker_score)
 			const wasReranked =
-				effectiveRerank !== false &&
+				rerank !== false &&
 				response.results.length > 0 &&
 				response.results[0].reranker_score !== null;
 
@@ -108,7 +102,7 @@ export const POST = withAuth(async (req: Request) => {
 						? {
 								tier:
 									response.results[0].rerank_tier ??
-									(effectiveRerankTier as RerankerTier) ??
+									(rerankTier as RerankerTier) ??
 									("accurate" as const),
 								model: RERANKER_MODEL,
 								latencyMs: Math.round(response.took_ms),

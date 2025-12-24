@@ -109,26 +109,6 @@ describe("TurnAggregator", () => {
 			expect(aggregator.getHandlerRegistry()).toBe(mockRegistry);
 		});
 
-		it("should construct with legacy positional arguments", () => {
-			aggregator = new TurnAggregator(mockGraphClient, mockLogger, mockNodeCreated);
-
-			expect(aggregator).toBeInstanceOf(TurnAggregator);
-			expect(aggregator.getHandlerRegistry()).toBeDefined();
-		});
-
-		it("should construct with legacy arguments without callback", () => {
-			aggregator = new TurnAggregator(mockGraphClient, mockLogger);
-
-			expect(aggregator).toBeInstanceOf(TurnAggregator);
-		});
-
-		it("should throw when using legacy constructor without logger", () => {
-			expect(() => {
-				// @ts-expect-error - Testing legacy constructor error path
-				new TurnAggregator(mockGraphClient);
-			}).toThrow("logger required for legacy constructor");
-		});
-
 		it("should use default handler registry when not provided", () => {
 			const deps: TurnAggregatorDeps = {
 				graphClient: mockGraphClient,

@@ -131,14 +131,6 @@ export function useSessionStream({
 				if (updateData?.type === "node_created" || updateData?.type === "graph_node_created") {
 					// New node was created - request full refresh
 					sendRef.current({ type: "refresh" });
-				} else if (message.lineage) {
-					// Legacy combined update format
-					setState((prev) => ({ ...prev, lineage: message.lineage }));
-					onLineageUpdateRef.current?.(message.lineage);
-				}
-				if (message.replay) {
-					setState((prev) => ({ ...prev, replay: message.replay }));
-					onReplayUpdateRef.current?.(message.replay);
 				}
 				break;
 			}

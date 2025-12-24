@@ -28,7 +28,7 @@ class NatsClient:
     for durable message delivery.
     """
 
-    # Topic to subject mapping (legacy topic names -> NATS subjects)
+    # Topic name to NATS subject mapping
     TOPIC_MAPPINGS: dict[str, str] = {
         "raw_events": "events.raw",
         "parsed_events": "events.parsed",

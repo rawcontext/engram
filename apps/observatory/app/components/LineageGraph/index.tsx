@@ -153,16 +153,10 @@ export function LineageGraph({
 			case "turn":
 				return "rgb(251, 191, 36)"; // Amber
 			case "reasoning":
+			case "thought": // Alias for reasoning
 				return "rgb(34, 211, 238)"; // Cyan
 			case "toolcall":
 				return "rgb(139, 92, 246)"; // Violet/Purple
-			// Legacy types
-			case "thought":
-				return "rgb(251, 191, 36)"; // Amber
-			case "action":
-				return "rgb(245, 158, 11)"; // Amber variant
-			case "observation":
-				return "rgb(148, 163, 184)"; // Slate
 			default:
 				return "rgb(100, 116, 139)";
 		}

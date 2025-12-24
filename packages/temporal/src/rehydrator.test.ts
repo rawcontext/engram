@@ -19,20 +19,20 @@ mock.module("@engram/storage", () => ({
 }));
 
 // Import after mocking
-import type { FalkorClient } from "@engram/storage";
+import type { GraphClient } from "@engram/storage";
 import { createRehydrator, Rehydrator } from "./rehydrator";
 
 describe("Rehydrator", () => {
 	let mockFalkorQuery: ReturnType<typeof mock>;
-	let mockFalkor: FalkorClient;
+	let mockGraphClient: GraphClient;
 	let rehydrator: Rehydrator;
 
 	beforeEach(() => {
 		mockFalkorQuery = mock(async () => []);
-		mockFalkor = {
+		mockGraphClient = {
 			query: mockFalkorQuery,
-		} as unknown as FalkorClient;
-		rehydrator = new Rehydrator(mockFalkor);
+		} as unknown as GraphClient;
+		rehydrator = new Rehydrator({ graphClient: mockGraphClient });
 		mockBlobStoreLoad.mockClear();
 	});
 
@@ -237,7 +237,7 @@ describe("Rehydrator", () => {
 	it("should create rehydrator with deps object constructor", () => {
 		const customGraphClient = {
 			query: mock(async () => []),
-		} as unknown as FalkorClient;
+		} as unknown as GraphClient;
 
 		const customBlobStore = {
 			load: mock(async () => "{}"),
@@ -262,7 +262,7 @@ describe("Rehydrator", () => {
 		expect(rehydrator1).toBeDefined();
 
 		const rehydrator2 = createRehydrator({
-			graphClient: mockFalkor,
+			graphClient: mockGraphClient,
 		});
 		expect(rehydrator2).toBeDefined();
 	});

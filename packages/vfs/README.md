@@ -242,9 +242,6 @@ VirtualFileSystem is used by `@engram/temporal` for time-travel reconstruction a
 import { Rehydrator } from "@engram/temporal";
 import { VirtualFileSystem } from "@engram/vfs";
 
-const rehydrator = new Rehydrator(graphClient);
-const vfs: VirtualFileSystem = await rehydrator.rehydrate({
-  sessionId: "session-123",
-  asOf: timestamp,
-});
+const rehydrator = new Rehydrator({ graphClient });
+const vfs: VirtualFileSystem = await rehydrator.rehydrate("session-123", timestamp);
 ```

@@ -1,5 +1,5 @@
 import { createNodeLogger, type Logger } from "@engram/logger";
-import { createFalkorClient, type FalkorClient, type GraphClient } from "@engram/storage";
+import { createFalkorClient, type GraphClient } from "@engram/storage";
 
 /**
  * Dependencies for SessionInitializer construction.
@@ -20,35 +20,14 @@ export class SessionInitializer {
 	 * Create a SessionInitializer with injectable dependencies.
 	 * @param deps - Optional dependencies. Defaults are used when not provided.
 	 */
-	constructor(deps?: SessionInitializerDeps);
-	/** @deprecated Use SessionInitializerDeps object instead */
-	constructor(falkor: FalkorClient);
-	constructor(depsOrFalkor?: SessionInitializerDeps | FalkorClient) {
-		if (depsOrFalkor === undefined) {
-			// No args: use defaults
-			this.graphClient = createFalkorClient();
-			this.logger = createNodeLogger({
+	constructor(deps?: SessionInitializerDeps) {
+		this.graphClient = deps?.graphClient ?? createFalkorClient();
+		this.logger =
+			deps?.logger ??
+			createNodeLogger({
 				service: "control-service",
 				base: { component: "session-initializer" },
 			});
-		} else if ("query" in depsOrFalkor && typeof depsOrFalkor.query === "function") {
-			// Legacy constructor: FalkorClient directly
-			this.graphClient = depsOrFalkor as GraphClient;
-			this.logger = createNodeLogger({
-				service: "control-service",
-				base: { component: "session-initializer" },
-			});
-		} else {
-			// New deps object constructor
-			const deps = depsOrFalkor as SessionInitializerDeps;
-			this.graphClient = deps.graphClient ?? createFalkorClient();
-			this.logger =
-				deps.logger ??
-				createNodeLogger({
-					service: "control-service",
-					base: { component: "session-initializer" },
-				});
-		}
 	}
 
 	/**

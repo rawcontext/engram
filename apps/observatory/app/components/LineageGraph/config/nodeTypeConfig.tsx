@@ -73,7 +73,7 @@ export const nodeTypeConfig: NodeTypeConfigMap = {
 			</svg>
 		),
 	},
-	// Legacy types for backwards compatibility
+	// Alias for reasoning (still used by parser/events)
 	thought: {
 		border: "rgba(251, 191, 36, 0.7)",
 		bg: "rgba(251, 191, 36, 0.1)",
@@ -86,38 +86,6 @@ export const nodeTypeConfig: NodeTypeConfigMap = {
 					strokeLinejoin="round"
 					strokeWidth={1.5}
 					d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-				/>
-			</svg>
-		),
-	},
-	action: {
-		border: "rgba(251, 191, 36, 0.6)",
-		bg: "rgba(251, 191, 36, 0.08)",
-		glow: "rgba(251, 191, 36, 0.4)",
-		text: "rgb(245, 158, 11)",
-		icon: (
-			<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M13 10V3L4 14h7v7l9-11h-7z"
-				/>
-			</svg>
-		),
-	},
-	observation: {
-		border: "rgba(148, 163, 184, 0.6)",
-		bg: "rgba(148, 163, 184, 0.08)",
-		glow: "rgba(148, 163, 184, 0.4)",
-		text: "rgb(148, 163, 184)",
-		icon: (
-			<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
 				/>
 			</svg>
 		),

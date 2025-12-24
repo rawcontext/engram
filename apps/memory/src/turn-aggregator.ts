@@ -94,29 +94,12 @@ export class TurnAggregator {
 	private activeTurns = new Map<string, TurnState>();
 	private sessionSequence = new Map<string, number>();
 
-	constructor(deps: TurnAggregatorDeps);
-	/** @deprecated Use TurnAggregatorDeps object instead */
-	constructor(falkor: GraphClient, logger: Logger, onNodeCreated?: NodeCreatedCallback);
-	constructor(
-		depsOrFalkor: TurnAggregatorDeps | GraphClient,
-		loggerArg?: Logger,
-		onNodeCreatedArg?: NodeCreatedCallback,
-	) {
-		// Support both new deps object and legacy positional arguments
-		if ("graphClient" in depsOrFalkor) {
-			this.graphClient = depsOrFalkor.graphClient;
-			this.logger = depsOrFalkor.logger;
-			this.onNodeCreated = depsOrFalkor.onNodeCreated;
-			this.onTurnFinalized = depsOrFalkor.onTurnFinalized;
-			this.handlerRegistry = depsOrFalkor.handlerRegistry ?? createDefaultHandlerRegistry();
-		} else {
-			// Legacy constructor support
-			this.graphClient = depsOrFalkor;
-			if (!loggerArg) throw new Error("logger required for legacy constructor");
-			this.logger = loggerArg;
-			this.onNodeCreated = onNodeCreatedArg;
-			this.handlerRegistry = createDefaultHandlerRegistry();
-		}
+	constructor(deps: TurnAggregatorDeps) {
+		this.graphClient = deps.graphClient;
+		this.logger = deps.logger;
+		this.onNodeCreated = deps.onNodeCreated;
+		this.onTurnFinalized = deps.onTurnFinalized;
+		this.handlerRegistry = deps.handlerRegistry ?? createDefaultHandlerRegistry();
 	}
 
 	/**
