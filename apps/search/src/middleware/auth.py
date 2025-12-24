@@ -15,6 +15,8 @@ import asyncpg
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from src.config import get_settings
+
 # API key format: engram_live_<32 alphanumeric chars> or engram_test_<32 alphanumeric chars>
 API_KEY_PATTERN = re.compile(r"^engram_(live|test)_[a-zA-Z0-9]{32}$")
 
@@ -61,6 +63,7 @@ class ApiKeyAuth:
                 self._database_url,
                 min_size=1,
                 max_size=5,
+                ssl=False,  # Disable SSL for internal docker network
             )
 
     async def disconnect(self) -> None:
@@ -277,3 +280,44 @@ def require_scope(*required_scopes: str):
         return key
 
     return scope_checker
+
+
+# Placeholder context for when auth is disabled
+_anonymous_context = ApiKeyContext(
+    key_id="anonymous",
+    key_prefix="none",
+    key_type="dev",
+    user_id=None,
+    scopes=["*"],  # All scopes when auth disabled
+    rate_limit_rpm=1000,
+)
+
+
+def optional_scope(*required_scopes: str):
+    """Dependency factory that requires scopes only when auth is enabled.
+
+    When AUTH_ENABLED=false, returns an anonymous context with full permissions.
+    When AUTH_ENABLED=true, validates the API key and required scopes.
+
+    Args:
+        required_scopes: Scopes that the API key must have (any of them).
+
+    Returns:
+        A dependency function that validates scopes when auth is enabled.
+
+    Usage:
+        @router.post("/search")
+        async def search(key: ApiKeyContext = Depends(optional_scope("search:read"))):
+            ...
+    """
+    settings = get_settings()
+
+    if not settings.auth_enabled:
+        # Auth disabled - return anonymous context
+        async def no_auth_checker() -> ApiKeyContext:
+            return _anonymous_context
+
+        return no_auth_checker
+
+    # Auth enabled - delegate to require_scope
+    return require_scope(*required_scopes)

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,  # Allow both field name and alias for env vars
     )
 
     # Server
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     postgres_url: str = Field(
         default="postgresql://postgres:postgres@localhost:6183/engram",
         description="PostgreSQL connection URL for API key validation",
+        alias="AUTH_DATABASE_URL",
     )
     auth_enabled: bool = Field(
         default=True, description="Enable API key authentication (disable for local dev)"
@@ -49,9 +51,7 @@ class Settings(BaseSettings):
     nats_consumer_enabled: bool = Field(
         default=True, description="Enable NATS consumer for turn indexing"
     )
-    nats_consumer_group: str = Field(
-        default="search-group", description="NATS consumer group ID"
-    )
+    nats_consumer_group: str = Field(default="search-group", description="NATS consumer group ID")
 
     # Search defaults (to be used in Phase 4)
     search_default_limit: int = Field(default=10, description="Default search result limit")

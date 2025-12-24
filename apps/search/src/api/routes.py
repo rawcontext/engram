@@ -17,7 +17,7 @@ from src.api.schemas import (
     SessionAwareResponse,
     SessionAwareResult,
 )
-from src.middleware.auth import ApiKeyContext, require_scope
+from src.middleware.auth import ApiKeyContext, optional_scope
 from src.retrieval.multi_query import MultiQueryConfig
 from src.retrieval.session import SessionRetrieverConfig
 from src.retrieval.types import RerankerTier, SearchFilters, SearchQuery, SearchStrategy, TimeRange
@@ -25,8 +25,8 @@ from src.utils.metrics import get_content_type, get_metrics
 
 logger = logging.getLogger(__name__)
 
-# Auth dependency for search operations (requires memory:read scope)
-search_auth = Depends(require_scope("memory:read", "search:read"))
+# Auth dependency for search operations (requires memory:read scope when auth enabled)
+search_auth = Depends(optional_scope("memory:read", "search:read"))
 
 router = APIRouter()
 
@@ -163,8 +163,9 @@ async def search(
             rerank_depth=search_request.rerank_depth,
         )
 
-        # Execute search - use turns collection if specified
-        if search_request.collection == "engram_turns":
+        # Execute search - use turns collection by default, legacy only if explicitly specified
+        collection = search_request.collection or "engram_turns"
+        if collection == "engram_turns":
             results = await search_retriever.search_turns(query, fallback_to_legacy=False)
         else:
             results = await search_retriever.search(query)
