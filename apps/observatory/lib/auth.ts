@@ -3,12 +3,16 @@ import { Pool } from "pg";
 
 const baseURL = process.env.BETTER_AUTH_URL || "https://observatory.statient.com";
 
+// Use a build-time placeholder secret when env var is not set (during next build)
+// This allows static page generation to complete without errors
+const secret = process.env.BETTER_AUTH_SECRET || "build-time-placeholder-not-for-production";
+
 export const auth = betterAuth({
 	database: new Pool({
 		connectionString: process.env.AUTH_DATABASE_URL,
 	}),
 	baseURL,
-	secret: process.env.BETTER_AUTH_SECRET,
+	secret,
 	socialProviders: {
 		google: {
 			clientId: process.env.GOOGLE_CLIENT_ID || "",
