@@ -130,6 +130,7 @@ export function UserMenu() {
 						className="avatar"
 						width={32}
 						height={32}
+						style={{ borderRadius: "50%" }}
 					/>
 				) : (
 					<div className="avatar-fallback">{initials}</div>
