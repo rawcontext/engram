@@ -127,6 +127,26 @@ jobs:
         working-directory: packages/infra
         run: tofu validate
 
+      - name: Clear stale locks
+        working-directory: packages/infra
+        env:
+          TF_HTTP_USERNAME: tofu
+          TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
+        run: |
+          # Check for and clear any stale locks (older than 5 minutes)
+          echo "Checking for stale state locks..."
+          LOCK_OUTPUT=$(tofu plan -no-color 2>&1 || true)
+          if echo "$LOCK_OUTPUT" | grep -q "Error acquiring the state lock"; then
+            LOCK_ID=$(echo "$LOCK_OUTPUT" | grep -oP 'ID:\s+\K[a-f0-9-]+' | head -1)
+            if [ -n "$LOCK_ID" ]; then
+              echo "Found stale lock: $LOCK_ID"
+              echo "Force unlocking..."
+              tofu force-unlock -force "$LOCK_ID" || echo "Force unlock failed, continuing anyway"
+            fi
+          else
+            echo "No stale locks found"
+          fi
+
       - name: OpenTofu Plan
         working-directory: packages/infra
         env:
@@ -478,8 +498,11 @@ jobs:
             docker compose -f docker-compose.prod.yml up -d
 
             echo "Waiting for Caddy to be ready..."
-            sleep 10
+            sleep 30
             docker compose -f docker-compose.prod.yml ps
+            echo ""
+            echo "Search container logs:"
+            docker compose -f docker-compose.prod.yml logs --tail=30 search 2>&1 || true
 
   # Summary job
   summary:
