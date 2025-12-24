@@ -140,12 +140,15 @@ services:
       - EMBEDDER_PRELOAD=${EMBEDDER_PRELOAD:-false}
       - SEARCH_DEFAULT_STRATEGY=${SEARCH_DEFAULT_STRATEGY:-dense}
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000","http://localhost:5173","http://localhost:8080"]}
+      - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram
     depends_on:
       qdrant:
         condition: service_healthy
       nats:
         condition: service_healthy
       falkordb:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -188,6 +191,7 @@ services:
     platform: linux/amd64
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/optuna
+      - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000","http://localhost:5173","http://localhost:8080"]}
     depends_on:
       postgres:
