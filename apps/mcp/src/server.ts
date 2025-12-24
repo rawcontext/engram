@@ -58,13 +58,14 @@ import {
 	type SessionContext,
 } from "./capabilities";
 import { type Config, detectMode } from "./config";
+import { createInstrumentedServer } from "./instrumentation";
 import { registerPrimePrompt, registerRecapPrompt, registerWhyPrompt } from "./prompts";
 import {
 	registerFileHistoryResource,
 	registerMemoryResource,
 	registerSessionResource,
 } from "./resources";
-import { MemoryRetriever, MemoryStore } from "./services";
+import { MemoryRetriever, MemoryStore, SessionInstrumenter } from "./services";
 import { EngramCloudClient } from "./services/cloud";
 import type { IEngramClient, IMemoryRetriever, IMemoryStore } from "./services/interfaces";
 import {
@@ -99,6 +100,8 @@ export interface EngramMcpServer {
 	sampling: SamplingService;
 	elicitation: ElicitationService;
 	roots: RootsService;
+	// Session instrumentation (local mode only)
+	sessionInstrumenter: SessionInstrumenter | null;
 }
 
 export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMcpServer {
@@ -122,6 +125,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	let memoryStore: IMemoryStore;
 	let memoryRetriever: IMemoryRetriever;
 	let cloudClient: IEngramClient | null = null;
+	let sessionInstrumenter: SessionInstrumenter | null = null;
 
 	if (mode === "cloud") {
 		// Cloud mode: use API client
@@ -165,6 +169,14 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 				searchApiKey: config.searchApiKey,
 			});
 
+		// Create session instrumenter for tracking MCP tool calls
+		sessionInstrumenter = new SessionInstrumenter({
+			graphClient,
+			logger,
+			agentType: "claude-code",
+			userId: "mcp-self",
+		});
+
 		logger.info(
 			{ falkordbUrl: config.falkordbUrl, searchUrl: config.searchUrl },
 			"Using local mode",
@@ -172,15 +184,15 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	}
 
 	// Create MCP server
-	const server = new McpServer({
+	const mcpServer = new McpServer({
 		name: "engram",
 		version: "1.0.0",
 	});
 
 	// Initialize capability services
-	const sampling = new SamplingService(server, logger);
-	const elicitation = new ElicitationService(server, logger);
-	const roots = new RootsService(server, logger);
+	const sampling = new SamplingService(mcpServer, logger);
+	const elicitation = new ElicitationService(mcpServer, logger);
+	const roots = new RootsService(mcpServer, logger);
 
 	// Initialize session context with default capabilities
 	// This will be updated when we receive client info
@@ -206,14 +218,24 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		// Update sampling capability dynamically based on client negotiation
 		sessionContext.capabilities.sampling = sampling.enabled;
 
+		// Get session ID from instrumenter if available (for linking memories to sessions)
+		const sessionId = sessionInstrumenter?.currentSessionId ?? sessionContext.sessionId;
+
 		return {
-			sessionId: sessionContext.sessionId,
+			sessionId,
 			workingDir: sessionContext.workingDir ?? roots.primaryWorkingDir,
 			project: sessionContext.project ?? roots.primaryProject,
 			capabilities: sessionContext.capabilities,
 			roots: sessionContext.roots,
 		};
 	};
+
+	// Wrap server with instrumentation to record tool calls
+	const server = createInstrumentedServer(
+		mcpServer,
+		sessionInstrumenter,
+		() => sessionContext.workingDir ?? roots.primaryWorkingDir,
+	);
 
 	// Register tools
 	// Use type assertion for memoryStore since local MemoryStore implements IMemoryStore
@@ -258,7 +280,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	logger.info({ mode }, "Engram MCP server initialized");
 
 	return {
-		server,
+		server: mcpServer,
 		mode,
 		graphClient,
 		memoryStore,
@@ -269,6 +291,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		sampling,
 		elicitation,
 		roots,
+		sessionInstrumenter,
 	};
 }
 

@@ -6,3 +6,8 @@ export {
 	type RecallResult,
 } from "./memory-retriever";
 export { type CreateMemoryInput, MemoryStore, type MemoryStoreOptions } from "./memory-store";
+export {
+	SessionInstrumenter,
+	type SessionInstrumenterOptions,
+	type ToolCallRecord,
+} from "./session-instrumenter";

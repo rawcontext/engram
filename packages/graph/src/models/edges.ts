@@ -88,6 +88,16 @@ export const TriggersEdgeSchema = BaseEdgeSchema.extend({
 });
 
 // =============================================================================
+// MCP Self-Instrumentation
+// =============================================================================
+
+// Session -[SELF_INVOKES]-> ToolCall (MCP server self-instrumentation)
+// Captures tool calls made through MCP without an intermediate Turn node
+export const SelfInvokesEdgeSchema = BaseEdgeSchema.extend({
+	type: z.literal("SELF_INVOKES"),
+});
+
+// =============================================================================
 // DEPRECATED: Legacy edges (kept for migration)
 // =============================================================================
 
@@ -123,6 +133,9 @@ export const EdgeTypes = {
 	REPLACES: "REPLACES",
 	SAME_AS: "SAME_AS",
 
+	// MCP Self-Instrumentation
+	SELF_INVOKES: "SELF_INVOKES",
+
 	// Deprecated
 	MOTIVATED_BY: "MOTIVATED_BY",
 } as const;
@@ -140,6 +153,7 @@ export const EdgeSchema = z.union([
 	ReplacesEdgeSchema,
 	SameAsEdgeSchema,
 	TriggersEdgeSchema,
+	SelfInvokesEdgeSchema,
 	MotivatedByEdgeSchema,
 ]);
 

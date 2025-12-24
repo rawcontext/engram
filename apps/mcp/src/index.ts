@@ -7,7 +7,7 @@ async function main() {
 	const config = loadConfig();
 
 	const engramServer = createEngramMcpServer({ config });
-	const { server, mode, graphClient, cloudClient, logger } = engramServer;
+	const { server, mode, graphClient, cloudClient, logger, sessionInstrumenter } = engramServer;
 
 	// Connect to backend (local mode: FalkorDB, cloud mode: API)
 	if (mode === "local" && graphClient) {
@@ -22,6 +22,11 @@ async function main() {
 	const shutdown = async (signal: string) => {
 		logger.info({ signal }, "Shutting down...");
 		try {
+			// End the instrumentation session before disconnecting
+			if (sessionInstrumenter) {
+				await sessionInstrumenter.endSession();
+			}
+
 			if (mode === "local" && graphClient) {
 				await graphClient.disconnect();
 				logger.info("Disconnected from FalkorDB");
@@ -44,6 +49,16 @@ async function main() {
 
 		await server.connect(transport);
 		logger.info("Engram MCP server running on stdio");
+
+		// Update client capabilities after connection
+		try {
+			const { updateClientCapabilities } = await import("./server");
+			const clientInfo = (server as any).server?.getClientVersion();
+			await updateClientCapabilities(engramServer, clientInfo);
+			logger.info({ clientInfo }, "Client capabilities updated");
+		} catch (error) {
+			logger.warn({ error }, "Failed to update client capabilities");
+		}
 	} else {
 		// HTTP transport - to be implemented in Phase 4
 		logger.error("HTTP transport not yet implemented");
