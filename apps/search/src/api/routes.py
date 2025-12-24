@@ -9,6 +9,8 @@ from src.api.schemas import (
     EmbedRequest,
     EmbedResponse,
     HealthResponse,
+    MemoryIndexRequest,
+    MemoryIndexResponse,
     MultiQueryRequest,
     SearchRequest,
     SearchResponse,
@@ -27,6 +29,9 @@ logger = logging.getLogger(__name__)
 
 # Auth dependency for search operations (requires memory:read scope when auth enabled)
 search_auth = Depends(optional_scope("memory:read", "search:read"))
+
+# Auth dependency for index operations (requires memory:write scope when auth enabled)
+index_auth = Depends(optional_scope("memory:write", "search:write"))
 
 router = APIRouter()
 
@@ -163,10 +168,41 @@ async def search(
             rerank_depth=search_request.rerank_depth,
         )
 
-        # Execute search - use turns collection by default, legacy only if explicitly specified
+        # Execute search - use turns collection by default
         collection = search_request.collection or "engram_turns"
         if collection == "engram_turns":
-            results = await search_retriever.search_turns(query, fallback_to_legacy=False)
+            results = await search_retriever.search_turns(query)
+        elif collection == "engram_memory":
+            # Direct Qdrant search for memory collection
+            from qdrant_client.http import models as qmodels
+
+            embedder_factory = getattr(request.app.state, "embedder_factory", None)
+            qdrant = getattr(request.app.state, "qdrant", None)
+            text_embedder = await embedder_factory.get_embedder("text")
+            query_vector = await text_embedder.embed(search_request.text, is_query=True)
+
+            qdrant_results = await qdrant.client.query_points(
+                collection_name="engram_memory",
+                query=query_vector,
+                using="text_dense",
+                limit=search_request.limit,
+                score_threshold=search_request.threshold,
+            )
+
+            results = [
+                SearchResult(
+                    id=str(p.id),
+                    score=p.score,
+                    rrf_score=None,
+                    reranker_score=None,
+                    rerank_tier=None,
+                    payload=p.payload or {},
+                    degraded=False,
+                )
+                for p in qdrant_results.points
+            ]
+            took_ms = int((time.time() - start_time) * 1000)
+            return SearchResponse(results=results, total=len(results), took_ms=took_ms)
         else:
             results = await search_retriever.search(query)
 
@@ -479,4 +515,121 @@ async def session_aware_search(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Session-aware search failed: {str(e)}",
+        ) from e
+
+
+@router.post("/index/memory", response_model=MemoryIndexResponse)
+async def index_memory(
+    request: Request,
+    memory_request: MemoryIndexRequest,
+    api_key: ApiKeyContext = index_auth,
+) -> MemoryIndexResponse:
+    """Index a memory node for semantic search.
+
+    Embeds the memory content and stores it in Qdrant for later retrieval
+    via the recall endpoint.
+
+    Args:
+        request: FastAPI request object with app state.
+        memory_request: Memory to index with content and metadata.
+
+    Returns:
+        Indexing result with timing information.
+
+    Raises:
+        HTTPException: If indexing fails.
+    """
+    start_time = time.time()
+
+    logger.info(
+        f"Memory index request: id={memory_request.id}, "
+        f"type={memory_request.type}, content_len={len(memory_request.content)}, "
+        f"key={api_key.key_prefix}"
+    )
+
+    # Verify Qdrant and embedder are available
+    qdrant = getattr(request.app.state, "qdrant", None)
+    embedder_factory = getattr(request.app.state, "embedder_factory", None)
+
+    if qdrant is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Index service unavailable: Qdrant not initialized",
+        )
+
+    if embedder_factory is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Index service unavailable: embedder factory not initialized",
+        )
+
+    try:
+        import uuid
+        from qdrant_client.http.models import PointStruct, SparseVector
+
+        # Convert ULID to UUID for Qdrant compatibility
+        # uuid5 creates a deterministic UUID from the ULID string
+        point_uuid = str(uuid.uuid5(uuid.NAMESPACE_OID, memory_request.id))
+
+        # Get embedders
+        text_embedder = await embedder_factory.get_embedder("text")
+        sparse_embedder = await embedder_factory.get_sparse_embedder()
+
+        # Generate embeddings
+        dense_embedding = await text_embedder.embed(memory_request.content, is_query=False)
+
+        # Build vectors dict - use text_dense/text_sparse to match search retriever
+        vectors: dict = {
+            "text_dense": dense_embedding,
+        }
+
+        # Add sparse embedding if available
+        if sparse_embedder is not None:
+            sparse_dict = sparse_embedder.embed_sparse(memory_request.content)
+            if sparse_dict:
+                # embed_sparse returns {token_id: weight}, convert to indices/values
+                indices = list(sparse_dict.keys())
+                values = list(sparse_dict.values())
+                vectors["text_sparse"] = SparseVector(
+                    indices=indices,
+                    values=values,
+                )
+
+        # Build payload - include original ULID as node_id for reference
+        payload = {
+            "content": memory_request.content,
+            "type": memory_request.type,
+            "tags": memory_request.tags,
+            "project": memory_request.project,
+            "source_session_id": memory_request.source_session_id,
+            "node_id": memory_request.id,  # Original ULID for graph lookups
+        }
+
+        # Upsert to Qdrant - use UUID for point ID
+        point = PointStruct(
+            id=point_uuid,
+            vector=vectors,
+            payload=payload,
+        )
+
+        await qdrant.client.upsert(
+            collection_name="engram_memory",
+            points=[point],
+        )
+
+        took_ms = int((time.time() - start_time) * 1000)
+        logger.info(f"Memory indexed: id={memory_request.id}, took_ms={took_ms}")
+
+        return MemoryIndexResponse(
+            id=memory_request.id,
+            indexed=True,
+            took_ms=took_ms,
+        )
+
+    except Exception as e:
+        took_ms = int((time.time() - start_time) * 1000)
+        logger.error(f"Memory indexing failed after {took_ms}ms: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Memory indexing failed: {str(e)}",
         ) from e
