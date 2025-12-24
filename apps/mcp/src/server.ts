@@ -1,5 +1,52 @@
-import { createNodeLogger, type Logger } from "@engram/logger";
+import type { Logger } from "@engram/logger";
 import { FalkorClient, type GraphClient } from "@engram/storage";
+import pino from "pino";
+
+/**
+ * Create a logger specifically for MCP servers using stdio transport.
+ * CRITICAL: All logs MUST go to stderr - stdout is reserved for JSON-RPC protocol.
+ */
+function createMcpLogger(options: {
+	service: string;
+	level?: string;
+	base?: Record<string, unknown>;
+}): Logger {
+	const { service, level = "info", base = {} } = options;
+	const isDev = process.env.NODE_ENV !== "production";
+
+	return pino(
+		{
+			level,
+			formatters: {
+				level(label) {
+					return { severity: label.toUpperCase() };
+				},
+				bindings(bindings) {
+					const { pid: _pid, hostname: _hostname, ...rest } = bindings;
+					return { service, ...base, ...rest };
+				},
+			},
+			timestamp: pino.stdTimeFunctions.isoTime,
+			// For MCP: use stderr destination with pino-pretty transport
+			transport: isDev
+				? {
+						target: "pino-pretty",
+						options: {
+							destination: 2, // fd 2 = stderr
+							colorize: true,
+							translateTime: "SYS:standard",
+							ignore: "pid,hostname",
+							levelFirst: true,
+							messageFormat: "{component} - {msg}",
+						},
+					}
+				: undefined,
+		},
+		// In production, write JSON directly to stderr
+		isDev ? undefined : pino.destination(2),
+	) as Logger;
+}
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
 	type ClientCapabilities,
@@ -57,10 +104,11 @@ export interface EngramMcpServer {
 export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMcpServer {
 	const { config } = options;
 
-	// Initialize logger
+	// Initialize logger - MUST use stderr for MCP stdio transport
+	// stdout is reserved for JSON-RPC protocol messages
 	const logger =
 		options.logger ??
-		createNodeLogger({
+		createMcpLogger({
 			service: "engram-mcp",
 			level: config.logLevel,
 			base: { component: "mcp-server" },
@@ -114,6 +162,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 				graphClient,
 				logger,
 				searchUrl: config.searchUrl,
+				searchApiKey: config.searchApiKey,
 			});
 
 		logger.info(
@@ -153,11 +202,18 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	});
 
 	// Helper to get current session context
-	const getSessionContext = () => ({
-		sessionId: sessionContext.sessionId,
-		workingDir: sessionContext.workingDir ?? roots.primaryWorkingDir,
-		project: sessionContext.project ?? roots.primaryProject,
-	});
+	const getSessionContext = () => {
+		// Update sampling capability dynamically based on client negotiation
+		sessionContext.capabilities.sampling = sampling.enabled;
+
+		return {
+			sessionId: sessionContext.sessionId,
+			workingDir: sessionContext.workingDir ?? roots.primaryWorkingDir,
+			project: sessionContext.project ?? roots.primaryProject,
+			capabilities: sessionContext.capabilities,
+			roots: sessionContext.roots,
+		};
+	};
 
 	// Register tools
 	// Use type assertion for memoryStore since local MemoryStore implements IMemoryStore

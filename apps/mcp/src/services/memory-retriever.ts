@@ -25,6 +25,7 @@ export interface MemoryRetrieverOptions {
 	searchClient?: SearchClient | null; // null = no search client, undefined = use default
 	logger?: Logger;
 	searchUrl?: string;
+	searchApiKey?: string;
 }
 
 /**
@@ -63,7 +64,7 @@ export class MemoryRetriever {
 			this.searchClient = options.searchClient;
 		} else {
 			const searchUrl = options?.searchUrl ?? "http://localhost:5002";
-			this.searchClient = new SearchClient(searchUrl, this.logger);
+			this.searchClient = new SearchClient(searchUrl, this.logger, options?.searchApiKey);
 		}
 	}
 
@@ -102,7 +103,7 @@ export class MemoryRetriever {
 		let graphCypher = `
 			MATCH (m:Memory)
 			WHERE m.vt_end > $now
-			AND m.content CONTAINS $queryLower
+			AND toLower(m.content) CONTAINS $queryLower
 		`;
 		const graphParams: Record<string, unknown> = {
 			now: Date.now(),

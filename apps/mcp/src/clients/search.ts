@@ -39,9 +39,11 @@ export interface SearchResponse {
 export class SearchClient {
 	private baseUrl: string;
 	private logger: Logger;
+	private apiKey?: string;
 
-	constructor(baseUrl: string, logger?: Logger) {
+	constructor(baseUrl: string, logger?: Logger, apiKey?: string) {
 		this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
+		this.apiKey = apiKey;
 		this.logger =
 			logger ??
 			createNodeLogger({
@@ -71,11 +73,16 @@ export class SearchClient {
 			const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
 			try {
+				const headers: Record<string, string> = {
+					"Content-Type": "application/json",
+				};
+				if (this.apiKey) {
+					headers.Authorization = `Bearer ${this.apiKey}`;
+				}
+
 				const response = await fetch(url, {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
+					headers,
 					body: JSON.stringify(requestBody),
 					signal: controller.signal,
 				});

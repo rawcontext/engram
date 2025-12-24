@@ -32,6 +32,27 @@ const KNOWN_CLIENTS: Record<string, Partial<ClientCapabilities>> = {
 		resources: true,
 		prompts: true,
 	},
+	vscode: {
+		sampling: true,
+		elicitation: true,
+		roots: true,
+		resources: true,
+		prompts: true,
+	},
+	code: {
+		sampling: true,
+		elicitation: true,
+		roots: true,
+		resources: true,
+		prompts: true,
+	},
+	"visual studio code": {
+		sampling: true,
+		elicitation: true,
+		roots: true,
+		resources: true,
+		prompts: true,
+	},
 	cursor: {
 		sampling: true,
 		elicitation: true,

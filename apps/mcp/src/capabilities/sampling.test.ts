@@ -217,7 +217,7 @@ describe("SamplingService", () => {
 			});
 		});
 
-		it("should return null on invalid JSON response", async () => {
+		it("should return raw text wrapper on invalid JSON response", async () => {
 			service.enable();
 			mockServer.server.createMessage.mockResolvedValueOnce({
 				content: { type: "text", text: "Invalid JSON response" },
@@ -225,11 +225,7 @@ describe("SamplingService", () => {
 
 			const result = await service.enrichMemory("Memory content");
 
-			expect(result).toBeNull();
-			expect(mockLogger.debug).toHaveBeenCalledWith(
-				expect.objectContaining({ text: "Invalid JSON response" }),
-				"Failed to parse enrichment response",
-			);
+			expect(result).toEqual({ _raw: "Invalid JSON response" });
 		});
 
 		it("should return null when no response", async () => {
@@ -263,7 +259,7 @@ describe("SamplingService", () => {
 			expect(result).toEqual(["Fact 1", "Fact 2", "Fact 3"]);
 		});
 
-		it("should return null when JSON array contains non-strings", async () => {
+		it("should fall back to line parsing when JSON is not an array", async () => {
 			service.enable();
 			mockServer.server.createMessage.mockResolvedValueOnce({
 				content: { type: "text", text: '{"not": "an array"}' },
@@ -271,7 +267,8 @@ describe("SamplingService", () => {
 
 			const result = await service.extractFacts("Text");
 
-			expect(result).toBeNull();
+			// Falls back to line splitting, which produces the raw JSON as a single line
+			expect(result).toEqual(['{"not": "an array"}']);
 		});
 	});
 

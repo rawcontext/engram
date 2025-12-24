@@ -15,9 +15,9 @@ export function registerEnrichMemoryTool(server: McpServer, samplingService: Sam
 			outputSchema: {
 				enrichment: z
 					.object({
-						summary: z.string().optional(),
-						keywords: z.array(z.string()).optional(),
-						category: z.string().optional(),
+						summary: z.string(),
+						keywords: z.array(z.string()),
+						category: z.string(),
 					})
 					.nullable(),
 				available: z.boolean(),
@@ -25,11 +25,6 @@ export function registerEnrichMemoryTool(server: McpServer, samplingService: Sam
 		},
 		async ({ content }) => {
 			if (!samplingService.enabled) {
-				const output = {
-					enrichment: null,
-					available: false,
-				};
-
 				return {
 					content: [
 						{
@@ -37,25 +32,60 @@ export function registerEnrichMemoryTool(server: McpServer, samplingService: Sam
 							text: "Memory enrichment not available: client does not support sampling capability",
 						},
 					],
-					structuredContent: output,
+					structuredContent: {
+						enrichment: null,
+						available: false,
+					},
 				};
 			}
 
 			const enrichment = await samplingService.enrichMemory(content);
 
-			const output = {
-				enrichment,
-				available: true,
-			};
+			if (!enrichment) {
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: "Failed to enrich memory. No response from LLM.",
+						},
+					],
+					structuredContent: {
+						enrichment: null,
+						available: true,
+					},
+				};
+			}
+
+			if (enrichment._raw) {
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: `Failed to parse JSON. Raw response:\n${enrichment._raw}`,
+						},
+					],
+					structuredContent: {
+						enrichment: null,
+						available: true,
+					},
+				};
+			}
 
 			return {
 				content: [
 					{
 						type: "text" as const,
-						text: enrichment ? JSON.stringify(enrichment, null, 2) : "Failed to enrich memory",
+						text: JSON.stringify(enrichment, null, 2),
 					},
 				],
-				structuredContent: output,
+				structuredContent: {
+					enrichment: {
+						summary: enrichment.summary,
+						keywords: enrichment.keywords,
+						category: enrichment.category,
+					},
+					available: true,
+				},
 			};
 		},
 	);

@@ -42,9 +42,6 @@ async function main() {
 	if (config.transport === "stdio") {
 		const transport = new StdioServerTransport();
 
-		// The MCP SDK handles client info automatically during connection
-		// We can detect capabilities when tools are called based on available features
-
 		await server.connect(transport);
 		logger.info("Engram MCP server running on stdio");
 	} else {
@@ -55,9 +52,7 @@ async function main() {
 }
 
 main().catch((error) => {
-	// Use basic logger since main() may have failed before logger was created
-	const { createNodeLogger } = require("@engram/logger");
-	const fallbackLogger = createNodeLogger({ service: "mcp", base: { component: "main" } });
-	fallbackLogger.error({ error }, "Fatal error");
+	// Use stderr for fatal errors (stdout reserved for MCP protocol)
+	console.error("Fatal error:", error);
 	process.exit(1);
 });
