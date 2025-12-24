@@ -22,6 +22,8 @@ RUN mkdir -p ./apps/observatory/public
 COPY --from=builder /app/apps/observatory/server.ts ./apps/observatory/
 COPY --from=builder /app/apps/observatory/lib ./apps/observatory/lib
 COPY --from=builder /app/apps/observatory/package.json ./apps/observatory/
+# Next.js config (required for image remotePatterns)
+COPY --from=builder /app/apps/observatory/next.config.mjs ./apps/observatory/
 
 USER engram
 EXPOSE 3000
