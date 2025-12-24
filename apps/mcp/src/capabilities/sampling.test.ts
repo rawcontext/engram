@@ -120,7 +120,7 @@ describe("SamplingService", () => {
 			expect(result).toBeNull();
 			expect(mockLogger.warn).toHaveBeenCalledWith(
 				expect.objectContaining({ error: expect.any(Error) }),
-				"Sampling request failed",
+				"Sampling request failed or timed out",
 			);
 		});
 	});
@@ -225,7 +225,12 @@ describe("SamplingService", () => {
 
 			const result = await service.enrichMemory("Memory content");
 
-			expect(result).toEqual({ _raw: "Invalid JSON response" });
+			expect(result).toEqual({
+				summary: "",
+				keywords: [],
+				category: "fact",
+				_raw: "Invalid JSON response",
+			});
 		});
 
 		it("should return null when no response", async () => {

@@ -58,7 +58,7 @@ export function createIngestRouter(options: IngestRouterOptions): IngestRouterRe
 		protectedRoutes.use("*", requireScopes("memory:write", "ingest:write"));
 		logger.info("API key authentication enabled for ingest routes");
 	} else {
-		logger.warn("API key authentication DISABLED for ingest routes (AUTH_ENABLED=false)");
+		logger.info("API key authentication disabled for ingest routes (local mode)");
 	}
 
 	// Handler dependencies

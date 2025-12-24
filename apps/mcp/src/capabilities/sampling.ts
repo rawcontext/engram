@@ -80,7 +80,7 @@ export class SamplingService {
 		prompt: string,
 		options: SamplingOptions = {},
 	): Promise<SamplingResult | null> {
-		if (!this._enabled) {
+		if (!this.enabled) {
 			this.logger.debug("Sampling not available, skipping createMessage");
 			return null;
 		}

@@ -31,12 +31,31 @@ export const ConfigSchema = z.object({
 export type Config = z.infer<typeof ConfigSchema>;
 
 /**
+ * Check if a URL points to localhost
+ */
+function isLocalhostUrl(url: string | undefined): boolean {
+	if (!url) return false;
+	try {
+		const parsed = new URL(url);
+		return (
+			parsed.hostname === "localhost" ||
+			parsed.hostname === "127.0.0.1" ||
+			parsed.hostname === "::1" ||
+			parsed.hostname.endsWith(".localhost")
+		);
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Detect whether to run in cloud or local mode
  *
  * Priority:
  * 1. Explicit ENGRAM_MODE env var
- * 2. If ENGRAM_API_KEY is set, use cloud mode
- * 3. Default to local mode
+ * 2. If ENGRAM_API_URL is localhost → local mode
+ * 3. If ENGRAM_API_URL is remote → cloud mode (API key required)
+ * 4. Default to local mode
  */
 export function detectMode(config: Partial<Config>): "cloud" | "local" {
 	// Explicit mode takes precedence
@@ -44,8 +63,15 @@ export function detectMode(config: Partial<Config>): "cloud" | "local" {
 		return config.mode;
 	}
 
-	// If API key is set, use cloud mode
-	if (config.engramApiKey || process.env.ENGRAM_API_KEY) {
+	const apiUrl = config.engramApiUrl ?? process.env.ENGRAM_API_URL;
+
+	// If URL points to localhost, use local mode
+	if (isLocalhostUrl(apiUrl)) {
+		return "local";
+	}
+
+	// If remote URL is set, use cloud mode (API key will be validated separately)
+	if (apiUrl) {
 		return "cloud";
 	}
 
@@ -54,13 +80,41 @@ export function detectMode(config: Partial<Config>): "cloud" | "local" {
 }
 
 export function loadConfig(): Config {
+	// Detect mode first to determine auth default
+	const explicitMode = process.env.ENGRAM_MODE as "cloud" | "local" | undefined;
+	const apiUrl = process.env.ENGRAM_API_URL;
+	const hasApiKey = !!process.env.ENGRAM_API_KEY;
+	const isLocalhost = isLocalhostUrl(apiUrl);
+
+	// Infer mode from URL: localhost = local, remote = cloud
+	let mode: "cloud" | "local";
+	if (explicitMode) {
+		mode = explicitMode;
+	} else if (isLocalhost) {
+		mode = "local";
+	} else if (apiUrl) {
+		mode = "cloud";
+	} else {
+		mode = "local";
+	}
+
+	// Remote URL requires API key
+	if (mode === "cloud" && apiUrl && !isLocalhost && !hasApiKey) {
+		throw new Error("ENGRAM_API_KEY is required when using a remote ENGRAM_API_URL");
+	}
+
+	// Auth defaults: enabled for cloud, disabled for local
+	// Explicit AUTH_ENABLED env var always takes precedence
+	const authExplicitlySet = process.env.AUTH_ENABLED !== undefined;
+	const authEnabled = authExplicitlySet ? process.env.AUTH_ENABLED === "true" : mode === "cloud";
+
 	const rawConfig = {
-		mode: process.env.ENGRAM_MODE as "cloud" | "local" | undefined,
+		mode: explicitMode,
 		engramApiKey: process.env.ENGRAM_API_KEY,
 		engramApiUrl: process.env.ENGRAM_API_URL,
 		transport: process.env.MCP_TRANSPORT ?? "stdio",
 		httpPort: process.env.MCP_HTTP_PORT ? Number.parseInt(process.env.MCP_HTTP_PORT, 10) : 3010,
-		authEnabled: process.env.AUTH_ENABLED !== "false",
+		authEnabled,
 		authPostgresUrl:
 			process.env.AUTH_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:6183/engram",
 		falkordbUrl: process.env.FALKORDB_URL ?? "redis://localhost:6179",
