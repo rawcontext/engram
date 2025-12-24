@@ -15,6 +15,7 @@ CREATE TABLE "user" (
     email TEXT NOT NULL UNIQUE,
     "emailVerified" BOOLEAN DEFAULT FALSE NOT NULL,
     image TEXT,
+    role TEXT DEFAULT 'user' NOT NULL,
     "createdAt" TIMESTAMP DEFAULT NOW() NOT NULL,
     "updatedAt" TIMESTAMP DEFAULT NOW() NOT NULL
 );
