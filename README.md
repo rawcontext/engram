@@ -76,7 +76,10 @@ bun run infra:down   # Stop infrastructure
 | `engram_remember` | Store memory with type and tags |
 | `engram_recall` | Retrieve memories via hybrid search |
 | `engram_query` | Execute Cypher queries (local only) |
-| `engram_context` | Get comprehensive context for task |
+| `engram_context` | Get comprehensive context for task (local only) |
+| `engram_enrich_memory` | Enrich memory with summary/keywords (requires sampling) |
+| `engram_extract_facts` | Extract key facts from text (requires sampling) |
+| `engram_summarize` | Summarize text using client LLM (requires sampling) |
 
 ## API Endpoints
 

@@ -116,6 +116,44 @@ Parsers in `packages/parser/src/providers/`: Anthropic, OpenAI, Gemini, Claude C
 
 **Prompts (local mode)**: `/e prime`, `/e recap`, `/e why`
 
+## MCP Client Usage & Best Practices
+
+To maximize Engram's utility, follow these patterns when calling Engram MCP tools:
+
+### 1. Task Initialization (The "Prime" Pattern)
+At the start of any task, call `engram_context` or use the `/e prime` prompt.
+- **Why**: It automatically pulls relevant memories, past decisions, and file history into your context.
+- **Tip**: If the task is complex, use `engram_summarize` first to create a high-density task brief, then pass that into `engram_context`.
+
+### 2. Intelligent Storage (The "Enrich & Remember" Pattern)
+Don't just dump raw text into `engram_remember`. Use the helper tools to structure it first.
+- **Workflow**: `engram_enrich_memory(content)` → `engram_remember(content, type=category, tags=keywords)`.
+- **Why**: This ensures memories are categorized correctly (e.g., as a `decision` or `preference`) and tagged for better future retrieval.
+
+### 3. Signal Extraction (The "Extract & Remember" Pattern)
+When processing long logs, documentation, or messy chat history:
+- **Workflow**: `engram_extract_facts(text)` → iterate through facts → `engram_remember(fact)`.
+- **Why**: Prevents "memory pollution" by storing only atomic, high-value facts instead of large, noisy blocks of text.
+
+### 4. Deep Investigation (The "Query & Resource" Pattern)
+If `engram_recall` doesn't find what you need, or you need to understand relationships:
+- **Query**: Use `engram_query` to find related nodes (e.g., "Find all decisions made in sessions where `auth.ts` was modified").
+- **Resources**: Use `session://{id}/transcript` to read the full context of a past breakthrough or `file-history://{path}` to see the evolution of a specific file.
+
+### 5. Bitemporal Awareness
+Remember that Engram is **bitemporal**. You can ask about the state of the system at any point in the past.
+- Use `engram_query` with `vt_start` and `vt_end` filters to see "what we knew then" vs "what we know now."
+
+### 6. Graph Schema Reference (for `engram_query`)
+When writing Cypher queries, use these primary node labels and properties:
+- **`Memory`**: `content`, `type` (decision/fact/insight/preference), `tags`, `project`
+- **`Session`**: `id`, `agent_type`, `working_dir`, `summary`
+- **`Turn`**: `user_content`, `assistant_preview`, `files_touched`, `tool_calls_count`
+- **`ToolCall`**: `tool_name`, `tool_type`, `status`, `arguments_json`
+- **`FileTouch`**: `file_path`, `action` (read/edit/create/delete)
+
+**Example Query**: `MATCH (m:Memory {type: 'decision'})-[:CREATED_IN]->(s:Session) RETURN m.content, s.id ORDER BY m.vt_start DESC LIMIT 5`
+
 ## API Endpoints (apps/api)
 
 | Endpoint | Method | Purpose | Scope |
