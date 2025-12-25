@@ -158,6 +158,8 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 			new MemoryStore({
 				graphClient,
 				logger,
+				searchUrl: config.searchUrl,
+				searchApiKey: config.searchApiKey,
 			});
 
 		memoryRetriever =

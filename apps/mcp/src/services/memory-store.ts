@@ -3,6 +3,7 @@ import { type MemoryNode, MemoryNodeSchema, type MemoryType } from "@engram/grap
 import { createNodeLogger, type Logger } from "@engram/logger";
 import { createFalkorClient, type GraphClient } from "@engram/storage";
 import { ulid } from "ulid";
+import { SearchClient } from "../clients/search";
 
 export interface CreateMemoryInput {
 	content: string;
@@ -18,11 +19,15 @@ export interface CreateMemoryInput {
 export interface MemoryStoreOptions {
 	graphClient?: GraphClient;
 	logger?: Logger;
+	searchClient?: SearchClient | null;
+	searchUrl?: string;
+	searchApiKey?: string;
 }
 
 export class MemoryStore {
 	private graphClient: GraphClient;
 	private logger: Logger;
+	private searchClient: SearchClient | null;
 	private connected = false;
 
 	constructor(options?: MemoryStoreOptions) {
@@ -33,6 +38,16 @@ export class MemoryStore {
 				service: "engram-mcp",
 				base: { component: "MemoryStore" },
 			});
+
+		// Handle searchClient: null = disabled, undefined = use default
+		if (options?.searchClient === null) {
+			this.searchClient = null;
+		} else if (options?.searchClient !== undefined) {
+			this.searchClient = options.searchClient;
+		} else {
+			const searchUrl = options?.searchUrl ?? "http://localhost:6176";
+			this.searchClient = new SearchClient(searchUrl, this.logger, options?.searchApiKey);
+		}
 	}
 
 	async connect(): Promise<void> {
@@ -142,7 +157,27 @@ export class MemoryStore {
 				},
 			);
 
-			this.logger.info({ id, type: memory.type }, "Created memory");
+			this.logger.info({ id, type: memory.type }, "Created memory in graph");
+
+			// Index memory for semantic search (non-blocking)
+			if (this.searchClient) {
+				this.searchClient
+					.indexMemory({
+						id: memory.id,
+						content: memory.content,
+						type: memory.type,
+						tags: memory.tags,
+						project: memory.project,
+						source_session_id: memory.source_session_id,
+					})
+					.then(() => {
+						this.logger.debug({ id }, "Memory indexed for search");
+					})
+					.catch((error) => {
+						this.logger.warn({ id, error }, "Failed to index memory for search");
+					});
+			}
+
 			return memory;
 		});
 	}

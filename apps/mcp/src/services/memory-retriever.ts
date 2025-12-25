@@ -63,7 +63,7 @@ export class MemoryRetriever {
 		} else if (options?.searchClient !== undefined) {
 			this.searchClient = options.searchClient;
 		} else {
-			const searchUrl = options?.searchUrl ?? "http://localhost:5002";
+			const searchUrl = options?.searchUrl ?? "http://localhost:6176";
 			this.searchClient = new SearchClient(searchUrl, this.logger, options?.searchApiKey);
 		}
 	}
@@ -79,6 +79,7 @@ export class MemoryRetriever {
 		const searchType = mapMemoryTypeToSearchType(filters?.type);
 
 		// Search in Qdrant for semantic matches using search service
+		// Use engram_memory collection for memory-specific search
 		const searchResults = this.searchClient
 			? (
 					await this.searchClient.search({
@@ -87,6 +88,7 @@ export class MemoryRetriever {
 						rerank: true,
 						rerank_tier: "fast",
 						strategy: "hybrid",
+						collection: "engram_memory",
 						filters: {
 							session_id: filters?.sessionId,
 							type: searchType,

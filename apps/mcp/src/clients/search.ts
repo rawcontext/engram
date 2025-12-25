@@ -18,6 +18,7 @@ export interface SearchOptions {
 	rerank?: boolean;
 	rerank_tier?: "fast" | "accurate" | "code" | "llm";
 	rerank_depth?: number;
+	collection?: string;
 }
 
 export interface SearchResult {
@@ -33,6 +34,21 @@ export interface SearchResult {
 export interface SearchResponse {
 	results: SearchResult[];
 	total: number;
+	took_ms: number;
+}
+
+export interface MemoryIndexOptions {
+	id: string;
+	content: string;
+	type?: string;
+	tags?: string[];
+	project?: string;
+	source_session_id?: string;
+}
+
+export interface MemoryIndexResponse {
+	id: string;
+	indexed: boolean;
 	took_ms: number;
 }
 
@@ -64,6 +80,7 @@ export class SearchClient {
 			rerank: options.rerank ?? false,
 			rerank_tier: options.rerank_tier,
 			rerank_depth: options.rerank_depth,
+			collection: options.collection,
 		};
 
 		this.logger.debug({ url, requestBody }, "Sending search request to search");
@@ -108,6 +125,63 @@ export class SearchClient {
 			}
 		} catch (error) {
 			this.logger.error({ error, url }, "Search-py request failed");
+			throw error;
+		}
+	}
+
+	async indexMemory(options: MemoryIndexOptions): Promise<MemoryIndexResponse> {
+		const url = `${this.baseUrl}/v1/index/memory`;
+
+		const requestBody = {
+			id: options.id,
+			content: options.content,
+			type: options.type ?? "context",
+			tags: options.tags ?? [],
+			project: options.project,
+			source_session_id: options.source_session_id,
+		};
+
+		this.logger.debug({ url, id: options.id }, "Sending memory index request");
+
+		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+			try {
+				const headers: Record<string, string> = {
+					"Content-Type": "application/json",
+				};
+				if (this.apiKey) {
+					headers.Authorization = `Bearer ${this.apiKey}`;
+				}
+
+				const response = await fetch(url, {
+					method: "POST",
+					headers,
+					body: JSON.stringify(requestBody),
+					signal: controller.signal,
+				});
+
+				clearTimeout(timeoutId);
+
+				if (!response.ok) {
+					const errorText = await response.text();
+					throw new Error(
+						`Memory index request failed with status ${response.status}: ${errorText}`,
+					);
+				}
+
+				const data = (await response.json()) as MemoryIndexResponse;
+
+				this.logger.debug({ id: data.id, took_ms: data.took_ms }, "Memory indexed");
+
+				return data;
+			} catch (error) {
+				clearTimeout(timeoutId);
+				throw error;
+			}
+		} catch (error) {
+			this.logger.error({ error, url }, "Memory index request failed");
 			throw error;
 		}
 	}

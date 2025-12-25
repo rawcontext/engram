@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig } from "./config";
 import { createEngramMcpServer } from "./server";

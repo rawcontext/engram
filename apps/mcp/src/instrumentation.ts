@@ -83,7 +83,11 @@ export function createInstrumentedServer(
 		};
 
 		// Call original with wrapped handler, using type assertion to bypass complex MCP types
-		return (originalRegisterTool as Function)(name, config, wrappedHandler) as RegisteredTool;
+		return (originalRegisterTool as (...args: unknown[]) => RegisteredTool)(
+			name,
+			config,
+			wrappedHandler,
+		) as RegisteredTool;
 	};
 
 	// Replace registerTool method
