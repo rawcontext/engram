@@ -160,7 +160,8 @@ services:
       - EMBEDDER_PRELOAD=false
       - SEARCH_DEFAULT_STRATEGY=dense
       - CORS_ORIGINS=["https://observatory.statient.com"]
-      - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram?sslmode=disable
+      # Auth disabled for internal service-to-service calls (API validates external auth)
+      - AUTH_ENABLED=false
     depends_on:
       qdrant:
         condition: service_healthy
