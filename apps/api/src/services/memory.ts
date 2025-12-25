@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { QdrantCollections } from "@engram/common";
 import type { Logger } from "@engram/logger";
 import type { GraphClient } from "@engram/storage";
 import { ulid } from "ulid";
@@ -200,7 +201,7 @@ export class MemoryService {
 				strategy: "hybrid",
 				rerank: true,
 				rerank_tier: "fast",
-				collection: "engram_memory",
+				collection: QdrantCollections.MEMORY,
 				filters: {
 					type: searchType,
 					...searchFilters,

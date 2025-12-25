@@ -7,6 +7,7 @@
  * @module @engram/api/clients/search
  */
 
+import type { QdrantCollectionName } from "@engram/common";
 import type { Logger } from "@engram/logger";
 
 export interface SearchFilters {
@@ -27,7 +28,7 @@ export interface SearchOptions {
 	rerank?: boolean;
 	rerank_tier?: "fast" | "accurate" | "code" | "llm";
 	rerank_depth?: number;
-	collection?: "engram_memory" | "engram_turns";
+	collection?: QdrantCollectionName;
 }
 
 export interface SearchResult {
