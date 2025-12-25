@@ -118,7 +118,7 @@ describe("apiKeyAuth middleware", () => {
 				success: false,
 				error: expect.objectContaining({
 					code: "UNAUTHORIZED",
-					message: "Invalid API key format",
+					message: "Invalid token format",
 				}),
 			}),
 			401,

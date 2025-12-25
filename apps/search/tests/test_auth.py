@@ -29,7 +29,7 @@ class TestAuthMiddleware:
         assert response.status_code == 401
         data = response.json()
         assert data["detail"]["error"]["code"] == "UNAUTHORIZED"
-        assert "Invalid API key format" in data["detail"]["error"]["message"]
+        assert "Invalid token format" in data["detail"]["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_health_endpoint_no_auth_required(self, unauthenticated_client):

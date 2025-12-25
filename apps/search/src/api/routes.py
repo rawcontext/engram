@@ -128,7 +128,7 @@ async def search(
     logger.info(
         f"Search request: query='{search_request.text[:50]}...', "
         f"limit={search_request.limit}, strategy={search_request.strategy}, "
-        f"rerank={search_request.rerank}, key={api_key.key_prefix}"
+        f"rerank={search_request.rerank}, key={api_key.prefix}"
     )
 
     # Verify search retriever is available
@@ -270,7 +270,7 @@ async def embed(
     logger.info(
         f"Embed request: text='{embed_request.text[:50]}...', "
         f"type={embed_request.embedder_type}, is_query={embed_request.is_query}, "
-        f"key={api_key.key_prefix}"
+        f"key={api_key.prefix}"
     )
 
     # Verify embedder factory is available
@@ -338,7 +338,7 @@ async def multi_query_search(
     logger.info(
         f"Multi-query search request: query='{multi_query_request.text[:50]}...', "
         f"limit={multi_query_request.limit}, num_variations={multi_query_request.num_variations}, "
-        f"key={api_key.key_prefix}"
+        f"key={api_key.prefix}"
     )
 
     # Verify multi-query retriever is available
@@ -463,7 +463,7 @@ async def session_aware_search(
         f"Session-aware search request: query='{session_request.query[:50]}...', "
         f"top_sessions={session_request.top_sessions}, "
         f"turns_per_session={session_request.turns_per_session}, "
-        f"key={api_key.key_prefix}"
+        f"key={api_key.prefix}"
     )
 
     # Verify session-aware retriever is available
@@ -548,7 +548,7 @@ async def index_memory(
     logger.info(
         f"Memory index request: id={memory_request.id}, "
         f"type={memory_request.type}, content_len={len(memory_request.content)}, "
-        f"key={api_key.key_prefix}"
+        f"key={api_key.prefix}"
     )
 
     # Verify Qdrant and embedder are available
@@ -667,7 +667,7 @@ async def recreate_collection(
         HTTPException: If operation fails.
     """
     logger.warning(
-        f"Collection recreate requested: collection={collection_name}, key={api_key.key_prefix}"
+        f"Collection recreate requested: collection={collection_name}, key={api_key.prefix}"
     )
 
     qdrant = getattr(request.app.state, "qdrant", None)

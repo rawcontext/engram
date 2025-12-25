@@ -8,11 +8,12 @@ from httpx import ASGITransport, AsyncClient
 from src.main import create_app
 from src.middleware.auth import ApiKeyContext
 
-# Mock API key context for authenticated requests
+# Mock auth context for authenticated requests
 MOCK_API_KEY_CONTEXT = ApiKeyContext(
-    key_id="test-key-id",
-    key_prefix="engram_test_abc123...",
-    key_type="test",
+    id="test-key-id",
+    prefix="engram_test_abc123...",
+    method="api_key",
+    type="test",
     user_id="test-user",
     scopes=["memory:read", "memory:write", "search:read"],
     rate_limit_rpm=1000,

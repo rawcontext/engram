@@ -101,23 +101,25 @@ class TestApiKeyContext:
     def test_context_creation(self) -> None:
         """Test creating an API key context."""
         context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_test_abc...",
-            key_type="test",
+            id="key-123",
+            prefix="engram_test_abc...",
+            method="api_key",
+            type="test",
             user_id="user-456",
             scopes=["memory:read", "search:read"],
             rate_limit_rpm=1000,
         )
-        assert context.key_id == "key-123"
-        assert context.key_type == "test"
+        assert context.id == "key-123"
+        assert context.type == "test"
         assert "memory:read" in context.scopes
 
     def test_context_with_no_user_id(self) -> None:
         """Test context with None user_id."""
         context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_test_abc...",
-            key_type="test",
+            id="key-123",
+            prefix="engram_test_abc...",
+            method="api_key",
+            type="test",
             user_id=None,
             scopes=[],
             rate_limit_rpm=100,
@@ -170,9 +172,10 @@ class TestRequireAuth:
     def test_require_auth_returns_key(self) -> None:
         """Test that require_auth returns the key context."""
         context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_test_abc...",
-            key_type="test",
+            id="key-123",
+            prefix="engram_test_abc...",
+            method="api_key",
+            type="test",
             user_id="user-456",
             scopes=["memory:read"],
             rate_limit_rpm=1000,
@@ -188,9 +191,10 @@ class TestRequireScope:
     async def test_require_scope_allows_matching_scope(self) -> None:
         """Test that require_scope allows matching scope."""
         context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_test_abc...",
-            key_type="test",
+            id="key-123",
+            prefix="engram_test_abc...",
+            method="api_key",
+            type="test",
             user_id="user-456",
             scopes=["memory:read", "search:read"],
             rate_limit_rpm=1000,
@@ -208,9 +212,10 @@ class TestRequireScope:
     async def test_require_scope_allows_any_of_multiple(self) -> None:
         """Test that require_scope allows any of multiple scopes."""
         context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_test_abc...",
-            key_type="test",
+            id="key-123",
+            prefix="engram_test_abc...",
+            method="api_key",
+            type="test",
             user_id="user-456",
             scopes=["search:read"],  # Has only one of the required
             rate_limit_rpm=1000,
@@ -224,9 +229,10 @@ class TestRequireScope:
     async def test_require_scope_denies_missing_scope(self) -> None:
         """Test that require_scope denies missing scope."""
         context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_test_abc...",
-            key_type="test",
+            id="key-123",
+            prefix="engram_test_abc...",
+            method="api_key",
+            type="test",
             user_id="user-456",
             scopes=["other:scope"],  # Doesn't have required scope
             rate_limit_rpm=1000,
@@ -428,8 +434,8 @@ class TestApiKeyAuthValidate:
         result = await auth_handler.validate(valid_key)
 
         assert result is not None
-        assert result.key_id == "key-123"
-        assert result.key_type == "test"
+        assert result.id == "key-123"
+        assert result.type == "test"
         assert "memory:read" in result.scopes
 
     @pytest.mark.asyncio
@@ -454,7 +460,7 @@ class TestApiKeyAuthValidate:
         result = await auth_handler.validate(valid_key)
 
         assert result is not None
-        assert result.key_id == "key-123"
+        assert result.id == "key-123"
         assert result.user_id is None
         assert result.scopes == []  # Should default to empty list
 
@@ -510,7 +516,7 @@ class TestGetApiKey:
             await get_api_key(mock_request, mock_credentials)
 
         assert exc_info.value.status_code == 401
-        assert "Invalid API key format" in exc_info.value.detail["error"]["message"]
+        assert "Invalid token format" in exc_info.value.detail["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_get_api_key_validation_error(self) -> None:
@@ -529,7 +535,7 @@ class TestGetApiKey:
             await get_api_key(mock_request, mock_credentials)
 
         assert exc_info.value.status_code == 500
-        assert "Failed to validate API key" in exc_info.value.detail["error"]["message"]
+        assert "Failed to validate token" in exc_info.value.detail["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_get_api_key_invalid_or_expired(self) -> None:
@@ -548,7 +554,7 @@ class TestGetApiKey:
             await get_api_key(mock_request, mock_credentials)
 
         assert exc_info.value.status_code == 401
-        assert "Invalid or expired API key" in exc_info.value.detail["error"]["message"]
+        assert "Invalid or expired token" in exc_info.value.detail["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_get_api_key_success(self) -> None:
@@ -559,9 +565,10 @@ class TestGetApiKey:
         mock_credentials.credentials = "engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
         context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_test_aaa...",
-            key_type="test",
+            id="key-123",
+            prefix="engram_test_aaa...",
+            method="api_key",
+            type="test",
             user_id="user-456",
             scopes=["memory:read"],
             rate_limit_rpm=1000,
