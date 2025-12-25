@@ -9,9 +9,8 @@ export const ConfigSchema = z.object({
 	postgresUrl: z.string().default("postgresql://postgres:postgres@localhost:6183/engram"),
 	redisUrl: z.string().url().default("redis://localhost:6179"),
 
-	// Search service
+	// Search service (internal, no auth required)
 	searchUrl: z.string().url().default("http://localhost:6176"),
-	searchApiKey: z.string().optional(),
 
 	// Logging
 	logLevel: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
@@ -29,7 +28,6 @@ export function loadConfig(): Config {
 		postgresUrl: process.env.POSTGRES_URL ?? "postgresql://postgres:postgres@localhost:6183/engram",
 		redisUrl: process.env.REDIS_URL ?? "redis://localhost:6179",
 		searchUrl: process.env.SEARCH_URL ?? "http://localhost:6176",
-		searchApiKey: process.env.SEARCH_API_KEY,
 		logLevel: process.env.LOG_LEVEL ?? "info",
 		rateLimitRpm: process.env.RATE_LIMIT_RPM ? Number.parseInt(process.env.RATE_LIMIT_RPM, 10) : 60,
 	});

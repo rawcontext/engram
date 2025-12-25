@@ -238,7 +238,6 @@ jobs:
             BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
             GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            SEARCH_API_KEY=${{ secrets.SEARCH_API_KEY }}
             EOF
 
       - name: Run auth database migrations

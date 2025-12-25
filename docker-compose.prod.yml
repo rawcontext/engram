@@ -187,7 +187,6 @@ services:
       - NODE_ENV=production
       - POSTGRES_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-engram}
       - SEARCH_URL=http://search:6176
-      - SEARCH_API_KEY=${SEARCH_API_KEY}
       - FALKORDB_URL=redis://falkordb:6379
       - REDIS_URL=redis://falkordb:6379
       - PORT=6174

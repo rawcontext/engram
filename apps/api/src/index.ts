@@ -50,7 +50,6 @@ async function main() {
 	const memoryService = new MemoryService({
 		graphClient,
 		searchUrl: config.searchUrl,
-		searchApiKey: config.searchApiKey,
 		logger,
 	});
 
