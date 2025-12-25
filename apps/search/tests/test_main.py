@@ -31,11 +31,11 @@ class TestCreateApp:
         app = create_app()
         # Check that routes exist
         route_paths = [route.path for route in app.routes]
-        assert "/v1/health" in route_paths
-        assert "/v1/ready" in route_paths
-        assert "/v1/metrics" in route_paths
-        assert "/v1/search" in route_paths
-        assert "/v1/embed" in route_paths
+        assert "/v1/search/health" in route_paths
+        assert "/v1/search/ready" in route_paths
+        assert "/v1/search/metrics" in route_paths
+        assert "/v1/search/query" in route_paths
+        assert "/v1/search/embed" in route_paths
 
     def test_app_has_cors_middleware(self) -> None:
         """Test app has CORS middleware."""

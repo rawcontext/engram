@@ -111,7 +111,7 @@ class TestHealthEndpoint:
         """Test health endpoint when healthy."""
         mock_qdrant.health_check.return_value = True
 
-        response = await client.get("/v1/health")
+        response = await client.get("/v1/search/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -123,7 +123,7 @@ class TestHealthEndpoint:
         """Test health endpoint when degraded."""
         mock_qdrant.health_check.return_value = False
 
-        response = await client.get("/v1/health")
+        response = await client.get("/v1/search/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -134,7 +134,7 @@ class TestHealthEndpoint:
         """Test health endpoint when Qdrant throws error."""
         mock_qdrant.health_check.side_effect = Exception("Connection error")
 
-        response = await client.get("/v1/health")
+        response = await client.get("/v1/search/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -149,7 +149,7 @@ class TestHealthEndpoint:
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/v1/health")
+            response = await client.get("/v1/search/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -163,7 +163,7 @@ class TestReadinessEndpoint:
         """Test readiness when ready."""
         mock_qdrant.health_check.return_value = True
 
-        response = await client.get("/v1/ready")
+        response = await client.get("/v1/search/ready")
 
         assert response.status_code == 200
         data = response.json()
@@ -173,7 +173,7 @@ class TestReadinessEndpoint:
         """Test readiness when not healthy."""
         mock_qdrant.health_check.return_value = False
 
-        response = await client.get("/v1/ready")
+        response = await client.get("/v1/search/ready")
 
         assert response.status_code == 200
         data = response.json()
@@ -183,7 +183,7 @@ class TestReadinessEndpoint:
         """Test readiness when Qdrant throws error."""
         mock_qdrant.health_check.side_effect = Exception("Error")
 
-        response = await client.get("/v1/ready")
+        response = await client.get("/v1/search/ready")
 
         assert response.status_code == 200
         data = response.json()
@@ -197,7 +197,7 @@ class TestReadinessEndpoint:
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/v1/ready")
+            response = await client.get("/v1/search/ready")
 
         assert response.status_code == 200
         data = response.json()
@@ -209,7 +209,7 @@ class TestMetricsEndpoint:
 
     async def test_metrics(self, client: AsyncClient) -> None:
         """Test metrics endpoint returns prometheus format."""
-        response = await client.get("/v1/metrics")
+        response = await client.get("/v1/search/metrics")
 
         assert response.status_code == 200
         # Should be text/plain prometheus format
@@ -233,7 +233,7 @@ class TestSearchEndpoint:
         mock_search_retriever.search_turns.return_value = [mock_result]
 
         response = await client.post(
-            "/v1/search",
+            "/v1/search/query",
             json={"text": "test query", "limit": 10},
         )
 
@@ -249,7 +249,7 @@ class TestSearchEndpoint:
         mock_search_retriever.search_turns.return_value = []
 
         response = await client.post(
-            "/v1/search",
+            "/v1/search/query",
             json={
                 "text": "test query",
                 "limit": 10,
@@ -277,7 +277,7 @@ class TestSearchEndpoint:
         mock_search_retriever.search_turns.return_value = [mock_result]
 
         response = await client.post(
-            "/v1/search",
+            "/v1/search/query",
             json={
                 "text": "test query",
                 "limit": 10,
@@ -308,7 +308,7 @@ class TestSearchEndpoint:
                 headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
             ) as client:
                 response = await client.post(
-                    "/v1/search",
+                    "/v1/search/query",
                     json={"text": "test", "limit": 10},
                 )
 
@@ -319,7 +319,7 @@ class TestSearchEndpoint:
         mock_search_retriever.search_turns.side_effect = Exception("Search failed")
 
         response = await client.post(
-            "/v1/search",
+            "/v1/search/query",
             json={"text": "test query", "limit": 10},
         )
 
@@ -338,7 +338,7 @@ class TestEmbedEndpoint:
         mock_embedder_factory.get_embedder.return_value = mock_embedder
 
         response = await client.post(
-            "/v1/embed",
+            "/v1/search/embed",
             json={"text": "test text", "embedder_type": "text"},
         )
 
@@ -356,7 +356,7 @@ class TestEmbedEndpoint:
         mock_embedder_factory.get_embedder.return_value = mock_embedder
 
         response = await client.post(
-            "/v1/embed",
+            "/v1/search/embed",
             json={"text": "test", "embedder_type": "text", "is_query": True},
         )
 
@@ -380,7 +380,7 @@ class TestEmbedEndpoint:
                 headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
             ) as client:
                 response = await client.post(
-                    "/v1/embed",
+                    "/v1/search/embed",
                     json={"text": "test", "embedder_type": "text"},
                 )
 
@@ -393,7 +393,7 @@ class TestEmbedEndpoint:
         mock_embedder_factory.get_embedder.return_value = mock_embedder
 
         response = await client.post(
-            "/v1/embed",
+            "/v1/search/embed",
             json={"text": "test", "embedder_type": "text"},
         )
 
