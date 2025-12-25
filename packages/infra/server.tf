@@ -20,7 +20,7 @@ resource "hcloud_server" "engram" {
         shell: /bin/bash
         sudo: ALL=(ALL) NOPASSWD:ALL
         ssh_authorized_keys:
-          - ${file(pathexpand(var.ssh_public_key_path))}
+          - ${var.ssh_public_key}
 
     package_update: true
     package_upgrade: true
