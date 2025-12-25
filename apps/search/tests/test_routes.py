@@ -34,6 +34,7 @@ def mock_search_retriever():
     """Create mock search retriever."""
     retriever = MagicMock()
     retriever.search = AsyncMock(return_value=[])
+    retriever.search_turns = AsyncMock(return_value=[])
     return retriever
 
 
@@ -229,7 +230,7 @@ class TestSearchEndpoint:
         mock_result.payload = {"content": "test"}
         mock_result.degraded = False
 
-        mock_search_retriever.search.return_value = [mock_result]
+        mock_search_retriever.search_turns.return_value = [mock_result]
 
         response = await client.post(
             "/v1/search",
@@ -245,7 +246,7 @@ class TestSearchEndpoint:
 
     async def test_search_with_filters(self, client: AsyncClient, mock_search_retriever) -> None:
         """Test search with filters."""
-        mock_search_retriever.search.return_value = []
+        mock_search_retriever.search_turns.return_value = []
 
         response = await client.post(
             "/v1/search",
@@ -273,7 +274,7 @@ class TestSearchEndpoint:
         mock_result.payload = {}
         mock_result.degraded = False
 
-        mock_search_retriever.search.return_value = [mock_result]
+        mock_search_retriever.search_turns.return_value = [mock_result]
 
         response = await client.post(
             "/v1/search",
@@ -315,7 +316,7 @@ class TestSearchEndpoint:
 
     async def test_search_error(self, client: AsyncClient, mock_search_retriever) -> None:
         """Test search error handling."""
-        mock_search_retriever.search.side_effect = Exception("Search failed")
+        mock_search_retriever.search_turns.side_effect = Exception("Search failed")
 
         response = await client.post(
             "/v1/search",
