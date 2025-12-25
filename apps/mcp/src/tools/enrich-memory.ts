@@ -4,16 +4,16 @@ import type { SamplingService } from "../capabilities";
 
 export function registerEnrichMemoryTool(server: McpServer, samplingService: SamplingService) {
 	server.registerTool(
-		"engram_enrich_memory",
+		"enrich_memory",
 		{
 			title: "Enrich Memory",
 			description:
-				"Auto-generate metadata for memory content before storing. Returns: one-line summary, searchable keywords, and suggested category (maps to memory type). Recommended workflow: call enrich_memory first, then pass the enriched metadata to engram_remember for better future retrieval. Requires client sampling capability.",
+				"Auto-generate metadata for memory content before storing. Returns: one-line summary, searchable keywords, and suggested category (maps to memory type). Recommended workflow: call enrich_memory first, then pass the enriched metadata to remember for better future retrieval. Requires client sampling capability.",
 			inputSchema: {
 				content: z
 					.string()
 					.describe(
-						"The memory content you plan to store. The LLM analyzes this to generate: a concise summary (for quick scanning), relevant keywords (for search), and a category suggestion (decision/insight/fact/preference/context). Use the output to populate engram_remember parameters.",
+						"The memory content you plan to store. The LLM analyzes this to generate: a concise summary (for quick scanning), relevant keywords (for search), and a category suggestion (decision/insight/fact/preference/context). Use the output to populate remember parameters.",
 					),
 			},
 			outputSchema: {

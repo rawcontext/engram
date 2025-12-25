@@ -4,11 +4,11 @@ import type { SamplingService } from "../capabilities";
 
 export function registerExtractFactsTool(server: McpServer, samplingService: SamplingService) {
 	server.registerTool(
-		"engram_extract_facts",
+		"extract_facts",
 		{
 			title: "Extract Facts",
 			description:
-				"Parse unstructured text into discrete, atomic facts suitable for storage. Use before engram_remember when processing: documentation, chat logs, meeting notes, or verbose command outputs. Each extracted fact can be stored and searched independently, improving retrieval precision. Requires client sampling capability.",
+				"Parse unstructured text into discrete, atomic facts suitable for storage. Use before remember when processing: documentation, chat logs, meeting notes, or verbose command outputs. Each extracted fact can be stored and searched independently, improving retrieval precision. Requires client sampling capability.",
 			inputSchema: {
 				text: z
 					.string()

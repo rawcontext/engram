@@ -40,7 +40,6 @@ export function registerWhyPrompt(
 	server.registerPrompt(
 		"decision-history",
 		{
-			title: "Decision History",
 			description:
 				"Find past decisions and their rationale for a topic. Use when: you're about to make an architectural choice and want to check for precedent, the user asks 'why did we...', or you encounter code that seems intentional but unclear. Returns decisions ranked by relevance with dates and confidence scores.",
 			argsSchema: {

@@ -11,7 +11,7 @@ export function registerRecallTool(
 	elicitationService?: ElicitationService,
 ) {
 	server.registerTool(
-		"engram_recall",
+		"recall",
 		{
 			title: "Recall",
 			description:

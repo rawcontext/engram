@@ -18,7 +18,7 @@ export function registerContextTool(
 	samplingService?: SamplingService,
 ) {
 	server.registerTool(
-		"engram_context",
+		"context",
 		{
 			title: "Get Context",
 			description:

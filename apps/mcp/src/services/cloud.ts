@@ -3,10 +3,16 @@
  *
  * HTTP client for the Engram Cloud API that implements IEngramClient.
  * Used in cloud mode to proxy MCP tool calls to the Hetzner API.
+ *
+ * Supports two authentication methods:
+ * 1. API Key - traditional Bearer token authentication
+ * 2. OAuth - device flow tokens managed via TokenCache
  */
 
 import type { MemoryNode, MemoryType } from "@engram/graph";
 import type { Logger } from "@engram/logger";
+import type { DeviceFlowClient } from "../auth/device-flow";
+import type { TokenCache } from "../auth/token-cache";
 import type {
 	ContextItem,
 	CreateMemoryInput,
@@ -16,9 +22,14 @@ import type {
 } from "./interfaces";
 
 export interface EngramCloudClientOptions {
-	apiKey: string;
 	baseUrl: string;
 	logger: Logger;
+	/** Static API key (takes precedence over OAuth) */
+	apiKey?: string;
+	/** Token cache for OAuth authentication */
+	tokenCache?: TokenCache;
+	/** Device flow client for token refresh */
+	deviceFlowClient?: DeviceFlowClient;
 }
 
 interface ApiResponse<T> {
@@ -35,14 +46,58 @@ interface ApiResponse<T> {
 }
 
 export class EngramCloudClient implements IEngramClient {
-	private readonly apiKey: string;
+	private readonly apiKey?: string;
 	private readonly baseUrl: string;
 	private readonly logger: Logger;
+	private readonly tokenCache?: TokenCache;
+	private readonly deviceFlowClient?: DeviceFlowClient;
 
 	constructor(options: EngramCloudClientOptions) {
 		this.apiKey = options.apiKey;
 		this.baseUrl = options.baseUrl.replace(/\/$/, ""); // Remove trailing slash
 		this.logger = options.logger;
+		this.tokenCache = options.tokenCache;
+		this.deviceFlowClient = options.deviceFlowClient;
+
+		// Validate that we have at least one auth method
+		if (!this.apiKey && !this.tokenCache) {
+			throw new Error("EngramCloudClient requires either apiKey or tokenCache for authentication");
+		}
+	}
+
+	// ==========================================================================
+	// Authentication
+	// ==========================================================================
+
+	/**
+	 * Get the current access token for API requests.
+	 * Priority: API key > OAuth token (with automatic refresh)
+	 */
+	private async getAccessToken(): Promise<string> {
+		// API key takes precedence (simpler, no refresh needed)
+		if (this.apiKey) {
+			return this.apiKey;
+		}
+
+		// Try to get a valid OAuth token
+		if (this.deviceFlowClient) {
+			const token = await this.deviceFlowClient.getValidAccessToken();
+			if (token) {
+				return token;
+			}
+		}
+
+		// Check token cache directly (might have a valid token without needing refresh)
+		if (this.tokenCache) {
+			const token = this.tokenCache.getAccessToken();
+			if (token) {
+				return token;
+			}
+		}
+
+		throw new Error(
+			"No valid authentication token available. Please run device flow authentication.",
+		);
 	}
 
 	// ==========================================================================
@@ -55,9 +110,10 @@ export class EngramCloudClient implements IEngramClient {
 		body?: unknown,
 	): Promise<T> {
 		const url = `${this.baseUrl}${path}`;
+		const token = await this.getAccessToken();
 		const headers: Record<string, string> = {
 			"Content-Type": "application/json",
-			Authorization: `Bearer ${this.apiKey}`,
+			Authorization: `Bearer ${token}`,
 		};
 
 		this.logger.debug({ method, url, body }, "API request");
@@ -69,6 +125,32 @@ export class EngramCloudClient implements IEngramClient {
 		});
 
 		const json = (await response.json()) as ApiResponse<T>;
+
+		// Handle token expiration - try to refresh and retry once
+		if (response.status === 401 && this.deviceFlowClient && !this.apiKey) {
+			this.logger.debug("Access token expired, attempting refresh");
+			const refreshResult = await this.deviceFlowClient.refreshToken();
+			if (refreshResult.success && refreshResult.tokens) {
+				// Retry the request with the new token
+				const retryHeaders: Record<string, string> = {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${refreshResult.tokens.access_token}`,
+				};
+				const retryResponse = await fetch(url, {
+					method,
+					headers: retryHeaders,
+					body: body ? JSON.stringify(body) : undefined,
+				});
+				const retryJson = (await retryResponse.json()) as ApiResponse<T>;
+				if (retryResponse.ok && retryJson.success) {
+					this.logger.debug(
+						{ status: retryResponse.status },
+						"API retry successful after token refresh",
+					);
+					return retryJson.data as T;
+				}
+			}
+		}
 
 		if (!response.ok || !json.success) {
 			const error = json.error ?? { code: "UNKNOWN_ERROR", message: "Request failed" };

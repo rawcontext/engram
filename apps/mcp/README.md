@@ -43,7 +43,7 @@ Connect to Engram Cloud for managed memory storage:
 }
 ```
 
-**Note**: In cloud mode, only `engram_remember` and `engram_recall` tools are available. Resources, prompts, and graph queries require local mode.
+**Note**: In cloud mode, only `remember` and `recall` tools are available. Resources, prompts, and graph queries require local mode.
 
 ### Local Mode
 
@@ -98,7 +98,7 @@ This starts:
 
 ### Core Tools (All Modes)
 
-#### `engram_remember`
+#### `remember`
 
 Store information in long-term memory with optional categorization.
 
@@ -122,7 +122,7 @@ Store information in long-term memory with optional categorization.
 
 **Memory Types**: `decision`, `context`, `insight`, `preference`, `fact`
 
-#### `engram_recall`
+#### `recall`
 
 Search memories using natural language with hybrid semantic/keyword search.
 
@@ -163,7 +163,7 @@ Search memories using natural language with hybrid semantic/keyword search.
 
 These tools leverage the client's LLM via MCP sampling capability. The client must support sampling for these features to work. When unsupported, the tools return `available: false` gracefully.
 
-#### `engram_summarize`
+#### `summarize`
 
 Summarize text using the client's LLM.
 
@@ -175,7 +175,7 @@ Summarize text using the client's LLM.
 }
 ```
 
-#### `engram_extract_facts`
+#### `extract_facts`
 
 Extract key facts from text as a structured list.
 
@@ -186,7 +186,7 @@ Extract key facts from text as a structured list.
 }
 ```
 
-#### `engram_enrich_memory`
+#### `enrich_memory`
 
 Enrich memory with auto-generated summary, keywords, and category.
 
@@ -199,7 +199,7 @@ Enrich memory with auto-generated summary, keywords, and category.
 
 ### Local Mode Tools
 
-#### `engram_query`
+#### `query`
 
 Execute read-only Cypher queries against the knowledge graph. Supports `MATCH`, `OPTIONAL MATCH`, `WITH`, `RETURN`, `ORDER BY`, `LIMIT`, `SKIP`, `WHERE`, `UNWIND`, and `CALL`. Write operations (`CREATE`, `MERGE`, `DELETE`, `SET`, etc.) are blocked.
 
@@ -221,7 +221,7 @@ Execute read-only Cypher queries against the knowledge graph. Supports `MATCH`, 
 }
 ```
 
-#### `engram_context`
+#### `context`
 
 Get comprehensive context for a task by searching memories, file history, and decisions.
 

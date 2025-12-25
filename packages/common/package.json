@@ -9,7 +9,8 @@
 		"./utils": "./src/utils/index.ts",
 		"./errors": "./src/errors/index.ts",
 		"./constants": "./src/constants/index.ts",
-		"./testing": "./src/testing/index.ts"
+		"./testing": "./src/testing/index.ts",
+		"./types": "./src/types/index.ts"
 	},
 	"dependencies": {
 		"@engram/storage": "*",

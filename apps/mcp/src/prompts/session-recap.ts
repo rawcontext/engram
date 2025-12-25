@@ -143,7 +143,6 @@ export function registerRecapPrompt(
 	server.registerPrompt(
 		"session-recap",
 		{
-			title: "Recap Session",
 			description:
 				"Review what happened in a previous session. Returns: session timeline, turns with user/assistant exchanges, files modified, and tool calls made. Use when: resuming work after a break, reviewing what was accomplished yesterday, or understanding context before continuing someone else's work.",
 			argsSchema: {

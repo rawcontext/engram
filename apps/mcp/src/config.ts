@@ -11,6 +11,16 @@ export const LOCAL_DEV_API_KEY = "engram_dev_local_mcp";
  */
 export const LOCAL_API_URL = "http://localhost:6174";
 
+/**
+ * Default Observatory URL (used for OAuth device flow)
+ */
+export const DEFAULT_OBSERVATORY_URL = "http://localhost:6178";
+
+/**
+ * Production Observatory URL
+ */
+export const PRODUCTION_OBSERVATORY_URL = "https://observatory.engram.sh";
+
 export const ConfigSchema = z.object({
 	// Operation mode: cloud (remote API) or local (localhost API)
 	mode: z.enum(["cloud", "local"]).optional(),
@@ -18,6 +28,10 @@ export const ConfigSchema = z.object({
 	// API settings
 	engramApiKey: z.string().optional(),
 	engramApiUrl: z.string().url().optional(),
+
+	// OAuth device flow settings
+	observatoryUrl: z.string().url().optional(),
+	oauthEnabled: z.boolean().default(true),
 
 	// Transport mode
 	transport: z.enum(["stdio", "http"]).default("stdio"),
@@ -91,6 +105,10 @@ export function loadConfig(): Config {
 	const apiKey = process.env.ENGRAM_API_KEY;
 	const isLocalhost = isLocalhostUrl(apiUrl);
 
+	// OAuth settings
+	const oauthEnabled = process.env.ENGRAM_OAUTH_ENABLED !== "false"; // Enabled by default
+	const observatoryUrl = process.env.ENGRAM_OBSERVATORY_URL;
+
 	// Infer mode from URL: localhost = local, remote = cloud
 	let mode: "cloud" | "local";
 	if (explicitMode) {
@@ -103,9 +121,10 @@ export function loadConfig(): Config {
 		mode = "local";
 	}
 
-	// Cloud mode requires explicit API key
-	if (mode === "cloud" && !apiKey) {
-		throw new Error("ENGRAM_API_KEY is required for cloud mode");
+	// Cloud mode requires explicit API key OR OAuth enabled
+	// With OAuth, we can authenticate via device flow without a pre-existing API key
+	if (mode === "cloud" && !apiKey && !oauthEnabled) {
+		throw new Error("Cloud mode requires either ENGRAM_API_KEY or OAuth enabled");
 	}
 
 	// Auth defaults: enabled for cloud, disabled for local
@@ -113,11 +132,23 @@ export function loadConfig(): Config {
 	const authExplicitlySet = process.env.AUTH_ENABLED !== undefined;
 	const authEnabled = authExplicitlySet ? process.env.AUTH_ENABLED === "true" : mode === "cloud";
 
+	// Determine Observatory URL based on mode
+	let resolvedObservatoryUrl: string;
+	if (observatoryUrl) {
+		resolvedObservatoryUrl = observatoryUrl;
+	} else if (mode === "local") {
+		resolvedObservatoryUrl = DEFAULT_OBSERVATORY_URL;
+	} else {
+		resolvedObservatoryUrl = PRODUCTION_OBSERVATORY_URL;
+	}
+
 	const rawConfig = {
 		mode: explicitMode,
-		// Local mode: use defaults, Cloud mode: require explicit values
+		// Local mode: use defaults, Cloud mode: require explicit values or OAuth
 		engramApiKey: apiKey ?? (mode === "local" ? LOCAL_DEV_API_KEY : undefined),
 		engramApiUrl: apiUrl ?? (mode === "local" ? LOCAL_API_URL : undefined),
+		observatoryUrl: resolvedObservatoryUrl,
+		oauthEnabled,
 		transport: process.env.MCP_TRANSPORT ?? "stdio",
 		httpPort: process.env.MCP_HTTP_PORT ? Number.parseInt(process.env.MCP_HTTP_PORT, 10) : 3010,
 		authEnabled,

@@ -4,7 +4,7 @@ import type { SamplingService } from "../capabilities";
 
 export function registerSummarizeTool(server: McpServer, samplingService: SamplingService) {
 	server.registerTool(
-		"engram_summarize",
+		"summarize",
 		{
 			title: "Summarize Text",
 			description:

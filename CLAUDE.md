@@ -104,27 +104,27 @@ Parsers in `packages/parser/src/providers/`: Anthropic, OpenAI, Gemini, Claude C
 
 | Tool | Purpose | When to Use Proactively |
 |------|---------|------------------------|
-| `engram_remember` | Persist valuable information to long-term memory | When learning user preferences, architectural decisions, project conventions, debugging insights |
-| `engram_recall` | Search memories using semantic similarity | At session start to prime with prior knowledge; before making decisions to check for existing rationale |
-| `engram_context` | Assemble comprehensive context (memories + decisions + file history) | At the START of complex tasks; more thorough than recall alone |
-| `engram_query` | Execute read-only Cypher queries (local mode) | When semantic search can't handle complex lookups (date ranges, relationships, counts) |
-| `engram_summarize` | Condense text using client LLM | Before storing memories; to compress verbose logs or context |
-| `engram_extract_facts` | Parse unstructured text into atomic facts | Before `engram_remember` when processing docs, logs, or chat history |
-| `engram_enrich_memory` | Auto-generate summary, keywords, category | Before `engram_remember` - use output to set type and tags |
+| `remember` | Persist valuable information to long-term memory | When learning user preferences, architectural decisions, project conventions, debugging insights |
+| `recall` | Search memories using semantic similarity | At session start to prime with prior knowledge; before making decisions to check for existing rationale |
+| `context` | Assemble comprehensive context (memories + decisions + file history) | At the START of complex tasks; more thorough than recall alone |
+| `query` | Execute read-only Cypher queries (local mode) | When semantic search can't handle complex lookups (date ranges, relationships, counts) |
+| `summarize` | Condense text using client LLM | Before storing memories; to compress verbose logs or context |
+| `extract_facts` | Parse unstructured text into atomic facts | Before `remember` when processing docs, logs, or chat history |
+| `enrich_memory` | Auto-generate summary, keywords, category | Before `remember` - use output to set type and tags |
 
 **Resources (local mode)**: `memory://{id}`, `session://{id}/transcript`, `file-history://{path}`
 
 **Prompts (local mode)**: `/e prime` (initialize session), `/e recap` (review past session), `/e why` (find past decisions)
 
-**Sampling-Required Tools**: `engram_summarize`, `engram_extract_facts`, and `engram_enrich_memory` require the MCP client to support **sampling capability** (server requesting LLM completions from the client). If unsupported, these tools return `available: false` gracefully.
+**Sampling-Required Tools**: `summarize`, `extract_facts`, and `enrich_memory` require the MCP client to support **sampling capability** (server requesting LLM completions from the client). If unsupported, these tools return `available: false` gracefully.
 
 ## Engram Memory Triggers
 
 ### ALWAYS Recall Before:
-- Starting any non-trivial task → `engram_context(task)`
-- Making architectural or design decisions → `engram_recall("decisions about X", type='decision')`
-- Working on files modified in previous sessions → include in `engram_context(task, files=[...])`
-- When user says "remember", "before", "last time", "we decided" → `engram_recall(query)`
+- Starting any non-trivial task → `context(task)`
+- Making architectural or design decisions → `recall("decisions about X", type='decision')`
+- Working on files modified in previous sessions → include in `context(task, files=[...])`
+- When user says "remember", "before", "last time", "we decided" → `recall(query)`
 
 ### ALWAYS Remember When:
 - User expresses a preference ("I prefer...", "always use...", "never...") → `type: 'preference'`
@@ -142,15 +142,15 @@ Parsers in `packages/parser/src/providers/`: Anthropic, OpenAI, Gemini, Claude C
 
 | Trigger | Action |
 |---------|--------|
-| Starting a task | `engram_context(task, files, depth='medium')` |
-| User says "remember when..." | `engram_recall(query, filters={type: 'turn'})` |
-| Before making a decision | `engram_recall("decisions about X", filters={type: 'decision'})` |
-| Learn user preference | `engram_remember(content, type='preference', tags=[...])` |
-| Make architectural choice | `engram_remember(content, type='decision', tags=[...])` |
-| Debug discovery | `engram_remember(content, type='insight', tags=[...])` |
-| Processing verbose content | `engram_extract_facts(text)` → `engram_remember` each fact |
+| Starting a task | `context(task, files, depth='medium')` |
+| User says "remember when..." | `recall(query, filters={type: 'turn'})` |
+| Before making a decision | `recall("decisions about X", filters={type: 'decision'})` |
+| Learn user preference | `remember(content, type='preference', tags=[...])` |
+| Make architectural choice | `remember(content, type='decision', tags=[...])` |
+| Debug discovery | `remember(content, type='insight', tags=[...])` |
+| Processing verbose content | `extract_facts(text)` → `remember` each fact |
 
-### Graph Schema (for `engram_query`)
+### Graph Schema (for `query`)
 - **`Memory`**: `content`, `type`, `tags`, `project`, `vt_start`, `vt_end`
 - **`Session`**: `id`, `agent_type`, `working_dir`, `summary`
 - **`Turn`**: `user_content`, `assistant_preview`, `files_touched`, `tool_calls_count`

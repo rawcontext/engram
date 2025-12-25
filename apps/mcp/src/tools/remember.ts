@@ -9,7 +9,7 @@ export function registerRememberTool(
 	getSessionContext: () => { sessionId?: string; workingDir?: string; project?: string },
 ) {
 	server.registerTool(
-		"engram_remember",
+		"remember",
 		{
 			title: "Remember",
 			description:

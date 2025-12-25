@@ -55,7 +55,7 @@ function isReadOnlyCypher(cypher: string): { valid: boolean; reason?: string } {
 
 export function registerQueryTool(server: McpServer, client: IEngramClient) {
 	server.registerTool(
-		"engram_query",
+		"query",
 		{
 			title: "Query Graph",
 			description:
