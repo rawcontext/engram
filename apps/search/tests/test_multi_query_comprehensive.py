@@ -29,17 +29,27 @@ class MockRetriever:
         # Return different results for different queries
         if "original" in query.text.lower():
             return [
-                SearchResultItem(id="doc1", score=0.9, payload={"content": "result from original query"}),
-                SearchResultItem(id="doc2", score=0.8, payload={"content": "second result from original"}),
+                SearchResultItem(
+                    id="doc1", score=0.9, payload={"content": "result from original query"}
+                ),
+                SearchResultItem(
+                    id="doc2", score=0.8, payload={"content": "second result from original"}
+                ),
             ]
         elif "paraphrase" in query.text.lower():
             return [
-                SearchResultItem(id="doc2", score=0.85, payload={"content": "result from paraphrased query"}),
-                SearchResultItem(id="doc3", score=0.75, payload={"content": "another paraphrase result"}),
+                SearchResultItem(
+                    id="doc2", score=0.85, payload={"content": "result from paraphrased query"}
+                ),
+                SearchResultItem(
+                    id="doc3", score=0.75, payload={"content": "another paraphrase result"}
+                ),
             ]
         elif "keyword" in query.text.lower():
             return [
-                SearchResultItem(id="doc1", score=0.88, payload={"content": "result from keyword query"}),
+                SearchResultItem(
+                    id="doc1", score=0.88, payload={"content": "result from keyword query"}
+                ),
                 SearchResultItem(id="doc4", score=0.70, payload={"content": "keyword result"}),
             ]
         else:
@@ -62,7 +72,10 @@ class TestMultiQueryConfig:
     def test_config_custom_values(self) -> None:
         """Test that MultiQueryConfig accepts custom values."""
         config = MultiQueryConfig(
-            num_variations=5, strategies=["paraphrase", "decompose"], include_original=False, rrf_k=100
+            num_variations=5,
+            strategies=["paraphrase", "decompose"],
+            include_original=False,
+            rrf_k=100,
         )
         assert config.num_variations == 5
         assert config.strategies == ["paraphrase", "decompose"]
@@ -79,10 +92,10 @@ class TestMultiQueryConfig:
         assert config.num_variations == 10
 
         # Outside range should raise validation error
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             MultiQueryConfig(num_variations=0)
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             MultiQueryConfig(num_variations=11)
 
     def test_config_validation_rrf_k(self) -> None:
@@ -101,7 +114,9 @@ class TestRRFFusion:
     def test_rrf_fusion_basic(self) -> None:
         """Test RRF fusion logic."""
         mock_retriever = MockRetriever()
-        multi_retriever = MultiQueryRetriever(base_retriever=mock_retriever, config=MultiQueryConfig(rrf_k=60))
+        multi_retriever = MultiQueryRetriever(
+            base_retriever=mock_retriever, config=MultiQueryConfig(rrf_k=60)
+        )
 
         # Create mock result sets with some overlap
         result_sets = [
@@ -135,7 +150,9 @@ class TestRRFFusion:
         """Test RRF score calculation formula."""
         mock_retriever = MockRetriever()
         k = 60
-        multi_retriever = MultiQueryRetriever(base_retriever=mock_retriever, config=MultiQueryConfig(rrf_k=k))
+        multi_retriever = MultiQueryRetriever(
+            base_retriever=mock_retriever, config=MultiQueryConfig(rrf_k=k)
+        )
 
         # Single result set to verify calculation
         result_sets = [
@@ -159,11 +176,19 @@ class TestRRFFusion:
     def test_rrf_fusion_overlap_boost(self) -> None:
         """Test that overlapping documents get boosted RRF scores."""
         mock_retriever = MockRetriever()
-        multi_retriever = MultiQueryRetriever(base_retriever=mock_retriever, config=MultiQueryConfig(rrf_k=60))
+        multi_retriever = MultiQueryRetriever(
+            base_retriever=mock_retriever, config=MultiQueryConfig(rrf_k=60)
+        )
 
         result_sets = [
-            [SearchResultItem(id="overlap", score=0.9, payload={}), SearchResultItem(id="unique1", score=0.8, payload={})],
-            [SearchResultItem(id="overlap", score=0.85, payload={}), SearchResultItem(id="unique2", score=0.75, payload={})],
+            [
+                SearchResultItem(id="overlap", score=0.9, payload={}),
+                SearchResultItem(id="unique1", score=0.8, payload={}),
+            ],
+            [
+                SearchResultItem(id="overlap", score=0.85, payload={}),
+                SearchResultItem(id="unique2", score=0.75, payload={}),
+            ],
         ]
 
         fused = multi_retriever.rrf_fusion(result_sets, top_k=5)
@@ -264,7 +289,9 @@ class TestQueryExpansion:
     def test_build_expansion_prompt_all_strategies(self) -> None:
         """Test expansion prompt with all strategies."""
         mock_retriever = MockRetriever()
-        config = MultiQueryConfig(num_variations=4, strategies=["paraphrase", "keyword", "stepback", "decompose"])
+        config = MultiQueryConfig(
+            num_variations=4, strategies=["paraphrase", "keyword", "stepback", "decompose"]
+        )
         multi_retriever = MultiQueryRetriever(base_retriever=mock_retriever, config=config)
 
         prompt = multi_retriever._build_expansion_prompt("complex query")
@@ -281,7 +308,8 @@ class TestQueryExpansion:
         """Test successful query expansion with LLM."""
         mock_retriever = MockRetriever()
         multi_retriever = MultiQueryRetriever(
-            base_retriever=mock_retriever, config=MultiQueryConfig(include_original=True, num_variations=3)
+            base_retriever=mock_retriever,
+            config=MultiQueryConfig(include_original=True, num_variations=3),
         )
 
         # Mock LLM response
@@ -316,7 +344,8 @@ class TestQueryExpansion:
         """Test query expansion without including original."""
         mock_retriever = MockRetriever()
         multi_retriever = MultiQueryRetriever(
-            base_retriever=mock_retriever, config=MultiQueryConfig(include_original=False, num_variations=2)
+            base_retriever=mock_retriever,
+            config=MultiQueryConfig(include_original=False, num_variations=2),
         )
 
         mock_response = MagicMock()
@@ -357,7 +386,9 @@ class TestQueryExpansion:
         mock_retriever = MockRetriever()
         multi_retriever = MultiQueryRetriever(base_retriever=mock_retriever)
 
-        with patch("src.retrieval.multi_query.litellm.acompletion", side_effect=Exception("LLM API failed")):
+        with patch(
+            "src.retrieval.multi_query.litellm.acompletion", side_effect=Exception("LLM API failed")
+        ):
             variations = await multi_retriever.expand_query("test query")
 
         # Should return original query only
@@ -400,7 +431,8 @@ class TestQueryExpansion:
         """Test that expansion respects num_variations limit."""
         mock_retriever = MockRetriever()
         multi_retriever = MultiQueryRetriever(
-            base_retriever=mock_retriever, config=MultiQueryConfig(include_original=False, num_variations=2)
+            base_retriever=mock_retriever,
+            config=MultiQueryConfig(include_original=False, num_variations=2),
         )
 
         # Return more queries than num_variations
@@ -408,7 +440,9 @@ class TestQueryExpansion:
         mock_response.choices = [
             MagicMock(
                 message=MagicMock(
-                    content=json.dumps({"queries": ["query 1", "query 2", "query 3", "query 4", "query 5"]})
+                    content=json.dumps(
+                        {"queries": ["query 1", "query 2", "query 3", "query 4", "query 5"]}
+                    )
                 )
             )
         ]
@@ -429,7 +463,8 @@ class TestMultiQuerySearch:
         """Test basic multi-query search."""
         mock_retriever = MockRetriever()
         multi_retriever = MultiQueryRetriever(
-            base_retriever=mock_retriever, config=MultiQueryConfig(include_original=True, num_variations=2)
+            base_retriever=mock_retriever,
+            config=MultiQueryConfig(include_original=True, num_variations=2),
         )
 
         # Mock query expansion
@@ -575,7 +610,9 @@ class TestUsageTracking:
 
         # Mock LLM response with usage
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content=json.dumps({"queries": ["q1", "q2"]})))]
+        mock_response.choices = [
+            MagicMock(message=MagicMock(content=json.dumps({"queries": ["q1", "q2"]})))
+        ]
         mock_response.usage = MagicMock(total_tokens=1000, prompt_tokens=500, completion_tokens=500)
 
         with patch("src.retrieval.multi_query.litellm.acompletion", return_value=mock_response):
@@ -611,7 +648,9 @@ class TestUsageTracking:
         multi_retriever = MultiQueryRetriever(base_retriever=mock_retriever)
 
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content=json.dumps({"queries": ["q1"]})))]
+        mock_response.choices = [
+            MagicMock(message=MagicMock(content=json.dumps({"queries": ["q1"]})))
+        ]
         mock_response.usage = MagicMock(total_tokens=500, prompt_tokens=250, completion_tokens=250)
 
         with patch("src.retrieval.multi_query.litellm.acompletion", return_value=mock_response):
@@ -638,7 +677,9 @@ class TestMultiQueryRetrieverInit:
         """Test initialization with custom config."""
         mock_retriever = MockRetriever()
         config = MultiQueryConfig(num_variations=5, strategies=["paraphrase"])
-        multi_retriever = MultiQueryRetriever(base_retriever=mock_retriever, config=config, model="gpt-4")
+        multi_retriever = MultiQueryRetriever(
+            base_retriever=mock_retriever, config=config, model="gpt-4"
+        )
 
         assert multi_retriever.config.num_variations == 5
         assert multi_retriever.model == "gpt-4"

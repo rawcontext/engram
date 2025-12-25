@@ -14,6 +14,32 @@ logger = logging.getLogger(__name__)
 
 
 # Pre-defined collection schemas
+def get_memory_collection_schema(collection_name: str = "engram_memory") -> "CollectionSchema":
+    """Get schema for memory node indexing.
+
+    Memory indexing stores explicit memories (decisions, facts, preferences, etc.)
+    for semantic recall via the MCP remember/recall tools.
+
+    Args:
+        collection_name: Name for the collection (default: engram_memory)
+
+    Returns:
+        CollectionSchema configured for memory documents with:
+        - text_dense: BGE-small dense vectors (384 dims) - matches search retriever
+        - text_sparse: SPLADE sparse vectors - matches search retriever
+    """
+    return CollectionSchema(
+        collection_name=collection_name,
+        dense_vector_size=384,  # BGE-small-en-v1.5
+        dense_vector_name="text_dense",  # Match search retriever expectations
+        sparse_vector_name="text_sparse",  # Match search retriever expectations
+        colbert_vector_name="text_colbert",
+        colbert_vector_size=128,
+        enable_colbert=False,  # Simpler for memories, ColBERT not needed
+        distance=Distance.COSINE,
+    )
+
+
 def get_turns_collection_schema(collection_name: str = "engram_turns") -> "CollectionSchema":
     """Get schema for turn-level conversation indexing.
 

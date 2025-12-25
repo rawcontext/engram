@@ -101,7 +101,7 @@ class TestBaseEmbedder:
         """Test device defaults to CPU when torch is not available."""
         with patch("src.embedders.base.TORCH_AVAILABLE", False):
             # Need to re-import or mock at the right level
-            embedder = ConcreteEmbedder(model_name="test", device="cuda")
+            ConcreteEmbedder(model_name="test", device="cuda")
             # When torch is not available, _get_device returns "cpu"
             # But since we're not reimporting, this test may not work as expected
             # The main thing is it doesn't crash
@@ -247,7 +247,6 @@ class TestBaseEmbedder:
     def test_del_shuts_down_executor(self) -> None:
         """Test that __del__ shuts down the executor."""
         embedder = ConcreteEmbedder(model_name="test")
-        executor = embedder._executor
 
         del embedder
 

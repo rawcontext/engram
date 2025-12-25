@@ -271,7 +271,9 @@ class TestApiKeyAuthValidate:
         """Test that connect creates a database pool."""
         mock_pool = MagicMock()
 
-        with patch("src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
+        with patch(
+            "src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock
+        ) as mock_create_pool:
             mock_create_pool.return_value = mock_pool
 
             await auth_handler.connect()
@@ -280,14 +282,14 @@ class TestApiKeyAuthValidate:
             assert auth_handler._pool == mock_pool
 
     @pytest.mark.asyncio
-    async def test_connect_noop_when_already_connected(
-        self, auth_handler: ApiKeyAuth
-    ) -> None:
+    async def test_connect_noop_when_already_connected(self, auth_handler: ApiKeyAuth) -> None:
         """Test that connect does nothing when already connected."""
         mock_pool = MagicMock()
         auth_handler._pool = mock_pool
 
-        with patch("src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
+        with patch(
+            "src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock
+        ) as mock_create_pool:
             await auth_handler.connect()
             mock_create_pool.assert_not_called()
 
@@ -311,7 +313,9 @@ class TestApiKeyAuthValidate:
         valid_key = "engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         mock_pool, mock_conn = mock_pool_with_conn
 
-        with patch("src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
+        with patch(
+            "src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock
+        ) as mock_create_pool:
             mock_create_pool.return_value = mock_pool
 
             result = await auth_handler.validate(valid_key)

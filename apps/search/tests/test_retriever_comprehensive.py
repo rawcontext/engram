@@ -120,7 +120,9 @@ class TestSearchRetrieverDense:
         mock_response.points = [mock_result]
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
-        query = SearchQuery(text="test query", limit=10, strategy=SearchStrategy.DENSE, rerank=False)
+        query = SearchQuery(
+            text="test query", limit=10, strategy=SearchStrategy.DENSE, rerank=False
+        )
         results = await retriever.search(query)
 
         assert len(results) == 1
@@ -167,7 +169,11 @@ class TestSearchRetrieverDense:
 
         custom_threshold = 0.8
         query = SearchQuery(
-            text="test", limit=10, strategy=SearchStrategy.DENSE, threshold=custom_threshold, rerank=False
+            text="test",
+            limit=10,
+            strategy=SearchStrategy.DENSE,
+            threshold=custom_threshold,
+            rerank=False,
         )
         await retriever.search(query)
 
@@ -191,7 +197,9 @@ class TestSearchRetrieverSparse:
         mock_response.points = [mock_result]
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
-        query = SearchQuery(text="exact keyword search", limit=5, strategy=SearchStrategy.SPARSE, rerank=False)
+        query = SearchQuery(
+            text="exact keyword search", limit=5, strategy=SearchStrategy.SPARSE, rerank=False
+        )
         results = await retriever.search(query)
 
         assert len(results) == 1
@@ -241,7 +249,10 @@ class TestSearchRetrieverHybrid:
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
         query = SearchQuery(
-            text="semantic and keyword search", limit=10, strategy=SearchStrategy.HYBRID, rerank=False
+            text="semantic and keyword search",
+            limit=10,
+            strategy=SearchStrategy.HYBRID,
+            rerank=False,
         )
         results = await retriever.search(query)
 
@@ -324,7 +335,9 @@ class TestSearchRetrieverReranking:
         ]
         mock_reranker_router.rerank = AsyncMock(return_value=(reranked_results, "fast", False))
 
-        query = SearchQuery(text="test query", limit=3, rerank=True, rerank_tier="fast", rerank_depth=10)
+        query = SearchQuery(
+            text="test query", limit=3, rerank=True, rerank_tier="fast", rerank_depth=10
+        )
         results = await retriever.search(query)
 
         mock_reranker_router.rerank.assert_called_once()
@@ -413,7 +426,9 @@ class TestSearchRetrieverReranking:
 
         # Simulate degraded reranking (tier downgrade)
         reranked = [MagicMock(original_index=0, score=0.95)]
-        mock_reranker_router.rerank = AsyncMock(return_value=(reranked, "fast", True))  # degraded=True
+        mock_reranker_router.rerank = AsyncMock(
+            return_value=(reranked, "fast", True)
+        )  # degraded=True
 
         query = SearchQuery(text="test", limit=5, rerank=True, rerank_tier="accurate")
         results = await retriever.search(query)
@@ -466,6 +481,7 @@ class TestSearchRetrieverTurns:
 
         assert len(results) == 1
         assert results[0].id == "turn-1"
+
 
 class TestSearchRetrieverAggregation:
     """Test result aggregation and deduplication."""
@@ -536,7 +552,9 @@ class TestSearchRetrieverAggregation:
         """Test deduplication by content similarity."""
         results = [
             SearchResultItem(id="1", score=0.95, payload={"content": "This is test content"}),
-            SearchResultItem(id="2", score=0.90, payload={"content": "This is test content"}),  # Same content
+            SearchResultItem(
+                id="2", score=0.90, payload={"content": "This is test content"}
+            ),  # Same content
             SearchResultItem(id="3", score=0.85, payload={"content": "Different content"}),
         ]
 
@@ -680,12 +698,14 @@ class TestSearchRetrieverEdgeCases:
     ) -> None:
         """Test search handles Qdrant errors gracefully."""
         # Make Qdrant client throw an exception
-        mock_qdrant_client.client.query_points = AsyncMock(side_effect=Exception("Qdrant connection failed"))
+        mock_qdrant_client.client.query_points = AsyncMock(
+            side_effect=RuntimeError("Qdrant connection failed")
+        )
 
         query = SearchQuery(text="test", limit=10, strategy=SearchStrategy.DENSE, rerank=False)
 
         # Should raise the exception (error handling is at API level)
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             await retriever.search(query)
 
     @pytest.mark.asyncio
@@ -723,7 +743,9 @@ class TestSearchRetrieverEdgeCases:
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
         # Query without explicit strategy - should use classifier
-        query = SearchQuery(text="how do I implement this feature?", limit=5, strategy=None, rerank=False)
+        query = SearchQuery(
+            text="how do I implement this feature?", limit=5, strategy=None, rerank=False
+        )
         await retriever.search(query)
 
         # Verify search was called (strategy was determined)

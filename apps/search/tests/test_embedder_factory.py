@@ -292,15 +292,9 @@ class TestEmbedderFactory:
         # Code embedder will fail to be created
         with (
             patch.object(factory, "get_text_embedder", return_value=mock_text),
-            patch.object(
-                factory, "get_code_embedder", side_effect=ImportError("No local deps")
-            ),
-            patch.object(
-                factory, "get_sparse_embedder", side_effect=ImportError("No local deps")
-            ),
-            patch.object(
-                factory, "get_colbert_embedder", side_effect=ImportError("No local deps")
-            ),
+            patch.object(factory, "get_code_embedder", side_effect=ImportError("No local deps")),
+            patch.object(factory, "get_sparse_embedder", side_effect=ImportError("No local deps")),
+            patch.object(factory, "get_colbert_embedder", side_effect=ImportError("No local deps")),
         ):
             await factory.preload_all()
 
@@ -308,9 +302,7 @@ class TestEmbedderFactory:
             mock_text.load.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_preload_all_with_load_failure(
-        self, factory: EmbedderFactory
-    ) -> None:
+    async def test_preload_all_with_load_failure(self, factory: EmbedderFactory) -> None:
         """Test preload_all handles failures when loading embedders."""
         mock_text = MagicMock()
         mock_text.load = AsyncMock()
@@ -326,12 +318,8 @@ class TestEmbedderFactory:
         with (
             patch.object(factory, "get_text_embedder", return_value=mock_text),
             patch.object(factory, "get_code_embedder", return_value=mock_code),
-            patch.object(
-                factory, "get_sparse_embedder", side_effect=ImportError("No local deps")
-            ),
-            patch.object(
-                factory, "get_colbert_embedder", side_effect=ImportError("No local deps")
-            ),
+            patch.object(factory, "get_sparse_embedder", side_effect=ImportError("No local deps")),
+            patch.object(factory, "get_colbert_embedder", side_effect=ImportError("No local deps")),
         ):
             await factory.preload_all()
 
@@ -363,9 +351,7 @@ class TestEmbedderFactory:
         assert len(factory._embedders) == 0
 
     @pytest.mark.asyncio
-    async def test_concurrent_get_text_embedder(
-        self, factory: EmbedderFactory
-    ) -> None:
+    async def test_concurrent_get_text_embedder(self, factory: EmbedderFactory) -> None:
         """Test concurrent calls to get_text_embedder return same instance."""
         import asyncio
 

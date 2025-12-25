@@ -160,9 +160,7 @@ class TestRerank:
             )
 
             # Verify top_k was passed to reranker
-            mock_reranker.rerank_async.assert_called_once_with(
-                SAMPLE_QUERY, SAMPLE_DOCS, 1
-            )
+            mock_reranker.rerank_async.assert_called_once_with(SAMPLE_QUERY, SAMPLE_DOCS, 1)
 
     async def test_rerank_with_custom_timeout(self, mock_settings) -> None:
         """Test reranking with custom timeout."""
@@ -174,9 +172,7 @@ class TestRerank:
             mock_load.return_value = mock_reranker
 
             router = RerankerRouter(settings=mock_settings)
-            await router.rerank(
-                SAMPLE_QUERY, SAMPLE_DOCS[:1], tier="fast", timeout_ms=1000
-            )
+            await router.rerank(SAMPLE_QUERY, SAMPLE_DOCS[:1], tier="fast", timeout_ms=1000)
 
             # Timeout should be used (verified implicitly by no timeout error)
             assert True
@@ -185,6 +181,7 @@ class TestRerank:
         """Test reranking returns default scores on timeout without fallback."""
         with patch.object(RerankerRouter, "_load_reranker") as mock_load:
             mock_reranker = MagicMock()
+
             # Make it sleep longer than timeout
             async def slow_rerank(*args, **kwargs):
                 await asyncio.sleep(10)
@@ -331,9 +328,7 @@ class TestRerankBatch:
             queries = ["query1", "query2"]
             docs_batch = [SAMPLE_DOCS[:1], SAMPLE_DOCS[:1]]
 
-            results = await router.rerank_batch(
-                queries, docs_batch, tier="fast", timeout_ms=5000
-            )
+            results = await router.rerank_batch(queries, docs_batch, tier="fast", timeout_ms=5000)
 
             assert len(results) == 2
             assert all(len(r[0]) == 1 for r in results)
@@ -353,9 +348,7 @@ class TestRerankBatch:
             queries = ["query1"]
             docs_batch = [SAMPLE_DOCS]
 
-            results = await router.rerank_batch(
-                queries, docs_batch, tier="fast", top_k=1
-            )
+            results = await router.rerank_batch(queries, docs_batch, tier="fast", top_k=1)
 
             assert len(results) == 1
 
@@ -495,9 +488,7 @@ class TestEdgeCases:
             mock_load.return_value = mock_reranker
 
             router = RerankerRouter(settings=mock_settings)
-            results, tier, degraded = await router.rerank(
-                SAMPLE_QUERY, ["single doc"], tier="fast"
-            )
+            results, tier, degraded = await router.rerank(SAMPLE_QUERY, ["single doc"], tier="fast")
 
             assert len(results) == 1
             assert not degraded

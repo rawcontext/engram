@@ -587,7 +587,6 @@ class SearchRetriever:
     async def search_turns(
         self,
         query: SearchQuery,
-        fallback_to_legacy: bool = True,
     ) -> list[SearchResultItem]:
         """Search the engram_turns collection for complete conversation turns.
 
@@ -597,7 +596,6 @@ class SearchRetriever:
 
         Args:
             query: Search query with retrieval parameters.
-            fallback_to_legacy: If True, fall back to engram_memory on empty results.
 
         Returns:
             List of search result items sorted by relevance.
@@ -656,15 +654,8 @@ class SearchRetriever:
                 f"fetch_limit={fetch_limit}"
             )
 
-            # Fallback to legacy collection if no results
-            if not raw_results and fallback_to_legacy:
-                logger.info("No turns results, falling back to legacy collection")
-                return await self.search(query)
-
         except Exception as e:
-            logger.warning(f"Turn search failed, falling back to legacy: {e}")
-            if fallback_to_legacy:
-                return await self.search(query)
+            logger.error(f"Turn search failed: {e}")
             raise
 
         # Apply reranking if enabled

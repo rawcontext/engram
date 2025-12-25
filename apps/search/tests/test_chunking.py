@@ -234,9 +234,7 @@ class TestLateChunker:
         result = chunker.embed_and_chunk("text", [])
         assert result == []
 
-    def test_embed_and_chunk_success(
-        self, chunker: LateChunker, mock_model: MagicMock
-    ) -> None:
+    def test_embed_and_chunk_success(self, chunker: LateChunker, mock_model: MagicMock) -> None:
         """Test embed_and_chunk returns proper results."""
         # Mock successful embedding
         mock_model.tokenize.return_value = {
@@ -254,9 +252,7 @@ class TestLateChunker:
         assert result[0].text == "Hello"
         assert result[1].text == "World"
 
-    def test_pool_tokens_invalid_range(
-        self, chunker: LateChunker
-    ) -> None:
+    def test_pool_tokens_invalid_range(self, chunker: LateChunker) -> None:
         """Test _pool_tokens with invalid range falls back to mean."""
         token_embeddings = torch.randn(10, 384)
         result = chunker._pool_tokens(token_embeddings, 5, 3)  # Invalid: start > end
@@ -283,9 +279,7 @@ class TestLateChunker:
         # Without normalization, mean of ones should be 1.0
         assert result.mean() == pytest.approx(1.0)
 
-    def test_fallback_embed_success(
-        self, chunker: LateChunker, mock_model: MagicMock
-    ) -> None:
+    def test_fallback_embed_success(self, chunker: LateChunker, mock_model: MagicMock) -> None:
         """Test _fallback_embed succeeds."""
         mock_model.encode.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
 
@@ -294,9 +288,7 @@ class TestLateChunker:
         assert len(result) == 2
         mock_model.encode.assert_called_once()
 
-    def test_fallback_embed_failure(
-        self, chunker: LateChunker, mock_model: MagicMock
-    ) -> None:
+    def test_fallback_embed_failure(self, chunker: LateChunker, mock_model: MagicMock) -> None:
         """Test _fallback_embed returns zeros on failure."""
         mock_model.encode.side_effect = Exception("Encode failed")
         mock_model.get_sentence_embedding_dimension.return_value = 384
@@ -424,9 +416,7 @@ class TestSemanticChunker:
         self, chunker: SemanticChunker, mock_embedder: MagicMock
     ) -> None:
         """Test that chunker finds semantic breakpoints."""
-        config = ChunkingConfig(
-            similarity_threshold=0.5, max_chunk_chars=1000, min_chunk_chars=10
-        )
+        config = ChunkingConfig(similarity_threshold=0.5, max_chunk_chars=1000, min_chunk_chars=10)
         chunker = SemanticChunker(mock_embedder, config)
 
         # Embeddings with low similarity between 2nd and 3rd
@@ -503,9 +493,7 @@ class TestSemanticChunker:
         result = chunker._balance_chunk_sizes([])
         assert result == []
 
-    def test_balance_chunk_sizes_merges_small(
-        self, mock_embedder: MagicMock
-    ) -> None:
+    def test_balance_chunk_sizes_merges_small(self, mock_embedder: MagicMock) -> None:
         """Test that small chunks get merged."""
         config = ChunkingConfig(min_chunk_chars=50, max_chunk_chars=200)
         chunker = SemanticChunker(mock_embedder, config)
@@ -518,9 +506,7 @@ class TestSemanticChunker:
         assert "Short" in result[0]
         assert "Also short" in result[0]
 
-    def test_balance_chunk_sizes_splits_large(
-        self, mock_embedder: MagicMock
-    ) -> None:
+    def test_balance_chunk_sizes_splits_large(self, mock_embedder: MagicMock) -> None:
         """Test that large chunks get split when possible."""
         config = ChunkingConfig(min_chunk_chars=10, max_chunk_chars=100)
         chunker = SemanticChunker(mock_embedder, config)
@@ -574,9 +560,7 @@ class TestSemanticChunker:
         assert await chunker.should_chunk(long_text) is True
 
     @pytest.mark.asyncio
-    async def test_find_breakpoints_single_sentence(
-        self, chunker: SemanticChunker
-    ) -> None:
+    async def test_find_breakpoints_single_sentence(self, chunker: SemanticChunker) -> None:
         """Test _find_breakpoints with single sentence."""
         breakpoints = await chunker._find_breakpoints(["Only one sentence"])
         assert breakpoints == [0, 1]
@@ -600,9 +584,7 @@ class TestSemanticChunker:
         assert "__CODE_BLOCK_0__" not in call_args
 
     @pytest.mark.asyncio
-    async def test_chunk_single_sentence_long_text(
-        self, mock_embedder: MagicMock
-    ) -> None:
+    async def test_chunk_single_sentence_long_text(self, mock_embedder: MagicMock) -> None:
         """Test chunking text with single long sentence."""
         config = ChunkingConfig(max_chunk_chars=50)
         chunker = SemanticChunker(mock_embedder, config)

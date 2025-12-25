@@ -598,9 +598,7 @@ class TestMemoryEventConsumer:
     ) -> None:
         """Test heartbeat loop handles NATS pub/sub errors gracefully."""
         mock_nats_pubsub = MagicMock()
-        mock_nats_pubsub.publish_consumer_status = AsyncMock(
-            side_effect=Exception("NATS error")
-        )
+        mock_nats_pubsub.publish_consumer_status = AsyncMock(side_effect=Exception("NATS error"))
 
         consumer = MemoryEventConsumer(
             nats_client=mock_nats_client,

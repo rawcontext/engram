@@ -24,7 +24,7 @@ from src.rerankers import RerankerRouter
 from src.retrieval import SearchRetriever
 from src.retrieval.multi_query import MultiQueryRetriever
 from src.retrieval.session import SessionAwareRetriever
-from src.services import SchemaManager, get_turns_collection_schema
+from src.services import SchemaManager, get_memory_collection_schema, get_turns_collection_schema
 from src.utils.logging import configure_logging, get_logger
 from src.utils.metrics import SERVICE_INFO
 from src.utils.tracing import TracingMiddleware
@@ -91,19 +91,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app.state.qdrant = qdrant_client
         logger.info("Qdrant client initialized successfully")
 
-        # Check if legacy collection exists
-        collection_info = await qdrant_client.get_collection_info()
-        if collection_info:
-            logger.info(
-                f"Collection '{settings.qdrant_collection}' exists with "
-                f"{collection_info.points_count} points"
-            )
-        else:
-            logger.warning(
-                f"Collection '{settings.qdrant_collection}' does not exist yet. "
-                "It will be created when first indexing occurs."
-            )
-
         # Ensure engram_turns collection exists for turn-level indexing
         schema_manager = SchemaManager(qdrant_client, settings)
         turns_schema = get_turns_collection_schema(settings.qdrant_collection)
@@ -112,6 +99,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info(
                 f"Created turns collection '{settings.qdrant_collection}' "
                 f"with 384-dim dense, sparse, and ColBERT vectors"
+            )
+
+        # Ensure engram_memory collection exists for memory indexing
+        memory_schema = get_memory_collection_schema("engram_memory")
+        memory_created = await schema_manager.ensure_collection(memory_schema)
+        if memory_created:
+            logger.info(
+                "Created memory collection 'engram_memory' with 384-dim dense and sparse vectors"
             )
         app.state.schema_manager = schema_manager
 

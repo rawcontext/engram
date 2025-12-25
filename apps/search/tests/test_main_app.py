@@ -550,25 +550,31 @@ class TestLifespanWithConsumer:
         mock_session_retriever,
         mock_settings_consumer_disabled,
     ) -> None:
-        """Test lifespan creates turns collection."""
+        """Test lifespan creates turns and memory collections."""
         with (
             patch("src.main.SchemaManager") as mock_manager_cls,
-            patch("src.main.get_turns_collection_schema") as mock_schema_fn,
+            patch("src.main.get_turns_collection_schema") as mock_turns_schema_fn,
+            patch("src.main.get_memory_collection_schema") as mock_memory_schema_fn,
         ):
             mock_manager = MagicMock()
             mock_manager.ensure_collection = AsyncMock(return_value=True)
             mock_manager_cls.return_value = mock_manager
 
-            mock_schema = MagicMock()
-            mock_schema_fn.return_value = mock_schema
+            mock_turns_schema = MagicMock()
+            mock_turns_schema_fn.return_value = mock_turns_schema
+
+            mock_memory_schema = MagicMock()
+            mock_memory_schema_fn.return_value = mock_memory_schema
 
             app = FastAPI()
 
             async with lifespan(app):
                 pass
 
-            # Should call ensure_collection
-            mock_manager.ensure_collection.assert_called_once_with(mock_schema)
+            # Should call ensure_collection for both turns and memory collections
+            assert mock_manager.ensure_collection.call_count == 2
+            mock_manager.ensure_collection.assert_any_call(mock_turns_schema)
+            mock_manager.ensure_collection.assert_any_call(mock_memory_schema)
 
 
 class TestAppCreation:

@@ -92,7 +92,9 @@ def retriever(
     )
 
 
-def create_mock_qdrant_result(result_id: str | int, score: float, payload: dict[str, Any]) -> MagicMock:
+def create_mock_qdrant_result(
+    result_id: str | int, score: float, payload: dict[str, Any]
+) -> MagicMock:
     """Helper to create a mock Qdrant search result."""
     result = MagicMock()
     result.id = result_id
@@ -184,7 +186,7 @@ class TestStage1SessionRetrieval:
             ]
         )
 
-        results = await retriever.retrieve("Docker containers")
+        await retriever.retrieve("Docker containers")
 
         # Verify session search was called
         first_call = mock_qdrant_client.client.search.call_args_list[0]
@@ -326,7 +328,9 @@ class TestStage2TurnRetrieval:
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test turn retrieval respects turns_per_session limit."""
-        mock_session = create_mock_qdrant_result("session-1", 0.95, {"session_id": "session-1", "summary": "test"})
+        mock_session = create_mock_qdrant_result(
+            "session-1", 0.95, {"session_id": "session-1", "summary": "test"}
+        )
 
         mock_qdrant_client.client.search = AsyncMock(
             side_effect=[
@@ -348,7 +352,9 @@ class TestStage2TurnRetrieval:
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test retrieval when sessions are found but no turns."""
-        mock_session = create_mock_qdrant_result("session-1", 0.95, {"session_id": "session-1", "summary": "test"})
+        mock_session = create_mock_qdrant_result(
+            "session-1", 0.95, {"session_id": "session-1", "summary": "test"}
+        )
 
         mock_qdrant_client.client.search = AsyncMock(
             side_effect=[
@@ -368,7 +374,9 @@ class TestStage2TurnRetrieval:
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test error handling during turn retrieval."""
-        mock_session = create_mock_qdrant_result("session-1", 0.95, {"session_id": "session-1", "summary": "test"})
+        mock_session = create_mock_qdrant_result(
+            "session-1", 0.95, {"session_id": "session-1", "summary": "test"}
+        )
 
         mock_qdrant_client.client.search = AsyncMock(
             side_effect=[
@@ -398,12 +406,18 @@ class TestParallelRetrieval:
 
         # Setup mock sessions
         mock_sessions = [
-            create_mock_qdrant_result(f"session-{i}", 0.9 - i * 0.1, {"session_id": f"session-{i}", "summary": f"Session {i}"})
+            create_mock_qdrant_result(
+                f"session-{i}",
+                0.9 - i * 0.1,
+                {"session_id": f"session-{i}", "summary": f"Session {i}"},
+            )
             for i in range(3)
         ]
 
         # Setup mock turn
-        mock_turn = create_mock_qdrant_result("turn-1", 0.85, {"content": "Turn content", "session_id": "session-0"})
+        mock_turn = create_mock_qdrant_result(
+            "turn-1", 0.85, {"content": "Turn content", "session_id": "session-0"}
+        )
 
         mock_qdrant_client.client.search = AsyncMock(
             side_effect=[
@@ -430,11 +444,17 @@ class TestParallelRetrieval:
         retriever.config.parallel_turn_retrieval = False
 
         mock_sessions = [
-            create_mock_qdrant_result("session-1", 0.95, {"session_id": "session-1", "summary": "Session 1"}),
-            create_mock_qdrant_result("session-2", 0.85, {"session_id": "session-2", "summary": "Session 2"}),
+            create_mock_qdrant_result(
+                "session-1", 0.95, {"session_id": "session-1", "summary": "Session 1"}
+            ),
+            create_mock_qdrant_result(
+                "session-2", 0.85, {"session_id": "session-2", "summary": "Session 2"}
+            ),
         ]
 
-        mock_turn = create_mock_qdrant_result("turn-1", 0.85, {"content": "Turn", "session_id": "session-1"})
+        mock_turn = create_mock_qdrant_result(
+            "turn-1", 0.85, {"content": "Turn", "session_id": "session-1"}
+        )
 
         mock_qdrant_client.client.search = AsyncMock(
             side_effect=[
@@ -461,11 +481,15 @@ class TestReranking:
         mock_reranker_router: MagicMock,
     ) -> None:
         """Test reranking is applied when results exceed final_top_k."""
-        mock_session = create_mock_qdrant_result("session-1", 0.95, {"session_id": "session-1", "summary": "Session"})
+        mock_session = create_mock_qdrant_result(
+            "session-1", 0.95, {"session_id": "session-1", "summary": "Session"}
+        )
 
         # Create more turns than final_top_k
         mock_turns = [
-            create_mock_qdrant_result(f"turn-{i}", 0.9 - i * 0.05, {"content": f"Turn {i}", "session_id": "session-1"})
+            create_mock_qdrant_result(
+                f"turn-{i}", 0.9 - i * 0.05, {"content": f"Turn {i}", "session_id": "session-1"}
+            )
             for i in range(10)
         ]
 
@@ -479,7 +503,10 @@ class TestReranking:
         # Mock reranker
         from src.rerankers.base import RankedResult
 
-        mock_reranked = [RankedResult(text=f"Turn {i}", score=0.95 - i * 0.05, original_index=i) for i in range(5)]
+        mock_reranked = [
+            RankedResult(text=f"Turn {i}", score=0.95 - i * 0.05, original_index=i)
+            for i in range(5)
+        ]
         mock_reranker_router.rerank = AsyncMock(return_value=(mock_reranked, "fast", False))
 
         results = await retriever.retrieve("test query")
@@ -503,7 +530,9 @@ class TestReranking:
         )
 
         mock_turns = [
-            create_mock_qdrant_result(f"turn-{i}", 0.9 - i * 0.1, {"content": f"Turn {i}", "session_id": "session-123"})
+            create_mock_qdrant_result(
+                f"turn-{i}", 0.9 - i * 0.1, {"content": f"Turn {i}", "session_id": "session-123"}
+            )
             for i in range(10)
         ]
 
@@ -532,13 +561,21 @@ class TestReranking:
         # Disable reranker
         retriever.reranker_router = None
 
-        mock_session = create_mock_qdrant_result("session-1", 0.95, {"session_id": "session-1", "summary": "Session"})
+        mock_session = create_mock_qdrant_result(
+            "session-1", 0.95, {"session_id": "session-1", "summary": "Session"}
+        )
 
         # Turns with various scores
         mock_turns = [
-            create_mock_qdrant_result("turn-1", 0.5, {"content": "Low score", "session_id": "session-1"}),
-            create_mock_qdrant_result("turn-2", 0.9, {"content": "High score", "session_id": "session-1"}),
-            create_mock_qdrant_result("turn-3", 0.7, {"content": "Mid score", "session_id": "session-1"}),
+            create_mock_qdrant_result(
+                "turn-1", 0.5, {"content": "Low score", "session_id": "session-1"}
+            ),
+            create_mock_qdrant_result(
+                "turn-2", 0.9, {"content": "High score", "session_id": "session-1"}
+            ),
+            create_mock_qdrant_result(
+                "turn-3", 0.7, {"content": "Mid score", "session_id": "session-1"}
+            ),
         ]
 
         mock_qdrant_client.client.search = AsyncMock(side_effect=[[mock_session], mock_turns])
@@ -558,10 +595,14 @@ class TestReranking:
         mock_reranker_router: MagicMock,
     ) -> None:
         """Test graceful degradation when reranking fails."""
-        mock_session = create_mock_qdrant_result("session-1", 0.95, {"session_id": "session-1", "summary": "Session"})
+        mock_session = create_mock_qdrant_result(
+            "session-1", 0.95, {"session_id": "session-1", "summary": "Session"}
+        )
 
         mock_turns = [
-            create_mock_qdrant_result(f"turn-{i}", 0.9 - i * 0.1, {"content": f"Turn {i}", "session_id": "session-1"})
+            create_mock_qdrant_result(
+                f"turn-{i}", 0.9 - i * 0.1, {"content": f"Turn {i}", "session_id": "session-1"}
+            )
             for i in range(10)
         ]
 
@@ -581,7 +622,9 @@ class TestReranking:
 class TestConfigManagement:
     """Test configuration management."""
 
-    def test_get_config(self, retriever: SessionAwareRetriever, session_config: SessionRetrieverConfig) -> None:
+    def test_get_config(
+        self, retriever: SessionAwareRetriever, session_config: SessionRetrieverConfig
+    ) -> None:
         """Test getting configuration."""
         config = retriever.get_config()
 

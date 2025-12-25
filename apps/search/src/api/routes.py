@@ -174,7 +174,6 @@ async def search(
             results = await search_retriever.search_turns(query)
         elif collection == "engram_memory":
             # Direct Qdrant search for memory collection
-            from qdrant_client.http import models as qmodels
 
             embedder_factory = getattr(request.app.state, "embedder_factory", None)
             qdrant = getattr(request.app.state, "qdrant", None)
@@ -565,6 +564,7 @@ async def index_memory(
 
     try:
         import uuid
+
         from qdrant_client.http.models import PointStruct, SparseVector
 
         # Convert ULID to UUID for Qdrant compatibility

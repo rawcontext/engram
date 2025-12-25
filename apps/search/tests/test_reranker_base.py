@@ -1,6 +1,5 @@
 """Comprehensive tests for base reranker module."""
 
-
 import pytest
 
 from src.rerankers.base import BaseReranker, RankedResult
