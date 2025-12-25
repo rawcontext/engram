@@ -122,6 +122,26 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  control:
+    build:
+      context: .
+      dockerfile: apps/control/Dockerfile
+    platform: linux/amd64
+    environment:
+      - NODE_ENV=production
+      - NATS_URL=nats://nats:4222
+      - FALKORDB_URL=redis://falkordb:6379
+      - REDIS_URL=redis://falkordb:6379
+      - SEARCH_URL=http://search:6176
+    depends_on:
+      nats:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+      search:
+        condition: service_started
+    restart: unless-stopped
+
   search:
     build:
       context: ./apps/search
