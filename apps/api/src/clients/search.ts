@@ -45,6 +45,21 @@ export interface SearchResponse {
 	took_ms: number;
 }
 
+export interface MemoryIndexOptions {
+	id: string;
+	content: string;
+	type?: string;
+	tags?: string[];
+	project?: string;
+	source_session_id?: string;
+}
+
+export interface MemoryIndexResponse {
+	id: string;
+	indexed: boolean;
+	took_ms: number;
+}
+
 /**
  * HTTP client for the Python search service.
  *
@@ -120,6 +135,46 @@ export class SearchClient {
 			return (await response.json()) as { status: string; qdrant_connected: boolean };
 		} catch {
 			return { status: "unreachable", qdrant_connected: false };
+		}
+	}
+
+	/**
+	 * Index a memory for semantic search.
+	 */
+	async indexMemory(options: MemoryIndexOptions): Promise<MemoryIndexResponse> {
+		const url = `${this.baseUrl}/v1/index/memory`;
+
+		const requestBody = {
+			id: options.id,
+			content: options.content,
+			type: options.type ?? "context",
+			tags: options.tags ?? [],
+			project: options.project,
+			source_session_id: options.source_session_id,
+		};
+
+		this.logger.debug({ url, id: options.id }, "Sending memory index request");
+
+		try {
+			const response = await fetch(url, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(requestBody),
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`Memory index request failed with status ${response.status}: ${errorText}`);
+			}
+
+			const data = (await response.json()) as MemoryIndexResponse;
+
+			this.logger.debug({ id: data.id, took_ms: data.took_ms }, "Memory indexed");
+
+			return data;
+		} catch (error) {
+			this.logger.error({ error, url }, "Memory index request failed");
+			throw error;
 		}
 	}
 }

@@ -144,6 +144,22 @@ export class MemoryService {
 
 		this.logger.info({ id, type: input.type }, "Memory stored");
 
+		// Index memory for semantic search (non-blocking)
+		this.searchClient
+			.indexMemory({
+				id,
+				content: input.content,
+				type: input.type ?? "context",
+				tags: input.tags,
+				project: input.project,
+			})
+			.then(() => {
+				this.logger.debug({ id }, "Memory indexed for search");
+			})
+			.catch((error) => {
+				this.logger.warn({ id, error }, "Failed to index memory for search");
+			});
+
 		return {
 			id,
 			stored: true,
@@ -233,7 +249,7 @@ export class MemoryService {
 				created_at: string;
 			}>(
 				`MATCH (m:Memory)
-				WHERE ${whereClause} AND m.content CONTAINS $query
+				WHERE ${whereClause} AND toLower(m.content) CONTAINS $query
 				RETURN m.id as id, m.content as content, m.type as type, m.tags as tags, m.created_at as created_at
 				ORDER BY m.vt_start DESC
 				LIMIT $limit`,
@@ -327,7 +343,7 @@ export class MemoryService {
 				created_at: string;
 			}>(
 				`MATCH (m:Memory)
-				WHERE ${whereClause} AND m.content CONTAINS $query
+				WHERE ${whereClause} AND toLower(m.content) CONTAINS $query
 				RETURN m.id as id, m.content as content, m.type as type, m.tags as tags, m.created_at as created_at
 				ORDER BY m.vt_start DESC
 				LIMIT $limit`,
