@@ -75,10 +75,22 @@ export interface MemoryIndexResponse {
 export class SearchClient {
 	private baseUrl: string;
 	private logger: Logger;
+	private apiKey?: string;
 
-	constructor(baseUrl: string, logger: Logger) {
+	constructor(baseUrl: string, logger: Logger, apiKey?: string) {
 		this.baseUrl = baseUrl.replace(/\/$/, "");
 		this.logger = logger;
+		this.apiKey = apiKey;
+	}
+
+	private getHeaders(): Record<string, string> {
+		const headers: Record<string, string> = {
+			"Content-Type": "application/json",
+		};
+		if (this.apiKey) {
+			headers.Authorization = `Bearer ${this.apiKey}`;
+		}
+		return headers;
 	}
 
 	/**
@@ -104,7 +116,7 @@ export class SearchClient {
 		try {
 			const response = await fetch(url, {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: this.getHeaders(),
 				body: JSON.stringify(requestBody),
 			});
 
@@ -161,7 +173,7 @@ export class SearchClient {
 		try {
 			const response = await fetch(url, {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: this.getHeaders(),
 				body: JSON.stringify(requestBody),
 			});
 

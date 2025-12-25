@@ -160,8 +160,7 @@ services:
       - EMBEDDER_PRELOAD=false
       - SEARCH_DEFAULT_STRATEGY=dense
       - CORS_ORIGINS=["https://observatory.statient.com"]
-      # Auth disabled for internal service-to-service calls (API validates external auth)
-      - AUTH_ENABLED=false
+      - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram?sslmode=disable
     depends_on:
       qdrant:
         condition: service_healthy
@@ -188,6 +187,7 @@ services:
       - NODE_ENV=production
       - POSTGRES_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-engram}
       - SEARCH_URL=http://search:6176
+      - SEARCH_API_KEY=${SEARCH_API_KEY}
       - FALKORDB_URL=redis://falkordb:6379
       - REDIS_URL=redis://falkordb:6379
       - PORT=6174

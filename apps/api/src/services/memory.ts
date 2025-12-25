@@ -38,6 +38,8 @@ export interface MemoryServiceOptions {
 	graphClient: GraphClient;
 	searchUrl: string;
 	logger: Logger;
+	/** API key for authenticating with the search service */
+	searchApiKey?: string;
 }
 
 export interface RememberInput {
@@ -89,7 +91,7 @@ export class MemoryService {
 
 	constructor(options: MemoryServiceOptions) {
 		this.graphClient = options.graphClient;
-		this.searchClient = new SearchClient(options.searchUrl, options.logger);
+		this.searchClient = new SearchClient(options.searchUrl, options.logger, options.searchApiKey);
 		this.logger = options.logger;
 	}
 
