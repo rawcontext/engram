@@ -536,6 +536,9 @@ jobs:
             sudo systemctl restart docker
             sleep 5
 
+            echo "Fixing data directory permissions for Docker build context..."
+            sudo chmod -R a+r /opt/engram/data/ 2>/dev/null || true
+
             echo "Starting all services..."
             docker compose -f docker-compose.prod.yml up -d
 
