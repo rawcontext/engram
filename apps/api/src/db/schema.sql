@@ -133,3 +133,30 @@ CREATE TRIGGER tofu_state_updated_at
     BEFORE UPDATE ON tofu_state
     FOR EACH ROW
     EXECUTE FUNCTION update_tofu_state_updated_at();
+
+-- Seed default API key if not exists
+-- Key: engram_live_ce0c732e33778dbbe650634e75ebbdca
+INSERT INTO api_keys (
+    id,
+    key_hash,
+    key_prefix,
+    key_type,
+    name,
+    description,
+    scopes,
+    rate_limit_rpm,
+    is_active,
+    metadata
+) VALUES (
+    '01JFW4DXNGE80HPMZZJB8DHVDV',
+    'd6adf763be4a40f3dabdf1abc124c45d5c6ac55bdf715d8517b1d147d10b5274',
+    'engram_live_ce0c732e...',
+    'live',
+    'Default API Key',
+    'Auto-generated API key for development and testing',
+    ARRAY['memory:read', 'memory:write', 'query:read', 'search:read', 'search:write'],
+    1000,
+    true,
+    '{}'::jsonb
+)
+ON CONFLICT (key_hash) DO NOTHING;
