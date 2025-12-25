@@ -21,7 +21,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SERVER_HOST: api.statient.com
   DOMAIN: statient.com
 
 jobs:
@@ -190,12 +189,12 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
 
       - name: Cleanup conflicting paths
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           script: |
@@ -219,12 +218,12 @@ jobs:
             --exclude '.next' \
             --exclude '.terraform' \
             --exclude 'terraform.tfstate*' \
-            . engram@${{ env.SERVER_HOST }}:/opt/engram/
+            . engram@${{ env.DOMAIN }}:/opt/engram/
 
       - name: Create .env file on server
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           script: |
@@ -248,7 +247,7 @@ jobs:
       - name: Run auth database migrations
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           script: |
@@ -274,7 +273,7 @@ jobs:
       - name: Deploy API
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -300,7 +299,7 @@ jobs:
       - name: Deploy Search
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -326,7 +325,7 @@ jobs:
       - name: Deploy Tuner
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -352,7 +351,7 @@ jobs:
       - name: Deploy Observatory
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -378,7 +377,7 @@ jobs:
       - name: Deploy Ingestion
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -404,7 +403,7 @@ jobs:
       - name: Deploy Memory
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -430,7 +429,7 @@ jobs:
       - name: Deploy Control
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -456,7 +455,7 @@ jobs:
       - name: Deploy Infrastructure Services
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -496,7 +495,7 @@ jobs:
       - name: Start Caddy
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 5m
@@ -540,7 +539,7 @@ jobs:
       - name: Prune old Docker images
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ env.SERVER_HOST }}
+          host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 5m

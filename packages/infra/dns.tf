@@ -1,6 +1,15 @@
 # DNS records for Engram services
 # Managed via Vercel DNS, pointing to Hetzner server
 
+# Apex domain - statient.com
+resource "vercel_dns_record" "apex" {
+  domain = var.domain
+  name   = ""
+  type   = "A"
+  ttl    = 60
+  value  = hcloud_server.engram.ipv4_address
+}
+
 resource "vercel_dns_record" "api" {
   domain = var.domain
   name   = "api"

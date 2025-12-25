@@ -138,7 +138,7 @@ bun run start        # Production server
 bun run typecheck    # TypeScript validation (tsgo)
 bun run lint         # Biome linting
 bun run format       # Biome formatting
-npm test:watch       # Vitest watch mode
+npm test:watch       # test watch mode
 npm test:e2e         # Playwright E2E tests
 npm test:e2e:ui      # Playwright UI mode
 ```
@@ -239,7 +239,7 @@ apps/observatory/
 - **HTTP Client**: Native `fetch`
 
 ### Development & Testing
-- **Testing**: Vitest + Playwright
+- **Testing**: bun:test + Playwright
 - **Linting**: Biome (replaces ESLint + Prettier)
 - **Package Manager**: npm (workspaces)
 - **Build Tool**: Next.js + tsgo

@@ -398,4 +398,4 @@ The package provides multiple entry points:
 
 - `@engram/storage` - Storage interface types for test mocks
 - `@engram/graph` - Domain model types for test fixtures
-- `vitest` - Test framework (dev dependency)
+- `bun:test` - Test framework (dev dependency)

@@ -179,7 +179,7 @@ const SCENARIOS = [
 				user: "Run the test suite and show me the coverage report",
 				thinking: [
 					"I need to run the test command with coverage enabled.",
-					"Most Node.js projects use jest or vitest for testing.",
+					"Most Node.js projects use jest or bun:test for testing.",
 				],
 				tools: [{ name: "Bash", args: { command: "npm test -- --coverage" } }],
 				response:

@@ -97,11 +97,3 @@ export {
 	ToolTimeouts,
 	WebSocketIntervals,
 } from "./constants";
-
-// =============================================================================
-// Testing
-// =============================================================================
-// NOTE: Testing utilities are NOT exported from the main entry point to avoid
-// pulling vitest into production code. Import testing utilities from:
-//   import { createTestGraphClient, ... } from "@engram/common/testing";
-// =============================================================================

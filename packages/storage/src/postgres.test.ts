@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
-// NOTE: Bun's mock.module doesn't support mocking external node_modules like 'pg'
-// in the same way Vitest does. Skipping tests that require pg module mocking.
-// See: https://github.com/oven-sh/bun/issues/XXX
-
 import type pg from "pg";
 import { PostgresClient } from "./postgres";
 
