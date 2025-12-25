@@ -56,4 +56,8 @@ resource "hcloud_server" "engram" {
       # Add engram user to docker group
       - usermod -aG docker engram
   EOF
+
+  lifecycle {
+    ignore_changes = [user_data, image, ssh_keys]
+  }
 }
