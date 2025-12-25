@@ -1,7 +1,7 @@
 """Tests for studies.py - Study management endpoints."""
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import optuna
 import pytest
@@ -24,6 +24,7 @@ def app_with_storage() -> FastAPI:
 @pytest.fixture
 def client_with_auth(app_with_storage: FastAPI, mock_api_key_context: ApiKeyContext) -> TestClient:
     """Create test client with mocked auth."""
+
     # Override the dependency callable inside tuner_auth.dependency
     async def mock_dependency():
         return mock_api_key_context
@@ -72,8 +73,8 @@ class TestCreateStudy:
         mock_study.user_attrs = {}
 
         with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch("tuner.api.studies.create_sampler") as mock_sampler:
-                with patch("tuner.api.studies.create_pruner") as mock_pruner:
+            with patch("tuner.api.studies.create_sampler"):
+                with patch("tuner.api.studies.create_pruner"):
                     with patch(
                         "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
                     ) as mock_thread:
@@ -103,9 +104,7 @@ class TestCreateStudy:
         assert data["study_id"] == 123
 
     @pytest.mark.asyncio
-    async def test_creates_multi_objective_study(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_creates_multi_objective_study(self, client_with_auth: TestClient) -> None:
         """Test creating a multi-objective study."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -144,9 +143,7 @@ class TestCreateStudy:
         assert data["direction"] == ["maximize", "minimize"]
 
     @pytest.mark.asyncio
-    async def test_creates_study_with_load_if_exists(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_creates_study_with_load_if_exists(self, client_with_auth: TestClient) -> None:
         """Test creating a study with load_if_exists=True."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -247,17 +244,17 @@ class TestListStudies:
         summary2.n_trials = 5
         summary2.datetime_start = datetime.now(UTC)
 
-        with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch(
-                "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
-            ) as mock_thread:
-                mock_thread.side_effect = [
-                    [summary1, summary2],
-                    1,
-                    2,
-                ]
+        with (
+            patch("tuner.api.studies._get_storage", return_value=mock_storage),
+            patch("tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.side_effect = [
+                [summary1, summary2],
+                1,
+                2,
+            ]
 
-                response = client_with_auth.get("/v1/studies")
+            response = client_with_auth.get("/v1/studies")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -270,22 +267,20 @@ class TestListStudies:
         """Test listing when no studies exist."""
         mock_storage = MagicMock()
 
-        with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch(
-                "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
-            ) as mock_thread:
-                mock_thread.return_value = []
+        with (
+            patch("tuner.api.studies._get_storage", return_value=mock_storage),
+            patch("tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.return_value = []
 
-                response = client_with_auth.get("/v1/studies")
+            response = client_with_auth.get("/v1/studies")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data == []
 
     @pytest.mark.asyncio
-    async def test_lists_multi_objective_studies(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_lists_multi_objective_studies(self, client_with_auth: TestClient) -> None:
         """Test listing multi-objective studies."""
         mock_storage = MagicMock()
 
@@ -298,13 +293,13 @@ class TestListStudies:
         summary.n_trials = 20
         summary.datetime_start = datetime.now(UTC)
 
-        with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch(
-                "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
-            ) as mock_thread:
-                mock_thread.side_effect = [[summary], 1]
+        with (
+            patch("tuner.api.studies._get_storage", return_value=mock_storage),
+            patch("tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.side_effect = [[summary], 1]
 
-                response = client_with_auth.get("/v1/studies")
+            response = client_with_auth.get("/v1/studies")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -326,13 +321,13 @@ class TestGetStudy:
         mock_study.user_attrs = {}
         mock_study._is_multi_objective.return_value = False
 
-        with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch(
-                "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
-            ) as mock_thread:
-                mock_thread.side_effect = [mock_study, 123]
+        with (
+            patch("tuner.api.studies._get_storage", return_value=mock_storage),
+            patch("tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.side_effect = [mock_study, 123]
 
-                response = client_with_auth.get("/v1/studies/test-study")
+            response = client_with_auth.get("/v1/studies/test-study")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -357,13 +352,13 @@ class TestGetStudy:
         mock_study.best_trial = mock_trial
         mock_study.user_attrs = {}
 
-        with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch(
-                "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
-            ) as mock_thread:
-                mock_thread.side_effect = [mock_study, 123]
+        with (
+            patch("tuner.api.studies._get_storage", return_value=mock_storage),
+            patch("tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.side_effect = [mock_study, 123]
 
-                response = client_with_auth.get("/v1/studies/test-study")
+            response = client_with_auth.get("/v1/studies/test-study")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -393,22 +388,20 @@ class TestGetStudy:
         mock_study.best_trial = mock_trial
         mock_study.user_attrs = {}
 
-        with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch(
-                "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
-            ) as mock_thread:
-                mock_thread.side_effect = [mock_study, 456]
+        with (
+            patch("tuner.api.studies._get_storage", return_value=mock_storage),
+            patch("tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.side_effect = [mock_study, 456]
 
-                response = client_with_auth.get("/v1/studies/multi-obj-study")
+            response = client_with_auth.get("/v1/studies/multi-obj-study")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["best_value"] == [0.95, 0.10]
 
     @pytest.mark.asyncio
-    async def test_gets_study_without_completed_trials(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_gets_study_without_completed_trials(self, client_with_auth: TestClient) -> None:
         """Test getting a study with no completed trials."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -418,13 +411,13 @@ class TestGetStudy:
         mock_study.user_attrs = {}
         mock_study._is_multi_objective.return_value = False
 
-        with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch(
-                "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
-            ) as mock_thread:
-                mock_thread.side_effect = [mock_study, 789]
+        with (
+            patch("tuner.api.studies._get_storage", return_value=mock_storage),
+            patch("tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.side_effect = [mock_study, 789]
 
-                response = client_with_auth.get("/v1/studies/new-study")
+            response = client_with_auth.get("/v1/studies/new-study")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -436,13 +429,13 @@ class TestGetStudy:
         """Test that getting a nonexistent study fails."""
         mock_storage = MagicMock()
 
-        with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch(
-                "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
-            ) as mock_thread:
-                mock_thread.side_effect = KeyError("not found")
+        with (
+            patch("tuner.api.studies._get_storage", return_value=mock_storage),
+            patch("tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.side_effect = KeyError("not found")
 
-                response = client_with_auth.get("/v1/studies/nonexistent")
+            response = client_with_auth.get("/v1/studies/nonexistent")
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "not found" in response.json()["detail"].lower()
@@ -456,13 +449,13 @@ class TestDeleteStudy:
         """Test deleting a study."""
         mock_storage = MagicMock()
 
-        with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch(
-                "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
-            ) as mock_thread:
-                mock_thread.side_effect = [123, None]
+        with (
+            patch("tuner.api.studies._get_storage", return_value=mock_storage),
+            patch("tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.side_effect = [123, None]
 
-                response = client_with_auth.delete("/v1/studies/test-study")
+            response = client_with_auth.delete("/v1/studies/test-study")
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
@@ -471,12 +464,12 @@ class TestDeleteStudy:
         """Test that deleting a nonexistent study fails."""
         mock_storage = MagicMock()
 
-        with patch("tuner.api.studies._get_storage", return_value=mock_storage):
-            with patch(
-                "tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock
-            ) as mock_thread:
-                mock_thread.side_effect = KeyError("not found")
+        with (
+            patch("tuner.api.studies._get_storage", return_value=mock_storage),
+            patch("tuner.api.studies.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.side_effect = KeyError("not found")
 
-                response = client_with_auth.delete("/v1/studies/nonexistent")
+            response = client_with_auth.delete("/v1/studies/nonexistent")
 
         assert response.status_code == status.HTTP_404_NOT_FOUND

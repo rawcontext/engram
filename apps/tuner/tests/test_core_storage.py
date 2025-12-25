@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from tuner.core.storage import get_storage, reset_storage
 
 
@@ -126,9 +124,7 @@ class TestGetStorage:
         """Test that URLs with special characters are handled correctly."""
         with patch("tuner.core.storage.get_settings") as mock_settings:
             # URL with special characters in password
-            mock_settings.return_value.database_url = (
-                "postgresql://user:p@ssw0rd%21@host:5432/db"
-            )
+            mock_settings.return_value.database_url = "postgresql://user:p@ssw0rd%21@host:5432/db"
 
             with patch("optuna.storages.RDBStorage") as mock_rdb_storage:
                 mock_storage_instance = MagicMock()

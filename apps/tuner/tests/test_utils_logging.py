@@ -2,10 +2,8 @@
 
 import logging
 import sys
-from io import StringIO
 from unittest.mock import MagicMock, patch
 
-import pytest
 import structlog
 
 from tuner.utils.logging import bind_context, clear_context, configure_logging, get_logger
@@ -84,9 +82,7 @@ class TestConfigureLogging:
                 processors = call_kwargs["processors"]
 
                 # Check for JSONRenderer in processors
-                has_json_renderer = any(
-                    "JSONRenderer" in str(type(p)) for p in processors
-                )
+                has_json_renderer = any("JSONRenderer" in str(type(p)) for p in processors)
                 assert has_json_renderer
 
     def test_configure_logging_json_format_false(self) -> None:
@@ -99,9 +95,7 @@ class TestConfigureLogging:
                 processors = call_kwargs["processors"]
 
                 # Check for ConsoleRenderer in processors
-                has_console_renderer = any(
-                    "ConsoleRenderer" in str(type(p)) for p in processors
-                )
+                has_console_renderer = any("ConsoleRenderer" in str(type(p)) for p in processors)
                 assert has_console_renderer
 
     def test_configure_logging_with_timestamps(self) -> None:
@@ -114,9 +108,7 @@ class TestConfigureLogging:
                 processors = call_kwargs["processors"]
 
                 # Check for TimeStamper in processors
-                has_timestamper = any(
-                    "TimeStamper" in str(type(p)) for p in processors
-                )
+                has_timestamper = any("TimeStamper" in str(type(p)) for p in processors)
                 assert has_timestamper
 
     def test_configure_logging_without_timestamps(self) -> None:
@@ -129,9 +121,7 @@ class TestConfigureLogging:
                 processors = call_kwargs["processors"]
 
                 # Check TimeStamper NOT in processors
-                has_timestamper = any(
-                    "TimeStamper" in str(type(p)) for p in processors
-                )
+                has_timestamper = any("TimeStamper" in str(type(p)) for p in processors)
                 assert not has_timestamper
 
     def test_configure_logging_processors_order(self) -> None:
@@ -149,9 +139,12 @@ class TestConfigureLogging:
                 # Verify common processors are present - check for callable functions
                 # Some processors are functions, not class instances
                 processor_strs = [str(p) for p in processors]
-                combined = " ".join(processor_strs)
+                " ".join(processor_strs)
                 # Just verify we have some key processors
-                assert any("filter_by_level" in str(p) or "FilterByLevel" in str(type(p).__name__) for p in processors)
+                assert any(
+                    "filter_by_level" in str(p) or "FilterByLevel" in str(type(p).__name__)
+                    for p in processors
+                )
 
     def test_configure_logging_wrapper_class(self) -> None:
         """Test that wrapper_class is set to BoundLogger."""
@@ -202,15 +195,11 @@ class TestConfigureLogging:
                 processors = structlog_kwargs["processors"]
 
                 # Should NOT have TimeStamper
-                has_timestamper = any(
-                    "TimeStamper" in str(type(p)) for p in processors
-                )
+                has_timestamper = any("TimeStamper" in str(type(p)) for p in processors)
                 assert not has_timestamper
 
                 # Should have ConsoleRenderer
-                has_console_renderer = any(
-                    "ConsoleRenderer" in str(type(p)) for p in processors
-                )
+                has_console_renderer = any("ConsoleRenderer" in str(type(p)) for p in processors)
                 assert has_console_renderer
 
 
@@ -441,49 +430,46 @@ class TestLoggingProcessors:
 
     def test_shared_processors_present(self) -> None:
         """Test that all shared processors are configured."""
-        with patch("logging.basicConfig"):
-            with patch("structlog.configure") as mock_configure:
-                configure_logging()
+        with patch("logging.basicConfig"), patch("structlog.configure") as mock_configure:
+            configure_logging()
 
-                processors = mock_configure.call_args[1]["processors"]
-                processor_types = [type(p).__name__ for p in processors]
+            processors = mock_configure.call_args[1]["processors"]
+            processor_types = [type(p).__name__ for p in processors]
 
-                # Check for key processors
-                assert any("PositionalArgumentsFormatter" in str(t) for t in processor_types)
-                assert any("StackInfoRenderer" in str(t) for t in processor_types)
-                assert any("UnicodeDecoder" in str(t) for t in processor_types)
+            # Check for key processors
+            assert any("PositionalArgumentsFormatter" in str(t) for t in processor_types)
+            assert any("StackInfoRenderer" in str(t) for t in processor_types)
+            assert any("UnicodeDecoder" in str(t) for t in processor_types)
 
     def test_timestamp_processor_utc(self) -> None:
         """Test that TimeStamper uses UTC and ISO format."""
-        with patch("logging.basicConfig"):
-            with patch("structlog.configure") as mock_configure:
-                configure_logging(add_timestamps=True)
+        with patch("logging.basicConfig"), patch("structlog.configure") as mock_configure:
+            configure_logging(add_timestamps=True)
 
-                processors = mock_configure.call_args[1]["processors"]
+            processors = mock_configure.call_args[1]["processors"]
 
-                # Find TimeStamper
-                timestamper = None
-                for p in processors:
-                    if "TimeStamper" in type(p).__name__:
-                        timestamper = p
-                        break
+            # Find TimeStamper
+            timestamper = None
+            for p in processors:
+                if "TimeStamper" in type(p).__name__:
+                    timestamper = p
+                    break
 
-                # TimeStamper should be present with UTC
-                assert timestamper is not None
+            # TimeStamper should be present with UTC
+            assert timestamper is not None
 
     def test_json_renderer_configuration(self) -> None:
         """Test JSONRenderer configuration."""
-        with patch("logging.basicConfig"):
-            with patch("structlog.configure") as mock_configure:
-                configure_logging(json_format=True)
+        with patch("logging.basicConfig"), patch("structlog.configure") as mock_configure:
+            configure_logging(json_format=True)
 
-                processors = mock_configure.call_args[1]["processors"]
+            processors = mock_configure.call_args[1]["processors"]
 
-                # Find JSONRenderer
-                json_renderer = None
-                for p in processors:
-                    if "JSONRenderer" in type(p).__name__:
-                        json_renderer = p
-                        break
+            # Find JSONRenderer
+            json_renderer = None
+            for p in processors:
+                if "JSONRenderer" in type(p).__name__:
+                    json_renderer = p
+                    break
 
-                assert json_renderer is not None
+            assert json_renderer is not None

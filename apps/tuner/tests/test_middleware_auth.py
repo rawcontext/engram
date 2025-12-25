@@ -407,7 +407,9 @@ class TestApiKeyAuth:
         mock_acquire.__aexit__ = AsyncMock(return_value=None)
         mock_pool.acquire.return_value = mock_acquire
 
-        with patch("asyncpg.create_pool", new_callable=AsyncMock, return_value=mock_pool) as mock_create:
+        with patch(
+            "asyncpg.create_pool", new_callable=AsyncMock, return_value=mock_pool
+        ) as mock_create:
             key = "engram_live_" + "a" * 32
             await auth.validate(key)
 
@@ -429,6 +431,7 @@ class TestAuthHandlerGlobals:
         """Test get_auth_handler raises when not initialized."""
         # Reset global
         from tuner.middleware import auth as auth_module
+
         auth_module._auth_handler = None
 
         with pytest.raises(RuntimeError, match="Auth handler not initialized"):

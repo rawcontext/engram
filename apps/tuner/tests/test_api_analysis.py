@@ -1,6 +1,6 @@
 """Tests for analysis.py - Analysis endpoints for study results."""
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import optuna
 import pytest
@@ -23,6 +23,7 @@ def app_with_storage() -> FastAPI:
 @pytest.fixture
 def client_with_auth(app_with_storage: FastAPI, mock_api_key_context: ApiKeyContext) -> TestClient:
     """Create test client with mocked auth."""
+
     # Override the dependency callable inside tuner_auth.dependency
     async def mock_dependency():
         return mock_api_key_context
@@ -91,9 +92,7 @@ class TestGetBestParams:
     """Tests for GET /{study_name}/best endpoint."""
 
     @pytest.mark.asyncio
-    async def test_gets_best_params_single_objective(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_gets_best_params_single_objective(self, client_with_auth: TestClient) -> None:
         """Test getting best parameters for single-objective study."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -118,9 +117,7 @@ class TestGetBestParams:
         assert data["trial_id"] == 5
 
     @pytest.mark.asyncio
-    async def test_gets_best_params_multi_objective(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_gets_best_params_multi_objective(self, client_with_auth: TestClient) -> None:
         """Test getting best parameters for multi-objective study."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -158,9 +155,7 @@ class TestGetBestParams:
         assert "no trials" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_fails_with_no_completed_trials(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_fails_with_no_completed_trials(self, client_with_auth: TestClient) -> None:
         """Test that getting best params fails when no completed trials exist."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -195,9 +190,7 @@ class TestGetParetoFront:
     """Tests for GET /{study_name}/pareto endpoint."""
 
     @pytest.mark.asyncio
-    async def test_gets_pareto_front_successfully(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_gets_pareto_front_successfully(self, client_with_auth: TestClient) -> None:
         """Test getting Pareto frontier for multi-objective study."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -228,9 +221,7 @@ class TestGetParetoFront:
         assert data[1]["values"] == [0.90, 0.05]
 
     @pytest.mark.asyncio
-    async def test_fails_for_single_objective_study(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_fails_for_single_objective_study(self, client_with_auth: TestClient) -> None:
         """Test that Pareto endpoint fails for single-objective study."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -289,9 +280,7 @@ class TestGetParamImportance:
                 ) as mock_to_thread:
                     mock_to_thread.return_value = importance_result
 
-                    response = client_with_auth.get(
-                        "/v1/studies/test-study/importance"
-                    )
+                    response = client_with_auth.get("/v1/studies/test-study/importance")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -300,9 +289,7 @@ class TestGetParamImportance:
 
     @pytest.mark.skip(reason="Requires sklearn - integration test")
     @pytest.mark.asyncio
-    async def test_gets_importance_with_target_idx(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_gets_importance_with_target_idx(self, client_with_auth: TestClient) -> None:
         """Test getting parameter importance for specific objective."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -360,9 +347,7 @@ class TestGetParamImportance:
                         mdi_result,
                     ]
 
-                    response = client_with_auth.get(
-                        "/v1/studies/test-study/importance"
-                    )
+                    response = client_with_auth.get("/v1/studies/test-study/importance")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -370,9 +355,7 @@ class TestGetParamImportance:
         assert data["importances"]["lr"] == 0.80
 
     @pytest.mark.asyncio
-    async def test_fails_with_insufficient_trials(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_fails_with_insufficient_trials(self, client_with_auth: TestClient) -> None:
         """Test that importance fails with less than 2 completed trials."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -414,17 +397,13 @@ class TestGetParamImportance:
                         Exception("MDI failed"),
                     ]
 
-                    response = client_with_auth.get(
-                        "/v1/studies/test-study/importance"
-                    )
+                    response = client_with_auth.get("/v1/studies/test-study/importance")
 
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     @pytest.mark.skip(reason="Requires sklearn - integration test")
     @pytest.mark.asyncio
-    async def test_filters_completed_trials_only(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_filters_completed_trials_only(self, client_with_auth: TestClient) -> None:
         """Test that only completed trials are used for importance."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -448,9 +427,7 @@ class TestGetParamImportance:
                 ) as mock_to_thread:
                     mock_to_thread.return_value = importance_result
 
-                    response = client_with_auth.get(
-                        "/v1/studies/test-study/importance"
-                    )
+                    response = client_with_auth.get("/v1/studies/test-study/importance")
 
         # Should succeed because there are 2 completed trials
         assert response.status_code == status.HTTP_200_OK

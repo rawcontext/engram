@@ -1,7 +1,7 @@
 """Tests for trials.py - Trial management endpoints."""
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import optuna
 import pytest
@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 
 from tuner.api.trials import _get_storage, _load_study, _suggest_value, router
 from tuner.middleware.auth import ApiKeyContext
-from tuner.models import TrialState
 
 
 @pytest.fixture
@@ -25,6 +24,7 @@ def app_with_storage() -> FastAPI:
 @pytest.fixture
 def client_with_auth(app_with_storage: FastAPI, mock_api_key_context: ApiKeyContext) -> TestClient:
     """Create test client with mocked auth."""
+
     # Override the dependency callable inside tuner_auth.dependency
     async def mock_dependency():
         return mock_api_key_context
@@ -70,7 +70,7 @@ class TestLoadStudy:
         mock_storage = MagicMock()
         mock_study = MagicMock()
 
-        with patch("tuner.api.trials.optuna.load_study", return_value=mock_study) as mock_load:
+        with patch("tuner.api.trials.optuna.load_study", return_value=mock_study):
             with patch("tuner.api.trials.asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
                 mock_thread.return_value = mock_study
 
@@ -158,9 +158,7 @@ class TestSuggestValue:
 
         result = _suggest_value(trial, param)
 
-        trial.suggest_categorical.assert_called_once_with(
-            "optimizer", ["adam", "sgd", "adamw"]
-        )
+        trial.suggest_categorical.assert_called_once_with("optimizer", ["adam", "sgd", "adamw"])
         assert result == "adam"
 
     def test_raises_on_unknown_type(self) -> None:
@@ -194,13 +192,13 @@ class TestSuggestTrial:
 
         with patch("tuner.api.trials._get_storage", return_value=mock_storage):
             with patch("tuner.api.trials._load_study", return_value=mock_study):
-                with patch("tuner.api.trials.asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
+                with patch(
+                    "tuner.api.trials.asyncio.to_thread", new_callable=AsyncMock
+                ) as mock_thread:
                     mock_thread.return_value = mock_trial
 
                     with patch("tuner.api.trials._suggest_value", return_value=0.05):
-                        response = client_with_auth.post(
-                            "/v1/studies/test-study/trials/suggest"
-                        )
+                        response = client_with_auth.post("/v1/studies/test-study/trials/suggest")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -218,9 +216,7 @@ class TestSuggestTrial:
         with patch("tuner.api.trials._get_storage", return_value=mock_storage):
             with patch("tuner.api.trials._load_study", return_value=mock_study):
                 with patch("tuner.api.trials.asyncio.to_thread", new_callable=AsyncMock):
-                    response = client_with_auth.post(
-                        "/v1/studies/test-study/trials/suggest"
-                    )
+                    response = client_with_auth.post("/v1/studies/test-study/trials/suggest")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "search space" in response.json()["detail"].lower()
@@ -230,9 +226,7 @@ class TestCompleteTrial:
     """Tests for POST /{study_name}/trials/{trial_id}/complete endpoint."""
 
     @pytest.mark.asyncio
-    async def test_completes_trial_with_single_value(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_completes_trial_with_single_value(self, client_with_auth: TestClient) -> None:
         """Test completing a trial with a single objective value."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -261,9 +255,7 @@ class TestCompleteTrial:
         assert data["state"] == "COMPLETE"
 
     @pytest.mark.asyncio
-    async def test_completes_trial_with_multiple_values(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_completes_trial_with_multiple_values(self, client_with_auth: TestClient) -> None:
         """Test completing a trial with multiple objective values."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -311,7 +303,7 @@ class TestCompleteTrial:
 
         with patch("tuner.api.trials._get_storage", return_value=mock_storage):
             with patch("tuner.api.trials._load_study", return_value=mock_study):
-                with patch("tuner.api.trials.asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
+                with patch("tuner.api.trials.asyncio.to_thread", new_callable=AsyncMock):
                     response = client_with_auth.post(
                         "/v1/studies/test-study/trials/0/complete",
                         json={
@@ -323,9 +315,7 @@ class TestCompleteTrial:
         assert response.status_code == status.HTTP_200_OK
 
     @pytest.mark.asyncio
-    async def test_completes_trial_with_user_attrs(
-        self, client_with_auth: TestClient
-    ) -> None:
+    async def test_completes_trial_with_user_attrs(self, client_with_auth: TestClient) -> None:
         """Test completing a trial with custom user attributes."""
         mock_storage = MagicMock()
         mock_study = MagicMock()
@@ -394,9 +384,7 @@ class TestPruneTrial:
         with patch("tuner.api.trials._get_storage", return_value=mock_storage):
             with patch("tuner.api.trials._load_study", return_value=mock_study):
                 with patch("tuner.api.trials.asyncio.to_thread", new_callable=AsyncMock):
-                    response = client_with_auth.post(
-                        "/v1/studies/test-study/trials/0/prune"
-                    )
+                    response = client_with_auth.post("/v1/studies/test-study/trials/0/prune")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -484,9 +472,7 @@ class TestListTrials:
 
         with patch("tuner.api.trials._get_storage", return_value=mock_storage):
             with patch("tuner.api.trials._load_study", return_value=mock_study):
-                response = client_with_auth.get(
-                    "/v1/studies/test-study/trials?state=COMPLETE"
-                )
+                response = client_with_auth.get("/v1/studies/test-study/trials?state=COMPLETE")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -516,9 +502,7 @@ class TestListTrials:
 
         with patch("tuner.api.trials._get_storage", return_value=mock_storage):
             with patch("tuner.api.trials._load_study", return_value=mock_study):
-                response = client_with_auth.get(
-                    "/v1/studies/test-study/trials?limit=5&offset=2"
-                )
+                response = client_with_auth.get("/v1/studies/test-study/trials?limit=5&offset=2")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()

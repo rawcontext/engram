@@ -16,7 +16,9 @@ class TestCreateApp:
         app = create_app()
 
         assert app.title == "Engram Tuner Service"
-        assert app.description == "Hyperparameter optimization service for Engram search using Optuna"
+        assert (
+            app.description == "Hyperparameter optimization service for Engram search using Optuna"
+        )
         assert app.version == "0.1.0"
 
     @patch("tuner.main.get_settings")
@@ -47,9 +49,10 @@ class TestLifespan:
         """Test that lifespan initializes Optuna storage."""
         test_app = create_app()
 
-        with patch("tuner.main.get_storage") as mock_get_storage, patch(
-            "tuner.main.get_settings"
-        ) as mock_settings:
+        with (
+            patch("tuner.main.get_storage") as mock_get_storage,
+            patch("tuner.main.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.auth_enabled = False
             mock_storage = MagicMock()
             mock_get_storage.return_value = mock_storage
@@ -63,9 +66,10 @@ class TestLifespan:
         """Test that lifespan handles storage initialization failure gracefully."""
         test_app = create_app()
 
-        with patch("tuner.main.get_storage") as mock_get_storage, patch(
-            "tuner.main.get_settings"
-        ) as mock_settings:
+        with (
+            patch("tuner.main.get_storage") as mock_get_storage,
+            patch("tuner.main.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.auth_enabled = False
             mock_get_storage.side_effect = Exception("Connection failed")
 
@@ -78,10 +82,11 @@ class TestLifespan:
         """Test that lifespan initializes auth handler when enabled."""
         test_app = create_app()
 
-        with patch("tuner.main.ApiKeyAuth") as mock_auth_class, patch(
-            "tuner.main.get_settings"
-        ) as mock_settings, patch("tuner.main.set_auth_handler") as mock_set_auth, patch(
-            "tuner.main.get_storage"
+        with (
+            patch("tuner.main.ApiKeyAuth") as mock_auth_class,
+            patch("tuner.main.get_settings") as mock_settings,
+            patch("tuner.main.set_auth_handler") as mock_set_auth,
+            patch("tuner.main.get_storage"),
         ):
             mock_settings.return_value.auth_enabled = True
             mock_settings.return_value.auth_database_url = "postgresql://test"
@@ -103,9 +108,12 @@ class TestLifespan:
         """Test that lifespan raises RuntimeError when auth fails (security-critical)."""
         test_app = create_app()
 
-        with patch("tuner.main.ApiKeyAuth") as mock_auth_class, patch(
-            "tuner.main.get_settings"
-        ) as mock_settings, patch("tuner.main.set_auth_handler"), patch("tuner.main.get_storage"):
+        with (
+            patch("tuner.main.ApiKeyAuth") as mock_auth_class,
+            patch("tuner.main.get_settings") as mock_settings,
+            patch("tuner.main.set_auth_handler"),
+            patch("tuner.main.get_storage"),
+        ):
             mock_settings.return_value.auth_enabled = True
             mock_settings.return_value.auth_database_url = "postgresql://test"
 
@@ -125,9 +133,11 @@ class TestLifespan:
         """Test that lifespan skips auth when AUTH_ENABLED=false."""
         test_app = create_app()
 
-        with patch("tuner.main.ApiKeyAuth") as mock_auth_class, patch(
-            "tuner.main.get_settings"
-        ) as mock_settings, patch("tuner.main.get_storage"):
+        with (
+            patch("tuner.main.ApiKeyAuth") as mock_auth_class,
+            patch("tuner.main.get_settings") as mock_settings,
+            patch("tuner.main.get_storage"),
+        ):
             mock_settings.return_value.auth_enabled = False
 
             async with lifespan(test_app):
@@ -139,9 +149,12 @@ class TestLifespan:
         """Test that lifespan closes auth handler on shutdown."""
         test_app = create_app()
 
-        with patch("tuner.main.ApiKeyAuth") as mock_auth_class, patch(
-            "tuner.main.get_settings"
-        ) as mock_settings, patch("tuner.main.set_auth_handler"), patch("tuner.main.get_storage"):
+        with (
+            patch("tuner.main.ApiKeyAuth") as mock_auth_class,
+            patch("tuner.main.get_settings") as mock_settings,
+            patch("tuner.main.set_auth_handler"),
+            patch("tuner.main.get_storage"),
+        ):
             mock_settings.return_value.auth_enabled = True
             mock_settings.return_value.auth_database_url = "postgresql://test"
 
@@ -158,9 +171,12 @@ class TestLifespan:
         """Test that lifespan handles errors when closing auth handler."""
         test_app = create_app()
 
-        with patch("tuner.main.ApiKeyAuth") as mock_auth_class, patch(
-            "tuner.main.get_settings"
-        ) as mock_settings, patch("tuner.main.set_auth_handler"), patch("tuner.main.get_storage"):
+        with (
+            patch("tuner.main.ApiKeyAuth") as mock_auth_class,
+            patch("tuner.main.get_settings") as mock_settings,
+            patch("tuner.main.set_auth_handler"),
+            patch("tuner.main.get_storage"),
+        ):
             mock_settings.return_value.auth_enabled = True
             mock_settings.return_value.auth_database_url = "postgresql://test"
 
@@ -238,9 +254,8 @@ class TestIntegration:
         # Check that user_middleware includes CORS
         found_cors = False
         for middleware_def in app.user_middleware:
-            if hasattr(middleware_def, "cls"):
-                if "CORS" in middleware_def.cls.__name__:
-                    found_cors = True
-                    break
+            if hasattr(middleware_def, "cls") and "CORS" in middleware_def.cls.__name__:
+                found_cors = True
+                break
 
         assert found_cors, "CORSMiddleware not configured in app"
