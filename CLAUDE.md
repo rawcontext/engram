@@ -118,47 +118,45 @@ Parsers in `packages/parser/src/providers/`: Anthropic, OpenAI, Gemini, Claude C
 
 **Sampling-Required Tools**: `engram_summarize`, `engram_extract_facts`, and `engram_enrich_memory` require the MCP client to support **sampling capability** (server requesting LLM completions from the client). If unsupported, these tools return `available: false` gracefully.
 
-## MCP Client Usage & Best Practices
+## Engram Memory Triggers
 
-**IMPORTANT**: Use Engram tools PROACTIVELY - don't wait to be asked. These patterns help you work with institutional memory.
+### ALWAYS Recall Before:
+- Starting any non-trivial task → `engram_context(task)`
+- Making architectural or design decisions → `engram_recall("decisions about X", type='decision')`
+- Working on files modified in previous sessions → include in `engram_context(task, files=[...])`
+- When user says "remember", "before", "last time", "we decided" → `engram_recall(query)`
 
-### 1. Task Initialization (The "Prime" Pattern)
-At the START of any significant task, call `engram_context` or use the `/e prime` prompt.
-- **When**: Beginning work, resuming after a break, working on files touched before, making decisions with potential precedent.
-- **Why**: Primes yourself with institutional knowledge before diving in. Catches patterns and decisions you'd otherwise miss.
-- **Tip**: Be specific in the task description - "implement OAuth2 login" retrieves better context than "add auth".
+### ALWAYS Remember When:
+- User expresses a preference ("I prefer...", "always use...", "never...") → `type: 'preference'`
+- You make an architectural decision with rationale → `type: 'decision'`
+- You discover something non-obvious while debugging → `type: 'insight'`
+- You learn a project convention or pattern → `type: 'fact'`
 
-### 2. Intelligent Storage (The "Enrich & Remember" Pattern)
-Don't just dump raw text into `engram_remember`. Use the helper tools to structure it first.
-- **When**: You learn something valuable - user preferences, architectural decisions, debugging insights, project conventions.
-- **Workflow**: `engram_enrich_memory(content)` → `engram_remember(content, type=category, tags=keywords)`.
-- **Why**: Ensures memories are categorized correctly and tagged for better future retrieval. The enrichment step auto-generates metadata.
+### NEVER Remember:
+- Transient status ("working on X", "about to...")
+- Obvious facts already in code comments
+- Temporary workarounds without noting they're temporary
+- Duplicate information already stored
 
-### 3. Signal Extraction (The "Extract & Remember" Pattern)
-When processing long logs, documentation, or messy chat history:
-- **When**: You encounter verbose content with multiple valuable facts buried within.
-- **Workflow**: `engram_extract_facts(text)` → iterate through facts → `engram_remember(fact)`.
-- **Why**: Prevents "memory pollution" by storing only atomic, high-value facts. Each fact becomes independently searchable.
+## Engram Quick Reference
 
-### 4. Deep Investigation (The "Query & Resource" Pattern)
-If `engram_recall` doesn't find what you need, or you need to understand relationships:
-- **When**: Semantic search isn't enough - you need date ranges, relationship tracing, or counts.
-- **Query**: Use `engram_query` for Cypher queries (e.g., "Find all decisions made in sessions where `auth.ts` was modified").
-- **Resources**: Use `session://{id}/transcript` for full context of past work, or `file-history://{path}` for file evolution.
+| Trigger | Action |
+|---------|--------|
+| Starting a task | `engram_context(task, files, depth='medium')` |
+| User says "remember when..." | `engram_recall(query, filters={type: 'turn'})` |
+| Before making a decision | `engram_recall("decisions about X", filters={type: 'decision'})` |
+| Learn user preference | `engram_remember(content, type='preference', tags=[...])` |
+| Make architectural choice | `engram_remember(content, type='decision', tags=[...])` |
+| Debug discovery | `engram_remember(content, type='insight', tags=[...])` |
+| Processing verbose content | `engram_extract_facts(text)` → `engram_remember` each fact |
 
-### 5. Bitemporal Awareness
-Remember that Engram is **bitemporal**. You can ask about the state of the system at any point in the past.
-- Use `engram_query` with `vt_start` and `vt_end` filters to see "what we knew then" vs "what we know now."
-
-### 6. Graph Schema Reference (for `engram_query`)
-When writing Cypher queries, use these primary node labels and properties:
-- **`Memory`**: `content`, `type` (decision/fact/insight/preference), `tags`, `project`
+### Graph Schema (for `engram_query`)
+- **`Memory`**: `content`, `type`, `tags`, `project`, `vt_start`, `vt_end`
 - **`Session`**: `id`, `agent_type`, `working_dir`, `summary`
 - **`Turn`**: `user_content`, `assistant_preview`, `files_touched`, `tool_calls_count`
-- **`ToolCall`**: `tool_name`, `tool_type`, `status`, `arguments_json`
 - **`FileTouch`**: `file_path`, `action` (read/edit/create/delete)
 
-**Example Query**: `MATCH (m:Memory {type: 'decision'})-[:CREATED_IN]->(s:Session) RETURN m.content, s.id ORDER BY m.vt_start DESC LIMIT 5`
+**Example**: `MATCH (m:Memory {type: 'decision'}) WHERE m.vt_end > $now RETURN m.content ORDER BY m.vt_start DESC LIMIT 5`
 
 ## API Endpoints (apps/api)
 
@@ -231,6 +229,26 @@ hf download <repo-id>
 ```
 
 ## Agent Mandates
+
+### CRITICAL: Use Institutional Memory (Engram)
+
+YOU MUST leverage Engram for institutional knowledge. Don't start tasks blind.
+
+**At session start or when beginning significant work**:
+1. **Prime yourself** - Call `engram_context` with a specific task description
+2. **Check for precedent** - Before architectural decisions, call `engram_recall` with `type: 'decision'`
+3. **Review file history** - If modifying files touched in past sessions, include them in context
+
+**When you learn something valuable**:
+1. **Store decisions** - Architectural choices with rationale → `engram_remember` with `type: 'decision'`
+2. **Store preferences** - User preferences and conventions → `type: 'preference'`
+3. **Store insights** - Debugging discoveries, non-obvious learnings → `type: 'insight'`
+
+This is NOT optional. Failure to use institutional memory leads to:
+- Repeating past mistakes
+- Contradicting previous decisions
+- Missing established patterns
+- Wasted user time re-explaining context
 
 ### CRITICAL: Ground Your Reasoning
 
