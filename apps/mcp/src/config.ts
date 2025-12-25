@@ -120,7 +120,7 @@ export function loadConfig(): Config {
 		falkordbUrl: process.env.FALKORDB_URL ?? "redis://localhost:6179",
 		qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6180",
 		searchUrl: process.env.SEARCH_URL ?? "http://localhost:6176",
-		searchApiKey: process.env.SEARCH_API_KEY,
+		searchApiKey: process.env.SEARCH_API_KEY ?? process.env.ENGRAM_API_KEY,
 		logLevel: process.env.LOG_LEVEL ?? "info",
 	};
 
