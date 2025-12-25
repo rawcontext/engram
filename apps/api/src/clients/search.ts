@@ -27,6 +27,7 @@ export interface SearchOptions {
 	rerank?: boolean;
 	rerank_tier?: "fast" | "accurate" | "code" | "llm";
 	rerank_depth?: number;
+	collection?: "engram_memory" | "engram_turns";
 }
 
 export interface SearchResult {
@@ -94,6 +95,7 @@ export class SearchClient {
 			rerank: options.rerank ?? false,
 			rerank_tier: options.rerank_tier,
 			rerank_depth: options.rerank_depth,
+			collection: options.collection,
 		};
 
 		this.logger.debug({ url, query: options.text.slice(0, 50) }, "Sending search request");

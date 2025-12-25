@@ -200,6 +200,7 @@ export class MemoryService {
 				strategy: "hybrid",
 				rerank: true,
 				rerank_tier: "fast",
+				collection: "engram_memory",
 				filters: {
 					type: searchType,
 					...searchFilters,
