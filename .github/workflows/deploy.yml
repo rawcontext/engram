@@ -20,44 +20,14 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  SERVER_HOST: api.statient.com
+
 jobs:
   # Wait for CI to pass
   ci:
     uses: ./.github/workflows/ci.yml
     secrets: inherit
-
-  # Fetch server IP from OpenTofu state (always runs)
-  get-server-ip:
-    runs-on: ubuntu-latest
-    needs: ci
-    outputs:
-      server_ip: ${{ steps.get-ip.outputs.ip }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: 1.8.0
-
-      - name: Get Server IP from state
-        id: get-ip
-        working-directory: packages/infra
-        env:
-          TF_HTTP_USERNAME: tofu
-          TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
-        run: |
-          # Initialize backend
-          tofu init -backend=true -lock=false
-
-          # Try to get the server IP, handle case where it doesn't exist yet
-          if IP=$(tofu output -raw server_ip 2>/dev/null); then
-            echo "ip=$IP" >> $GITHUB_OUTPUT
-            echo "Found server IP: $IP"
-          else
-            echo "No server_ip output found (first deploy or empty state)"
-            echo "ip=" >> $GITHUB_OUTPUT
-          fi
 
   # Detect which components changed
   changes:
@@ -227,44 +197,26 @@ jobs:
   # Sync files to server (runs if any service changed)
   sync:
     runs-on: ubuntu-latest
-    needs: [changes, infrastructure, get-server-ip]
+    needs: [changes, infrastructure]
     if: |
       always() &&
       needs.changes.result == 'success' &&
-      (needs.get-server-ip.result == 'success' || needs.infrastructure.result == 'success') &&
       needs.changes.outputs.any_service == 'true'
     environment: production
-    outputs:
-      server_ip: ${{ steps.resolve-ip.outputs.ip }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Resolve Server IP
-        id: resolve-ip
-        run: |
-          # Use infrastructure output if available, fall back to get-server-ip
-          IP="${{ needs.infrastructure.outputs.server_ip }}"
-          if [ -z "$IP" ]; then
-            IP="${{ needs.get-server-ip.outputs.server_ip }}"
-          fi
-          if [ -z "$IP" ]; then
-            echo "ERROR: No server IP available from either infrastructure or get-server-ip"
-            exit 1
-          fi
-          echo "ip=$IP" >> $GITHUB_OUTPUT
-          echo "Using server IP: $IP"
 
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ steps.resolve-ip.outputs.ip }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
 
       - name: Cleanup conflicting paths
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ steps.resolve-ip.outputs.ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           script: |
@@ -288,12 +240,12 @@ jobs:
             --exclude '.next' \
             --exclude '.terraform' \
             --exclude 'terraform.tfstate*' \
-            . engram@${{ steps.resolve-ip.outputs.ip }}:/opt/engram/
+            . engram@${{ env.SERVER_HOST }}:/opt/engram/
 
       - name: Create .env file on server
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           script: |
@@ -317,7 +269,7 @@ jobs:
       - name: Run auth database migrations
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           script: |
@@ -343,7 +295,7 @@ jobs:
       - name: Deploy API
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -369,7 +321,7 @@ jobs:
       - name: Deploy Search
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -395,7 +347,7 @@ jobs:
       - name: Deploy Tuner
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -421,7 +373,7 @@ jobs:
       - name: Deploy Observatory
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -447,7 +399,7 @@ jobs:
       - name: Deploy Ingestion
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -473,7 +425,7 @@ jobs:
       - name: Deploy Memory
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -499,7 +451,7 @@ jobs:
       - name: Deploy Control
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -525,7 +477,7 @@ jobs:
       - name: Deploy Infrastructure Services
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 10m
@@ -565,7 +517,7 @@ jobs:
       - name: Start Caddy
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 5m
@@ -609,7 +561,7 @@ jobs:
       - name: Prune old Docker images
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ needs.sync.outputs.server_ip }}
+          host: ${{ env.SERVER_HOST }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 5m
