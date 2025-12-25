@@ -1,7 +1,10 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 
-const baseURL = process.env.BETTER_AUTH_URL || "https://observatory.statient.com";
+if (!process.env.BETTER_AUTH_URL) {
+	throw new Error("BETTER_AUTH_URL environment variable is required");
+}
+const baseURL = process.env.BETTER_AUTH_URL;
 
 // Use a build-time placeholder secret when env var is not set (during next build)
 // This allows static page generation to complete without errors
@@ -41,7 +44,7 @@ export const auth = betterAuth({
 	trustedOrigins: [
 		"http://localhost:6178",
 		"http://localhost:3000",
-		"https://observatory.statient.com",
+		...(process.env.TRUSTED_ORIGINS?.split(",").map((o) => o.trim()) ?? []),
 	],
 	onAPIError: {
 		onError: (error) => {
