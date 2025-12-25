@@ -38,7 +38,7 @@ class TestCreateApp:
 
         # Check that routes are registered
         route_paths = [route.path for route in app.routes]
-        assert "/v1/health" in route_paths
+        assert "/v1/tuner/health" in route_paths
 
 
 class TestLifespan:
@@ -245,7 +245,7 @@ class TestIntegration:
         """Test that health endpoint is accessible through the app."""
         with patch("tuner.main.get_storage"):
             client = TestClient(app)
-            response = client.get("/v1/health")
+            response = client.get("/v1/tuner/health")
             # Should return 503 without storage, but endpoint should be accessible
             assert response.status_code in [200, 503]
 
