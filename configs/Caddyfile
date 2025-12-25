@@ -1,15 +1,24 @@
 api.statient.com {
-    reverse_proxy api:6174
-}
+	# Search service endpoints
+	handle /v1/search/* {
+		reverse_proxy search:6176
+	}
 
-search.statient.com {
-    reverse_proxy search:6176
-}
+	# Tuner service endpoints
+	handle /v1/tuner/* {
+		reverse_proxy tuner:6177
+	}
 
-tuner.statient.com {
-    reverse_proxy tuner:6177
+	# API service (memory, keys, usage, tofu, health)
+	handle /v1/* {
+		reverse_proxy api:6174
+	}
+
+	handle {
+		respond "Not Found" 404
+	}
 }
 
 observatory.statient.com {
-    reverse_proxy observatory:3000
+	reverse_proxy observatory:3000
 }

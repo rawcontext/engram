@@ -137,7 +137,10 @@ describe("Memory Routes", () => {
 			expect(body.success).toBe(true);
 			expect(body.data.memories).toHaveLength(1);
 			expect(body.data.memories[0].id).toBe("m1");
-			expect(mockMemoryService.recall).toHaveBeenCalledWith("test query", 5, undefined);
+			expect(mockMemoryService.recall).toHaveBeenCalledWith("test query", 5, undefined, {
+				rerank: true,
+				rerank_tier: "fast",
+			});
 		});
 
 		it("should pass filters to recall", async () => {
@@ -159,10 +162,18 @@ describe("Memory Routes", () => {
 				}),
 			});
 
-			expect(mockMemoryService.recall).toHaveBeenCalledWith("test", 10, {
-				type: "decision",
-				project: "my-project",
-			});
+			expect(mockMemoryService.recall).toHaveBeenCalledWith(
+				"test",
+				10,
+				{
+					type: "decision",
+					project: "my-project",
+				},
+				{
+					rerank: true,
+					rerank_tier: "fast",
+				},
+			);
 		});
 
 		it("should return 400 for empty query", async () => {

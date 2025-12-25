@@ -102,7 +102,7 @@ async def metrics() -> Response:
     return Response(content=get_metrics(), media_type=get_content_type())
 
 
-@router.post("/search", response_model=SearchResponse)
+@router.post("/query", response_model=SearchResponse)
 async def search(
     request: Request,
     search_request: SearchRequest,
@@ -312,7 +312,7 @@ async def embed(
         ) from e
 
 
-@router.post("/search/multi-query", response_model=SearchResponse)
+@router.post("/multi-query", response_model=SearchResponse)
 async def multi_query_search(
     request: Request,
     multi_query_request: MultiQueryRequest,
@@ -434,7 +434,7 @@ async def multi_query_search(
         ) from e
 
 
-@router.post("/search/session-aware", response_model=SessionAwareResponse)
+@router.post("/session-aware", response_model=SessionAwareResponse)
 async def session_aware_search(
     request: Request,
     session_request: SessionAwareRequest,
@@ -522,7 +522,7 @@ async def session_aware_search(
         ) from e
 
 
-@router.post("/index/memory", response_model=MemoryIndexResponse)
+@router.post("/index-memory", response_model=MemoryIndexResponse)
 async def index_memory(
     request: Request,
     memory_request: MemoryIndexRequest,
@@ -646,7 +646,7 @@ async def index_memory(
         ) from e
 
 
-@router.post("/admin/collections/{collection_name}/recreate")
+@router.post("/admin/{collection_name}/recreate")
 async def recreate_collection(
     request: Request,
     collection_name: str,

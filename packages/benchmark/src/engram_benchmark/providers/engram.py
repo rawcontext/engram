@@ -121,7 +121,7 @@ class EngramSearchClient:
         Raises:
             httpx.HTTPError: On HTTP errors
         """
-        response = await self._client.get("/health")
+        response = await self._client.get("/v1/search/health")
         response.raise_for_status()
         return HealthResponse.model_validate(response.json())
 
@@ -135,7 +135,7 @@ class EngramSearchClient:
         Raises:
             httpx.HTTPError: On HTTP errors
         """
-        response = await self._client.get("/ready")
+        response = await self._client.get("/v1/search/ready")
         response.raise_for_status()
         result: dict[str, str] = response.json()
         return result
@@ -187,7 +187,7 @@ class EngramSearchClient:
         )
 
         response = await self._client.post(
-            "/search",
+            "/v1/search/query",
             json=request.model_dump(exclude_none=True),
         )
         response.raise_for_status()

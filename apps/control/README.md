@@ -150,7 +150,7 @@ Tools from MCP servers are dynamically discovered and merged with built-in tools
 | `KAFKA_BROKERS` | Kafka broker addresses | `localhost:19092` |
 | `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
 | `FALKORDB_URL` | FalkorDB connection URL | `redis://localhost:6379` |
-| `SEARCH_URL` | Python search service URL | `http://localhost:5002` |
+| `SEARCH_URL` | Python search service URL | `http://localhost:6176` |
 
 ### Tunable Parameters
 

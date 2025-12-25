@@ -118,7 +118,7 @@ engram-benchmark run \
 - `--model, -m`: LLM model for answer generation (default: `openai/gpt-4o-mini`)
 - `--embedding-model, -e`: Embedding model (default: `BAAI/bge-base-en-v1.5`)
 - `--retriever, -r`: Retriever provider (`chroma` or `engram`, default: `chroma`)
-- `--search-url`: Engram search service URL (only for `--retriever=engram`, default: `http://localhost:5002`)
+- `--search-url`: Engram search service URL (only for `--retriever=engram`, default: `http://localhost:6176`)
 - `--search-strategy`: Search strategy for Engram (`hybrid`, `dense`, `sparse`, default: `hybrid`)
 - `--rerank`: Enable reranking for Engram retriever (default: `True`)
 - `--rerank-tier`: Reranker tier (`fast`, `accurate`, `code`, `llm`, default: `accurate`)
@@ -274,7 +274,7 @@ from engram_benchmark.longmemeval.retriever import EngramRetriever
 from engram_benchmark.providers.engram import EngramSearchClient
 
 # Create Engram search client
-search_client = EngramSearchClient(base_url="http://localhost:5002")
+search_client = EngramSearchClient(base_url="http://localhost:6176")
 
 # Create retriever with hybrid search and reranking
 retriever = EngramRetriever(

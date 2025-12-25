@@ -195,6 +195,8 @@ export class EngramCloudClient implements IEngramClient {
 							after: filters.since,
 						}
 					: undefined,
+				rerank: filters?.rerank,
+				rerank_tier: filters?.rerank_tier,
 			}),
 		});
 

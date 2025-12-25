@@ -23,6 +23,8 @@ const RecallSchema = z.object({
 			before: z.string().datetime().optional(),
 		})
 		.optional(),
+	rerank: z.boolean().optional().default(true),
+	rerank_tier: z.enum(["fast", "accurate", "code", "llm"]).optional().default("fast"),
 });
 
 const QuerySchema = z.object({
@@ -104,6 +106,10 @@ export function createMemoryRoutes(options: MemoryRoutesOptions) {
 				parsed.data.query,
 				parsed.data.limit,
 				parsed.data.filters,
+				{
+					rerank: parsed.data.rerank,
+					rerank_tier: parsed.data.rerank_tier,
+				},
 			);
 
 			return c.json({

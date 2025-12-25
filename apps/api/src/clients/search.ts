@@ -85,7 +85,7 @@ export class SearchClient {
 	 * Perform a search query against the search service.
 	 */
 	async search(options: SearchOptions): Promise<SearchResponse> {
-		const url = `${this.baseUrl}/v1/search`;
+		const url = `${this.baseUrl}/v1/search/query`;
 
 		const requestBody = {
 			text: options.text,
@@ -128,7 +128,7 @@ export class SearchClient {
 	 * Check if the search service is healthy.
 	 */
 	async health(): Promise<{ status: string; qdrant_connected: boolean }> {
-		const url = `${this.baseUrl}/v1/health`;
+		const url = `${this.baseUrl}/v1/search/health`;
 
 		try {
 			const response = await fetch(url);
@@ -145,7 +145,7 @@ export class SearchClient {
 	 * Index a memory for semantic search.
 	 */
 	async indexMemory(options: MemoryIndexOptions): Promise<MemoryIndexResponse> {
-		const url = `${this.baseUrl}/v1/index/memory`;
+		const url = `${this.baseUrl}/v1/search/index-memory`;
 
 		const requestBody = {
 			id: options.id,

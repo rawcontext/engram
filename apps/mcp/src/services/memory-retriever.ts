@@ -3,11 +3,15 @@ import { createNodeLogger, type Logger } from "@engram/logger";
 import { createFalkorClient, type GraphClient } from "@engram/storage";
 import { SearchClient } from "../clients/search";
 
+export type RerankTier = "fast" | "accurate" | "code" | "llm";
+
 export interface RecallFilters {
 	type?: MemoryType | "turn";
 	project?: string;
 	since?: string; // ISO date string
 	sessionId?: string;
+	rerank?: boolean;
+	rerank_tier?: RerankTier;
 }
 
 export interface RecallResult {
@@ -85,8 +89,8 @@ export class MemoryRetriever {
 					await this.searchClient.search({
 						text: query,
 						limit: limit * 2, // Oversample for better recall
-						rerank: true,
-						rerank_tier: "fast",
+						rerank: filters?.rerank ?? true,
+						rerank_tier: filters?.rerank_tier ?? "fast",
 						strategy: "hybrid",
 						collection: "engram_memory",
 						filters: {

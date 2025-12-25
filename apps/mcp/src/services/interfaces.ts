@@ -15,6 +15,11 @@ export interface CreateMemoryInput {
 }
 
 /**
+ * Reranker tier for search quality/latency tradeoff
+ */
+export type RerankTier = "fast" | "accurate" | "code" | "llm";
+
+/**
  * Filters for recalling memories
  */
 export interface RecallFilters {
@@ -22,6 +27,8 @@ export interface RecallFilters {
 	project?: string;
 	since?: string; // ISO date string
 	sessionId?: string;
+	rerank?: boolean;
+	rerank_tier?: RerankTier;
 }
 
 /**

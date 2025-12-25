@@ -168,15 +168,17 @@ When writing Cypher queries, use these primary node labels and properties:
 
 ## Search Service API (apps/search)
 
+All endpoints are prefixed with `/v1/search`:
+
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/health` | GET | Health check with Qdrant status |
-| `/ready` | GET | Kubernetes readiness probe |
-| `/metrics` | GET | Prometheus metrics |
-| `/search` | POST | Hybrid search with strategy (dense/sparse/hybrid) and reranking |
-| `/search/multi-query` | POST | LLM-driven query expansion (DMQR-RAG) |
-| `/search/session-aware` | POST | Two-stage hierarchical retrieval across sessions |
-| `/embed` | POST | Generate embeddings for external use |
+| `/v1/search/health` | GET | Health check with Qdrant status |
+| `/v1/search/ready` | GET | Kubernetes readiness probe |
+| `/v1/search/metrics` | GET | Prometheus metrics |
+| `/v1/search/query` | POST | Hybrid search with strategy (dense/sparse/hybrid) and reranking |
+| `/v1/search/multi-query` | POST | LLM-driven query expansion (DMQR-RAG) |
+| `/v1/search/session-aware` | POST | Two-stage hierarchical retrieval across sessions |
+| `/v1/search/embed` | POST | Generate embeddings for external use |
 
 **Reranker Tiers**: `fast` (FlashRank ~10ms), `accurate` (BGE cross-encoder ~50ms), `code` (Jina ~50ms), `colbert` (late interaction ~30ms), `llm` (Gemini 3.0 Flash ~500ms)
 
@@ -287,13 +289,13 @@ docker exec -it engram-falkordb-1 redis-cli
 curl http://localhost:6180/collections
 
 # Search service health check
-curl http://localhost:6176/v1/health
+curl http://localhost:6176/v1/search/health
 
 # Search service metrics
-curl http://localhost:6176/v1/metrics
+curl http://localhost:6176/v1/search/metrics
 
 # Tuner service health
-curl http://localhost:6177/v1/health
+curl http://localhost:6177/v1/tuner/health
 
 # Optuna Dashboard
 open http://localhost:6184

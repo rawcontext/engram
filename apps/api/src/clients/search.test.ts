@@ -32,7 +32,10 @@ describe("SearchClient", () => {
 			});
 
 			client.search({ text: "test" });
-			expect(mockFetch).toHaveBeenCalledWith("http://localhost:5002/v1/search", expect.any(Object));
+			expect(mockFetch).toHaveBeenCalledWith(
+				"http://localhost:5002/v1/search/query",
+				expect.any(Object),
+			);
 		});
 	});
 
@@ -60,7 +63,7 @@ describe("SearchClient", () => {
 			const client = new SearchClient("http://localhost:5002", mockLogger);
 			const response = await client.search({ text: "my query" });
 
-			expect(mockFetch).toHaveBeenCalledWith("http://localhost:5002/v1/search", {
+			expect(mockFetch).toHaveBeenCalledWith("http://localhost:5002/v1/search/query", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -99,7 +102,7 @@ describe("SearchClient", () => {
 			});
 
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://localhost:5002/v1/search",
+				"http://localhost:5002/v1/search/query",
 				expect.objectContaining({
 					body: JSON.stringify({
 						text: "query",
@@ -167,7 +170,7 @@ describe("SearchClient", () => {
 
 			expect(health.status).toBe("healthy");
 			expect(health.qdrant_connected).toBe(true);
-			expect(mockFetch).toHaveBeenCalledWith("http://localhost:5002/v1/health");
+			expect(mockFetch).toHaveBeenCalledWith("http://localhost:5002/v1/search/health");
 		});
 
 		it("should return unhealthy on non-ok response", async () => {

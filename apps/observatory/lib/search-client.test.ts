@@ -45,7 +45,7 @@ describe("search-client", () => {
 
 			expect(result).toEqual(mockResponse);
 			expect(fetch).toHaveBeenCalledWith(
-				"http://localhost:6176/v1/search",
+				"http://localhost:6176/v1/search/query",
 				expect.objectContaining({
 					method: "POST",
 					headers: {
@@ -99,7 +99,7 @@ describe("search-client", () => {
 			await search({ text: "test" });
 
 			expect(fetch).toHaveBeenCalledWith(
-				"http://localhost:6176/v1/search",
+				"http://localhost:6176/v1/search/query",
 				expect.objectContaining({
 					headers: expect.objectContaining({
 						Authorization: "Bearer test_api_key",
@@ -138,7 +138,7 @@ describe("search-client", () => {
 
 			await search(request);
 
-			expect(fetch).toHaveBeenCalledWith("http://localhost:6176/v1/search", {
+			expect(fetch).toHaveBeenCalledWith("http://localhost:6176/v1/search/query", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",

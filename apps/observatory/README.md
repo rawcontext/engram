@@ -88,7 +88,7 @@ Memory Service → Redis Pub/Sub → WebSocket Server → React Client
 ### Search Integration
 
 Observatory communicates with the Python search service:
-- **Base URL**: `http://localhost:5002` (configurable via `SEARCH_URL`)
+- **Base URL**: `http://localhost:6176` (configurable via `SEARCH_URL`)
 - **Client**: `lib/search-client.ts` - HTTP wrapper with TypeScript types
 - **Strategy**: Hybrid (dense + sparse) with optional reranking
 - **Tiers**: `fast`, `accurate`, `code`, `llm` (latency/quality tradeoff)
@@ -125,7 +125,7 @@ Observatory uses `.env` symlinked to monorepo root. Key variables:
 
 ```bash
 REDIS_URL=redis://localhost:6379      # FalkorDB + Redis pub/sub
-SEARCH_URL=http://localhost:5002      # Python search service
+SEARCH_URL=http://localhost:6176      # Python search service
 PORT=5000                              # Observatory port
 ```
 
@@ -469,7 +469,7 @@ type SearchResult {
 
 **Solutions**:
 1. Verify Qdrant is running: `curl http://localhost:6333/collections`
-2. Check search service: `curl http://localhost:5002/v1/health`
+2. Check search service: `curl http://localhost:6176/v1/search/health`
 3. Ensure documents are indexed (search service must be running)
 4. Try a broader query or disable reranking
 5. Check search service logs for errors

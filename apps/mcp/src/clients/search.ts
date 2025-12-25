@@ -69,7 +69,7 @@ export class SearchClient {
 	}
 
 	async search(options: SearchOptions): Promise<SearchResponse> {
-		const url = `${this.baseUrl}/v1/search`;
+		const url = `${this.baseUrl}/v1/search/query`;
 
 		const requestBody = {
 			text: options.text,
@@ -130,7 +130,7 @@ export class SearchClient {
 	}
 
 	async indexMemory(options: MemoryIndexOptions): Promise<MemoryIndexResponse> {
-		const url = `${this.baseUrl}/v1/index/memory`;
+		const url = `${this.baseUrl}/v1/search/index-memory`;
 
 		const requestBody = {
 			id: options.id,

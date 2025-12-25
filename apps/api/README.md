@@ -355,7 +355,7 @@ Response includes `Retry-After` header with seconds to wait.
 | `FALKORDB_URL` | FalkorDB connection URL | `redis://localhost:6379` |
 | `POSTGRES_URL` | PostgreSQL connection URL | `postgresql://postgres:postgres@localhost:5432/engram` |
 | `REDIS_URL` | Redis connection URL (rate limiting) | `redis://localhost:6379` |
-| `SEARCH_URL` | Python search service URL | `http://localhost:5002` |
+| `SEARCH_URL` | Python search service URL | `http://localhost:6176` |
 | `LOG_LEVEL` | Logging level (trace, debug, info, warn, error, fatal) | `info` |
 | `RATE_LIMIT_RPM` | Default rate limit (requests per minute) | `60` |
 

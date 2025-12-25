@@ -18,22 +18,6 @@ resource "vercel_dns_record" "api" {
   value  = hcloud_server.engram.ipv4_address
 }
 
-resource "vercel_dns_record" "search" {
-  domain = var.domain
-  name   = "search"
-  type   = "A"
-  ttl    = 60
-  value  = hcloud_server.engram.ipv4_address
-}
-
-resource "vercel_dns_record" "tuner" {
-  domain = var.domain
-  name   = "tuner"
-  type   = "A"
-  ttl    = 60
-  value  = hcloud_server.engram.ipv4_address
-}
-
 resource "vercel_dns_record" "observatory" {
   domain = var.domain
   name   = "observatory"

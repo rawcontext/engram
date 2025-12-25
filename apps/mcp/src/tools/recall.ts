@@ -26,6 +26,20 @@ export function registerRecallTool(
 					})
 					.optional()
 					.describe("Optional filters"),
+				rerank: z
+					.boolean()
+					.optional()
+					.default(true)
+					.describe(
+						"Enable reranking to improve result relevance. Reranking uses a cross-encoder model to re-score initial vector search results. Disable for faster but less precise results.",
+					),
+				rerank_tier: z
+					.enum(["fast", "accurate", "code", "llm"])
+					.optional()
+					.default("fast")
+					.describe(
+						"Reranker model tier. 'fast': FlashRank lightweight model, good for general queries. 'accurate': BGE cross-encoder, higher quality semantic matching. 'code': Jina code-optimized model, best for code snippets and technical content. 'llm': Gemini Flash, highest quality but uses LLM inference for scoring.",
+					),
 				disambiguate: z
 					.boolean()
 					.optional()
@@ -48,11 +62,15 @@ export function registerRecallTool(
 				selectedId: z.string().optional(),
 			},
 		},
-		async ({ query, limit, filters, disambiguate }) => {
+		async ({ query, limit, filters, rerank, rerank_tier, disambiguate }) => {
 			// Note: Don't auto-apply project filter from session context
 			// Memories may have been stored before roots were populated (with project: null)
 
-			const memories = await memoryRetriever.recall(query, limit ?? 5, filters);
+			const memories = await memoryRetriever.recall(query, limit ?? 5, {
+				...filters,
+				rerank: rerank ?? true,
+				rerank_tier: rerank_tier ?? "fast",
+			});
 
 			// If disambiguation is requested and we have multiple similar results, ask user to select
 			let selectedId: string | undefined;

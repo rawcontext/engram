@@ -59,7 +59,7 @@ Run with local infrastructure (FalkorDB, Qdrant, search service):
         "ENGRAM_MODE": "local",
         "FALKORDB_URL": "redis://localhost:6379",
         "QDRANT_URL": "http://localhost:6333",
-        "SEARCH_URL": "http://localhost:5002"
+        "SEARCH_URL": "http://localhost:6176"
       }
     }
   }
@@ -87,7 +87,7 @@ This starts:
 | `ENGRAM_MODE` | Force mode: `cloud` or `local` | Auto-detected |
 | `FALKORDB_URL` | FalkorDB connection (local mode) | `redis://localhost:6379` |
 | `QDRANT_URL` | Qdrant connection (local mode) | `http://localhost:6333` |
-| `SEARCH_URL` | Search service URL (local mode) | `http://localhost:5002` |
+| `SEARCH_URL` | Search service URL (local mode) | `http://localhost:6176` |
 | `MCP_TRANSPORT` | Transport mode: `stdio` or `http` | `stdio` |
 | `MCP_HTTP_PORT` | HTTP server port (ingest API) | `3010` |
 | `LOG_LEVEL` | Logging level | `info` |

@@ -83,7 +83,7 @@ export class SearchClient {
 	 * Perform a search query against the search service.
 	 */
 	async search(options: SearchOptions): Promise<SearchResponse> {
-		const url = `${this.baseUrl}/v1/search`;
+		const url = `${this.baseUrl}/v1/search/query`;
 
 		const requestBody = {
 			text: options.text,
@@ -125,7 +125,7 @@ export class SearchClient {
 	 * Generate an embedding for the given text.
 	 */
 	async embed(options: EmbedOptions): Promise<EmbedResponse> {
-		const url = `${this.baseUrl}/v1/embed`;
+		const url = `${this.baseUrl}/v1/search/embed`;
 
 		const requestBody = {
 			text: options.text,
@@ -165,7 +165,7 @@ export class SearchClient {
 	 * Check if the search service is healthy.
 	 */
 	async health(): Promise<{ status: string; qdrant_connected: boolean }> {
-		const url = `${this.baseUrl}/v1/health`;
+		const url = `${this.baseUrl}/v1/search/health`;
 
 		try {
 			const response = await fetch(url);

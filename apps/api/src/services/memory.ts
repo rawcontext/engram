@@ -54,6 +54,13 @@ export interface RecallFilters {
 	before?: string;
 }
 
+export type RerankTier = "fast" | "accurate" | "code" | "llm";
+
+export interface RerankOptions {
+	rerank?: boolean;
+	rerank_tier?: RerankTier;
+}
+
 export interface MemoryResult {
 	id: string;
 	content: string;
@@ -171,7 +178,12 @@ export class MemoryService {
 	/**
 	 * Search memories using hybrid retrieval with Qdrant vector search
 	 */
-	async recall(query: string, limit = 5, filters?: RecallFilters): Promise<MemoryResult[]> {
+	async recall(
+		query: string,
+		limit = 5,
+		filters?: RecallFilters,
+		rerankOptions?: RerankOptions,
+	): Promise<MemoryResult[]> {
 		// Map memory type to search type for Qdrant
 		// Memory types: decision, context, insight, preference, fact
 		// Search types: thought, code, doc
@@ -199,8 +211,8 @@ export class MemoryService {
 				limit: limit * 2, // Oversample for better recall
 				threshold: 0.5,
 				strategy: "hybrid",
-				rerank: true,
-				rerank_tier: "fast",
+				rerank: rerankOptions?.rerank ?? true,
+				rerank_tier: rerankOptions?.rerank_tier ?? "fast",
 				collection: QdrantCollections.MEMORY,
 				filters: {
 					type: searchType,

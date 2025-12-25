@@ -596,7 +596,7 @@ jobs:
           echo "| Caddy | ${{ needs.changes.outputs.caddy }} | ${{ needs.deploy-caddy.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Service URLs" >> $GITHUB_STEP_SUMMARY
-          echo "- API: https://api.statient.com" >> $GITHUB_STEP_SUMMARY
-          echo "- Search: https://search.statient.com" >> $GITHUB_STEP_SUMMARY
-          echo "- Tuner: https://tuner.statient.com" >> $GITHUB_STEP_SUMMARY
+          echo "- API: https://api.statient.com/v1" >> $GITHUB_STEP_SUMMARY
+          echo "- Search: https://api.statient.com/v1/search" >> $GITHUB_STEP_SUMMARY
+          echo "- Tuner: https://api.statient.com/v1/tuner" >> $GITHUB_STEP_SUMMARY
           echo "- Observatory: https://observatory.statient.com" >> $GITHUB_STEP_SUMMARY
