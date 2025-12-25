@@ -54,7 +54,7 @@ variable "vercel_team_id" {
 }
 
 variable "domain" {
-  description = "Domain name for DNS records"
+  description = "Domain name for DNS records (e.g., example.com)"
   type        = string
-  default     = "statient.com"
+  # No default - must be provided via TF_VAR_domain or -var
 }

@@ -45,14 +45,14 @@ bun run output
 
 ### DNS (Vercel)
 
-**Domain:** `statient.com`
+**Domain:** Configured via `TF_VAR_domain`
 
 | Subdomain | Service | Port |
 |-----------|---------|------|
-| api.statient.com | API | 8080 |
-| search.statient.com | Search | 5002 |
-| tuner.statient.com | Tuner | 8000 |
-| observatory.statient.com | Observatory | 5000 |
+| api.example.com | API | 8080 |
+| search.example.com | Search | 5002 |
+| tuner.example.com | Tuner | 8000 |
+| observatory.example.com | Observatory | 5000 |
 
 ### Firewall Rules
 
@@ -80,7 +80,7 @@ Both Hetzner Cloud firewall and UFW are configured:
 | `server_name` | No | `engram` | Server hostname |
 | `server_type` | No | `cpx31` | Hetzner server type |
 | `location` | No | `ash` | Datacenter location |
-| `domain` | No | `statient.com` | Domain for DNS records |
+| `domain` | **Yes** | - | Domain for DNS records |
 
 ### State Backend
 
@@ -134,7 +134,7 @@ Configure these in GitHub repository settings:
 | `EMBEDDER_DEVICE` | `cpu` | Device for embeddings |
 | `EMBEDDER_TEXT_MODEL` | `BAAI/bge-small-en-v1.5` | Text embedding model |
 | `SEARCH_DEFAULT_STRATEGY` | `dense` | Default search strategy |
-| `CORS_ORIGINS` | `["https://observatory.statient.com"]` | CORS origins |
+| `CORS_ORIGINS` | `["https://observatory.example.com"]` | CORS origins |
 
 ### Smart Deployments
 
