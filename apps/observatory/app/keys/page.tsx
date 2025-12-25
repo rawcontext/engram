@@ -641,7 +641,7 @@ export default function KeysPage() {
 						</div>
 
 						<div style={{ marginBottom: "1.5rem" }}>
-							<label
+							<span
 								style={{
 									display: "block",
 									color: "#94a3b8",
@@ -650,7 +650,7 @@ export default function KeysPage() {
 								}}
 							>
 								Scopes *
-							</label>
+							</span>
 							<div
 								style={{
 									display: "flex",
