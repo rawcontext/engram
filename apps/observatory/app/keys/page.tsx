@@ -41,7 +41,17 @@ export default function KeysPage() {
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [newKeyName, setNewKeyName] = useState("");
 	const [newKeyDescription, setNewKeyDescription] = useState("");
+	const [selectedScopes, setSelectedScopes] = useState<string[]>(["memory:read", "memory:write"]);
 	const [isCreating, setIsCreating] = useState(false);
+
+	// Available scopes
+	const AVAILABLE_SCOPES = [
+		{ id: "memory:read", label: "Memory Read", description: "Read memories via recall/context" },
+		{ id: "memory:write", label: "Memory Write", description: "Store new memories" },
+		{ id: "query:read", label: "Query Read", description: "Execute Cypher queries" },
+		{ id: "state:write", label: "State Write", description: "OpenTofu state management" },
+		{ id: "keys:manage", label: "Keys Manage", description: "Manage API keys" },
+	];
 
 	// Newly created key (shown once)
 	const [createdKey, setCreatedKey] = useState<NewKeyResponse | null>(null);
@@ -79,7 +89,7 @@ export default function KeysPage() {
 	}, [session, fetchKeys]);
 
 	const handleCreateKey = async () => {
-		if (!newKeyName.trim()) return;
+		if (!newKeyName.trim() || selectedScopes.length === 0) return;
 
 		setIsCreating(true);
 		try {
@@ -89,6 +99,7 @@ export default function KeysPage() {
 				body: JSON.stringify({
 					name: newKeyName.trim(),
 					description: newKeyDescription.trim() || undefined,
+					scopes: selectedScopes,
 				}),
 			});
 			const data = await res.json();
@@ -97,6 +108,7 @@ export default function KeysPage() {
 				setShowCreateModal(false);
 				setNewKeyName("");
 				setNewKeyDescription("");
+				setSelectedScopes(["memory:read", "memory:write"]);
 				fetchKeys();
 			} else {
 				setError(data.error?.message || "Failed to create key");
@@ -106,6 +118,12 @@ export default function KeysPage() {
 		} finally {
 			setIsCreating(false);
 		}
+	};
+
+	const toggleScope = (scopeId: string) => {
+		setSelectedScopes((prev) =>
+			prev.includes(scopeId) ? prev.filter((s) => s !== scopeId) : [...prev, scopeId],
+		);
 	};
 
 	const handleRevokeKey = async (keyId: string) => {
@@ -591,7 +609,7 @@ export default function KeysPage() {
 							/>
 						</div>
 
-						<div style={{ marginBottom: "1.5rem" }}>
+						<div style={{ marginBottom: "1rem" }}>
 							<label
 								htmlFor="key-description"
 								style={{
@@ -622,6 +640,67 @@ export default function KeysPage() {
 							/>
 						</div>
 
+						<div style={{ marginBottom: "1.5rem" }}>
+							<label
+								style={{
+									display: "block",
+									color: "#94a3b8",
+									fontSize: "0.875rem",
+									marginBottom: "0.5rem",
+								}}
+							>
+								Scopes *
+							</label>
+							<div
+								style={{
+									display: "flex",
+									flexDirection: "column",
+									gap: "0.5rem",
+								}}
+							>
+								{AVAILABLE_SCOPES.map((scope) => (
+									<label
+										key={scope.id}
+										style={{
+											display: "flex",
+											alignItems: "center",
+											gap: "0.75rem",
+											padding: "0.5rem 0.75rem",
+											background: selectedScopes.includes(scope.id)
+												? "rgba(0, 245, 212, 0.1)"
+												: "rgba(0, 0, 0, 0.2)",
+											border: `1px solid ${selectedScopes.includes(scope.id) ? "rgba(0, 245, 212, 0.3)" : "rgba(255, 255, 255, 0.1)"}`,
+											borderRadius: "6px",
+											cursor: "pointer",
+											transition: "all 0.15s ease",
+										}}
+									>
+										<input
+											type="checkbox"
+											checked={selectedScopes.includes(scope.id)}
+											onChange={() => toggleScope(scope.id)}
+											style={{
+												width: "16px",
+												height: "16px",
+												accentColor: "#00f5d4",
+											}}
+										/>
+										<div style={{ flex: 1 }}>
+											<div style={{ color: "#f1f5f9", fontSize: "0.875rem" }}>{scope.label}</div>
+											<div style={{ color: "#64748b", fontSize: "0.75rem" }}>
+												{scope.description}
+											</div>
+										</div>
+									</label>
+								))}
+							</div>
+							{selectedScopes.length === 0 && (
+								<p style={{ color: "#f87171", fontSize: "0.75rem", marginTop: "0.5rem" }}>
+									Select at least one scope
+								</p>
+							)}
+						</div>
+
 						<div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
 							<button
 								type="button"
@@ -641,18 +720,24 @@ export default function KeysPage() {
 							<button
 								type="button"
 								onClick={handleCreateKey}
-								disabled={!newKeyName.trim() || isCreating}
+								disabled={!newKeyName.trim() || selectedScopes.length === 0 || isCreating}
 								style={{
 									padding: "0.5rem 1rem",
 									background:
-										newKeyName.trim() && !isCreating
+										newKeyName.trim() && selectedScopes.length > 0 && !isCreating
 											? "linear-gradient(135deg, rgba(0, 245, 212, 0.3), rgba(56, 189, 248, 0.3))"
 											: "rgba(255, 255, 255, 0.05)",
 									border: "1px solid rgba(0, 245, 212, 0.3)",
 									borderRadius: "6px",
-									color: newKeyName.trim() && !isCreating ? "#00f5d4" : "#475569",
+									color:
+										newKeyName.trim() && selectedScopes.length > 0 && !isCreating
+											? "#00f5d4"
+											: "#475569",
 									fontSize: "0.875rem",
-									cursor: newKeyName.trim() && !isCreating ? "pointer" : "not-allowed",
+									cursor:
+										newKeyName.trim() && selectedScopes.length > 0 && !isCreating
+											? "pointer"
+											: "not-allowed",
 								}}
 							>
 								{isCreating ? "Creating..." : "Create Key"}
