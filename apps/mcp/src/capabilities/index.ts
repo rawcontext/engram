@@ -23,8 +23,19 @@ export interface ClientCapabilities {
 /**
  * Known client capability matrix based on
  * https://github.com/apify/mcp-client-capabilities
+ *
+ * IMPORTANT: Order matters! More specific patterns must come before less specific ones.
+ * e.g., "claude-code" before "code", "vscode-copilot" before "vscode"
  */
 const KNOWN_CLIENTS: Record<string, Partial<ClientCapabilities>> = {
+	// Most specific patterns first
+	"claude-code": {
+		sampling: false,
+		elicitation: false,
+		roots: true,
+		resources: true,
+		prompts: true,
+	},
 	"vscode-copilot": {
 		sampling: true,
 		elicitation: true,
@@ -32,6 +43,14 @@ const KNOWN_CLIENTS: Record<string, Partial<ClientCapabilities>> = {
 		resources: true,
 		prompts: true,
 	},
+	"visual studio code": {
+		sampling: true,
+		elicitation: true,
+		roots: true,
+		resources: true,
+		prompts: true,
+	},
+	// Less specific patterns after
 	vscode: {
 		sampling: true,
 		elicitation: true,
@@ -46,13 +65,6 @@ const KNOWN_CLIENTS: Record<string, Partial<ClientCapabilities>> = {
 		resources: true,
 		prompts: true,
 	},
-	"visual studio code": {
-		sampling: true,
-		elicitation: true,
-		roots: true,
-		resources: true,
-		prompts: true,
-	},
 	cursor: {
 		sampling: true,
 		elicitation: true,
@@ -60,23 +72,16 @@ const KNOWN_CLIENTS: Record<string, Partial<ClientCapabilities>> = {
 		resources: true,
 		prompts: true,
 	},
-	"claude-code": {
+	codex: {
 		sampling: false,
 		elicitation: false,
 		roots: true,
 		resources: true,
 		prompts: true,
 	},
-	codex: {
-		sampling: false, // Unknown, assume false
-		elicitation: false, // Unknown, assume false
-		roots: true,
-		resources: true,
-		prompts: true,
-	},
 	gemini: {
-		sampling: false, // Unknown, assume false
-		elicitation: false, // Unknown, assume false
+		sampling: false,
+		elicitation: false,
 		roots: true,
 		resources: true,
 		prompts: true,

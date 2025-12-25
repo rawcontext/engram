@@ -53,19 +53,9 @@ export class SamplingService {
 				return true;
 			}
 
-			// Fallback: check client name against known clients that support sampling
-			const clientInfo = (this.server.server as any).getClientVersion();
-			if (clientInfo?.name) {
-				const clientName = clientInfo.name.toLowerCase();
-				// VS Code Copilot and Cursor are known to support sampling
-				if (
-					clientName.includes("vscode") ||
-					clientName.includes("code") ||
-					clientName.includes("cursor")
-				) {
-					return true;
-				}
-			}
+			// Note: We no longer use client name fallback here.
+			// Client capability detection is now handled by detectClientCapabilities()
+			// in capabilities/index.ts which properly orders pattern matching.
 		} catch (error) {
 			this.logger.debug({ error }, "Error checking client capabilities");
 		}
