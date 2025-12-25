@@ -19,6 +19,7 @@ from src.api.schemas import (
     SessionAwareResponse,
     SessionAwareResult,
 )
+from src.config import get_settings
 from src.middleware.auth import ApiKeyContext, optional_scope
 from src.retrieval.multi_query import MultiQueryConfig
 from src.retrieval.session import SessionRetrieverConfig
@@ -670,13 +671,14 @@ async def recreate_collection(
     )
 
     qdrant = getattr(request.app.state, "qdrant", None)
-    settings = getattr(request.app.state, "settings", None)
 
-    if qdrant is None or settings is None:
+    if qdrant is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service unavailable: Qdrant or settings not initialized",
+            detail="Service unavailable: Qdrant not initialized",
         )
+
+    settings = get_settings()
 
     # Only allow known collections
     allowed_collections = {"engram_memory", "engram_turns"}
