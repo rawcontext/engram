@@ -28,10 +28,10 @@ variable "image" {
   default     = "ubuntu-24.04"
 }
 
-variable "ssh_public_key_path" {
-  description = "Path to SSH public key"
+variable "ssh_public_key" {
+  description = "SSH public key content"
   type        = string
-  default     = "~/.ssh/id_rsa.pub"
+  sensitive   = true
 }
 
 variable "ssh_key_name" {

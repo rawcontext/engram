@@ -147,6 +147,7 @@ jobs:
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
           TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
           TF_VAR_domain: ${{ env.DOMAIN }}
+          TF_VAR_ssh_public_key: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
         run: |
           # Disable state locking - workflow concurrency already prevents parallel runs
           tofu plan -out=tfplan -no-color -lock=false
@@ -160,6 +161,7 @@ jobs:
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
           TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
           TF_VAR_domain: ${{ env.DOMAIN }}
+          TF_VAR_ssh_public_key: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
         run: |
           tofu apply -auto-approve -lock=false tfplan
 
