@@ -145,7 +145,6 @@ jobs:
           TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
           TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
-          TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
           TF_VAR_domain: ${{ env.DOMAIN }}
           TF_VAR_ssh_public_key: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
         run: |
@@ -159,7 +158,6 @@ jobs:
           TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
           TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
-          TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
           TF_VAR_domain: ${{ env.DOMAIN }}
           TF_VAR_ssh_public_key: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
         run: |
@@ -233,14 +231,7 @@ jobs:
             POSTGRES_USER=${{ secrets.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-            QDRANT_COLLECTION=${{ secrets.QDRANT_COLLECTION }}
-            QDRANT_TURNS_COLLECTION=${{ secrets.QDRANT_TURNS_COLLECTION }}
             HF_API_TOKEN=${{ secrets.HF_API_TOKEN }}
-            EMBEDDER_BACKEND=${{ vars.EMBEDDER_BACKEND }}
-            EMBEDDER_DEVICE=${{ vars.EMBEDDER_DEVICE }}
-            EMBEDDER_TEXT_MODEL=${{ vars.EMBEDDER_TEXT_MODEL }}
-            SEARCH_DEFAULT_STRATEGY=${{ vars.SEARCH_DEFAULT_STRATEGY }}
-            CORS_ORIGINS=${{ vars.CORS_ORIGINS }}
             BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
             GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
