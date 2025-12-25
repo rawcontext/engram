@@ -138,27 +138,6 @@ jobs:
         working-directory: packages/infra
         run: tofu validate
 
-      - name: Clear stale locks
-        working-directory: packages/infra
-        env:
-          TF_HTTP_USERNAME: tofu
-          TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
-        run: |
-          # Check for and clear any stale locks
-          echo "Checking for stale state locks..."
-          LOCK_OUTPUT=$(tofu plan -no-color 2>&1 || true)
-          if echo "$LOCK_OUTPUT" | grep -q "Error acquiring the state lock"; then
-            # Extract lock ID from "ID=xxxxx" format
-            LOCK_ID=$(echo "$LOCK_OUTPUT" | grep -oE 'ID=[a-f0-9-]+' | head -1 | cut -d= -f2)
-            if [ -n "$LOCK_ID" ]; then
-              echo "Found stale lock: $LOCK_ID"
-              echo "Force unlocking..."
-              tofu force-unlock -force "$LOCK_ID" 2>&1 || echo "Force unlock failed, will try plan with -lock=false"
-            fi
-          else
-            echo "No stale locks found"
-          fi
-
       - name: OpenTofu Plan
         working-directory: packages/infra
         env:
@@ -168,11 +147,8 @@ jobs:
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
           TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
         run: |
-          # Try with lock first, fall back to lock=false if stale lock exists
-          tofu plan -out=tfplan -no-color -lock-timeout=30s || {
-            echo "Lock timeout, retrying without lock (safe for read-only plan)..."
-            tofu plan -out=tfplan -no-color -lock=false
-          }
+          # Disable state locking - workflow concurrency already prevents parallel runs
+          tofu plan -out=tfplan -no-color -lock=false
 
       - name: OpenTofu Apply
         working-directory: packages/infra
@@ -183,7 +159,7 @@ jobs:
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
           TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
         run: |
-          tofu apply -auto-approve tfplan
+          tofu apply -auto-approve -lock=false tfplan
 
       - name: Get Server IP
         id: server
