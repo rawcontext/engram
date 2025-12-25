@@ -12,10 +12,9 @@
 
 terraform {
   backend "http" {
-    # Placeholder URLs - override with -backend-config during init
-    address        = "https://api.example.com/v1/tofu"
-    lock_address   = "https://api.example.com/v1/tofu/lock"
-    unlock_address = "https://api.example.com/v1/tofu/lock"
+    address        = "https://api.statient.com/v1/tofu"
+    lock_address   = "https://api.statient.com/v1/tofu/lock"
+    unlock_address = "https://api.statient.com/v1/tofu/lock"
     lock_method    = "POST"
     unlock_method  = "POST"
   }
