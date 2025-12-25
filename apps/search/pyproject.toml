@@ -19,6 +19,8 @@ dependencies = [
     "httpx>=0.28.1",
     "huggingface-hub[inference]>=0.20.0",
     "numpy>=2.0.0",
+    # Lightweight sparse embeddings (ONNX, no PyTorch)
+    "fastembed>=0.5.3",
     # LLM reranking
     "litellm>=1.80.10",
     # Logging

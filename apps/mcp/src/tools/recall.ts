@@ -7,7 +7,7 @@ import type { MemoryRetriever } from "../services/memory-retriever";
 export function registerRecallTool(
 	server: McpServer,
 	memoryRetriever: MemoryRetriever,
-	getSessionContext: () => { project?: string },
+	_getSessionContext: () => { project?: string },
 	elicitationService?: ElicitationService,
 ) {
 	server.registerTool(
@@ -49,15 +49,10 @@ export function registerRecallTool(
 			},
 		},
 		async ({ query, limit, filters, disambiguate }) => {
-			const context = getSessionContext();
+			// Note: Don't auto-apply project filter from session context
+			// Memories may have been stored before roots were populated (with project: null)
 
-			// Apply project filter from context if not explicitly provided
-			const effectiveFilters = {
-				...filters,
-				project: filters?.project ?? context.project,
-			};
-
-			const memories = await memoryRetriever.recall(query, limit ?? 5, effectiveFilters);
+			const memories = await memoryRetriever.recall(query, limit ?? 5, filters);
 
 			// If disambiguation is requested and we have multiple similar results, ask user to select
 			let selectedId: string | undefined;

@@ -37,6 +37,7 @@ class EmbedderFactory:
             "text": asyncio.Lock(),
             "code": asyncio.Lock(),
             "sparse": asyncio.Lock(),
+            "bm25": asyncio.Lock(),
             "colbert": asyncio.Lock(),
         }
 
@@ -107,27 +108,43 @@ class EmbedderFactory:
     async def get_sparse_embedder(self) -> Any:
         """Get or create sparse embedder instance.
 
-        Note: Sparse embedders require local dependencies and are not available
-        via HuggingFace Inference API.
+        Returns backend-appropriate sparse embedder:
+        - 'huggingface': Returns BM25Embedder (FastEmbed/ONNX-based, lightweight)
+        - 'local': Returns SparseEmbedder (SPLADE, requires PyTorch)
 
         Returns:
-                SparseEmbedder instance.
+            SparseEmbedder or BM25Embedder instance.
 
         Raises:
-            ImportError: If local ML dependencies are not installed.
+            ImportError: If required dependencies are not installed.
         """
-        async with self._locks["sparse"]:
-            if "sparse" not in self._embedders:
-                from src.embedders.sparse import SparseEmbedder
+        if self.settings.embedder_backend == "huggingface":
+            # Use lightweight BM25 embedder (ONNX-based, no PyTorch)
+            async with self._locks["bm25"]:
+                if "bm25" not in self._embedders:
+                    from src.embedders.bm25 import BM25Embedder
 
-                logger.info("Creating sparse embedder")
-                self._embedders["sparse"] = SparseEmbedder(
-                    model_name=self.settings.embedder_sparse_model,
-                    device=self.settings.embedder_device,
-                    batch_size=self.settings.embedder_batch_size,
-                    cache_size=self.settings.embedder_cache_size,
-                )
-            return self._embedders["sparse"]
+                    logger.info("Creating BM25 sparse embedder (FastEmbed/ONNX)")
+                    embedder = BM25Embedder(
+                        batch_size=self.settings.embedder_batch_size,
+                    )
+                    await embedder.load()
+                    self._embedders["bm25"] = embedder
+                return self._embedders["bm25"]
+        else:
+            # Use SPLADE embedder (requires PyTorch)
+            async with self._locks["sparse"]:
+                if "sparse" not in self._embedders:
+                    from src.embedders.sparse import SparseEmbedder
+
+                    logger.info("Creating SPLADE sparse embedder")
+                    self._embedders["sparse"] = SparseEmbedder(
+                        model_name=self.settings.embedder_sparse_model,
+                        device=self.settings.embedder_device,
+                        batch_size=self.settings.embedder_batch_size,
+                        cache_size=self.settings.embedder_cache_size,
+                    )
+                return self._embedders["sparse"]
 
     async def get_colbert_embedder(self) -> Any:
         """Get or create ColBERT embedder instance.

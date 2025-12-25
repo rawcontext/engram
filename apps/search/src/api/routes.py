@@ -573,7 +573,13 @@ async def index_memory(
 
         # Get embedders
         text_embedder = await embedder_factory.get_embedder("text")
-        sparse_embedder = await embedder_factory.get_sparse_embedder()
+
+        # Get sparse embedder (BM25 for huggingface backend, SPLADE for local)
+        sparse_embedder = None
+        try:
+            sparse_embedder = await embedder_factory.get_sparse_embedder()
+        except ImportError as e:
+            logger.warning(f"Sparse embedder unavailable: {e}")
 
         # Generate embeddings
         dense_embedding = await text_embedder.embed(memory_request.content, is_query=False)
