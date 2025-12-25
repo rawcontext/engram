@@ -23,6 +23,7 @@ from src.middleware.auth import ApiKeyContext, optional_scope
 from src.retrieval.multi_query import MultiQueryConfig
 from src.retrieval.session import SessionRetrieverConfig
 from src.retrieval.types import RerankerTier, SearchFilters, SearchQuery, SearchStrategy, TimeRange
+from src.services.schema_manager import SchemaManager, get_memory_collection_schema
 from src.utils.metrics import get_content_type, get_metrics
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,9 @@ search_auth = Depends(optional_scope("memory:read", "search:read"))
 
 # Auth dependency for index operations (requires memory:write scope when auth enabled)
 index_auth = Depends(optional_scope("memory:write", "search:write"))
+
+# Auth dependency for admin operations
+admin_auth = Depends(optional_scope("admin", "memory:write"))
 
 router = APIRouter()
 
@@ -638,4 +642,84 @@ async def index_memory(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Memory indexing failed: {str(e)}",
+        ) from e
+
+
+@router.post("/admin/collections/{collection_name}/recreate")
+async def recreate_collection(
+    request: Request,
+    collection_name: str,
+    api_key: ApiKeyContext = admin_auth,
+) -> dict:
+    """Delete and recreate a collection with the current schema.
+
+    WARNING: This deletes all existing vectors in the collection.
+
+    Args:
+        request: FastAPI request object with app state.
+        collection_name: Name of the collection to recreate.
+
+    Returns:
+        Status of the operation.
+
+    Raises:
+        HTTPException: If operation fails.
+    """
+    logger.warning(
+        f"Collection recreate requested: collection={collection_name}, key={api_key.key_prefix}"
+    )
+
+    qdrant = getattr(request.app.state, "qdrant", None)
+    settings = getattr(request.app.state, "settings", None)
+
+    if qdrant is None or settings is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service unavailable: Qdrant or settings not initialized",
+        )
+
+    # Only allow known collections
+    allowed_collections = {"engram_memory", "engram_turns"}
+    if collection_name not in allowed_collections:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown collection: {collection_name}. Allowed: {allowed_collections}",
+        )
+
+    try:
+        schema_manager = SchemaManager(qdrant, settings)
+
+        # Get the appropriate schema
+        if collection_name == "engram_memory":
+            schema = get_memory_collection_schema(collection_name)
+        else:
+            from src.services.schema_manager import get_turns_collection_schema
+
+            schema = get_turns_collection_schema(collection_name)
+
+        # Delete existing collection
+        deleted = await schema_manager.delete_collection(collection_name)
+
+        # Create with new schema
+        await schema_manager.create_collection(schema)
+
+        logger.info(f"Collection recreated: {collection_name}, was_deleted={deleted}")
+
+        return {
+            "success": True,
+            "collection": collection_name,
+            "deleted": deleted,
+            "created": True,
+            "schema": {
+                "dense_vector": schema.dense_vector_name,
+                "sparse_vector": schema.sparse_vector_name,
+                "colbert_enabled": schema.enable_colbert,
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Collection recreate failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Collection recreate failed: {str(e)}",
         ) from e
