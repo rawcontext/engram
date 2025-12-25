@@ -43,6 +43,7 @@ jobs:
       memory: ${{ steps.filter.outputs.memory }}
       control: ${{ steps.filter.outputs.control }}
       docker_compose: ${{ steps.filter.outputs.docker_compose }}
+      caddy: ${{ steps.filter.outputs.caddy }}
       any_service: ${{ steps.any.outputs.result }}
     steps:
       - uses: actions/checkout@v4
@@ -91,6 +92,8 @@ jobs:
               - 'packages/temporal/**'
             docker_compose:
               - 'docker-compose.prod.yml'
+            caddy:
+              - 'configs/Caddyfile'
 
       - name: Check if any service changed
         id: any
@@ -467,10 +470,11 @@ jobs:
             sleep 15
             docker compose -f docker-compose.prod.yml ps
 
-  # Start Caddy reverse proxy (after all services are deployed)
+  # Start/reload Caddy reverse proxy (only full restart if Caddyfile changed)
   deploy-caddy:
     runs-on: ubuntu-latest
     needs:
+      - changes
       - sync
       - deploy-api
       - deploy-search
@@ -485,40 +489,42 @@ jobs:
       (needs.deploy-observatory.result == 'success' || needs.deploy-observatory.result == 'skipped')
     environment: production
     steps:
-      - name: Start Caddy
+      - name: Reload or Start Caddy
         uses: appleboy/ssh-action@v1
+        env:
+          CADDY_CHANGED: ${{ needs.changes.outputs.caddy }}
+          DOCKER_COMPOSE_CHANGED: ${{ needs.changes.outputs.docker_compose }}
         with:
           host: ${{ env.DOMAIN }}
           username: engram
           key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
           command_timeout: 5m
+          envs: CADDY_CHANGED,DOCKER_COMPOSE_CHANGED
           script: |
             cd /opt/engram
 
-            echo "Stopping all containers and removing orphans..."
-            docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
+            # Check if Caddy is already running
+            CADDY_RUNNING=$(docker compose -f docker-compose.prod.yml ps caddy --format json 2>/dev/null | grep -c '"running"' || echo "0")
 
-            echo "Killing any process on port 80/443..."
-            sudo fuser -k 80/tcp 2>/dev/null || true
-            sudo fuser -k 443/tcp 2>/dev/null || true
-            sleep 2
+            if [[ "$CADDY_CHANGED" == "true" ]] || [[ "$DOCKER_COMPOSE_CHANGED" == "true" ]]; then
+              echo "Caddyfile or docker-compose changed - full Caddy restart..."
 
-            echo "Restarting docker to clear port allocations..."
-            sudo systemctl restart docker
-            sleep 5
+              # Only restart Caddy, not all services
+              docker compose -f docker-compose.prod.yml up -d --force-recreate caddy
 
-            echo "Fixing data directory permissions for Docker build context..."
-            sudo chmod -R a+r /opt/engram/data/ 2>/dev/null || true
+              echo "Waiting for Caddy to be ready..."
+              sleep 10
+            elif [[ "$CADDY_RUNNING" == "0" ]]; then
+              echo "Caddy not running - starting it..."
+              docker compose -f docker-compose.prod.yml up -d caddy
 
-            echo "Starting all services..."
-            docker compose -f docker-compose.prod.yml up -d
+              echo "Waiting for Caddy to be ready..."
+              sleep 10
+            else
+              echo "Caddy already running and no config changes - skipping restart"
+            fi
 
-            echo "Waiting for Caddy to be ready..."
-            sleep 30
             docker compose -f docker-compose.prod.yml ps
-            echo ""
-            echo "Search container logs:"
-            docker compose -f docker-compose.prod.yml logs --tail=30 search 2>&1 || true
 
   # Cleanup old Docker images
   cleanup:
@@ -587,7 +593,7 @@ jobs:
           echo "| Memory | ${{ needs.changes.outputs.memory }} | ${{ needs.deploy-memory.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Control | ${{ needs.changes.outputs.control }} | ${{ needs.deploy-control.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker Compose | ${{ needs.changes.outputs.docker_compose }} | ${{ needs.deploy-infrastructure-services.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Caddy | - | ${{ needs.deploy-caddy.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Caddy | ${{ needs.changes.outputs.caddy }} | ${{ needs.deploy-caddy.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Service URLs" >> $GITHUB_STEP_SUMMARY
           echo "- API: https://api.statient.com" >> $GITHUB_STEP_SUMMARY
