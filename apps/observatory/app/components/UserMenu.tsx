@@ -160,6 +160,21 @@ export function UserMenu() {
 						</svg>
 						API Keys
 					</a>
+					<a className="dropdown-item" href="/tokens">
+						<svg
+							className="item-icon"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							<rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+							<path d="M7 11V7a5 5 0 0 1 10 0v4" />
+						</svg>
+						OAuth Sessions
+					</a>
 					<div className="dropdown-divider" />
 					<button className="dropdown-item sign-out" onClick={handleSignOut} type="button">
 						<svg

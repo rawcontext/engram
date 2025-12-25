@@ -209,7 +209,6 @@ function ActivateContent() {
 						<span>Enter the code shown in your terminal</span>
 					</div>
 
-					{/* biome-ignore lint/a11y/useSemanticElements: visual wrapper for input with click-to-focus */}
 					{/* biome-ignore lint/a11y/useKeyWithClickEvents: click delegates to hidden input which handles keyboard */}
 					<div className="code-input-wrapper" onClick={() => inputRef.current?.focus()}>
 						<span className="prompt cyan">{">"}</span>
