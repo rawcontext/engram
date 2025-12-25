@@ -152,21 +152,20 @@ export class MemoryService {
 
 		this.logger.info({ id, type: input.type }, "Memory stored");
 
-		// Index memory for semantic search (non-blocking)
-		this.searchClient
-			.indexMemory({
+		// Index memory for semantic search (blocking to ensure immediate recall)
+		try {
+			await this.searchClient.indexMemory({
 				id,
 				content: input.content,
 				type: input.type ?? "context",
 				tags: input.tags,
 				project: input.project,
-			})
-			.then(() => {
-				this.logger.debug({ id }, "Memory indexed for search");
-			})
-			.catch((error) => {
-				this.logger.warn({ id, error }, "Failed to index memory for search");
 			});
+			this.logger.debug({ id }, "Memory indexed for search");
+		} catch (error) {
+			// Log but don't fail - memory is stored in graph, just not vector-searchable yet
+			this.logger.warn({ id, error }, "Failed to index memory for search");
+		}
 
 		return {
 			id,
