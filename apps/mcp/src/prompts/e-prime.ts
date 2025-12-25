@@ -31,14 +31,25 @@ export function registerPrimePrompt(
 		{
 			title: "/e prime",
 			description:
-				"Load relevant context from memory for starting a new task. Retrieves related memories, decisions, and file history.",
+				"Initialize a work session with relevant context from memory. Retrieves: semantic matches to your task, related past decisions, and recent file modification history. Use this at the START of any significant task - especially when resuming previous work, working on files you've touched before, or making decisions that might have prior art.",
 			argsSchema: {
-				task: z.string().describe("Description of the task you are starting"),
-				files: z.string().optional().describe("Comma-separated list of relevant file paths"),
+				task: z
+					.string()
+					.describe(
+						"Description of the task you're starting. Be specific - 'implement OAuth2 login' retrieves better context than 'add auth'. This is used for semantic search across all memory types.",
+					),
+				files: z
+					.string()
+					.optional()
+					.describe(
+						"Comma-separated list of relevant file paths to retrieve modification history for. Useful when resuming work on specific files.",
+					),
 				depth: z
 					.enum(["shallow", "medium", "deep"])
 					.default("medium")
-					.describe("How deeply to search for context"),
+					.describe(
+						"Search thoroughness. 'shallow': Quick scan, 3 memories + 2 files. 'medium': Balanced, 5 memories + 5 files (default). 'deep': Comprehensive, 10 memories + 10 files.",
+					),
 			},
 		},
 		async ({ task, files, depth }) => {

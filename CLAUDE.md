@@ -102,43 +102,49 @@ Parsers in `packages/parser/src/providers/`: Anthropic, OpenAI, Gemini, Claude C
 
 ## MCP Tools (apps/mcp)
 
-| Tool | Purpose |
-|------|---------|
-| `engram_remember` | Store memory with content, type (decision/context/insight/preference/fact), tags |
-| `engram_recall` | Retrieve memories by query with hybrid search and optional reranking |
-| `engram_query` | Execute read-only Cypher queries (local mode only) |
-| `engram_context` | Get comprehensive context for task (memories, file history, decisions) |
-| `engram_summarize` | Summarize text using client LLM (requires sampling capability) |
-| `engram_extract_facts` | Extract key facts from text as structured list |
-| `engram_enrich_memory` | Auto-generate summary, keywords, category for memory |
+| Tool | Purpose | When to Use Proactively |
+|------|---------|------------------------|
+| `engram_remember` | Persist valuable information to long-term memory | When learning user preferences, architectural decisions, project conventions, debugging insights |
+| `engram_recall` | Search memories using semantic similarity | At session start to prime with prior knowledge; before making decisions to check for existing rationale |
+| `engram_context` | Assemble comprehensive context (memories + decisions + file history) | At the START of complex tasks; more thorough than recall alone |
+| `engram_query` | Execute read-only Cypher queries (local mode) | When semantic search can't handle complex lookups (date ranges, relationships, counts) |
+| `engram_summarize` | Condense text using client LLM | Before storing memories; to compress verbose logs or context |
+| `engram_extract_facts` | Parse unstructured text into atomic facts | Before `engram_remember` when processing docs, logs, or chat history |
+| `engram_enrich_memory` | Auto-generate summary, keywords, category | Before `engram_remember` - use output to set type and tags |
 
 **Resources (local mode)**: `memory://{id}`, `session://{id}/transcript`, `file-history://{path}`
 
-**Prompts (local mode)**: `/e prime`, `/e recap`, `/e why`
+**Prompts (local mode)**: `/e prime` (initialize session), `/e recap` (review past session), `/e why` (find past decisions)
+
+**Sampling-Required Tools**: `engram_summarize`, `engram_extract_facts`, and `engram_enrich_memory` require the MCP client to support **sampling capability** (server requesting LLM completions from the client). If unsupported, these tools return `available: false` gracefully.
 
 ## MCP Client Usage & Best Practices
 
-To maximize Engram's utility, follow these patterns when calling Engram MCP tools:
+**IMPORTANT**: Use Engram tools PROACTIVELY - don't wait to be asked. These patterns help you work with institutional memory.
 
 ### 1. Task Initialization (The "Prime" Pattern)
-At the start of any task, call `engram_context` or use the `/e prime` prompt.
-- **Why**: It automatically pulls relevant memories, past decisions, and file history into your context.
-- **Tip**: If the task is complex, use `engram_summarize` first to create a high-density task brief, then pass that into `engram_context`.
+At the START of any significant task, call `engram_context` or use the `/e prime` prompt.
+- **When**: Beginning work, resuming after a break, working on files touched before, making decisions with potential precedent.
+- **Why**: Primes yourself with institutional knowledge before diving in. Catches patterns and decisions you'd otherwise miss.
+- **Tip**: Be specific in the task description - "implement OAuth2 login" retrieves better context than "add auth".
 
 ### 2. Intelligent Storage (The "Enrich & Remember" Pattern)
 Don't just dump raw text into `engram_remember`. Use the helper tools to structure it first.
+- **When**: You learn something valuable - user preferences, architectural decisions, debugging insights, project conventions.
 - **Workflow**: `engram_enrich_memory(content)` → `engram_remember(content, type=category, tags=keywords)`.
-- **Why**: This ensures memories are categorized correctly (e.g., as a `decision` or `preference`) and tagged for better future retrieval.
+- **Why**: Ensures memories are categorized correctly and tagged for better future retrieval. The enrichment step auto-generates metadata.
 
 ### 3. Signal Extraction (The "Extract & Remember" Pattern)
 When processing long logs, documentation, or messy chat history:
+- **When**: You encounter verbose content with multiple valuable facts buried within.
 - **Workflow**: `engram_extract_facts(text)` → iterate through facts → `engram_remember(fact)`.
-- **Why**: Prevents "memory pollution" by storing only atomic, high-value facts instead of large, noisy blocks of text.
+- **Why**: Prevents "memory pollution" by storing only atomic, high-value facts. Each fact becomes independently searchable.
 
 ### 4. Deep Investigation (The "Query & Resource" Pattern)
 If `engram_recall` doesn't find what you need, or you need to understand relationships:
-- **Query**: Use `engram_query` to find related nodes (e.g., "Find all decisions made in sessions where `auth.ts` was modified").
-- **Resources**: Use `session://{id}/transcript` to read the full context of a past breakthrough or `file-history://{path}` to see the evolution of a specific file.
+- **When**: Semantic search isn't enough - you need date ranges, relationship tracing, or counts.
+- **Query**: Use `engram_query` for Cypher queries (e.g., "Find all decisions made in sessions where `auth.ts` was modified").
+- **Resources**: Use `session://{id}/transcript` for full context of past work, or `file-history://{path}` for file evolution.
 
 ### 5. Bitemporal Awareness
 Remember that Engram is **bitemporal**. You can ask about the state of the system at any point in the past.

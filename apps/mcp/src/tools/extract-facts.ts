@@ -8,9 +8,13 @@ export function registerExtractFactsTool(server: McpServer, samplingService: Sam
 		{
 			title: "Extract Facts",
 			description:
-				"Extract key facts from text using the client's LLM (requires sampling capability)",
+				"Parse unstructured text into discrete, atomic facts suitable for storage. Use before engram_remember when processing: documentation, chat logs, meeting notes, or verbose command outputs. Each extracted fact can be stored and searched independently, improving retrieval precision. Requires client sampling capability.",
 			inputSchema: {
-				text: z.string().describe("Text to extract facts from"),
+				text: z
+					.string()
+					.describe(
+						"Unstructured text containing multiple facts to extract. Works well with: documentation sections, error logs with multiple issues, conversation transcripts, or configuration explanations. Each distinct fact becomes a separate item in the output array.",
+					),
 			},
 			outputSchema: {
 				facts: z.array(z.string()).nullable(),

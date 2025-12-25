@@ -22,17 +22,26 @@ export function registerContextTool(
 		"engram_context",
 		{
 			title: "Get Context",
-			description: "Retrieve relevant context for the current task from memory",
+			description:
+				"Assemble comprehensive context for a task by combining: semantic memory search, past decisions, and file modification history. Use PROACTIVELY at the START of complex tasks to prime yourself with institutional knowledge before diving in. More thorough than recall alone - automatically searches multiple dimensions and cross-references results.",
 			inputSchema: {
-				task: z.string().describe("Description of current task"),
+				task: z
+					.string()
+					.describe(
+						"Description of the task you're starting. Be specific - 'implement OAuth2 login' retrieves better context than 'add auth'. The task description is used for semantic search across all memory types.",
+					),
 				files: z
 					.array(z.string())
 					.optional()
-					.describe("Relevant file paths to include context for"),
+					.describe(
+						"File paths to retrieve modification history for. Useful when resuming work on specific files - shows recent changes and which sessions touched them. Use absolute paths or paths relative to project root.",
+					),
 				depth: z
 					.enum(["shallow", "medium", "deep"])
 					.default("medium")
-					.describe("How deep to search for context"),
+					.describe(
+						"Search thoroughness. 'shallow': Quick scan, 3 memories + 2 files - use for simple tasks or time-sensitive situations. 'medium': Balanced, 5 memories + 5 files - good default for most tasks. 'deep': Comprehensive, 10 memories + 10 files - use for complex tasks or when you need extensive background.",
+					),
 			},
 			outputSchema: {
 				context: z.array(

@@ -12,13 +12,23 @@ export function registerRememberTool(
 		"engram_remember",
 		{
 			title: "Remember",
-			description: "Store information in long-term memory for later retrieval",
+			description:
+				"Persist valuable information to long-term memory for future sessions. Use PROACTIVELY when you learn: user preferences, architectural decisions, project conventions, debugging insights, or facts worth preserving. Memories are searchable across sessions and survive context boundaries.",
 			inputSchema: {
-				content: z.string().describe("The information to remember"),
+				content: z
+					.string()
+					.describe(
+						"The information to store. Be specific and self-contained - this will be retrieved out of context. Include relevant details like file paths, reasoning, or constraints. Avoid storing transient information like 'working on X' - store conclusions and decisions instead.",
+					),
 				type: MemoryTypeEnum.optional().describe(
-					"Type of memory: decision, context, insight, preference, fact",
+					"Memory classification for retrieval. 'decision': Architectural or implementation choices with rationale (e.g., 'Chose in-memory cache over distributed cache for simplicity'). 'preference': User preferences for tools, style, or workflow (e.g., 'User prefers tabs over spaces'). 'insight': Debugging discoveries or non-obvious learnings (e.g., 'The flaky test was caused by timezone assumptions'). 'fact': Objective information about codebase or domain (e.g., 'API rate limit is 100 req/min'). 'context': Background for ongoing work (e.g., 'Migration to v2 API is in progress').",
 				),
-				tags: z.array(z.string()).optional().describe("Optional tags for categorization"),
+				tags: z
+					.array(z.string())
+					.optional()
+					.describe(
+						"Keywords for filtering and discovery. Use lowercase, specific terms. Good: ['authentication', 'postgres', 'performance']. Avoid generic tags like ['important', 'remember'].",
+					),
 			},
 			outputSchema: {
 				id: z.string(),

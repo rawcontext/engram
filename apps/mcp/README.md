@@ -159,9 +159,9 @@ Search memories using natural language with hybrid semantic/keyword search.
 
 **Disambiguation**: When enabled and client supports elicitation, prompts user to select from similar results.
 
-### Sampling-Based Tools (Requires Client Support)
+### Sampling-Based Tools (Requires Client Sampling)
 
-These tools leverage the client's LLM via MCP sampling capability (e.g., VS Code Copilot, Cursor, JetBrains).
+These tools leverage the client's LLM via MCP sampling capability. The client must support sampling for these features to work. When unsupported, the tools return `available: false` gracefully.
 
 #### `engram_summarize`
 

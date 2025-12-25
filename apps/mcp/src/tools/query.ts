@@ -58,13 +58,20 @@ export function registerQueryTool(server: McpServer, graphClient: GraphClient) {
 		"engram_query",
 		{
 			title: "Query Graph",
-			description: "Execute a read-only Cypher query against the knowledge graph",
+			description:
+				"Query the knowledge graph directly using Cypher for complex lookups that semantic search cannot handle. Use when you need to: find all decisions within a date range, trace relationships between sessions and files, count memories by type, or explore graph structure. Only read operations are allowed.",
 			inputSchema: {
-				cypher: z.string().describe("Cypher query (read-only operations only)"),
+				cypher: z
+					.string()
+					.describe(
+						"Cypher query starting with MATCH, WITH, or RETURN. Common patterns: 'MATCH (m:Memory {type: $type}) RETURN m' for filtering, 'MATCH (s:Session)-[:HAS_TURN]->(t:Turn) RETURN s, t' for relationships. All nodes have bitemporal fields (vt_start, vt_end) - filter with 'WHERE n.vt_end > $now' for current data.",
+					),
 				params: z
 					.record(z.string(), z.unknown())
 					.optional()
-					.describe("Query parameters as key-value pairs"),
+					.describe(
+						"Query parameters for safe value injection. Use $paramName in query, provide {paramName: value} here. Always use params for user-provided values to prevent injection. Common params: {now: Date.now()} for temporal filtering, {type: 'decision'} for type filtering.",
+					),
 			},
 			outputSchema: {
 				results: z.array(z.record(z.string(), z.unknown())),

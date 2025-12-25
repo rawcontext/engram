@@ -14,13 +14,22 @@ export function registerRecallTool(
 		"engram_recall",
 		{
 			title: "Recall",
-			description: "Search long-term memory using natural language",
+			description:
+				"Search past memories using semantic similarity. Use PROACTIVELY: at session start to prime yourself with relevant prior knowledge, before making decisions to check for existing rationale, or when the user references 'before', 'last time', or 'remember when'. Returns memories ranked by relevance score.",
 			inputSchema: {
-				query: z.string().describe("Natural language search query"),
+				query: z
+					.string()
+					.describe(
+						"Natural language search query. Be descriptive - 'authentication decisions' works better than 'auth'. Include context words that would appear in relevant memories.",
+					),
 				limit: z.number().int().min(1).max(20).default(5).describe("Maximum number of results"),
 				filters: z
 					.object({
-						type: MemoryTypeEnum.or(z.literal("turn")).optional().describe("Filter by memory type"),
+						type: MemoryTypeEnum.or(z.literal("turn"))
+							.optional()
+							.describe(
+								"Filter to specific memory types. Use 'decision' when looking for past rationale. Use 'preference' for user-specific settings. Use 'turn' to search raw conversation history from past sessions.",
+							),
 						project: z.string().optional().describe("Filter by project"),
 						since: z.string().optional().describe("Filter by date (ISO format)"),
 					})

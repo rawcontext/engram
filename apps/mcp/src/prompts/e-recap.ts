@@ -152,12 +152,14 @@ export function registerRecapPrompt(
 		{
 			title: "/e recap",
 			description:
-				"Get a summary of a past session. Useful for reviewing what was accomplished or resuming work.",
+				"Review what happened in a previous session. Returns: session timeline, turns with user/assistant exchanges, files modified, and tool calls made. Use when: resuming work after a break, reviewing what was accomplished yesterday, or understanding context before continuing someone else's work.",
 			argsSchema: {
 				session_id: z
 					.string()
 					.optional()
-					.describe("Session ID to summarize. Leave empty for latest session."),
+					.describe(
+						"Session ID to summarize. Leave empty to get the latest session. Useful for reviewing a specific session when you have the ID from a previous search.",
+					),
 			},
 		},
 		async ({ session_id }) => {

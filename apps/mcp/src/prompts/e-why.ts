@@ -42,13 +42,19 @@ export function registerWhyPrompt(
 		{
 			title: "/e why",
 			description:
-				"Search for past decisions related to a topic. Useful for understanding why something was done a certain way.",
+				"Find past decisions and their rationale for a topic. Use when: you're about to make an architectural choice and want to check for precedent, the user asks 'why did we...', or you encounter code that seems intentional but unclear. Returns decisions ranked by relevance with dates and confidence scores.",
 			argsSchema: {
-				topic: z.string().describe("The topic or area to search for decisions about"),
+				topic: z
+					.string()
+					.describe(
+						"The topic or area to search for decisions about. Be specific - 'authentication flow' works better than 'auth'. Include context words that would appear in relevant decisions.",
+					),
 				include_insights: z
 					.boolean()
 					.default(false)
-					.describe("Also include related insights and context"),
+					.describe(
+						"Also include related insights and observations. Enable when you want broader context beyond just decisions.",
+					),
 				limit: z.number().int().min(1).max(20).default(5).describe("Maximum number of results"),
 			},
 		},

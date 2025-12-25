@@ -7,16 +7,23 @@ export function registerSummarizeTool(server: McpServer, samplingService: Sampli
 		"engram_summarize",
 		{
 			title: "Summarize Text",
-			description: "Summarize text using the client's LLM (requires sampling capability)",
+			description:
+				"Condense long text into key points using the MCP client's LLM. Use before storing memories to create compact, searchable summaries. Also useful for: distilling verbose error logs, compressing context that exceeds limits, or creating session recaps. Requires client sampling capability - returns available=false if unsupported.",
 			inputSchema: {
-				text: z.string().describe("Text to summarize"),
+				text: z
+					.string()
+					.describe(
+						"Text to condense. Works best with structured content like logs, documentation, or conversation history. Very long texts may be truncated - consider chunking inputs over 10,000 characters.",
+					),
 				maxWords: z
 					.number()
 					.int()
 					.min(10)
 					.max(500)
 					.default(100)
-					.describe("Maximum number of words in summary"),
+					.describe(
+						"Target summary length. 10-30 words for memory tags/titles. 50-100 words for memory content. 200-500 words for detailed session recaps. Actual output may vary slightly.",
+					),
 			},
 			outputSchema: {
 				summary: z.string().nullable(),
