@@ -1,11 +1,11 @@
 import { type MemoryType, MemoryTypeEnum } from "@engram/graph";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { MemoryStore } from "../services/memory-store";
+import type { IMemoryStore } from "../services/interfaces";
 
 export function registerRememberTool(
 	server: McpServer,
-	memoryStore: MemoryStore,
+	memoryStore: IMemoryStore,
 	getSessionContext: () => { sessionId?: string; workingDir?: string; project?: string },
 ) {
 	server.registerTool(

@@ -1,6 +1,6 @@
-import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { IEngramClient } from "../services/interfaces";
 
 // Allowlist of safe Cypher operations
 const SAFE_CYPHER_PATTERNS = [
@@ -53,7 +53,7 @@ function isReadOnlyCypher(cypher: string): { valid: boolean; reason?: string } {
 	return { valid: true };
 }
 
-export function registerQueryTool(server: McpServer, graphClient: GraphClient) {
+export function registerQueryTool(server: McpServer, client: IEngramClient) {
 	server.registerTool(
 		"engram_query",
 		{
@@ -98,11 +98,7 @@ export function registerQueryTool(server: McpServer, graphClient: GraphClient) {
 			}
 
 			try {
-				// Ensure connected before query
-				if (graphClient.connect) {
-					await graphClient.connect();
-				}
-				const result = await graphClient.query(cypher, params ?? {});
+				const result = await client.query(cypher, params ?? {});
 
 				const results = Array.isArray(result) ? result : [];
 				const output = {

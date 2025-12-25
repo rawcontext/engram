@@ -41,29 +41,22 @@
 	"dependencies": {
 		"@engram/graph": "*",
 		"@engram/logger": "*",
-		"@engram/storage": "*",
-		"@hono/node-server": "^1.19.7",
 		"@modelcontextprotocol/sdk": "^1.25.1",
-		"hono": "^4.11.1",
-		"pg": "^8.16.3",
 		"ulid": "^3.0.2",
 		"zod": "^4.2.1"
 	},
 	"devDependencies": {
 		"@engram/tsconfig": "*",
 		"@types/node": "^25.0.3",
-		"@types/pg": "^8.16.0",
 		"tsup": "^8.5.1"
 	},
 	"scripts": {
 		"dev": "tsx --env-file=.env src/index.ts",
-		"dev:http": "tsx --env-file=.env src/http-server.ts",
 		"build": "tsup",
 		"build:tsc": "tsgo",
 		"typecheck": "tsgo --noEmit",
 		"prepublishOnly": "bun run build",
 		"start": "bun dist/index.js",
-		"start:http": "bun dist/http-server.js",
 		"lint": "biome check .",
 		"format": "biome format ."
 	}

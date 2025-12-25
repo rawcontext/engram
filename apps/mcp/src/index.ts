@@ -6,33 +6,18 @@ async function main() {
 	const config = loadConfig();
 
 	const engramServer = createEngramMcpServer({ config });
-	const { server, mode, graphClient, cloudClient, logger, sessionInstrumenter } = engramServer;
+	const { server, mode, cloudClient, logger } = engramServer;
 
-	// Connect to backend (local mode: FalkorDB, cloud mode: API)
-	if (mode === "local" && graphClient) {
-		await graphClient.connect();
-		logger.info("Connected to FalkorDB");
-	} else if (mode === "cloud" && cloudClient) {
-		await cloudClient.connect();
-		logger.info("Connected to Engram Cloud API");
-	}
+	// Connect to API (both local and cloud modes use API client)
+	await cloudClient.connect();
+	logger.info({ mode }, "Connected to Engram API");
 
 	// Graceful shutdown
 	const shutdown = async (signal: string) => {
 		logger.info({ signal }, "Shutting down...");
 		try {
-			// End the instrumentation session before disconnecting
-			if (sessionInstrumenter) {
-				await sessionInstrumenter.endSession();
-			}
-
-			if (mode === "local" && graphClient) {
-				await graphClient.disconnect();
-				logger.info("Disconnected from FalkorDB");
-			} else if (mode === "cloud" && cloudClient) {
-				await cloudClient.disconnect();
-				logger.info("Disconnected from Engram Cloud API");
-			}
+			await cloudClient.disconnect();
+			logger.info("Disconnected from Engram API");
 		} catch (error) {
 			logger.error({ error }, "Error during shutdown");
 		}

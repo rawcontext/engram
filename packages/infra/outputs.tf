@@ -30,18 +30,18 @@ output "deploy_command" {
 
 # DNS outputs
 output "api_url" {
-  description = "API service URL"
+  description = "API service URL (all services consolidated)"
   value       = "https://api.${var.domain}"
 }
 
 output "search_url" {
-  description = "Search service URL"
-  value       = "https://search.${var.domain}"
+  description = "Search service URL (path-based routing)"
+  value       = "https://api.${var.domain}/v1/search"
 }
 
 output "tuner_url" {
-  description = "Tuner service URL"
-  value       = "https://tuner.${var.domain}"
+  description = "Tuner service URL (path-based routing)"
+  value       = "https://api.${var.domain}/v1/tuner"
 }
 
 output "observatory_url" {

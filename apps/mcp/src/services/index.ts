@@ -1,13 +1,12 @@
 export { EngramCloudClient, type EngramCloudClientOptions } from "./cloud";
-export {
-	MemoryRetriever,
-	type MemoryRetrieverOptions,
-	type RecallFilters,
-	type RecallResult,
-} from "./memory-retriever";
-export { type CreateMemoryInput, MemoryStore, type MemoryStoreOptions } from "./memory-store";
-export {
-	SessionInstrumenter,
-	type SessionInstrumenterOptions,
-	type ToolCallRecord,
-} from "./session-instrumenter";
+export type {
+	ContextItem,
+	CreateMemoryInput,
+	IEngramClient,
+	IGraphClient,
+	IMemoryRetriever,
+	IMemoryStore,
+	RecallFilters,
+	RecallResult,
+	RerankTier,
+} from "./interfaces";

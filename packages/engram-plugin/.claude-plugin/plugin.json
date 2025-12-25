@@ -1,0 +1,13 @@
+{
+	"name": "engram",
+	"description": "Bitemporal graph-backed intelligent agent memory. Access long-term memories, recall past decisions, and prime sessions with institutional knowledge.",
+	"version": "1.0.0",
+	"author": {
+		"name": "Chris Cheney",
+		"email": "chris@cheney.dev"
+	},
+	"homepage": "https://github.com/ccheney/the-system",
+	"repository": "https://github.com/ccheney/the-system",
+	"license": "MIT",
+	"keywords": ["memory", "context", "knowledge", "ai-agent", "bitemporal"]
+}

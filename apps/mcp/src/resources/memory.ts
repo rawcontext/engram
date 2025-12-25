@@ -1,18 +1,16 @@
 import type { MemoryNode } from "@engram/graph";
-import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { IEngramClient } from "../services/interfaces";
 
 /**
  * List memories for resource enumeration
  */
 async function listMemories(
-	graphClient: GraphClient,
+	client: IEngramClient,
 	limit = 100,
 ): Promise<Array<{ uri: string; name: string; description: string }>> {
-	await graphClient.connect();
-
-	const result = await graphClient.query(
+	const result = await client.query(
 		`MATCH (m:Memory)
 		 WHERE m.vt_end > $now
 		 RETURN m
@@ -39,10 +37,8 @@ async function listMemories(
 /**
  * Get a single memory by ID
  */
-async function getMemory(graphClient: GraphClient, id: string): Promise<MemoryNode | null> {
-	await graphClient.connect();
-
-	const result = await graphClient.query(
+async function getMemory(client: IEngramClient, id: string): Promise<MemoryNode | null> {
+	const result = await client.query(
 		`MATCH (m:Memory {id: $id})
 		 WHERE m.vt_end > $now
 		 RETURN m`,
@@ -56,11 +52,11 @@ async function getMemory(graphClient: GraphClient, id: string): Promise<MemoryNo
 	return (result[0] as { m: { properties: MemoryNode } }).m.properties;
 }
 
-export function registerMemoryResource(server: McpServer, graphClient: GraphClient) {
+export function registerMemoryResource(server: McpServer, client: IEngramClient) {
 	server.registerResource(
 		"memory",
 		new ResourceTemplate("memory://{id}", {
-			list: async () => ({ resources: await listMemories(graphClient) }),
+			list: async () => ({ resources: await listMemories(client) }),
 		}),
 		{
 			title: "Memory",
@@ -68,7 +64,7 @@ export function registerMemoryResource(server: McpServer, graphClient: GraphClie
 			mimeType: "application/json",
 		},
 		async (uri, { id }) => {
-			const memory = await getMemory(graphClient, id as string);
+			const memory = await getMemory(client, id as string);
 
 			if (!memory) {
 				return {

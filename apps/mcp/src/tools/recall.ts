@@ -2,11 +2,11 @@ import { MemoryTypeEnum } from "@engram/graph";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ElicitationService } from "../capabilities";
-import type { MemoryRetriever } from "../services/memory-retriever";
+import type { IMemoryRetriever } from "../services/interfaces";
 
 export function registerRecallTool(
 	server: McpServer,
-	memoryRetriever: MemoryRetriever,
+	memoryRetriever: IMemoryRetriever,
 	_getSessionContext: () => { project?: string },
 	elicitationService?: ElicitationService,
 ) {

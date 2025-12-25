@@ -1,7 +1,7 @@
 import type { FileTouchNode, SessionNode } from "@engram/graph";
-import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { IEngramClient } from "../services/interfaces";
 
 interface FileHistoryEntry {
 	action: string;
@@ -24,17 +24,15 @@ interface FileHistory {
  * Get file history across all sessions
  */
 async function getFileHistory(
-	graphClient: GraphClient,
+	client: IEngramClient,
 	filePath: string,
 	limit = 20,
 ): Promise<FileHistory> {
-	await graphClient.connect();
-
 	// Decode the path (URL encoded in the URI)
 	const decodedPath = decodeURIComponent(filePath);
 
 	// Query file touches linked to sessions through turns
-	const result = await graphClient.query(
+	const result = await client.query(
 		`MATCH (ft:FileTouch {file_path: $filePath})
 		 WHERE ft.vt_end > $now
 		 OPTIONAL MATCH (t:Turn)-[:TOUCHES]->(ft)
@@ -70,7 +68,7 @@ async function getFileHistory(
 	}
 
 	// Get total count
-	const countResult = await graphClient.query(
+	const countResult = await client.query(
 		`MATCH (ft:FileTouch {file_path: $filePath})
 		 WHERE ft.vt_end > $now
 		 RETURN count(ft) as total`,
@@ -93,13 +91,11 @@ async function getFileHistory(
  * List recently touched files for resource enumeration
  */
 async function listRecentFiles(
-	graphClient: GraphClient,
+	client: IEngramClient,
 	limit = 50,
 ): Promise<Array<{ uri: string; name: string; description: string }>> {
-	await graphClient.connect();
-
 	// Get distinct file paths with recent touches
-	const result = await graphClient.query(
+	const result = await client.query(
 		`MATCH (ft:FileTouch)
 		 WHERE ft.vt_end > $now
 		 WITH ft.file_path as path, max(ft.vt_start) as last_touch, count(*) as touch_count
@@ -124,11 +120,11 @@ async function listRecentFiles(
 	});
 }
 
-export function registerFileHistoryResource(server: McpServer, graphClient: GraphClient) {
+export function registerFileHistoryResource(server: McpServer, client: IEngramClient) {
 	server.registerResource(
 		"file-history",
 		new ResourceTemplate("file-history://{path}", {
-			list: async () => ({ resources: await listRecentFiles(graphClient) }),
+			list: async () => ({ resources: await listRecentFiles(client) }),
 		}),
 		{
 			title: "File History",
@@ -136,7 +132,7 @@ export function registerFileHistoryResource(server: McpServer, graphClient: Grap
 			mimeType: "application/json",
 		},
 		async (uri, { path }) => {
-			const history = await getFileHistory(graphClient, path as string);
+			const history = await getFileHistory(client, path as string);
 
 			return {
 				contents: [

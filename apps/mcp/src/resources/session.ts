@@ -1,7 +1,7 @@
 import type { SessionNode, TurnNode } from "@engram/graph";
-import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { IEngramClient } from "../services/interfaces";
 
 interface SessionTranscript {
 	id: string;
@@ -23,12 +23,10 @@ interface SessionTranscript {
  * List sessions for resource enumeration
  */
 async function listSessions(
-	graphClient: GraphClient,
+	client: IEngramClient,
 	limit = 50,
 ): Promise<Array<{ uri: string; name: string; description: string }>> {
-	await graphClient.connect();
-
-	const result = await graphClient.query(
+	const result = await client.query(
 		`MATCH (s:Session)
 		 WHERE s.vt_end > $now
 		 RETURN s
@@ -56,13 +54,11 @@ async function listSessions(
  * Get session transcript with all turns
  */
 async function getSessionTranscript(
-	graphClient: GraphClient,
+	client: IEngramClient,
 	sessionId: string,
 ): Promise<SessionTranscript | null> {
-	await graphClient.connect();
-
 	// Get session node
-	const sessionResult = await graphClient.query(
+	const sessionResult = await client.query(
 		`MATCH (s:Session {id: $sessionId})
 		 WHERE s.vt_end > $now
 		 RETURN s`,
@@ -76,7 +72,7 @@ async function getSessionTranscript(
 	const session = (sessionResult[0] as { s: { properties: SessionNode } }).s.properties;
 
 	// Get all turns for this session
-	const turnsResult = await graphClient.query(
+	const turnsResult = await client.query(
 		`MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)
 		 WHERE t.vt_end > $now
 		 RETURN t
@@ -112,12 +108,7 @@ async function getSessionTranscript(
 /**
  * Get latest session for a project or globally
  */
-async function getLatestSession(
-	graphClient: GraphClient,
-	project?: string,
-): Promise<string | null> {
-	await graphClient.connect();
-
+async function getLatestSession(client: IEngramClient, project?: string): Promise<string | null> {
 	let query = `MATCH (s:Session) WHERE s.vt_end > $now`;
 	const params: Record<string, unknown> = { now: Date.now() };
 
@@ -129,7 +120,7 @@ async function getLatestSession(
 
 	query += ` RETURN s.id ORDER BY s.started_at DESC LIMIT 1`;
 
-	const result = await graphClient.query(query, params);
+	const result = await client.query(query, params);
 
 	if (!Array.isArray(result) || result.length === 0) {
 		return null;
@@ -140,14 +131,14 @@ async function getLatestSession(
 
 export function registerSessionResource(
 	server: McpServer,
-	graphClient: GraphClient,
+	client: IEngramClient,
 	getSessionContext: () => { project?: string },
 ) {
 	// Register transcript resource with template
 	server.registerResource(
 		"session-transcript",
 		new ResourceTemplate("session://{session_id}/transcript", {
-			list: async () => ({ resources: await listSessions(graphClient) }),
+			list: async () => ({ resources: await listSessions(client) }),
 		}),
 		{
 			title: "Session Transcript",
@@ -160,7 +151,7 @@ export function registerSessionResource(
 			// Handle "latest" as special case
 			if (targetSessionId === "latest") {
 				const context = getSessionContext();
-				const latestId = await getLatestSession(graphClient, context.project);
+				const latestId = await getLatestSession(client, context.project);
 				if (!latestId) {
 					return {
 						contents: [
@@ -175,7 +166,7 @@ export function registerSessionResource(
 				targetSessionId = latestId;
 			}
 
-			const transcript = await getSessionTranscript(graphClient, targetSessionId);
+			const transcript = await getSessionTranscript(client, targetSessionId);
 
 			if (!transcript) {
 				return {
@@ -217,7 +208,7 @@ export function registerSessionResource(
 
 			if (targetSessionId === "latest") {
 				const context = getSessionContext();
-				const latestId = await getLatestSession(graphClient, context.project);
+				const latestId = await getLatestSession(client, context.project);
 				if (!latestId) {
 					return {
 						contents: [
@@ -232,9 +223,7 @@ export function registerSessionResource(
 				targetSessionId = latestId;
 			}
 
-			await graphClient.connect();
-
-			const result = await graphClient.query(
+			const result = await client.query(
 				`MATCH (s:Session {id: $sessionId})
 				 WHERE s.vt_end > $now
 				 OPTIONAL MATCH (s)-[:HAS_TURN]->(t:Turn)

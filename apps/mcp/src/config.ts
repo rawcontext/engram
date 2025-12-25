@@ -1,10 +1,21 @@
 import { z } from "zod";
 
+/**
+ * Default API key for local development.
+ * This key is accepted by the API when running locally without database lookup.
+ */
+export const LOCAL_DEV_API_KEY = "engram_dev_local_mcp";
+
+/**
+ * Default API URL for local development.
+ */
+export const LOCAL_API_URL = "http://localhost:6174";
+
 export const ConfigSchema = z.object({
-	// Operation mode: cloud (API client) or local (direct connections)
+	// Operation mode: cloud (remote API) or local (localhost API)
 	mode: z.enum(["cloud", "local"]).optional(),
 
-	// Cloud mode settings
+	// API settings
 	engramApiKey: z.string().optional(),
 	engramApiUrl: z.string().url().optional(),
 
@@ -17,12 +28,6 @@ export const ConfigSchema = z.object({
 	// HTTP authentication
 	authEnabled: z.boolean().default(true),
 	authPostgresUrl: z.string().optional(),
-
-	// Local mode: Database connections
-	falkordbUrl: z.string().url().default("redis://localhost:6179"),
-	qdrantUrl: z.string().url().default("http://localhost:6180"),
-	searchUrl: z.string().url().default("http://localhost:6176"),
-	searchApiKey: z.string().optional(),
 
 	// Logging
 	logLevel: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
@@ -80,10 +85,10 @@ export function detectMode(config: Partial<Config>): "cloud" | "local" {
 }
 
 export function loadConfig(): Config {
-	// Detect mode first to determine auth default
+	// Detect mode first to determine defaults
 	const explicitMode = process.env.ENGRAM_MODE as "cloud" | "local" | undefined;
 	const apiUrl = process.env.ENGRAM_API_URL;
-	const hasApiKey = !!process.env.ENGRAM_API_KEY;
+	const apiKey = process.env.ENGRAM_API_KEY;
 	const isLocalhost = isLocalhostUrl(apiUrl);
 
 	// Infer mode from URL: localhost = local, remote = cloud
@@ -98,9 +103,9 @@ export function loadConfig(): Config {
 		mode = "local";
 	}
 
-	// Remote URL requires API key
-	if (mode === "cloud" && apiUrl && !isLocalhost && !hasApiKey) {
-		throw new Error("ENGRAM_API_KEY is required when using a remote ENGRAM_API_URL");
+	// Cloud mode requires explicit API key
+	if (mode === "cloud" && !apiKey) {
+		throw new Error("ENGRAM_API_KEY is required for cloud mode");
 	}
 
 	// Auth defaults: enabled for cloud, disabled for local
@@ -110,17 +115,14 @@ export function loadConfig(): Config {
 
 	const rawConfig = {
 		mode: explicitMode,
-		engramApiKey: process.env.ENGRAM_API_KEY,
-		engramApiUrl: process.env.ENGRAM_API_URL,
+		// Local mode: use defaults, Cloud mode: require explicit values
+		engramApiKey: apiKey ?? (mode === "local" ? LOCAL_DEV_API_KEY : undefined),
+		engramApiUrl: apiUrl ?? (mode === "local" ? LOCAL_API_URL : undefined),
 		transport: process.env.MCP_TRANSPORT ?? "stdio",
 		httpPort: process.env.MCP_HTTP_PORT ? Number.parseInt(process.env.MCP_HTTP_PORT, 10) : 3010,
 		authEnabled,
 		authPostgresUrl:
 			process.env.AUTH_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:6183/engram",
-		falkordbUrl: process.env.FALKORDB_URL ?? "redis://localhost:6179",
-		qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6180",
-		searchUrl: process.env.SEARCH_URL ?? "http://localhost:6176",
-		searchApiKey: process.env.SEARCH_API_KEY ?? process.env.ENGRAM_API_KEY,
 		logLevel: process.env.LOG_LEVEL ?? "info",
 	};
 

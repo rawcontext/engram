@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { MemoryRetriever } from "../services/memory-retriever";
+import type { IMemoryRetriever } from "../services/interfaces";
 
 interface DecisionResult {
 	id: string;
@@ -34,18 +34,19 @@ ${decision.content}`;
 
 export function registerWhyPrompt(
 	server: McpServer,
-	memoryRetriever: MemoryRetriever,
+	memoryRetriever: IMemoryRetriever,
 	getSessionContext: () => { project?: string },
 ) {
 	server.registerPrompt(
-		"e-why",
+		"decision-history",
 		{
-			title: "/e why",
+			title: "Decision History",
 			description:
 				"Find past decisions and their rationale for a topic. Use when: you're about to make an architectural choice and want to check for precedent, the user asks 'why did we...', or you encounter code that seems intentional but unclear. Returns decisions ranked by relevance with dates and confidence scores.",
 			argsSchema: {
 				topic: z
 					.string()
+					.optional()
 					.describe(
 						"The topic or area to search for decisions about. Be specific - 'authentication flow' works better than 'auth'. Include context words that would appear in relevant decisions.",
 					),
@@ -61,8 +62,11 @@ export function registerWhyPrompt(
 		async ({ topic, include_insights, limit }) => {
 			const sessionContext = getSessionContext();
 
+			// Use topic or fallback to recent decisions
+			const searchTopic = topic ?? "recent";
+
 			// Search for decisions
-			const decisions = await memoryRetriever.recall(`decisions about ${topic}`, limit ?? 5, {
+			const decisions = await memoryRetriever.recall(`decisions about ${searchTopic}`, limit ?? 5, {
 				type: "decision",
 				project: sessionContext.project,
 			});
@@ -79,7 +83,7 @@ export function registerWhyPrompt(
 
 			if (include_insights) {
 				// Also search for insights
-				const insights = await memoryRetriever.recall(`insights about ${topic}`, 3, {
+				const insights = await memoryRetriever.recall(`insights about ${searchTopic}`, 3, {
 					type: "insight",
 					project: sessionContext.project,
 				});
@@ -102,13 +106,16 @@ ${insight.content}`;
 				? `\n\nSearching in project: ${sessionContext.project}`
 				: "";
 
+			const heading = topic ? `Past Decisions: "${topic}"` : "Recent Decisions";
+			const topicRef = topic ? `"${topic}"` : "these topics";
+
 			return {
 				messages: [
 					{
 						role: "user" as const,
 						content: {
 							type: "text" as const,
-							text: `# Past Decisions: "${topic}"${projectInfo}
+							text: `# ${heading}${projectInfo}
 
 ## Decisions Found
 
@@ -117,7 +124,7 @@ ${formattedDecisions}${insightsSection}
 ---
 
 Please analyze these decisions and:
-1. Summarize the key decisions made about "${topic}"
+1. Summarize the key decisions made about ${topicRef}
 2. Explain the rationale behind each decision (if apparent)
 3. Note any patterns or evolution in decision-making
 4. Highlight if any decisions might conflict or need updating`,

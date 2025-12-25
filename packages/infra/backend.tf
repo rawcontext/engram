@@ -5,17 +5,10 @@
 # To initialize, override the backend URLs with your domain:
 #   export TF_HTTP_USERNAME="tofu"
 #   export TF_HTTP_PASSWORD="your-api-key-with-state:write-scope"
-#   tofu init \
-#     -backend-config="address=https://api.YOUR_DOMAIN/v1/tofu" \
-#     -backend-config="lock_address=https://api.YOUR_DOMAIN/v1/tofu/lock" \
-#     -backend-config="unlock_address=https://api.YOUR_DOMAIN/v1/tofu/lock"
+#   tofu init -backend-config="address=https://api.YOUR_DOMAIN/v1/tofu"
 
 terraform {
   backend "http" {
-    address        = "https://api.statient.com/v1/tofu"
-    lock_address   = "https://api.statient.com/v1/tofu/lock"
-    unlock_address = "https://api.statient.com/v1/tofu/lock"
-    lock_method    = "POST"
-    unlock_method  = "POST"
+    address = "https://api.statient.com/v1/tofu"
   }
 }

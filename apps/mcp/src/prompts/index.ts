@@ -1,3 +1,3 @@
-export { registerPrimePrompt } from "./e-prime";
-export { registerRecapPrompt } from "./e-recap";
-export { registerWhyPrompt } from "./e-why";
+export { registerWhyPrompt } from "./decision-history";
+export { registerPrimePrompt } from "./session-prime";
+export { registerRecapPrompt } from "./session-recap";

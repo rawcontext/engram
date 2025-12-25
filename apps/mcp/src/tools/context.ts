@@ -1,8 +1,7 @@
-import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { SamplingService } from "../capabilities";
-import type { MemoryRetriever } from "../services/memory-retriever";
+import type { IEngramClient, IMemoryRetriever } from "../services/interfaces";
 
 interface ContextItem {
 	type: string;
@@ -13,8 +12,8 @@ interface ContextItem {
 
 export function registerContextTool(
 	server: McpServer,
-	memoryRetriever: MemoryRetriever,
-	graphClient: GraphClient,
+	memoryRetriever: IMemoryRetriever,
+	client: IEngramClient,
 	getSessionContext: () => { project?: string; workingDir?: string },
 	samplingService?: SamplingService,
 ) {
@@ -83,11 +82,9 @@ export function registerContextTool(
 
 			// 2. Search file history if files are provided
 			if (files && files.length > 0) {
-				await graphClient.connect();
-
 				for (const filePath of files.slice(0, limits.files)) {
 					// Find recent file touches
-					const touches = await graphClient.query(
+					const touches = await client.query(
 						`MATCH (ft:FileTouch {file_path: $filePath})
 						 RETURN ft
 						 ORDER BY ft.vt_start DESC

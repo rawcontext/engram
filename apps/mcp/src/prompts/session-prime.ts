@@ -1,7 +1,6 @@
-import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { MemoryRetriever } from "../services/memory-retriever";
+import type { IEngramClient, IMemoryRetriever } from "../services/interfaces";
 
 /**
  * Format context items for display
@@ -22,19 +21,20 @@ function formatContext(items: Array<{ type: string; content: string; relevance: 
 
 export function registerPrimePrompt(
 	server: McpServer,
-	memoryRetriever: MemoryRetriever,
-	graphClient: GraphClient,
+	memoryRetriever: IMemoryRetriever,
+	client: IEngramClient,
 	getSessionContext: () => { project?: string; workingDir?: string },
 ) {
 	server.registerPrompt(
-		"e-prime",
+		"session-prime",
 		{
-			title: "/e prime",
+			title: "Prime Session",
 			description:
 				"Initialize a work session with relevant context from memory. Retrieves: semantic matches to your task, related past decisions, and recent file modification history. Use this at the START of any significant task - especially when resuming previous work, working on files you've touched before, or making decisions that might have prior art.",
 			argsSchema: {
 				task: z
 					.string()
+					.optional()
 					.describe(
 						"Description of the task you're starting. Be specific - 'implement OAuth2 login' retrieves better context than 'add auth'. This is used for semantic search across all memory types.",
 					),
@@ -56,6 +56,9 @@ export function registerPrimePrompt(
 			const sessionContext = getSessionContext();
 			const contextItems: Array<{ type: string; content: string; relevance: number }> = [];
 
+			// Use task or fallback to generic recent context query
+			const searchQuery = task ?? "recent work and context";
+
 			// Determine search limits based on depth
 			const limits = {
 				shallow: { memories: 3, decisions: 2, files: 2 },
@@ -64,7 +67,7 @@ export function registerPrimePrompt(
 			}[depth ?? "medium"];
 
 			// 1. Search memories for relevant context
-			const memories = await memoryRetriever.recall(task, limits.memories, {
+			const memories = await memoryRetriever.recall(searchQuery, limits.memories, {
 				project: sessionContext.project,
 			});
 
@@ -77,10 +80,14 @@ export function registerPrimePrompt(
 			}
 
 			// 2. Search for decisions specifically
-			const decisions = await memoryRetriever.recall(`decisions about ${task}`, limits.decisions, {
-				type: "decision",
-				project: sessionContext.project,
-			});
+			const decisions = await memoryRetriever.recall(
+				`decisions about ${searchQuery}`,
+				limits.decisions,
+				{
+					type: "decision",
+					project: sessionContext.project,
+				},
+			);
 
 			for (const decision of decisions) {
 				// Avoid duplicates
@@ -96,10 +103,9 @@ export function registerPrimePrompt(
 			// 3. Get file history if files are specified
 			if (files) {
 				const filePaths = files.split(",").map((f) => f.trim());
-				await graphClient.connect();
 
 				for (const filePath of filePaths.slice(0, limits.files)) {
-					const touches = await graphClient.query(
+					const touches = await client.query(
 						`MATCH (ft:FileTouch {file_path: $filePath})
 						 WHERE ft.vt_end > $now
 						 RETURN ft
@@ -131,13 +137,15 @@ export function registerPrimePrompt(
 
 			const formattedContext = formatContext(sortedContext);
 
+			const taskDescription = task ? `I'm starting work on: ${task}` : "Starting a new session";
+
 			return {
 				messages: [
 					{
 						role: "user" as const,
 						content: {
 							type: "text" as const,
-							text: `I'm starting work on: ${task}${projectInfo}
+							text: `${taskDescription}${projectInfo}
 
 ## Relevant Context from Memory
 

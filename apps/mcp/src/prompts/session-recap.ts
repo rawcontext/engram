@@ -1,7 +1,7 @@
 import type { SessionNode, TurnNode } from "@engram/graph";
-import type { GraphClient } from "@engram/storage";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { IEngramClient } from "../services/interfaces";
 
 interface SessionTranscript {
 	id: string;
@@ -22,12 +22,7 @@ interface SessionTranscript {
 /**
  * Get latest session for a project or globally
  */
-async function getLatestSession(
-	graphClient: GraphClient,
-	project?: string,
-): Promise<string | null> {
-	await graphClient.connect();
-
+async function getLatestSession(client: IEngramClient, project?: string): Promise<string | null> {
 	let query = `MATCH (s:Session) WHERE s.vt_end > $now`;
 	const params: Record<string, unknown> = { now: Date.now() };
 
@@ -38,7 +33,7 @@ async function getLatestSession(
 
 	query += ` RETURN s.id ORDER BY s.started_at DESC LIMIT 1`;
 
-	const result = await graphClient.query(query, params);
+	const result = await client.query(query, params);
 
 	if (!Array.isArray(result) || result.length === 0) {
 		return null;
@@ -51,13 +46,11 @@ async function getLatestSession(
  * Get session transcript with all turns
  */
 async function getSessionTranscript(
-	graphClient: GraphClient,
+	client: IEngramClient,
 	sessionId: string,
 ): Promise<SessionTranscript | null> {
-	await graphClient.connect();
-
 	// Get session node
-	const sessionResult = await graphClient.query(
+	const sessionResult = await client.query(
 		`MATCH (s:Session {id: $sessionId})
 		 WHERE s.vt_end > $now
 		 RETURN s`,
@@ -71,7 +64,7 @@ async function getSessionTranscript(
 	const session = (sessionResult[0] as { s: { properties: SessionNode } }).s.properties;
 
 	// Get all turns for this session
-	const turnsResult = await graphClient.query(
+	const turnsResult = await client.query(
 		`MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)
 		 WHERE t.vt_end > $now
 		 RETURN t
@@ -144,13 +137,13 @@ function formatTranscript(transcript: SessionTranscript): string {
 
 export function registerRecapPrompt(
 	server: McpServer,
-	graphClient: GraphClient,
+	client: IEngramClient,
 	getSessionContext: () => { project?: string },
 ) {
 	server.registerPrompt(
-		"e-recap",
+		"session-recap",
 		{
-			title: "/e recap",
+			title: "Recap Session",
 			description:
 				"Review what happened in a previous session. Returns: session timeline, turns with user/assistant exchanges, files modified, and tool calls made. Use when: resuming work after a break, reviewing what was accomplished yesterday, or understanding context before continuing someone else's work.",
 			argsSchema: {
@@ -168,8 +161,7 @@ export function registerRecapPrompt(
 			// Resolve session ID
 			let targetSessionId = session_id;
 			if (!targetSessionId) {
-				targetSessionId =
-					(await getLatestSession(graphClient, sessionContext.project)) ?? undefined;
+				targetSessionId = (await getLatestSession(client, sessionContext.project)) ?? undefined;
 			}
 
 			if (!targetSessionId) {
@@ -186,7 +178,7 @@ export function registerRecapPrompt(
 				};
 			}
 
-			const transcript = await getSessionTranscript(graphClient, targetSessionId);
+			const transcript = await getSessionTranscript(client, targetSessionId);
 
 			if (!transcript) {
 				return {
