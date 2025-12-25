@@ -66,7 +66,7 @@ describe("search-client", () => {
 
 			await search({ text: "test" }, "http://custom:8080");
 
-			expect(fetch).toHaveBeenCalledWith("http://custom:8080/v1/search", expect.any(Object));
+			expect(fetch).toHaveBeenCalledWith("http://custom:8080/v1/search/query", expect.any(Object));
 		});
 
 		it("should use SEARCH_URL env var when available", async () => {
@@ -82,7 +82,7 @@ describe("search-client", () => {
 
 			await search({ text: "test" });
 
-			expect(fetch).toHaveBeenCalledWith("http://env-url:9090/v1/search", expect.any(Object));
+			expect(fetch).toHaveBeenCalledWith("http://env-url:9090/v1/search/query", expect.any(Object));
 
 			process.env.SEARCH_URL = originalEnv;
 		});
