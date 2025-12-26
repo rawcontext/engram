@@ -21,6 +21,7 @@ RUN mkdir -p ./apps/observatory/public
 # Custom server source and WebSocket handlers
 COPY --from=builder /app/apps/observatory/server.ts ./apps/observatory/
 COPY --from=builder /app/apps/observatory/lib ./apps/observatory/lib
+COPY --from=builder /app/apps/observatory/app ./apps/observatory/app
 COPY --from=builder /app/apps/observatory/package.json ./apps/observatory/
 # Next.js config (required for image remotePatterns)
 COPY --from=builder /app/apps/observatory/next.config.mjs ./apps/observatory/
