@@ -19,7 +19,7 @@ export const DEFAULT_OBSERVATORY_URL = "http://localhost:6178";
 /**
  * Production Observatory URL
  */
-export const PRODUCTION_OBSERVATORY_URL = "https://observatory.engram.sh";
+export const PRODUCTION_OBSERVATORY_URL = "https://observatory.statient.com";
 
 export const ConfigSchema = z.object({
 	// API URL - localhost = local mode, remote = cloud mode (OAuth required)
