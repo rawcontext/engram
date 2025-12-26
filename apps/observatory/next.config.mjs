@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-	output: "standalone",
+	// Note: We use a custom server.ts for WebSocket support,
+	// so we cannot use "output: standalone" which requires server.js
 	images: {
 		remotePatterns: [
 			{

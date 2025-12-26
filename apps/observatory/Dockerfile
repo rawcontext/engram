@@ -2,6 +2,9 @@ FROM oven/bun:1.3.5 AS builder
 WORKDIR /app
 COPY . .
 RUN bun install --frozen-lockfile
+# Build-time env vars needed for Next.js page collection (overridden at runtime)
+ENV BETTER_AUTH_URL=http://localhost:3000
+ENV BETTER_AUTH_SECRET=build-time-placeholder
 RUN bun run build --filter=observatory...
 
 FROM oven/bun:1.3.5-alpine AS runner
