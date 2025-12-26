@@ -10,46 +10,42 @@ async function main() {
 	const engramServer = createEngramMcpServer({ config });
 	const { server, cloudClient, logger, deviceFlowClient, tokenCache } = engramServer;
 
-	// In cloud mode with OAuth, check for valid credentials
-	if (mode === "cloud" && config.oauthEnabled && !config.engramApiKey) {
-		// Check if we have valid cached tokens
+	// In cloud mode, authenticate via OAuth device flow
+	if (mode === "cloud") {
 		if (!hasValidCredentials(logger)) {
 			// Start device flow authentication
-			if (deviceFlowClient) {
-				logger.info("No valid credentials found, starting device flow authentication");
-
-				const result = await deviceFlowClient.startDeviceFlow({
-					openBrowser: true,
-					onDisplayCode: (code, url, urlComplete) => {
-						// Use stderr for prompts (stdout reserved for MCP protocol)
-						console.error("\n┌─────────────────────────────────────────────────────┐");
-						console.error("│  ENGRAM AUTHENTICATION REQUIRED                     │");
-						console.error("│                                                     │");
-						console.error(`│  Visit: ${url.padEnd(41)}│`);
-						console.error(`│  Enter code: ${code.padEnd(37)}│`);
-						console.error("│                                                     │");
-						console.error(`│  Or open: ${urlComplete.slice(0, 39).padEnd(39)}│`);
-						console.error("└─────────────────────────────────────────────────────┘\n");
-					},
-					onPolling: () => {
-						console.error("Waiting for authorization...");
-					},
-					onSuccess: (email) => {
-						console.error(`\n✓ Authenticated as ${email}\n`);
-					},
-				});
-
-				if (!result.success) {
-					throw new Error(`Authentication failed: ${result.error}`);
-				}
-
-				logger.info(
-					{ user: tokenCache?.getUser()?.email },
-					"Device flow authentication successful",
-				);
-			} else {
-				throw new Error("No valid credentials and device flow client not available");
+			if (!deviceFlowClient) {
+				throw new Error("Device flow client not initialized");
 			}
+
+			logger.info("No valid credentials found, starting device flow authentication");
+
+			const result = await deviceFlowClient.startDeviceFlow({
+				openBrowser: true,
+				onDisplayCode: (code, url, urlComplete) => {
+					// Use stderr for prompts (stdout reserved for MCP protocol)
+					console.error("\n┌─────────────────────────────────────────────────────┐");
+					console.error("│  ENGRAM AUTHENTICATION REQUIRED                     │");
+					console.error("│                                                     │");
+					console.error(`│  Visit: ${url.padEnd(41)}│`);
+					console.error(`│  Enter code: ${code.padEnd(37)}│`);
+					console.error("│                                                     │");
+					console.error(`│  Or open: ${urlComplete.slice(0, 39).padEnd(39)}│`);
+					console.error("└─────────────────────────────────────────────────────┘\n");
+				},
+				onPolling: () => {
+					console.error("Waiting for authorization...");
+				},
+				onSuccess: (email) => {
+					console.error(`\n✓ Authenticated as ${email}\n`);
+				},
+			});
+
+			if (!result.success) {
+				throw new Error(`Authentication failed: ${result.error}`);
+			}
+
+			logger.info({ user: tokenCache?.getUser()?.email }, "Device flow authentication successful");
 		} else {
 			const user = tokenCache?.getUser();
 			logger.info({ user: user?.email }, "Using cached OAuth credentials");

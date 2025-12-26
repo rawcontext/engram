@@ -45,27 +45,16 @@ export function registerWhyPrompt(
 			argsSchema: {
 				topic: z
 					.string()
-					.optional()
 					.describe(
 						"The topic or area to search for decisions about. Be specific - 'authentication flow' works better than 'auth'. Include context words that would appear in relevant decisions.",
 					),
-				include_insights: z
-					.boolean()
-					.default(false)
-					.describe(
-						"Also include related insights and observations. Enable when you want broader context beyond just decisions.",
-					),
-				limit: z.number().int().min(1).max(20).default(5).describe("Maximum number of results"),
 			},
 		},
-		async ({ topic, include_insights, limit }) => {
+		async ({ topic }) => {
 			const sessionContext = getSessionContext();
 
-			// Use topic or fallback to recent decisions
-			const searchTopic = topic ?? "recent";
-
 			// Search for decisions
-			const decisions = await memoryRetriever.recall(`decisions about ${searchTopic}`, limit ?? 5, {
+			const decisions = await memoryRetriever.recall(`decisions about ${topic}`, 6, {
 				type: "decision",
 				project: sessionContext.project,
 			});
@@ -78,26 +67,23 @@ export function registerWhyPrompt(
 				project: d.project,
 			}));
 
+			// Also search for insights
+			const insights = await memoryRetriever.recall(`insights about ${topic}`, 3, {
+				type: "insight",
+				project: sessionContext.project,
+			});
+
 			let insightsSection = "";
-
-			if (include_insights) {
-				// Also search for insights
-				const insights = await memoryRetriever.recall(`insights about ${searchTopic}`, 3, {
-					type: "insight",
-					project: sessionContext.project,
-				});
-
-				if (insights.length > 0) {
-					insightsSection = `\n\n## Related Insights\n\n${insights
-						.map((insight, i) => {
-							const date = new Date(insight.created_at).toLocaleDateString();
-							return `### Insight ${i + 1}
+			if (insights.length > 0) {
+				insightsSection = `\n\n## Related Insights\n\n${insights
+					.map((insight, i) => {
+						const date = new Date(insight.created_at).toLocaleDateString();
+						return `### Insight ${i + 1}
 **Date**: ${date}
 
 ${insight.content}`;
-						})
-						.join("\n\n---\n\n")}`;
-				}
+					})
+					.join("\n\n---\n\n")}`;
 			}
 
 			const formattedDecisions = formatDecisions(decisionResults);
@@ -105,16 +91,13 @@ ${insight.content}`;
 				? `\n\nSearching in project: ${sessionContext.project}`
 				: "";
 
-			const heading = topic ? `Past Decisions: "${topic}"` : "Recent Decisions";
-			const topicRef = topic ? `"${topic}"` : "these topics";
-
 			return {
 				messages: [
 					{
 						role: "user" as const,
 						content: {
 							type: "text" as const,
-							text: `# ${heading}${projectInfo}
+							text: `# Past Decisions: "${topic}"${projectInfo}
 
 ## Decisions Found
 
@@ -123,7 +106,7 @@ ${formattedDecisions}${insightsSection}
 ---
 
 Please analyze these decisions and:
-1. Summarize the key decisions made about ${topicRef}
+1. Summarize the key decisions made about "${topic}"
 2. Explain the rationale behind each decision (if apparent)
 3. Note any patterns or evolution in decision-making
 4. Highlight if any decisions might conflict or need updating`,

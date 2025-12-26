@@ -57,7 +57,7 @@ import {
 	SamplingService,
 	type SessionContext,
 } from "./capabilities";
-import { type Config, detectMode } from "./config";
+import { type Config, detectMode, LOCAL_DEV_API_KEY } from "./config";
 import { registerPrimePrompt, registerRecapPrompt, registerWhyPrompt } from "./prompts";
 import {
 	registerFileHistoryResource,
@@ -116,64 +116,52 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 			base: { component: "mcp-server" },
 		});
 
-	// Detect mode (local vs cloud)
+	// Detect mode based on API URL (localhost = local, remote = cloud)
 	const mode = detectMode(config);
-	logger.info({ mode }, "Initializing Engram MCP server");
+	logger.info({ mode, apiUrl: config.engramApiUrl }, "Initializing Engram MCP server");
 
-	// Validate API URL is present
-	if (!config.engramApiUrl) {
-		throw new Error("API URL is required (should be set by loadConfig)");
-	}
-
-	// Initialize OAuth components if enabled (cloud mode)
+	// Initialize OAuth components for cloud mode
 	let tokenCache: TokenCache | undefined;
 	let deviceFlowClient: DeviceFlowClient | undefined;
 
-	if (config.oauthEnabled && mode === "cloud") {
+	if (mode === "cloud") {
 		tokenCache = options.tokenCache ?? new TokenCache({ logger });
 		deviceFlowClient =
 			options.deviceFlowClient ??
 			new DeviceFlowClient({
-				apiUrl: config.observatoryUrl ?? "https://observatory.engram.sh",
+				apiUrl: config.observatoryUrl,
 				logger,
 				tokenCache,
 			});
 		logger.debug({ observatoryUrl: config.observatoryUrl }, "OAuth device flow initialized");
 	}
 
-	// Create cloud client with appropriate auth method
+	// Create API client
 	let cloudClient: IEngramClient;
 	if (options.cloudClient) {
 		cloudClient = options.cloudClient;
-	} else if (config.engramApiKey) {
-		// API key takes precedence
+	} else if (mode === "local") {
+		// Local mode: use dev API key (no OAuth needed)
 		cloudClient = new EngramCloudClient({
-			apiKey: config.engramApiKey,
+			apiKey: LOCAL_DEV_API_KEY,
 			baseUrl: config.engramApiUrl,
 			logger,
 		});
-	} else if (tokenCache) {
-		// Use OAuth tokens
+	} else {
+		// Cloud mode: use OAuth tokens
 		cloudClient = new EngramCloudClient({
 			baseUrl: config.engramApiUrl,
 			logger,
 			tokenCache,
 			deviceFlowClient,
 		});
-	} else {
-		throw new Error(
-			"No authentication method available. Set ENGRAM_API_KEY or enable OAuth device flow.",
-		);
 	}
 
 	// Cloud client implements both store and retriever interfaces
 	const memoryStore: IMemoryStore = cloudClient;
 	const memoryRetriever: IMemoryRetriever = cloudClient;
 
-	logger.info(
-		{ apiUrl: config.engramApiUrl, mode },
-		mode === "local" ? "Using local API" : "Using cloud API",
-	);
+	logger.info({ mode }, mode === "local" ? "Using local API" : "Using cloud API with OAuth");
 
 	// Create MCP server
 	const mcpServer = new McpServer({

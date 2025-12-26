@@ -1,6 +1,5 @@
 import type { SessionNode, TurnNode } from "@engram/graph";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
 import type { IEngramClient } from "../services/interfaces";
 
 interface SessionTranscript {
@@ -144,24 +143,12 @@ export function registerRecapPrompt(
 		"session-recap",
 		{
 			description:
-				"Review what happened in a previous session. Returns: session timeline, turns with user/assistant exchanges, files modified, and tool calls made. Use when: resuming work after a break, reviewing what was accomplished yesterday, or understanding context before continuing someone else's work.",
-			argsSchema: {
-				session_id: z
-					.string()
-					.optional()
-					.describe(
-						"Session ID to summarize. Leave empty to get the latest session. Useful for reviewing a specific session when you have the ID from a previous search.",
-					),
-			},
+				"Review what happened in the most recent session for the current project. Returns: session timeline, turns with user/assistant exchanges, files modified, and tool calls made. Use when: resuming work after a break, reviewing what was accomplished yesterday, or understanding context before continuing someone else's work.",
 		},
-		async ({ session_id }) => {
+		async () => {
 			const sessionContext = getSessionContext();
 
-			// Resolve session ID
-			let targetSessionId = session_id;
-			if (!targetSessionId) {
-				targetSessionId = (await getLatestSession(client, sessionContext.project)) ?? undefined;
-			}
+			const targetSessionId = await getLatestSession(client, sessionContext.project);
 
 			if (!targetSessionId) {
 				return {
@@ -186,7 +173,7 @@ export function registerRecapPrompt(
 							role: "user" as const,
 							content: {
 								type: "text" as const,
-								text: `Session not found: ${targetSessionId}. The session may have been deleted or the ID is incorrect.`,
+								text: `Session not found: ${targetSessionId}. The session may have been deleted.`,
 							},
 						},
 					],
