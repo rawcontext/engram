@@ -7,9 +7,10 @@ import { z } from "zod";
 export const LOCAL_DEV_API_KEY = "engram_dev_local_mcp";
 
 /**
- * Default API URL for local development.
+ * Default API URL - production cloud mode.
+ * Override with ENGRAM_API_URL=http://localhost:6174 for local development.
  */
-export const LOCAL_API_URL = "http://localhost:6174";
+export const DEFAULT_API_URL = "https://api.statient.com";
 
 /**
  * Default Observatory URL (used for OAuth device flow)
@@ -71,7 +72,7 @@ export function detectMode(config: Config): "cloud" | "local" {
 }
 
 export function loadConfig(): Config {
-	const apiUrl = process.env.ENGRAM_API_URL ?? LOCAL_API_URL;
+	const apiUrl = process.env.ENGRAM_API_URL ?? DEFAULT_API_URL;
 	const isLocalhost = isLocalhostUrl(apiUrl);
 
 	// Determine Observatory URL based on API URL
