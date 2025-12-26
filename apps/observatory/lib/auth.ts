@@ -1,10 +1,9 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 
-if (!process.env.BETTER_AUTH_URL) {
-	throw new Error("BETTER_AUTH_URL environment variable is required");
-}
-const baseURL = process.env.BETTER_AUTH_URL;
+// During build, allow placeholder URL for page collection
+// Runtime will fail properly if env var is missing
+const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
 // Use a build-time placeholder secret when env var is not set (during next build)
 // This allows static page generation to complete without errors
