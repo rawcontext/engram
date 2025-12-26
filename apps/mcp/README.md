@@ -13,41 +13,67 @@ Engram MCP enables AI agents to:
 - Leverage client capabilities (LLM sampling, user prompts, workspace detection)
 
 The server operates in two modes:
-- **Cloud mode**: Connect to managed Engram Cloud API
+- **Cloud mode** (default): Connect to managed Engram Cloud API with OAuth authentication
 - **Local mode**: Direct connections to FalkorDB graph database and Qdrant vector store
 
 ## Quick Start
 
-```bash
-npx -y @engram/mcp
-```
+### Claude Code
 
-## Configuration
-
-### Cloud Mode
-
-Connect to Engram Cloud for managed memory storage:
+Add to your `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "engram": {
       "command": "npx",
-      "args": ["-y", "@engram/mcp"],
-      "env": {
-        "ENGRAM_API_KEY": "engram_live_xxxx",
-        "ENGRAM_API_URL": "https://api.example.com"
-      }
+      "args": ["-y", "@engram/mcp"]
     }
   }
 }
 ```
 
+On first run, you'll be prompted to authenticate via browser.
+
+### VS Code / Cursor
+
+Add to your MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "npx",
+      "args": ["-y", "@engram/mcp"]
+    }
+  }
+}
+```
+
+## Configuration
+
+### Cloud Mode (Default)
+
+Cloud mode is enabled by default. No configuration required:
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "npx",
+      "args": ["-y", "@engram/mcp"]
+    }
+  }
+}
+```
+
+Authentication uses OAuth device flow - you'll be prompted to sign in via browser on first use.
+
 **Note**: In cloud mode, only `remember` and `recall` tools are available. Resources, prompts, and graph queries require local mode.
 
 ### Local Mode
 
-Run with local infrastructure (FalkorDB, Qdrant, search service):
+Override the API URL to use local infrastructure:
 
 ```json
 {
@@ -56,10 +82,7 @@ Run with local infrastructure (FalkorDB, Qdrant, search service):
       "command": "npx",
       "args": ["-y", "@engram/mcp"],
       "env": {
-        "ENGRAM_MODE": "local",
-        "FALKORDB_URL": "redis://localhost:6379",
-        "QDRANT_URL": "http://localhost:6333",
-        "SEARCH_URL": "http://localhost:6176"
+        "ENGRAM_API_URL": "http://localhost:6174"
       }
     }
   }
@@ -69,30 +92,26 @@ Run with local infrastructure (FalkorDB, Qdrant, search service):
 Start local infrastructure from the monorepo root:
 
 ```bash
-bun run infra:up
+npm run infra:up
 ```
 
 This starts:
-- FalkorDB (graph database) on port 6379
-- Qdrant (vector store) on port 6333
-- NATS (event streaming) on port 4222
-- Search service (Python/FastAPI) on port 5002
+- FalkorDB (graph database) on port 6179
+- Qdrant (vector store) on port 6180
+- NATS (event streaming) on port 6181
+- Search service (Python/FastAPI) on port 6176
 
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ENGRAM_API_KEY` | API key for cloud mode | - |
-| `ENGRAM_API_URL` | Cloud API URL | - |
-| `ENGRAM_MODE` | Force mode: `cloud` or `local` | Auto-detected |
-| `FALKORDB_URL` | FalkorDB connection (local mode) | `redis://localhost:6379` |
-| `QDRANT_URL` | Qdrant connection (local mode) | `http://localhost:6333` |
-| `SEARCH_URL` | Search service URL (local mode) | `http://localhost:6176` |
+| `ENGRAM_API_URL` | API URL (localhost = local mode) | `https://api.statient.com` |
+| `ENGRAM_OBSERVATORY_URL` | OAuth server URL | Auto-detected |
 | `MCP_TRANSPORT` | Transport mode: `stdio` or `http` | `stdio` |
 | `MCP_HTTP_PORT` | HTTP server port (ingest API) | `3010` |
 | `LOG_LEVEL` | Logging level | `info` |
 
-**Mode Detection**: If `ENGRAM_API_KEY` is set, cloud mode is used. Otherwise, local mode is used. Set `ENGRAM_MODE` explicitly to override.
+**Mode Detection**: If `ENGRAM_API_URL` points to localhost, local mode is used. Otherwise, cloud mode with OAuth is used.
 
 ## MCP Tools
 
@@ -322,7 +341,7 @@ Engram MCP auto-detects client capabilities based on the MCP client name and neg
 Standard MCP transport for direct client integration (Claude Code, VS Code, Cursor, etc.).
 
 ```bash
-bun run dev
+npm run dev
 ```
 
 ### HTTP Ingest API
@@ -330,7 +349,7 @@ bun run dev
 The HTTP server provides passive event ingestion endpoints for external hooks. This is separate from the MCP protocol (which uses stdio).
 
 ```bash
-bun run dev:http
+npm run dev:http
 ```
 
 **Endpoints**:
@@ -342,9 +361,9 @@ bun run dev:http
 
 **Default Port**: 3010 (configurable via `MCP_HTTP_PORT`)
 
-## How to Build and Run
+## Development
 
-### Development (Monorepo)
+### Monorepo Development
 
 From the monorepo root:
 
@@ -353,40 +372,40 @@ From the monorepo root:
 npm install
 
 # Start infrastructure
-bun run infra:up
+npm run infra:up
 
 # Run MCP server (stdio)
 cd apps/mcp
-bun run dev
+npm run dev
 
 # Run HTTP ingest server
-bun run dev:http
+npm run dev:http
 ```
 
 ### Production Build
 
 ```bash
 # Build with tsup
-bun run build
+npm run build
 
 # Run compiled version (stdio)
 npm start
 
 # Run compiled HTTP server
-bun run start:http
+npm run start:http
 ```
 
 ### Type Checking and Linting
 
 ```bash
-# Type check with tsgo
-bun run typecheck
+# Type check
+npm run typecheck
 
-# Lint with Biome
-bun run lint
+# Lint
+npm run lint
 
-# Format with Biome
-bun run format
+# Format
+npm run format
 ```
 
 ## Publishing
@@ -401,7 +420,7 @@ git push --tags
 Or publish manually:
 
 ```bash
-bun run build
+npm run build
 npm publish --access public
 ```
 
