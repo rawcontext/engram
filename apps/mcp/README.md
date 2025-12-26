@@ -341,7 +341,7 @@ Engram MCP auto-detects client capabilities based on the MCP client name and neg
 Standard MCP transport for direct client integration (Claude Code, VS Code, Cursor, etc.).
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 ### HTTP Ingest API
@@ -349,7 +349,7 @@ npm run dev
 The HTTP server provides passive event ingestion endpoints for external hooks. This is separate from the MCP protocol (which uses stdio).
 
 ```bash
-npm run dev:http
+bun run dev:http
 ```
 
 **Endpoints**:
@@ -369,43 +369,43 @@ From the monorepo root:
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Start infrastructure
-npm run infra:up
+bun run infra:up
 
 # Run MCP server (stdio)
 cd apps/mcp
-npm run dev
+bun run dev
 
 # Run HTTP ingest server
-npm run dev:http
+bun run dev:http
 ```
 
 ### Production Build
 
 ```bash
 # Build with tsup
-npm run build
+bun run build
 
 # Run compiled version (stdio)
-npm start
+bun run start
 
 # Run compiled HTTP server
-npm run start:http
+bun run start:http
 ```
 
 ### Type Checking and Linting
 
 ```bash
-# Type check
-npm run typecheck
+# Type check (uses tsgo)
+bun run typecheck
 
-# Lint
-npm run lint
+# Lint (uses Biome)
+bun run lint
 
-# Format
-npm run format
+# Format (uses Biome)
+bun run format
 ```
 
 ## Publishing
@@ -420,7 +420,7 @@ git push --tags
 Or publish manually:
 
 ```bash
-npm run build
+bun run build
 npm publish --access public
 ```
 
