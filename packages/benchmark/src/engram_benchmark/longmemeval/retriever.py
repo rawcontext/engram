@@ -15,9 +15,10 @@ import chromadb
 from chromadb.config import Settings
 from pydantic import BaseModel, Field
 
+from engram_benchmark.longmemeval.temporal import TemporalQueryEnhancer
 from engram_benchmark.longmemeval.types import ParsedInstance
 from engram_benchmark.providers.embeddings import EmbeddingProvider
-from engram_benchmark.providers.engram import EngramSearchClient
+from engram_benchmark.providers.engram import EngramSearchClient, SearchFilters
 
 logger = logging.getLogger(__name__)
 
@@ -234,8 +235,10 @@ class ChromaRetriever(BaseRetriever):
 
                 has_answer = meta.get("has_answer", False)
                 session_id = meta.get("session_id", "")
+                doc_question_id = meta.get("question_id", "")
 
-                if has_answer:
+                # Only count as evidence if it's from the current question's haystack
+                if has_answer and doc_question_id == instance.question_id:
                     retrieved_answer_turns += 1
                     retrieved_session_ids.add(session_id)
 
@@ -336,6 +339,20 @@ class EngramRetriever(BaseRetriever):
         Returns:
             RetrievalResult with contexts and metrics
         """
+        # Apply temporal filtering for Temporal Reasoning questions
+        filters = None
+        if instance.memory_ability == "TR":
+            enhancer = TemporalQueryEnhancer(reference_date=instance.question_date)
+            temporal_query = enhancer.enhance_query(instance)
+            if temporal_query.time_filter:
+                start_ts = int(temporal_query.time_filter["start_date"].timestamp() * 1000)
+                end_ts = int(temporal_query.time_filter["end_date"].timestamp() * 1000)
+                filters = SearchFilters(time_range={"start": start_ts, "end": end_ts})
+                logger.debug(
+                    f"Applied temporal filter for {instance.question_id}: "
+                    f"start={start_ts}, end={end_ts}"
+                )
+
         # Execute search via Engram service
         response = await self.client.search(
             text=instance.question,
@@ -343,6 +360,7 @@ class EngramRetriever(BaseRetriever):
             strategy=self.strategy,
             rerank=self.rerank,
             rerank_tier=self.rerank_tier,
+            filters=filters,
         )
 
         # Parse results into contexts

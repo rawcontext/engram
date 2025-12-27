@@ -106,11 +106,13 @@ class ChainOfNoteReader:
         prompt = self._format_chain_of_note_prompt(question, contexts)
 
         # Use structured output to ensure proper JSON format
+        # Chain-of-Note needs more tokens for verbose notes per context
         result = await self.llm.generate_structured(
             prompt=prompt,
             schema=ChainOfNoteOutput,
             system_prompt="You are a helpful assistant that answers questions based on provided contexts. "
             "First, you assess the relevance of each context, then generate an accurate answer.",
+            max_tokens=2048,
         )
 
         return ReaderOutput(

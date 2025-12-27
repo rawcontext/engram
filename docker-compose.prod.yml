@@ -92,6 +92,7 @@ services:
       - NATS_URL=nats://nats:4222
       - REDIS_URL=redis://falkordb:6379
       - PORT=6175
+      - AUTH_ENABLED=false
     depends_on:
       nats:
         condition: service_healthy

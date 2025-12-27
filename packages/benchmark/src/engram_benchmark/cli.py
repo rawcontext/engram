@@ -102,7 +102,7 @@ def run(
             "-m",
             help="LLM model for answer generation",
         ),
-    ] = "openai/gpt-4o-mini",
+    ] = "gemini/gemini-3-flash-preview",
     embedding_model: Annotated[
         str,
         typer.Option(
@@ -777,6 +777,152 @@ def beir(
             "Install with: pip install 'engram-benchmark[mteb]'"
         )
         raise typer.Exit(1) from e
+    except Exception as e:
+        console.print(f"\n[bold red]✗ Error:[/bold red] {e}")
+        raise typer.Exit(1) from e
+
+
+@app.command()
+def ingest(
+    dataset: Annotated[
+        Path,
+        typer.Option(
+            "--dataset",
+            "-d",
+            help="Path to the LongMemEval dataset JSON file",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ] = Path("./data/longmemeval_oracle.json"),
+    limit: Annotated[
+        int | None,
+        typer.Option(
+            "--limit",
+            "-n",
+            help="Limit number of instances to ingest",
+            min=1,
+        ),
+    ] = None,
+    ingestion_url: Annotated[
+        str,
+        typer.Option(
+            "--ingestion-url",
+            help="URL for Engram ingestion endpoint",
+        ),
+    ] = "http://localhost:6175/ingest",
+    api_key: Annotated[
+        str | None,
+        typer.Option(
+            "--api-key",
+            help="API key for authentication",
+            envvar="ENGRAM_API_KEY",
+        ),
+    ] = None,
+    rate_limit: Annotated[
+        float,
+        typer.Option(
+            "--rate-limit",
+            "-r",
+            help="Maximum events per second",
+            min=1.0,
+            max=1000.0,
+        ),
+    ] = 100.0,
+    session_prefix: Annotated[
+        str,
+        typer.Option(
+            "--session-prefix",
+            help="Prefix for generated session IDs",
+        ),
+    ] = "benchmark",
+) -> None:
+    """
+    Ingest LongMemEval dataset into Engram.
+
+    Converts LongMemEval conversations to streaming events and sends them
+    through the full Engram pipeline (ingestion → memory → search).
+
+    This gives the data the full "Engram treatment":
+    - Provider parsing and PII redaction
+    - Graph node creation (Session, Turn)
+    - Multi-vector embeddings (dense, sparse, colbert)
+    - Bitemporal indexing
+    """
+    import asyncio
+
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    from engram_benchmark.ingest.converter import LongMemEvalConverter
+    from engram_benchmark.ingest.streamer import EventStreamer
+    from engram_benchmark.longmemeval.loader import load_dataset
+
+    console.print(
+        Panel.fit(
+            f"[bold]Ingesting LongMemEval Dataset[/bold]\n\n"
+            f"Dataset: {dataset}\n"
+            f"Limit: {limit or 'all'}\n"
+            f"Ingestion URL: {ingestion_url}\n"
+            f"Rate Limit: {rate_limit} events/sec\n"
+            f"Session Prefix: {session_prefix}",
+            border_style="blue",
+        )
+    )
+
+    async def run_ingestion() -> None:
+        # Load dataset
+        console.print("\n[bold cyan]Loading dataset...[/bold cyan]")
+        instances = load_dataset(str(dataset), validate=False)
+
+        if limit:
+            instances = instances[:limit]
+
+        console.print(f"[bold green]✓[/bold green] Loaded {len(instances)} instances")
+
+        # Convert to events
+        console.print("\n[bold cyan]Converting to streaming events...[/bold cyan]")
+        converter = LongMemEvalConverter(session_prefix=session_prefix)
+        events = list(converter.convert_batch(instances))
+
+        console.print(f"[bold green]✓[/bold green] Generated {len(events)} events")
+
+        # Stream to ingestion
+        console.print("\n[bold cyan]Streaming to Engram ingestion...[/bold cyan]")
+        streamer = EventStreamer(
+            ingestion_url=ingestion_url,
+            api_key=api_key,
+            rate_limit=rate_limit,
+        )
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Ingesting events...", total=len(events))
+
+            def update_progress(stats):
+                progress.update(task, completed=stats.total_events)
+
+            stats = await streamer.stream_events_sync(events, update_progress)
+
+        # Print summary
+        console.print("\n[bold green]✓ Ingestion complete![/bold green]")
+        console.print(f"  Total events: {stats.total_events}")
+        console.print(f"  Successful: {stats.successful}")
+        console.print(f"  Failed: {stats.failed}")
+        console.print(f"  Unique sessions: {len(stats.sessions)}")
+
+        if stats.failed > 0:
+            console.print(
+                f"\n[bold yellow]⚠ {stats.failed} events failed to ingest[/bold yellow]"
+            )
+
+    # Run async ingestion
+    try:
+        asyncio.run(run_ingestion())
+        raise typer.Exit(0)
     except Exception as e:
         console.print(f"\n[bold red]✗ Error:[/bold red] {e}")
         raise typer.Exit(1) from e

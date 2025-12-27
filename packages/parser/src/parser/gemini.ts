@@ -68,21 +68,12 @@ export class GeminiParser implements ParserStrategy {
 
 			if (!content) return null;
 
-			// User messages - we could skip these or include them
-			if (role === "user") {
-				return null; // Skip user messages (they're input, not output)
-			}
-
-			// Assistant messages
-			if (role === "assistant") {
-				return {
-					type: "content",
-					role: "assistant",
-					content,
-				};
-			}
-
-			return null;
+			// Return message with role
+			return {
+				type: "content",
+				role: role as "user" | "assistant",
+				content,
+			};
 		}
 
 		// Handle tool_use events (tool invocation)

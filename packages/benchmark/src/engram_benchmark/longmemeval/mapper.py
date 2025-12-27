@@ -6,6 +6,7 @@ Maps LongMemEval instances to indexable documents with configurable granularity:
 - Session-level: Each session becomes a single document
 """
 
+import re
 from datetime import datetime
 from typing import Literal
 
@@ -19,6 +20,19 @@ from engram_benchmark.longmemeval.types import (
     ParsedTurn,
     get_memory_ability,
 )
+
+# Pattern to strip day-of-week from dates like "2023/04/10 (Mon) 17:50"
+_DAY_OF_WEEK_PATTERN = re.compile(r"\s*\([A-Za-z]{2,3}\)\s*")
+
+
+def _parse_date(date_str: str) -> datetime | None:
+    """Parse a date string, handling LongMemEval's format with day-of-week."""
+    # Strip day-of-week suffix like "(Mon)" that confuses dateutil
+    cleaned = _DAY_OF_WEEK_PATTERN.sub(" ", date_str).strip()
+    try:
+        return dateparser.parse(cleaned)
+    except (ValueError, TypeError):
+        return None
 
 
 class IndexableDocument(BaseModel):
@@ -80,7 +94,7 @@ class DocumentMapper:
             strict=True,
         ):
             # Parse timestamp
-            timestamp = dateparser.parse(haystack_date)
+            timestamp = _parse_date(haystack_date)
             if timestamp is None:
                 # Fallback to current time if parsing fails
                 timestamp = datetime.now()
@@ -106,7 +120,7 @@ class DocumentMapper:
             )
 
         # Parse question date
-        question_date = dateparser.parse(instance.question_date)
+        question_date = _parse_date(instance.question_date)
         if question_date is None:
             question_date = datetime.now()
 

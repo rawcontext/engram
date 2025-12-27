@@ -161,10 +161,15 @@ class LiteLLMProvider:
         if content.startswith("```"):
             # Find first newline after opening fence
             first_newline = content.find("\n")
-            # Find closing fence
-            last_fence = content.rfind("```")
-            if first_newline != -1 and last_fence > first_newline:
-                content = content[first_newline + 1 : last_fence].strip()
+            if first_newline != -1:
+                # Find closing fence (must be after the opening fence line)
+                last_fence = content.rfind("```")
+                if last_fence > first_newline:
+                    # Normal case: both fences present
+                    content = content[first_newline + 1 : last_fence].strip()
+                else:
+                    # Truncated response: no closing fence, just strip opening line
+                    content = content[first_newline + 1 :].strip()
 
         # Parse JSON and validate against schema
         try:
@@ -198,10 +203,12 @@ class LiteLLMProvider:
 
         for attempt in range(self.max_retries):
             try:
+                # Allow kwargs to override default max_tokens
+                max_tokens = kwargs.pop("max_tokens", self.max_tokens)
                 response = await acompletion(
                     model=self.model,
                     messages=messages,
-                    max_tokens=self.max_tokens,
+                    max_tokens=max_tokens,
                     temperature=self.temperature,
                     timeout=self.timeout,
                     **kwargs,
