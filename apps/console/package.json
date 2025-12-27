@@ -1,0 +1,34 @@
+{
+	"name": "console",
+	"version": "0.0.0",
+	"type": "module",
+	"dependencies": {
+		"@engram/common": "*",
+		"@engram/websocket": "*",
+		"@headlessui/react": "^2.2.4",
+		"@tremor/react": "^3.18.7",
+		"better-auth": "^1.4.7",
+		"lucide-react": "^0.562.0",
+		"next": "^16.1.0",
+		"react": "^19.2.3",
+		"react-dom": "^19.2.3",
+		"recharts": "^2.15.4",
+		"swr": "^2.3.8"
+	},
+	"devDependencies": {
+		"@engram/tsconfig": "*",
+		"@tailwindcss/postcss": "^4.1.18",
+		"@types/node": "^25.0.3",
+		"@types/react": "^19.2.7",
+		"tailwindcss": "^4.1.18",
+		"typescript": "5.9.3"
+	},
+	"scripts": {
+		"dev": "next dev --turbopack --port 3001",
+		"start": "next start --port 3001",
+		"build": "next build",
+		"typecheck": "tsgo --noEmit",
+		"lint": "biome check .",
+		"format": "biome format ."
+	}
+}

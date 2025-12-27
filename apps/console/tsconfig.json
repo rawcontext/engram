@@ -1,0 +1,18 @@
+{
+	"extends": "@engram/tsconfig/base.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "dist",
+		"plugins": [{ "name": "next" }],
+		"jsx": "preserve",
+		"module": "esnext",
+		"lib": ["dom", "dom.iterable", "ESNext"],
+		"noEmit": true,
+		"incremental": true,
+		"paths": {
+			"@/*": ["./*"]
+		}
+	},
+	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+	"exclude": ["node_modules", "dist"]
+}

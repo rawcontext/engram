@@ -1,0 +1,432 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+/* ============================================
+   ENGRAM CONSOLE - Mission Control Aesthetic
+   ============================================ */
+
+:root {
+	/* Core palette - aerospace inspired */
+	--console-void: 12 14 18;
+	--console-panel: 18 21 27;
+	--console-surface: 24 28 36;
+	--console-elevated: 32 38 48;
+
+	/* Accent colors - radar/operational */
+	--console-cyan: 34 211 238;
+	--console-green: 74 222 128;
+	--console-amber: 251 191 36;
+	--console-red: 248 113 113;
+	--console-blue: 96 165 250;
+	--console-purple: 167 139 250;
+
+	/* Text hierarchy */
+	--text-primary: 248 250 252;
+	--text-secondary: 148 163 184;
+	--text-muted: 100 116 139;
+	--text-dim: 71 85 105;
+
+	/* Operational states */
+	--status-online: var(--console-green);
+	--status-warning: var(--console-amber);
+	--status-error: var(--console-red);
+	--status-offline: var(--text-muted);
+
+	/* Sizing */
+	--sidebar-width: 240px;
+	--header-height: 64px;
+}
+
+/* Dark theme is default, light theme override */
+@media (prefers-color-scheme: light) {
+	:root {
+		--console-void: 248 250 252;
+		--console-panel: 241 245 249;
+		--console-surface: 226 232 240;
+		--console-elevated: 203 213 225;
+		--text-primary: 15 23 42;
+		--text-secondary: 71 85 105;
+		--text-muted: 100 116 139;
+		--text-dim: 148 163 184;
+	}
+}
+
+[data-theme="light"] {
+	--console-void: 248 250 252;
+	--console-panel: 241 245 249;
+	--console-surface: 226 232 240;
+	--console-elevated: 203 213 225;
+	--text-primary: 15 23 42;
+	--text-secondary: 71 85 105;
+	--text-muted: 100 116 139;
+	--text-dim: 148 163 184;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+body {
+	font-family: 'IBM Plex Sans', system-ui, sans-serif;
+	background: rgb(var(--console-void));
+	color: rgb(var(--text-primary));
+	min-height: 100vh;
+	overflow-x: hidden;
+}
+
+/* Subtle grid background - mission control feel */
+body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background-image:
+		linear-gradient(rgba(var(--console-cyan), 0.02) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(var(--console-cyan), 0.02) 1px, transparent 1px);
+	background-size: 40px 40px;
+	pointer-events: none;
+	z-index: 0;
+}
+
+/* Scanline overlay for CRT feel */
+body::after {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background: repeating-linear-gradient(
+		0deg,
+		transparent,
+		transparent 2px,
+		rgba(0, 0, 0, 0.03) 2px,
+		rgba(0, 0, 0, 0.03) 4px
+	);
+	pointer-events: none;
+	z-index: 1;
+}
+
+/* ============================================
+   Typography
+   ============================================ */
+
+.font-mono {
+	font-family: 'IBM Plex Mono', monospace;
+}
+
+.font-display {
+	font-family: 'IBM Plex Sans', system-ui, sans-serif;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}
+
+/* ============================================
+   Control Panel Cards
+   ============================================ */
+
+.panel {
+	background: rgb(var(--console-panel));
+	border: 1px solid rgba(var(--console-cyan), 0.1);
+	border-radius: 8px;
+	position: relative;
+	overflow: hidden;
+}
+
+.panel::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 1px;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		rgba(var(--console-cyan), 0.3),
+		transparent
+	);
+}
+
+.panel-elevated {
+	background: rgb(var(--console-surface));
+	box-shadow:
+		0 4px 6px -1px rgba(0, 0, 0, 0.2),
+		0 2px 4px -2px rgba(0, 0, 0, 0.1),
+		inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* ============================================
+   Status Indicators
+   ============================================ */
+
+.status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	position: relative;
+}
+
+.status-dot::after {
+	content: '';
+	position: absolute;
+	inset: -2px;
+	border-radius: 50%;
+	animation: status-pulse 2s ease-in-out infinite;
+}
+
+.status-online {
+	background: rgb(var(--status-online));
+	box-shadow: 0 0 8px rgba(var(--status-online), 0.5);
+}
+
+.status-online::after {
+	background: rgba(var(--status-online), 0.3);
+}
+
+.status-warning {
+	background: rgb(var(--status-warning));
+	box-shadow: 0 0 8px rgba(var(--status-warning), 0.5);
+}
+
+.status-warning::after {
+	background: rgba(var(--status-warning), 0.3);
+}
+
+.status-error {
+	background: rgb(var(--status-error));
+	box-shadow: 0 0 8px rgba(var(--status-error), 0.5);
+	animation: status-blink 1s ease-in-out infinite;
+}
+
+.status-error::after {
+	background: rgba(var(--status-error), 0.3);
+}
+
+.status-offline {
+	background: rgb(var(--status-offline));
+}
+
+.status-offline::after {
+	display: none;
+}
+
+@keyframes status-pulse {
+	0%, 100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	50% {
+		transform: scale(1.5);
+		opacity: 0;
+	}
+}
+
+@keyframes status-blink {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+/* ============================================
+   Metric Display - Flight Instrument Style
+   ============================================ */
+
+.metric-value {
+	font-family: 'IBM Plex Mono', monospace;
+	font-weight: 600;
+	font-size: 2rem;
+	letter-spacing: -0.02em;
+	background: linear-gradient(
+		180deg,
+		rgb(var(--text-primary)) 0%,
+		rgb(var(--text-secondary)) 100%
+	);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+.metric-label {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.75rem;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	color: rgb(var(--text-muted));
+}
+
+.metric-trend-up {
+	color: rgb(var(--console-green));
+}
+
+.metric-trend-down {
+	color: rgb(var(--console-red));
+}
+
+/* ============================================
+   Navigation
+   ============================================ */
+
+.nav-item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 16px;
+	border-radius: 6px;
+	color: rgb(var(--text-secondary));
+	font-size: 0.875rem;
+	font-weight: 500;
+	transition: all 0.15s ease;
+	position: relative;
+}
+
+.nav-item:hover {
+	background: rgba(var(--console-cyan), 0.05);
+	color: rgb(var(--text-primary));
+}
+
+.nav-item.active {
+	background: rgba(var(--console-cyan), 0.1);
+	color: rgb(var(--console-cyan));
+}
+
+.nav-item.active::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 3px;
+	height: 24px;
+	background: rgb(var(--console-cyan));
+	border-radius: 0 2px 2px 0;
+}
+
+/* ============================================
+   Scrollbar
+   ============================================ */
+
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: rgb(var(--console-panel));
+}
+
+::-webkit-scrollbar-thumb {
+	background: rgba(var(--console-cyan), 0.2);
+	border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: rgba(var(--console-cyan), 0.3);
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes fade-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes slide-in-left {
+	from {
+		opacity: 0;
+		transform: translateX(-16px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+.animate-fade-in {
+	animation: fade-in 0.4s ease-out forwards;
+}
+
+.animate-slide-in {
+	animation: slide-in-left 0.3s ease-out forwards;
+}
+
+/* Staggered children */
+.stagger > * {
+	opacity: 0;
+	animation: fade-in 0.4s ease-out forwards;
+}
+
+.stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger > *:nth-child(7) { animation-delay: 0.35s; }
+.stagger > *:nth-child(8) { animation-delay: 0.4s; }
+
+/* ============================================
+   Tremor Overrides
+   ============================================ */
+
+/* Override Tremor's default card styling */
+[data-tremor-card] {
+	background: rgb(var(--console-panel)) !important;
+	border: 1px solid rgba(var(--console-cyan), 0.1) !important;
+	border-radius: 8px !important;
+}
+
+[data-tremor-metric] {
+	font-family: 'IBM Plex Mono', monospace !important;
+	color: rgb(var(--text-primary)) !important;
+}
+
+[data-tremor-title] {
+	font-family: 'IBM Plex Sans', system-ui, sans-serif !important;
+	color: rgb(var(--text-secondary)) !important;
+}
+
+/* Badge overrides */
+[data-tremor-badge] {
+	font-family: 'IBM Plex Mono', monospace !important;
+	font-size: 0.75rem !important;
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.text-gradient {
+	background: linear-gradient(135deg, rgb(var(--console-cyan)), rgb(var(--console-purple)));
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+.border-glow {
+	box-shadow:
+		0 0 0 1px rgba(var(--console-cyan), 0.2),
+		0 0 20px rgba(var(--console-cyan), 0.1);
+}
+
+.hover-lift {
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}

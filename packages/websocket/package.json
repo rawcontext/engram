@@ -1,0 +1,30 @@
+{
+	"name": "@engram/websocket",
+	"version": "0.0.0",
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./client": "./src/client/index.ts"
+	},
+	"peerDependencies": {
+		"react": "^19.0.0"
+	},
+	"devDependencies": {
+		"@engram/tsconfig": "*",
+		"@types/node": "^25.0.3",
+		"@types/react": "^19.2.7"
+	},
+	"turbo": {
+		"build": {
+			"outputs": []
+		}
+	},
+	"scripts": {
+		"build": "echo 'Build success'",
+		"typecheck": "tsgo --noEmit",
+		"lint": "biome check .",
+		"format": "biome format ."
+	}
+}
