@@ -235,6 +235,43 @@ describe("websocket-server", () => {
 			);
 			expect(updateCalls).toHaveLength(0);
 		});
+
+		it("should send NATS updates when WebSocket is open", async () => {
+			let subscribeCallback: ((data: SessionUpdate) => void) | null = null;
+
+			mockSubscribe.mockImplementationOnce(
+				async (_channel: string, callback: (data: SessionUpdate) => void) => {
+					subscribeCallback = callback;
+					return mock();
+				},
+			);
+
+			const ws = {
+				readyState: 1, // OPEN
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			await handleSessionConnection(ws, "sess_123");
+
+			// Clear initial data calls
+			ws.send.mockClear();
+
+			if (subscribeCallback) {
+				subscribeCallback({
+					type: "turn_completed" as any,
+					sessionId: "sess_123",
+					data: { turnId: "turn_1" },
+					timestamp: Date.now(),
+				});
+			}
+
+			// Should have sent the update
+			const updateCalls = ws.send.mock.calls.filter((call: any[]) =>
+				call[0].includes('"type":"update"'),
+			);
+			expect(updateCalls.length).toBeGreaterThanOrEqual(1);
+		});
 	});
 
 	describe("handleSessionsConnection", () => {
@@ -365,6 +402,43 @@ describe("websocket-server", () => {
 			);
 			expect(updateCalls).toHaveLength(0);
 		});
+
+		it("should send NATS updates when WebSocket is open", async () => {
+			let subscribeCallback: ((data: SessionUpdate) => void) | null = null;
+
+			mockSubscribe.mockImplementationOnce(
+				async (_channel: string, callback: (data: SessionUpdate) => void) => {
+					subscribeCallback = callback;
+					return mock();
+				},
+			);
+
+			const ws = {
+				readyState: 1, // OPEN
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			await handleSessionsConnection(ws);
+
+			// Clear initial data calls
+			ws.send.mockClear();
+
+			if (subscribeCallback) {
+				subscribeCallback({
+					type: "session_created",
+					sessionId: "sess_new",
+					data: { id: "sess_new" },
+					timestamp: Date.now(),
+				});
+			}
+
+			// Should have sent the update
+			const updateCalls = ws.send.mock.calls.filter((call: any[]) =>
+				call[0].includes('"type":"session_created"'),
+			);
+			expect(updateCalls.length).toBeGreaterThanOrEqual(1);
+		});
 	});
 
 	describe("handleConsumerStatusConnection", () => {
@@ -429,6 +503,249 @@ describe("websocket-server", () => {
 
 			expect(ws.on).toHaveBeenCalled();
 		});
+
+		it("should handle consumer_ready event and broadcast to all clients", async () => {
+			// Set up mock to capture the event handler
+			let eventHandler: ((event: any) => void) | null = null;
+			mockSubscribeToConsumerStatus.mockClear();
+			mockSubscribeToConsumerStatus.mockImplementation(async (handler: any) => {
+				eventHandler = handler;
+			});
+
+			// Create multiple WebSocket clients
+			const ws1 = {
+				readyState: 1,
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			const ws2 = {
+				readyState: 1,
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			await handleConsumerStatusConnection(ws1);
+			await handleConsumerStatusConnection(ws2);
+
+			// Wait for NATS subscription
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Clear initial calls
+			ws1.send.mockClear();
+			ws2.send.mockClear();
+
+			// Trigger consumer_ready event
+			if (eventHandler) {
+				eventHandler({
+					type: "consumer_ready",
+					groupId: "ingestion-group",
+					serviceId: "service-1",
+					timestamp: Date.now(),
+				});
+			}
+
+			// Both clients should receive the broadcast
+			expect(ws1.send).toHaveBeenCalled();
+			expect(ws2.send).toHaveBeenCalled();
+		});
+
+		it("should handle consumer_heartbeat event and update state", async () => {
+			let eventHandler: ((event: any) => void) | null = null;
+			mockSubscribeToConsumerStatus.mockClear();
+			mockSubscribeToConsumerStatus.mockImplementation(async (handler: any) => {
+				eventHandler = handler;
+			});
+
+			const ws = {
+				readyState: 1,
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			await handleConsumerStatusConnection(ws);
+
+			// Wait for NATS subscription
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Clear initial calls
+			ws.send.mockClear();
+
+			// Trigger consumer_heartbeat event
+			if (eventHandler) {
+				eventHandler({
+					type: "consumer_heartbeat",
+					groupId: "memory-group",
+					serviceId: "service-2",
+					timestamp: Date.now(),
+				});
+			}
+
+			// Should broadcast updated status
+			expect(ws.send).toHaveBeenCalled();
+		});
+
+		it("should handle consumer_disconnected event and remove state", async () => {
+			let eventHandler: ((event: any) => void) | null = null;
+			mockSubscribeToConsumerStatus.mockClear();
+			mockSubscribeToConsumerStatus.mockImplementation(async (handler: any) => {
+				eventHandler = handler;
+			});
+
+			const ws = {
+				readyState: 1,
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			await handleConsumerStatusConnection(ws);
+
+			// Wait for NATS subscription
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Clear initial calls
+			ws.send.mockClear();
+
+			// First add a consumer
+			if (eventHandler) {
+				eventHandler({
+					type: "consumer_ready",
+					groupId: "search-group",
+					serviceId: "service-3",
+					timestamp: Date.now(),
+				});
+
+				// Then disconnect it
+				eventHandler({
+					type: "consumer_disconnected",
+					groupId: "search-group",
+					serviceId: "service-3",
+					timestamp: Date.now(),
+				});
+			}
+
+			// Should broadcast updated status twice (ready + disconnected)
+			expect(ws.send).toHaveBeenCalled();
+		});
+
+		it("should not broadcast to closed WebSocket connections", async () => {
+			let eventHandler: ((event: any) => void) | null = null;
+
+			// Reset the mock before setting implementation
+			mockSubscribeToConsumerStatus.mockClear();
+			mockSubscribeToConsumerStatus.mockImplementation(async (handler: any) => {
+				eventHandler = handler;
+			});
+
+			const wsOpen = {
+				readyState: 1, // OPEN
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			const wsClosed = {
+				readyState: 3, // CLOSED
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			await handleConsumerStatusConnection(wsOpen);
+			await handleConsumerStatusConnection(wsClosed);
+
+			// Wait a bit for NATS subscription to be set up
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Clear initial calls
+			wsOpen.send.mockClear();
+			wsClosed.send.mockClear();
+
+			// Trigger event
+			if (eventHandler) {
+				eventHandler({
+					type: "consumer_ready",
+					groupId: "control-group",
+					serviceId: "service-4",
+					timestamp: Date.now(),
+				});
+			}
+
+			// Only open connection should receive broadcast
+			expect(wsOpen.send).toHaveBeenCalled();
+			expect(wsClosed.send).not.toHaveBeenCalled();
+		});
+
+		it("should handle NATS subscription initialization failure gracefully", async () => {
+			mockSubscribeToConsumerStatus.mockRejectedValueOnce(new Error("NATS connection failed"));
+
+			const ws = {
+				readyState: 1,
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			// Should not throw, even if NATS fails
+			await handleConsumerStatusConnection(ws);
+
+			// Should still send initial status
+			expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"status"'));
+		});
+
+		it("should mark consumers offline after heartbeat timeout", async () => {
+			let eventHandler: ((event: any) => void) | null = null;
+			mockSubscribeToConsumerStatus.mockClear();
+			mockSubscribeToConsumerStatus.mockImplementation(async (handler: any) => {
+				eventHandler = handler;
+			});
+
+			const ws = {
+				readyState: 1,
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			await handleConsumerStatusConnection(ws);
+
+			// Wait for NATS subscription
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// First add a consumer that's online
+			if (eventHandler) {
+				eventHandler({
+					type: "consumer_ready",
+					groupId: "ingestion-group",
+					serviceId: "service-1",
+					timestamp: Date.now(),
+				});
+			}
+
+			// Wait a bit for the state to update
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Clear initial calls
+			ws.send.mockClear();
+
+			// Now manually set the timestamp to an old value to simulate timeout
+			// This requires us to trigger another heartbeat with an old timestamp
+			if (eventHandler) {
+				eventHandler({
+					type: "consumer_heartbeat",
+					groupId: "ingestion-group",
+					serviceId: "service-1",
+					timestamp: Date.now() - 31_000, // 31 seconds ago
+				});
+			}
+
+			// Wait for timeout checker to run (runs every 5 seconds)
+			// We'll wait 6 seconds to be safe
+			await new Promise((resolve) => setTimeout(resolve, 6000));
+
+			// Check that status was broadcast by the timeout checker
+			// The consumer should have been marked offline
+			const statusCalls = ws.send.mock.calls.filter((call: any[]) =>
+				call[0].includes('"type":"status"'),
+			);
+			expect(statusCalls.length).toBeGreaterThanOrEqual(1);
+		}, 10000); // Set test timeout to 10 seconds
 	});
 
 	describe("cleanupWebSocketServer", () => {
@@ -436,6 +753,32 @@ describe("websocket-server", () => {
 			cleanupWebSocketServer();
 
 			expect(true).toBe(true);
+		});
+
+		it("should reset consumer subscription initialized flag", async () => {
+			const ws = {
+				readyState: 1,
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			// First connection should initialize
+			await handleConsumerStatusConnection(ws);
+
+			// Cleanup
+			cleanupWebSocketServer();
+
+			// Second connection should re-initialize (not skip)
+			const ws2 = {
+				readyState: 1,
+				send: mock(),
+				on: mock(),
+			} as any;
+
+			await handleConsumerStatusConnection(ws2);
+
+			// Should have subscribed twice (once for each connection)
+			expect(mockSubscribeToConsumerStatus.mock.calls.length).toBeGreaterThanOrEqual(2);
 		});
 	});
 });

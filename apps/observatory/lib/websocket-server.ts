@@ -289,6 +289,7 @@ export function cleanupWebSocketServer(): void {
 	}
 	connectedConsumerClients.clear();
 	consumerStates.clear();
+	consumerStatusSubscriptionInitialized = false;
 }
 
 /**
