@@ -1,5 +1,6 @@
 """Tests for NATS client."""
 
+import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -175,6 +176,303 @@ class TestNatsClient:
                 assert c is client
                 assert client._nc is mock_nc
 
+        mock_nc.drain.assert_called_once()
+        mock_nc.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_subscribe_processes_messages(self, client: NatsClient) -> None:
+        """Test subscribe processes messages successfully."""
+        import asyncio
+
+        import nats.errors
+
+        mock_nc = AsyncMock()
+        mock_js = AsyncMock()
+        mock_nc.jetstream = MagicMock(return_value=mock_js)
+
+        # Create mock messages
+        mock_msg1 = MagicMock()
+        mock_msg1.subject = "events.parsed"
+        mock_msg1.data = b'{"event": "test1"}'
+        mock_msg1.ack = AsyncMock()
+        mock_msg1.nak = AsyncMock()
+
+        mock_msg2 = MagicMock()
+        mock_msg2.subject = "events.parsed"
+        mock_msg2.data = b'{"event": "test2"}'
+        mock_msg2.ack = AsyncMock()
+        mock_msg2.nak = AsyncMock()
+
+        # Create mock pull subscription
+        mock_psub = AsyncMock()
+        fetch_count = 0
+        processed_event = asyncio.Event()
+
+        async def mock_fetch(*args, **kwargs):
+            nonlocal fetch_count
+            fetch_count += 1
+            if fetch_count == 1:
+                await asyncio.sleep(0)  # Yield control
+                return [mock_msg1, mock_msg2]
+            else:
+                # Signal that processing is done, then wait forever
+                processed_event.set()
+                await asyncio.sleep(10)  # Long sleep
+                raise nats.errors.TimeoutError()
+
+        mock_psub.fetch = mock_fetch
+        mock_js.pull_subscribe = AsyncMock(return_value=mock_psub)
+
+        # Track handler calls
+        handler_calls = []
+
+        async def test_handler(subject: str, data: dict) -> None:
+            handler_calls.append((subject, data))
+
+        with patch("src.clients.nats.nats.connect", return_value=mock_nc):
+            # Run subscribe in a task
+            task = asyncio.create_task(
+                client.subscribe(
+                    topic="parsed_events",
+                    group_id="test-consumer",
+                    handler=test_handler,
+                )
+            )
+
+            # Wait for processing to complete
+            try:
+                await asyncio.wait_for(processed_event.wait(), timeout=1.0)
+            except TimeoutError:
+                pass
+            finally:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+
+        # Verify subscription setup
+        mock_js.pull_subscribe.assert_called_once()
+        call_args = mock_js.pull_subscribe.call_args
+        assert call_args[1]["subject"] == "events.parsed"
+        assert call_args[1]["durable"] == "test-consumer"
+        assert call_args[1]["stream"] == "EVENTS"
+
+        # Verify messages were processed
+        assert len(handler_calls) == 2
+        assert handler_calls[0] == ("events.parsed", {"event": "test1"})
+        assert handler_calls[1] == ("events.parsed", {"event": "test2"})
+
+        # Verify messages were acknowledged
+        mock_msg1.ack.assert_called_once()
+        mock_msg2.ack.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_subscribe_handles_message_processing_error(self, client: NatsClient) -> None:
+        """Test subscribe handles errors during message processing."""
+        import asyncio
+
+        import nats.errors
+
+        mock_nc = AsyncMock()
+        mock_js = AsyncMock()
+        mock_nc.jetstream = MagicMock(return_value=mock_js)
+
+        # Create mock message
+        mock_msg = MagicMock()
+        mock_msg.subject = "events.parsed"
+        mock_msg.data = b'{"event": "test"}'
+        mock_msg.ack = AsyncMock()
+        mock_msg.nak = AsyncMock()
+
+        # Create mock pull subscription
+        mock_psub = AsyncMock()
+        fetch_count = 0
+        processed_event = asyncio.Event()
+
+        async def mock_fetch(*args, **kwargs):
+            nonlocal fetch_count
+            fetch_count += 1
+            await asyncio.sleep(0)
+            if fetch_count == 1:
+                return [mock_msg]
+            else:
+                processed_event.set()
+                await asyncio.sleep(10)
+                raise nats.errors.TimeoutError()
+
+        mock_psub.fetch = mock_fetch
+        mock_js.pull_subscribe = AsyncMock(return_value=mock_psub)
+
+        # Handler that raises an error
+        async def failing_handler(subject: str, data: dict) -> None:
+            raise ValueError("Handler error")
+
+        with patch("src.clients.nats.nats.connect", return_value=mock_nc):
+            task = asyncio.create_task(
+                client.subscribe(
+                    topic="parsed_events",
+                    group_id="test-consumer",
+                    handler=failing_handler,
+                )
+            )
+
+            try:
+                await asyncio.wait_for(processed_event.wait(), timeout=1.0)
+            except TimeoutError:
+                pass
+            finally:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+
+        # Verify message was negatively acknowledged due to handler error
+        mock_msg.nak.assert_called_once()
+        mock_msg.ack.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_subscribe_handles_invalid_json(self, client: NatsClient) -> None:
+        """Test subscribe handles invalid JSON in messages."""
+        import asyncio
+
+        import nats.errors
+
+        mock_nc = AsyncMock()
+        mock_js = AsyncMock()
+        mock_nc.jetstream = MagicMock(return_value=mock_js)
+
+        # Create mock message with invalid JSON
+        mock_msg = MagicMock()
+        mock_msg.subject = "events.parsed"
+        mock_msg.data = b"not-valid-json"
+        mock_msg.ack = AsyncMock()
+        mock_msg.nak = AsyncMock()
+
+        # Create mock pull subscription
+        mock_psub = AsyncMock()
+        fetch_count = 0
+        processed_event = asyncio.Event()
+
+        async def mock_fetch(*args, **kwargs):
+            nonlocal fetch_count
+            fetch_count += 1
+            await asyncio.sleep(0)
+            if fetch_count == 1:
+                return [mock_msg]
+            else:
+                processed_event.set()
+                await asyncio.sleep(10)
+                raise nats.errors.TimeoutError()
+
+        mock_psub.fetch = mock_fetch
+        mock_js.pull_subscribe = AsyncMock(return_value=mock_psub)
+
+        handler_called = False
+
+        async def test_handler(subject: str, data: dict) -> None:
+            nonlocal handler_called
+            handler_called = True
+
+        with patch("src.clients.nats.nats.connect", return_value=mock_nc):
+            task = asyncio.create_task(
+                client.subscribe(
+                    topic="parsed_events",
+                    group_id="test-consumer",
+                    handler=test_handler,
+                )
+            )
+
+            try:
+                await asyncio.wait_for(processed_event.wait(), timeout=1.0)
+            except TimeoutError:
+                pass
+            finally:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+
+        # Verify handler was not called due to JSON error
+        assert not handler_called
+        # Verify message was negatively acknowledged
+        mock_msg.nak.assert_called_once()
+        mock_msg.ack.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_subscribe_handles_fetch_error(self, client: NatsClient) -> None:
+        """Test subscribe handles errors during fetch (non-timeout)."""
+        import asyncio
+
+        import nats.errors
+
+        mock_nc = AsyncMock()
+        mock_js = AsyncMock()
+        mock_nc.jetstream = MagicMock(return_value=mock_js)
+
+        # Create mock pull subscription
+        mock_psub = AsyncMock()
+        fetch_count = 0
+        processed_event = asyncio.Event()
+
+        async def mock_fetch(*args, **kwargs):
+            nonlocal fetch_count
+            await asyncio.sleep(0)
+            fetch_count += 1
+            if fetch_count == 1:
+                raise RuntimeError("Connection error")
+            elif fetch_count == 2:
+                processed_event.set()
+                await asyncio.sleep(10)
+                raise nats.errors.TimeoutError()
+            else:
+                await asyncio.sleep(10)
+                raise nats.errors.TimeoutError()
+
+        mock_psub.fetch = mock_fetch
+        mock_js.pull_subscribe = AsyncMock(return_value=mock_psub)
+
+        handler_called = False
+
+        async def test_handler(subject: str, data: dict) -> None:
+            nonlocal handler_called
+            handler_called = True
+
+        with patch("src.clients.nats.nats.connect", return_value=mock_nc):
+            task = asyncio.create_task(
+                client.subscribe(
+                    topic="parsed_events",
+                    group_id="test-consumer",
+                    handler=test_handler,
+                )
+            )
+
+            try:
+                await asyncio.wait_for(processed_event.wait(), timeout=1.0)
+            except TimeoutError:
+                pass
+            finally:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+
+        # Verify handler was not called due to fetch errors
+        assert not handler_called
+        # Verify fetch was called multiple times (error recovery)
+        assert fetch_count >= 2
+
+    @pytest.mark.asyncio
+    async def test_context_manager_with_exception(self, client: NatsClient) -> None:
+        """Test async context manager closes connection even on exception."""
+        mock_nc = AsyncMock()
+        mock_js = MagicMock()
+        mock_nc.jetstream = MagicMock(return_value=mock_js)
+
+        with patch("src.clients.nats.nats.connect", return_value=mock_nc):
+            try:
+                async with client as c:
+                    assert c is client
+                    raise ValueError("Test error")
+            except ValueError:
+                pass  # Expected
+
+        # Verify connection was still closed
         mock_nc.drain.assert_called_once()
         mock_nc.close.assert_called_once()
 
