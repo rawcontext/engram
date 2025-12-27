@@ -1,25 +1,94 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-// Create mock functions (matching pattern from blob.test.ts)
-const queryMock = mock(async () => ({ rows: [] }));
-const endMock = mock(async () => {});
+// Mutable container to hold current mock implementations
+// This pattern allows tests to modify mock behavior after mock.module() is called
+const mockState = {
+	defaultQueryImpl: async (): Promise<{ rows: unknown[] }> => ({ rows: [] }),
+	defaultEndImpl: async (): Promise<void> => {},
+	queryQueue: [] as Array<
+		{ type: "resolve"; value: { rows: unknown[] } } | { type: "reject"; error: Error }
+	>,
+	queryCalls: [] as unknown[][],
+	endCalls: [] as unknown[][],
+};
+
+// Create stable mock functions that delegate to mutable state
+const queryMock = Object.assign(
+	async (...args: unknown[]) => {
+		mockState.queryCalls.push(args);
+		// Check if there's a queued response
+		const queued = mockState.queryQueue.shift();
+		if (queued) {
+			if (queued.type === "resolve") {
+				return queued.value;
+			} else {
+				throw queued.error;
+			}
+		}
+		// Fall back to default implementation
+		return mockState.defaultQueryImpl();
+	},
+	{
+		mockClear: () => {
+			mockState.queryCalls = [];
+			mockState.queryQueue = [];
+		},
+		mockImplementation: (impl: typeof mockState.defaultQueryImpl) => {
+			mockState.defaultQueryImpl = impl;
+		},
+		mockResolvedValueOnce: (value: { rows: unknown[] }) => {
+			mockState.queryQueue.push({ type: "resolve", value });
+		},
+		mockRejectedValueOnce: (error: Error) => {
+			mockState.queryQueue.push({ type: "reject", error });
+		},
+		mock: {
+			get calls() {
+				return mockState.queryCalls;
+			},
+		},
+	},
+);
+
+const endMock = Object.assign(
+	async (...args: unknown[]) => {
+		mockState.endCalls.push(args);
+		return mockState.defaultEndImpl();
+	},
+	{
+		mockClear: () => {
+			mockState.endCalls = [];
+		},
+		mockImplementation: (impl: typeof mockState.defaultEndImpl) => {
+			mockState.defaultEndImpl = impl;
+		},
+		mock: {
+			get calls() {
+				return mockState.endCalls;
+			},
+		},
+	},
+);
 
 // Mock pg module BEFORE any static imports that use it
 // Note: Static imports are hoisted, so we must mock before the module system loads pg
-mock.module("pg", () => {
-	class MockPool {
-		query(...args: any[]) {
-			return queryMock.apply(queryMock, args);
-		}
-		end(...args: any[]) {
-			return endMock.apply(endMock, args);
-		}
+class MockPool {
+	query(...args: unknown[]) {
+		return queryMock(...args);
 	}
+	end(...args: unknown[]) {
+		return endMock(...args);
+	}
+}
+
+mock.module("pg", () => {
+	// pg is a CommonJS module. For ESM interop, we need to provide both:
+	// - default export (for `import pg from "pg"` where pg = default)
+	// - named exports (for direct destructuring)
 	return {
-		default: {
-			Pool: MockPool,
-		},
+		default: { Pool: MockPool },
+		Pool: MockPool,
 	};
 });
 
@@ -37,11 +106,12 @@ describe("Auth", () => {
 			debug: mock(),
 			error: mock(),
 		};
-		queryMock.mockClear();
-		endMock.mockClear();
-		// Reset to default implementations
-		queryMock.mockImplementation(async () => ({ rows: [] }));
-		endMock.mockImplementation(async () => {});
+		// Reset mock state
+		mockState.queryCalls = [];
+		mockState.endCalls = [];
+		mockState.queryQueue = [];
+		mockState.defaultQueryImpl = async () => ({ rows: [] });
+		mockState.defaultEndImpl = async () => {};
 	});
 
 	afterEach(async () => {
@@ -112,7 +182,7 @@ describe("Auth", () => {
 			initAuth(config);
 			await closeAuth();
 
-			expect(endMock).toHaveBeenCalled();
+			expect(mockState.endCalls.length).toBeGreaterThan(0);
 		});
 
 		it("should handle closing when pool is null", async () => {
@@ -120,7 +190,7 @@ describe("Auth", () => {
 			await closeAuth();
 
 			// Should not throw
-			expect(endMock).not.toHaveBeenCalled();
+			expect(mockState.endCalls.length).toBe(0);
 		});
 
 		it("should set pool to null after closing", async () => {
@@ -134,7 +204,7 @@ describe("Auth", () => {
 			await closeAuth();
 			await closeAuth(); // Second call should be safe
 
-			expect(endMock).toHaveBeenCalledTimes(1);
+			expect(mockState.endCalls.length).toBe(1);
 		});
 	});
 
@@ -311,7 +381,7 @@ describe("Auth", () => {
 			);
 
 			expect(result).toBe(true);
-			expect(queryMock).toHaveBeenCalledTimes(2); // Once for validation, once for update
+			expect(mockState.queryCalls.length).toBe(2); // Once for validation, once for update
 			expect(mockLogger.debug).toHaveBeenCalled();
 		});
 
@@ -548,7 +618,8 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = `engram_oauth_${"g".repeat(32)}`;
+			// Use valid hex characters (a-f, 0-9) for OAuth tokens
+			const validToken = `engram_oauth_${"3".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database error
@@ -583,7 +654,8 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = `engram_oauth_${"h".repeat(32)}`;
+			// Use valid hex characters (a-f, 0-9) for OAuth tokens
+			const validToken = `engram_oauth_${"1".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response
@@ -604,9 +676,12 @@ describe("Auth", () => {
 				"ingest:write",
 			]);
 
+			// Wait for fire-and-forget UPDATE to complete
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
 			// Should have called query twice: once for SELECT, once for UPDATE
-			expect(queryMock).toHaveBeenCalledTimes(2);
-			expect(queryMock.mock.calls[1][0]).toContain("UPDATE oauth_tokens");
+			expect(mockState.queryCalls.length).toBe(2);
+			expect(mockState.queryCalls[1][0]).toContain("UPDATE oauth_tokens");
 		});
 
 		it("should handle last_used_at update failure gracefully", async () => {
@@ -618,7 +693,8 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = `engram_oauth_${"i".repeat(32)}`;
+			// Use valid hex characters (a-f, 0-9) for OAuth tokens
+			const validToken = `engram_oauth_${"2".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response for SELECT
@@ -797,7 +873,8 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = `engram_oauth_${"j".repeat(32)}`;
+			// Use valid hex characters (a-f, 0-9) for OAuth tokens
+			const validToken = `engram_oauth_${"4".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			queryMock.mockResolvedValueOnce({
@@ -855,7 +932,8 @@ describe("Auth", () => {
 			initAuth(config);
 			await closeAuth(); // Close pool
 
-			const validToken = `engram_oauth_${"k".repeat(32)}`;
+			// Use valid hex characters (a-f, 0-9) for OAuth tokens
+			const validToken = `engram_oauth_${"5".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			const result = await authenticateRequest(
@@ -898,7 +976,8 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = `engram_oauth_${"l".repeat(32)}`;
+			// Use valid hex characters (a-f, 0-9) for OAuth tokens
+			const validToken = `engram_oauth_${"6".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			queryMock.mockResolvedValueOnce({

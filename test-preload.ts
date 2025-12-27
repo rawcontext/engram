@@ -33,8 +33,16 @@ class MockFalkorClient {
 	disconnect = mockDisconnect;
 }
 
+// Create singleton factory mocks that ALWAYS return the same object
+const createFalkorClientMock = Object.assign(() => mockFalkorClient, {
+	mock: { calls: [] as unknown[][] },
+	mockClear: () => {
+		createFalkorClientMock.mock.calls = [];
+	},
+});
+
 mock.module("@engram/storage/falkor", () => ({
-	createFalkorClient: mock(() => mockFalkorClient),
+	createFalkorClient: createFalkorClientMock,
 	FalkorClient: MockFalkorClient,
 }));
 
@@ -77,12 +85,27 @@ class MockNatsClient {
 	disconnect = mock(async () => {});
 }
 
+// Create singleton factory mocks for main @engram/storage entry point
+const createNatsClientMock = Object.assign(() => mockNatsClientInstance, {
+	mock: { calls: [] as unknown[][] },
+	mockClear: () => {
+		createNatsClientMock.mock.calls = [];
+	},
+});
+
+const createBlobStoreMock = Object.assign(() => mockBlobStore, {
+	mock: { calls: [] as unknown[][] },
+	mockClear: () => {
+		createBlobStoreMock.mock.calls = [];
+	},
+});
+
 // Mock the main @engram/storage entry point (re-exports)
 mock.module("@engram/storage", () => ({
-	createFalkorClient: mock(() => mockFalkorClient),
+	createFalkorClient: createFalkorClientMock,
 	FalkorClient: MockFalkorClient,
-	createBlobStore: mock(() => mockBlobStore),
-	createNatsClient: mock(() => mockNatsClientInstance),
+	createBlobStore: createBlobStoreMock,
+	createNatsClient: createNatsClientMock,
 	NatsClient: MockNatsClient,
 }));
 

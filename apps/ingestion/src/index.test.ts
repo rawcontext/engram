@@ -1,34 +1,14 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, it, type Mock, mock } from "bun:test";
 import { createNodeLogger } from "@engram/logger";
 import { DiffExtractor, Redactor, ThinkingExtractor } from "@engram/parser";
 
-// Create mocks before mock.module
-const mockSendEvent = mock(async () => {});
-const mockNatsClient = {
-	sendEvent: mockSendEvent,
-	getConsumer: mock(),
-	connect: mock(async () => {}),
-	disconnect: mock(async () => {}),
-};
-
-// Mock @engram/storage at module level so createIngestionServer uses mocked NATS
-mock.module("@engram/storage", () => ({
-	createNatsClient: mock(() => mockNatsClient),
-	createFalkorClient: mock(() => ({
-		query: mock(async () => []),
-		connect: mock(async () => {}),
-		disconnect: mock(async () => {}),
-		isConnected: mock(() => false),
-	})),
-	createBlobStore: mock(() => ({
-		save: mock(async () => "blob://test"),
-		load: mock(async () => Buffer.from("{}")),
-		exists: mock(async () => false),
-	})),
-}));
-
-// Import after mock is set up
+// Use shared mocks from test-preload.ts - DO NOT add duplicate mock.module here
 import { createNatsClient } from "@engram/storage";
+
+// Get reference to the shared mock's sendEvent for assertions
+const mockNatsClient = createNatsClient("test");
+const mockSendEvent = mockNatsClient.sendEvent as Mock;
+
 import {
 	cleanupStaleExtractors,
 	createIngestionProcessor,
@@ -37,6 +17,12 @@ import {
 	IngestionProcessor,
 	thinkingExtractors,
 } from "./index";
+
+// Reset shared mocks at the start of this test file
+beforeAll(() => {
+	mockSendEvent.mockReset();
+	mockSendEvent.mockImplementation(async () => {});
+});
 
 describe("Ingestion Service", () => {
 	beforeEach(() => {

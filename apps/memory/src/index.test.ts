@@ -1,6 +1,7 @@
 import {
 	afterAll,
 	afterEach,
+	beforeAll,
 	beforeEach,
 	describe,
 	expect,
@@ -62,6 +63,26 @@ const {
 	startPersistenceConsumer,
 	server,
 } = await import("./index");
+
+// Reset all shared mocks at the start of this test file to ensure clean state
+// This is necessary because mocks from test-preload.ts are shared across all test files
+beforeAll(() => {
+	const graphClient = createFalkorClient();
+	const natsClient = createNatsClient("test");
+	(graphClient.connect as Mock).mockReset();
+	(graphClient.query as Mock).mockReset();
+	(graphClient.disconnect as Mock).mockReset();
+	(natsClient.sendEvent as Mock).mockReset();
+	(natsClient.connect as Mock).mockReset();
+	(natsClient.disconnect as Mock).mockReset();
+	// Restore default implementations
+	(graphClient.connect as Mock).mockImplementation(async () => {});
+	(graphClient.query as Mock).mockImplementation(async () => []);
+	(graphClient.disconnect as Mock).mockImplementation(async () => {});
+	(natsClient.sendEvent as Mock).mockImplementation(async () => {});
+	(natsClient.connect as Mock).mockImplementation(async () => {});
+	(natsClient.disconnect as Mock).mockImplementation(async () => {});
+});
 
 describe("Memory Service Deps", () => {
 	beforeEach(() => {});
@@ -565,6 +586,20 @@ describe("Module-level functions", () => {
 	});
 
 	describe("handlePersistenceMessage", () => {
+		beforeEach(() => {
+			// Reset shared mocks to ensure test isolation
+			// mockReset clears both call history AND queued responses (mockResolvedValueOnce, etc.)
+			const graphClient = createFalkorClient();
+			const natsClient = createNatsClient("test");
+			(graphClient.connect as Mock).mockReset();
+			(graphClient.query as Mock).mockReset();
+			(natsClient.sendEvent as Mock).mockReset();
+			// Restore default implementations after reset
+			(graphClient.connect as Mock).mockImplementation(async () => {});
+			(graphClient.query as Mock).mockImplementation(async () => []);
+			(natsClient.sendEvent as Mock).mockImplementation(async () => {});
+		});
+
 		it("should be exported as a function", () => {
 			expect(handlePersistenceMessage).toBeDefined();
 			expect(typeof handlePersistenceMessage).toBe("function");
@@ -677,7 +712,9 @@ describe("Module-level functions", () => {
 			const connectMock = graphClient.connect as Mock;
 
 			// Make graph connection fail
-			connectMock.mockRejectedValueOnce(new Error("Connection failed"));
+			connectMock.mockImplementation(async () => {
+				throw new Error("Connection failed");
+			});
 
 			const natsClient = createNatsClient("test");
 			const sendEventMock = natsClient.sendEvent as Mock;
