@@ -89,6 +89,28 @@ class TestSearchMetrics:
         final_errors = SEARCH_REQUESTS.labels(strategy="dense", status="error")._value._value
         assert final_errors > initial_errors
 
+    @pytest.mark.asyncio
+    async def test_track_search_decorator_non_list_result(self):
+        """Test track_search decorator with non-list result."""
+
+        @track_search(strategy="sparse", rerank_tier="fast")
+        async def mock_search_dict(query: str) -> dict:
+            await asyncio.sleep(0.01)
+            return {"results": [], "count": 0}
+
+        # Get initial success count
+        initial_success = SEARCH_REQUESTS.labels(strategy="sparse", status="success")._value._value
+
+        # Execute search with dict result
+        result = await mock_search_dict("test query")
+
+        # Verify result
+        assert isinstance(result, dict)
+
+        # Verify success counter incremented (but not result count since not a list)
+        final_success = SEARCH_REQUESTS.labels(strategy="sparse", status="success")._value._value
+        assert final_success > initial_success
+
 
 class TestEmbeddingMetrics:
     """Test embedding-related metrics."""
@@ -151,6 +173,57 @@ class TestEmbeddingMetrics:
         metrics_output = get_metrics().decode("utf-8")
         assert "embedding_latency_seconds" in metrics_output
         assert 'embedder_type="text"' in metrics_output
+
+    @pytest.mark.asyncio
+    async def test_track_embedding_decorator_error(self):
+        """Test track_embedding decorator error handling."""
+        from src.utils.metrics import EMBEDDING_ERRORS
+
+        @track_embedding(embedder_type="text", is_batch=False)
+        async def mock_embed_error(text: str) -> list[float]:
+            await asyncio.sleep(0.005)
+            raise ValueError("Embedding generation failed")
+
+        # Get initial error count
+        initial_errors = EMBEDDING_ERRORS.labels(
+            embedder_type="text", error_type="ValueError"
+        )._value._value
+
+        # Execute embedding and expect error
+        with pytest.raises(ValueError, match="Embedding generation failed"):
+            await mock_embed_error("test text")
+
+        # Verify error counter incremented
+        final_errors = EMBEDDING_ERRORS.labels(
+            embedder_type="text", error_type="ValueError"
+        )._value._value
+        assert final_errors > initial_errors
+
+    @pytest.mark.asyncio
+    async def test_track_embedding_batch_no_args(self):
+        """Test track_embedding decorator with batch=True but no list arg."""
+
+        @track_embedding(embedder_type="sparse", is_batch=True)
+        async def mock_embed_no_args() -> list[list[float]]:
+            await asyncio.sleep(0.005)
+            return [[0.1] * 100]
+
+        # Execute without args - should not crash
+        result = await mock_embed_no_args()
+        assert len(result) == 1
+
+    @pytest.mark.asyncio
+    async def test_track_embedding_batch_non_list_arg(self):
+        """Test track_embedding decorator with batch=True but non-list arg."""
+
+        @track_embedding(embedder_type="code", is_batch=True)
+        async def mock_embed_non_list(count: int) -> list[list[float]]:
+            await asyncio.sleep(0.005)
+            return [[0.1] * 100 for _ in range(count)]
+
+        # Execute with non-list arg - should not crash
+        result = await mock_embed_non_list(2)
+        assert len(result) == 2
 
 
 class TestRerankerMetrics:
@@ -220,6 +293,236 @@ class TestRerankerMetrics:
         # Verify error counter incremented
         final_errors = RERANKER_REQUESTS.labels(tier="colbert", status="error")._value._value
         assert final_errors > initial_errors
+
+
+class TestModelLoadingMetrics:
+    """Test model loading metrics."""
+
+    @pytest.mark.asyncio
+    async def test_track_model_load_decorator(self):
+        """Test track_model_load decorator."""
+        from src.utils.metrics import MODELS_LOADED, track_model_load
+
+        @track_model_load(model_type="embedder", model_name="BAAI/bge-large-en-v1.5")
+        async def mock_load_model() -> str:
+            await asyncio.sleep(0.05)
+            return "model_loaded"
+
+        # Get initial count
+        initial_count = MODELS_LOADED.labels(model_type="embedder")._value._value
+
+        # Execute model load
+        result = await mock_load_model()
+
+        # Verify result
+        assert result == "model_loaded"
+
+        # Verify models loaded counter incremented
+        final_count = MODELS_LOADED.labels(model_type="embedder")._value._value
+        assert final_count > initial_count
+
+        # Verify latency was recorded
+        metrics_output = get_metrics().decode("utf-8")
+        assert "model_load_latency_seconds" in metrics_output
+
+
+class TestHelperFunctions:
+    """Test helper functions for recording metrics."""
+
+    def test_record_reranker_score_improvement(self):
+        """Test recording reranker score improvement."""
+        from src.utils.metrics import RERANKER_SCORE_IMPROVEMENT, record_reranker_score_improvement
+
+        # Record positive improvement
+        record_reranker_score_improvement(tier="fast", improvement=0.25)
+
+        # Record negative improvement (degradation)
+        record_reranker_score_improvement(tier="accurate", improvement=-0.1)
+
+        # Verify metrics were recorded
+        metrics = get_metrics().decode("utf-8")
+        assert "reranker_score_improvement" in metrics
+
+    def test_record_indexed_document(self):
+        """Test recording indexed documents."""
+        from src.utils.metrics import INDEXED_DOCUMENTS, record_indexed_document
+
+        initial_success = INDEXED_DOCUMENTS.labels(status="success")._value._value
+        initial_error = INDEXED_DOCUMENTS.labels(status="error")._value._value
+
+        # Record success
+        record_indexed_document(success=True)
+        # Record error
+        record_indexed_document(success=False)
+
+        final_success = INDEXED_DOCUMENTS.labels(status="success")._value._value
+        final_error = INDEXED_DOCUMENTS.labels(status="error")._value._value
+
+        assert final_success == initial_success + 1
+        assert final_error == initial_error + 1
+
+    def test_record_nats_message(self):
+        """Test recording NATS message processing."""
+        from src.utils.metrics import NATS_MESSAGES_PROCESSED, record_nats_message
+
+        initial_success = NATS_MESSAGES_PROCESSED.labels(
+            topic="test.topic", status="success"
+        )._value._value
+        initial_error = NATS_MESSAGES_PROCESSED.labels(
+            topic="test.topic", status="error"
+        )._value._value
+
+        # Record success
+        record_nats_message(topic="test.topic", success=True)
+        # Record error
+        record_nats_message(topic="test.topic", success=False)
+
+        final_success = NATS_MESSAGES_PROCESSED.labels(
+            topic="test.topic", status="success"
+        )._value._value
+        final_error = NATS_MESSAGES_PROCESSED.labels(
+            topic="test.topic", status="error"
+        )._value._value
+
+        assert final_success == initial_success + 1
+        assert final_error == initial_error + 1
+
+    def test_set_batch_queue_size(self):
+        """Test setting batch queue size."""
+        from src.utils.metrics import BATCH_QUEUE_SIZE, set_batch_queue_size
+
+        set_batch_queue_size(size=42)
+
+        # Verify gauge was set
+        assert BATCH_QUEUE_SIZE._value._value == 42
+
+        set_batch_queue_size(size=0)
+        assert BATCH_QUEUE_SIZE._value._value == 0
+
+    def test_set_nats_consumer_lag(self):
+        """Test setting NATS consumer lag."""
+        from src.utils.metrics import NATS_CONSUMER_LAG, set_nats_consumer_lag
+
+        set_nats_consumer_lag(topic="events.parsed", partition=0, lag=100)
+        set_nats_consumer_lag(topic="events.parsed", partition=1, lag=50)
+
+        # Verify gauges were set
+        metrics = get_metrics().decode("utf-8")
+        assert "nats_consumer_lag" in metrics
+        assert 'topic="events.parsed"' in metrics
+
+    def test_set_qdrant_connections(self):
+        """Test setting Qdrant connection count."""
+        from src.utils.metrics import QDRANT_CONNECTIONS, set_qdrant_connections
+
+        set_qdrant_connections(count=5)
+        assert QDRANT_CONNECTIONS._value._value == 5
+
+        set_qdrant_connections(count=0)
+        assert QDRANT_CONNECTIONS._value._value == 0
+
+    def test_set_redis_connections(self):
+        """Test setting Redis connection count."""
+        from src.utils.metrics import REDIS_CONNECTIONS, set_redis_connections
+
+        set_redis_connections(count=3)
+        assert REDIS_CONNECTIONS._value._value == 3
+
+        set_redis_connections(count=0)
+        assert REDIS_CONNECTIONS._value._value == 0
+
+    def test_record_qdrant_request(self):
+        """Test recording Qdrant requests."""
+        from src.utils.metrics import QDRANT_REQUESTS, record_qdrant_request
+
+        initial_success = QDRANT_REQUESTS.labels(
+            operation="search", status="success"
+        )._value._value
+        initial_error = QDRANT_REQUESTS.labels(
+            operation="upsert", status="error"
+        )._value._value
+
+        # Record successful search
+        record_qdrant_request(operation="search", success=True, latency=0.025)
+        # Record failed upsert
+        record_qdrant_request(operation="upsert", success=False, latency=0.1)
+
+        final_success = QDRANT_REQUESTS.labels(
+            operation="search", status="success"
+        )._value._value
+        final_error = QDRANT_REQUESTS.labels(
+            operation="upsert", status="error"
+        )._value._value
+
+        assert final_success == initial_success + 1
+        assert final_error == initial_error + 1
+
+        # Verify latency was recorded
+        metrics = get_metrics().decode("utf-8")
+        assert "qdrant_latency_seconds" in metrics
+
+    def test_record_redis_request(self):
+        """Test recording Redis requests."""
+        from src.utils.metrics import REDIS_REQUESTS, record_redis_request
+
+        initial_success = REDIS_REQUESTS.labels(operation="get", status="success")._value._value
+        initial_error = REDIS_REQUESTS.labels(operation="set", status="error")._value._value
+
+        # Record successful get
+        record_redis_request(operation="get", success=True, latency=0.001)
+        # Record failed set
+        record_redis_request(operation="set", success=False, latency=0.005)
+
+        final_success = REDIS_REQUESTS.labels(operation="get", status="success")._value._value
+        final_error = REDIS_REQUESTS.labels(operation="set", status="error")._value._value
+
+        assert final_success == initial_success + 1
+        assert final_error == initial_error + 1
+
+        # Verify latency was recorded
+        metrics = get_metrics().decode("utf-8")
+        assert "redis_latency_seconds" in metrics
+
+    def test_set_model_memory_usage(self):
+        """Test setting model memory usage."""
+        from src.utils.metrics import MODEL_MEMORY_USAGE_BYTES, set_model_memory_usage
+
+        set_model_memory_usage(
+            model_type="embedder", model_name="BAAI/bge-large-en-v1.5", bytes_used=1024 * 1024 * 512
+        )
+
+        # Verify gauge was set
+        metrics = get_metrics().decode("utf-8")
+        assert "model_memory_usage_bytes" in metrics
+
+    def test_unload_model(self):
+        """Test unloading a model."""
+        from src.utils.metrics import MODELS_LOADED, unload_model
+
+        # First ensure model is loaded
+        MODELS_LOADED.labels(model_type="reranker").inc()
+        initial_count = MODELS_LOADED.labels(model_type="reranker")._value._value
+
+        # Unload model
+        unload_model(model_type="reranker")
+
+        final_count = MODELS_LOADED.labels(model_type="reranker")._value._value
+        assert final_count == initial_count - 1
+
+    def test_unload_model_when_zero(self):
+        """Test unloading a model when count is already zero."""
+        from src.utils.metrics import MODELS_LOADED, unload_model
+
+        # Set count to zero
+        current = MODELS_LOADED.labels(model_type="test_zero")._value._value
+        for _ in range(int(current)):
+            MODELS_LOADED.labels(model_type="test_zero").dec()
+
+        # Try to unload when already at zero - should not go negative
+        unload_model(model_type="test_zero")
+
+        final_count = MODELS_LOADED.labels(model_type="test_zero")._value._value
+        assert final_count == 0
 
 
 class TestMetricsFormat:
