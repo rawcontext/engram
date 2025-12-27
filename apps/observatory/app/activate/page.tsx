@@ -121,6 +121,11 @@ function ActivateContent() {
 		);
 	}
 
+	// Build sign-in URL with callback to preserve the code
+	const codeParam = searchParams.get("code");
+	const callbackUrl = codeParam ? `/activate?code=${encodeURIComponent(codeParam)}` : "/activate";
+	const signInUrl = `/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+
 	// Not logged in
 	if (!session?.user) {
 		return (
@@ -144,7 +149,7 @@ function ActivateContent() {
 							<span>Sign in to authorize your device</span>
 						</div>
 						<div className="action-area">
-							<a href="/sign-in" className="sign-in-link">
+							<a href={signInUrl} className="sign-in-link">
 								<span className="link-prefix">→</span>
 								Continue to sign in
 							</a>

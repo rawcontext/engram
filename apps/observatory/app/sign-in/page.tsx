@@ -1,11 +1,16 @@
 "use client";
 
 import { signIn } from "@lib/auth-client";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
-export default function SignInPage() {
+function SignInContent() {
+	const searchParams = useSearchParams();
 	const [_error, setError] = useState<string | null>(null);
 	const [_isLoading, setIsLoading] = useState(false);
+
+	// Get callback URL from query params, default to "/"
+	const callbackURL = searchParams.get("callbackUrl") || "/";
 
 	const handleSignIn = async () => {
 		setError(null);
@@ -13,7 +18,7 @@ export default function SignInPage() {
 		try {
 			const result = await signIn.social({
 				provider: "google",
-				callbackURL: "/",
+				callbackURL,
 			});
 			if (result?.error) {
 				setError(result.error.message || "Sign in failed");
@@ -248,5 +253,26 @@ export default function SignInPage() {
 				}
 			`}</style>
 		</div>
+	);
+}
+
+export default function SignInPage() {
+	return (
+		<Suspense
+			fallback={
+				<div
+					style={{
+						minHeight: "100dvh",
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+					}}
+				>
+					<div style={{ color: "rgb(148, 163, 184)" }}>Loading...</div>
+				</div>
+			}
+		>
+			<SignInContent />
+		</Suspense>
 	);
 }
