@@ -597,3 +597,377 @@ class TestSessionAwareSearchEndpoint:
         )
 
         assert response.status_code == 500
+
+
+class TestMemoryIndexEndpoint:
+    """Tests for /index-memory endpoint."""
+
+    async def test_index_memory_success(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test successful memory indexing."""
+        # Mock text embedder
+        mock_text_embedder = AsyncMock()
+        mock_text_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+
+        # Mock sparse embedder (BM25)
+        mock_sparse_embedder = MagicMock()
+        mock_sparse_embedder.embed_sparse = MagicMock(return_value={10: 0.5, 20: 0.3})
+
+        async def get_embedder_mock(embedder_type):
+            if embedder_type == "text":
+                return mock_text_embedder
+            return mock_text_embedder
+
+        mock_embedder_factory.get_embedder = AsyncMock(side_effect=get_embedder_mock)
+        mock_embedder_factory.get_sparse_embedder = AsyncMock(return_value=mock_sparse_embedder)
+
+        # Mock Qdrant upsert
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.upsert = AsyncMock()
+
+        response = await client.post(
+            "/v1/search/index-memory",
+            json={
+                "id": "01JGABCDEFGHIJKLMNOPQRSTUV",
+                "content": "Test memory content",
+                "type": "fact",
+                "tags": ["test", "example"],
+                "project": "engram",
+                "source_session_id": "session-123",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == "01JGABCDEFGHIJKLMNOPQRSTUV"
+        assert data["indexed"] is True
+        assert "took_ms" in data
+
+        # Verify upsert was called
+        mock_qdrant.client.upsert.assert_called_once()
+
+    async def test_index_memory_no_sparse_embedder(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test memory indexing without sparse embedder."""
+        mock_text_embedder = AsyncMock()
+        mock_text_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_text_embedder)
+        # Simulate sparse embedder not available
+        mock_embedder_factory.get_sparse_embedder = AsyncMock(
+            side_effect=ImportError("Sparse embedder not available")
+        )
+
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.upsert = AsyncMock()
+
+        response = await client.post(
+            "/v1/search/index-memory",
+            json={
+                "id": "01JGABCDEFGHIJKLMNOPQRSTUV",
+                "content": "Test memory content",
+                "type": "fact",
+                "tags": [],
+                "project": None,
+                "source_session_id": None,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["indexed"] is True
+
+    async def test_index_memory_no_qdrant(self) -> None:
+        """Test index-memory when Qdrant not initialized."""
+        app = FastAPI()
+        app.include_router(router)
+        # No qdrant in state, but have embedder_factory
+        app.state.embedder_factory = MagicMock()
+
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            ) as client:
+                response = await client.post(
+                    "/v1/search/index-memory",
+                    json={
+                        "id": "01JGABCDEFGHIJKLMNOPQRSTUV",
+                        "content": "Test",
+                        "type": "fact",
+                        "tags": [],
+                        "project": None,
+                        "source_session_id": None,
+                    },
+                )
+
+            assert response.status_code == 503
+            assert "Qdrant not initialized" in response.json()["detail"]
+
+    async def test_index_memory_no_embedder_factory(self) -> None:
+        """Test index-memory when embedder factory not initialized."""
+        app = FastAPI()
+        app.include_router(router)
+        # Have qdrant but no embedder_factory
+        app.state.qdrant = MagicMock()
+
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            ) as client:
+                response = await client.post(
+                    "/v1/search/index-memory",
+                    json={
+                        "id": "01JGABCDEFGHIJKLMNOPQRSTUV",
+                        "content": "Test",
+                        "type": "fact",
+                        "tags": [],
+                        "project": None,
+                        "source_session_id": None,
+                    },
+                )
+
+            assert response.status_code == 503
+            assert "embedder factory not initialized" in response.json()["detail"]
+
+    async def test_index_memory_error(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test index-memory error handling."""
+        mock_text_embedder = AsyncMock()
+        mock_text_embedder.embed = AsyncMock(side_effect=Exception("Embedding failed"))
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_text_embedder)
+
+        response = await client.post(
+            "/v1/search/index-memory",
+            json={
+                "id": "01JGABCDEFGHIJKLMNOPQRSTUV",
+                "content": "Test",
+                "type": "fact",
+                "tags": [],
+                "project": None,
+                "source_session_id": None,
+            },
+        )
+
+        assert response.status_code == 500
+        assert "Memory indexing failed" in response.json()["detail"]
+
+
+class TestRecreateCollectionEndpoint:
+    """Tests for /admin/{collection_name}/recreate endpoint."""
+
+    async def test_recreate_memory_collection_success(
+        self, client: AsyncClient, mock_qdrant
+    ) -> None:
+        """Test successful memory collection recreation."""
+        # Mock SchemaManager
+        with patch("src.api.routes.SchemaManager") as mock_schema_manager_cls:
+            mock_schema_manager = MagicMock()
+            mock_schema_manager.delete_collection = AsyncMock(return_value=True)
+            mock_schema_manager.create_collection = AsyncMock()
+            mock_schema_manager_cls.return_value = mock_schema_manager
+
+            response = await client.post("/v1/search/admin/engram_memory/recreate")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["collection"] == "engram_memory"
+            assert data["deleted"] is True
+            assert data["created"] is True
+            assert "schema" in data
+
+            # Verify schema manager was called
+            mock_schema_manager.delete_collection.assert_called_once_with("engram_memory")
+            mock_schema_manager.create_collection.assert_called_once()
+
+    async def test_recreate_turns_collection_success(
+        self, client: AsyncClient, mock_qdrant
+    ) -> None:
+        """Test successful turns collection recreation."""
+        with patch("src.api.routes.SchemaManager") as mock_schema_manager_cls:
+            mock_schema_manager = MagicMock()
+            mock_schema_manager.delete_collection = AsyncMock(return_value=False)
+            mock_schema_manager.create_collection = AsyncMock()
+            mock_schema_manager_cls.return_value = mock_schema_manager
+
+            response = await client.post("/v1/search/admin/engram_turns/recreate")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["collection"] == "engram_turns"
+            assert data["deleted"] is False
+            assert data["created"] is True
+
+    async def test_recreate_collection_invalid_name(self, client: AsyncClient) -> None:
+        """Test recreation with invalid collection name."""
+        response = await client.post("/v1/search/admin/invalid_collection/recreate")
+
+        assert response.status_code == 400
+        assert "Unknown collection" in response.json()["detail"]
+
+    async def test_recreate_collection_no_qdrant(self) -> None:
+        """Test recreation when Qdrant not initialized."""
+        app = FastAPI()
+        app.include_router(router)
+
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            ) as client:
+                response = await client.post("/v1/search/admin/engram_memory/recreate")
+
+            assert response.status_code == 503
+            assert "Qdrant not initialized" in response.json()["detail"]
+
+    async def test_recreate_collection_error(self, client: AsyncClient, mock_qdrant) -> None:
+        """Test recreation error handling."""
+        with patch("src.api.routes.SchemaManager") as mock_schema_manager_cls:
+            mock_schema_manager = MagicMock()
+            mock_schema_manager.delete_collection = AsyncMock(
+                side_effect=Exception("Delete failed")
+            )
+            mock_schema_manager_cls.return_value = mock_schema_manager
+
+            response = await client.post("/v1/search/admin/engram_memory/recreate")
+
+            assert response.status_code == 500
+            assert "Collection recreate failed" in response.json()["detail"]
+
+
+class TestSearchMemoryCollection:
+    """Tests for searching the engram_memory collection directly."""
+
+    async def test_search_memory_collection(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test search against engram_memory collection."""
+        # Mock embedder
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        # Mock Qdrant query_points response
+        mock_point = MagicMock()
+        mock_point.id = "memory-123"
+        mock_point.score = 0.95
+        mock_point.payload = {"content": "test memory", "type": "fact"}
+
+        mock_qdrant_result = MagicMock()
+        mock_qdrant_result.points = [mock_point]
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(return_value=mock_qdrant_result)
+
+        response = await client.post(
+            "/v1/search/query",
+            json={
+                "text": "test query",
+                "limit": 10,
+                "collection": "engram_memory",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == "memory-123"
+        assert data["results"][0]["score"] == 0.95
+        assert data["results"][0]["payload"]["content"] == "test memory"
+        assert "took_ms" in data
+
+        # Verify query_points was called with correct params
+        mock_qdrant.client.query_points.assert_called_once()
+        call_args = mock_qdrant.client.query_points.call_args
+        assert call_args.kwargs["collection_name"] == "engram_memory"
+        assert call_args.kwargs["limit"] == 10
+
+    async def test_search_other_collection(
+        self, client: AsyncClient, mock_search_retriever
+    ) -> None:
+        """Test search against a non-default collection."""
+        mock_search_retriever.search.return_value = []
+
+        response = await client.post(
+            "/v1/search/query",
+            json={
+                "text": "test query",
+                "limit": 10,
+                "collection": "custom_collection",
+            },
+        )
+
+        assert response.status_code == 200
+        # Should call generic search method for unknown collections
+        mock_search_retriever.search.assert_called_once()
+
+    async def test_search_default_collection(
+        self, client: AsyncClient, mock_search_retriever
+    ) -> None:
+        """Test search uses engram_turns by default."""
+        mock_search_retriever.search_turns.return_value = []
+
+        response = await client.post(
+            "/v1/search/query",
+            json={
+                "text": "test query",
+                "limit": 10,
+            },
+        )
+
+        assert response.status_code == 200
+        # Should call search_turns for default collection
+        mock_search_retriever.search_turns.assert_called_once()
+
+
+class TestMultiQueryWithTimeRange:
+    """Tests for multi-query search with time range filters."""
+
+    async def test_multi_query_with_time_range(
+        self, client: AsyncClient, mock_multi_query_retriever
+    ) -> None:
+        """Test multi-query with time range in filters."""
+        mock_multi_query_retriever.search.return_value = []
+
+        response = await client.post(
+            "/v1/search/multi-query",
+            json={
+                "text": "test",
+                "limit": 10,
+                "threshold": 0.5,
+                "filters": {
+                    "time_range": {"start": 1000000, "end": 2000000},
+                },
+            },
+        )
+
+        assert response.status_code == 200
+        # Verify the query was built with time range
+        mock_multi_query_retriever.search.assert_called_once()
+        call_args = mock_multi_query_retriever.search.call_args
+        query_arg = call_args.args[0]
+        assert query_arg.filters is not None
+        assert query_arg.filters.time_range is not None
+        assert query_arg.filters.time_range.start == 1000000
+        assert query_arg.filters.time_range.end == 2000000
