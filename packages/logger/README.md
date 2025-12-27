@@ -2,24 +2,20 @@
 
 Structured logging built on Pino with lifecycle management, PII redaction, and Cloud Logging compatibility.
 
-## Overview
+## Purpose
 
-Provides consistent structured logging for Node.js/Bun environments with:
-- **Cloud Logging compatibility** - Uppercase severity levels and ISO timestamps
-- **PII redaction** - Automatic redaction of sensitive fields (passwords, tokens, email, etc.)
-- **Lifecycle management** - Safe logger destruction to prevent race conditions
-- **Context propagation** - Tenant and trace context helpers
+Provides consistent structured logging for Node.js/Bun environments in the Engram monorepo:
+- **Cloud Logging compatibility** - Uppercase severity levels and ISO timestamps for GCP
+- **PII redaction** - Automatic redaction of sensitive fields (passwords, tokens, email, SSN, credit cards)
+- **Lifecycle management** - Safe logger destruction to prevent race conditions and post-destroy logging
+- **Context propagation** - Tenant and trace context helpers for distributed tracing
 - **Environment-aware** - Pretty printing in development, structured JSON in production
 
-## Installation
+## Pino Integration
 
-```bash
-npm install @engram/logger
-```
+Built on Pino (v10.1.0), a fast, low-overhead logging library with custom formatters for Cloud Logging severity mapping, ISO timestamps, built-in redaction, and transport system for pretty printing in development.
 
-## Usage
-
-### Basic Logger
+## Quick Start
 
 ```typescript
 import { createNodeLogger } from "@engram/logger";
@@ -32,185 +28,66 @@ const logger = createNodeLogger({
 logger.info("Service started");
 logger.error({ err }, "Operation failed");
 
-// Create child logger with additional context
-const requestLogger = logger.child({ component: "request-handler", requestId: "abc-123" });
-requestLogger.info("Processing request");
+// Child logger with context
+const reqLogger = logger.child({ requestId: "abc-123" });
+reqLogger.info("Processing request");
 ```
 
-### Configuration Options
+## Configuration
 
 ```typescript
-import { createNodeLogger } from "@engram/logger";
-
 const logger = createNodeLogger({
-  // Required: Service name for all logs
-  service: "my-service",
-
-  // Optional: Log level (default: "info")
-  level: "debug",
-
-  // Optional: Environment name (default: NODE_ENV or "development")
-  environment: "production",
-
-  // Optional: Service version (default: npm_package_version)
-  version: "1.0.0",
-
-  // Optional: Enable pretty printing (default: true in development)
-  pretty: false,
-
-  // Optional: Additional redaction paths beyond defaults
-  redactPaths: ["custom.secret", "my.sensitive.field"],
-
-  // Optional: Base context included in all logs
-  base: { component: "api", region: "us-west" },
-
-  // Optional: Custom Pino options
-  pinoOptions: { name: "custom-logger-name" },
+  service: "my-service",              // Required: Service name
+  level: "debug",                     // Optional: Log level (default: "info")
+  environment: "production",          // Optional: Environment (default: NODE_ENV)
+  version: "1.0.0",                  // Optional: Service version
+  pretty: false,                      // Optional: Pretty print (default: true in dev)
+  redactPaths: ["custom.secret"],    // Optional: Additional redaction paths
+  base: { region: "us-west" },       // Optional: Base context for all logs
 });
 ```
 
-### Context Helpers
+## Context Helpers
 
 ```typescript
 import { withTenantContext, withTraceContext } from "@engram/logger";
 
-// Add tenant context
-const tenantLogger = withTenantContext(logger, {
-  tenantId: "tenant-1",
-  campaignId: "campaign-123",
-  adminUserId: "admin-456",
-  externalUserId: "user-789",
-});
+// Add tenant context (tenantId, campaignId, adminUserId, externalUserId)
+const tenantLogger = withTenantContext(logger, { tenantId: "tenant-1" });
 
-// Add trace context
-const traceLogger = withTraceContext(logger, {
-  correlationId: "corr-001",
-  traceId: "trace-123",
-  spanId: "span-456",
-  requestId: "req-789",
-});
+// Add trace context for distributed tracing (traceId, spanId, requestId, correlationId)
+const traceLogger = withTraceContext(logger, { traceId: "trace-123", spanId: "span-456" });
 ```
 
-### Lifecycle Management
+## Lifecycle Management
 
 ```typescript
-const logger = createNodeLogger({ service: "my-service" });
-
-// Use logger normally
-logger.info("Processing...");
-
-// When shutting down, destroy the logger
+// Graceful shutdown - destroy() marks logger as destroyed
 logger.destroy?.();
-
-// Logs after destroy are silently dropped (no errors thrown)
-logger.info("This won't be logged");
+// Logs after destroy are silently dropped (no errors)
 ```
 
-### Custom Redaction
+## PII Redaction
+
+Automatically redacts 40+ sensitive field paths (authorization headers, cookies, passwords, tokens, API keys, email, phone, SSN, credit cards). Add custom paths via `redactPaths` option.
 
 ```typescript
-import { DEFAULT_REDACT_PATHS, mergeRedactPaths } from "@engram/logger";
-
-// View default redaction paths
-console.log(DEFAULT_REDACT_PATHS);
-
-// Merge custom paths with defaults
-const allPaths = mergeRedactPaths(["my.secret", "custom.token"]);
-
-// Use in logger
 const logger = createNodeLogger({
   service: "my-service",
-  redactPaths: ["my.secret", "custom.token"],
+  redactPaths: ["custom.secret", "my.token"], // Merged with DEFAULT_REDACT_PATHS
 });
 ```
-
-### Direct Pino Access
-
-```typescript
-import { pino } from "@engram/logger";
-
-// Use Pino directly for advanced configuration
-const customLogger = pino({
-  level: "debug",
-  transport: {
-    target: "pino-pretty",
-  },
-});
-```
-
-## Features
-
-### Cloud Logging Compatibility
-
-Logs are formatted for Google Cloud Logging with:
-- Uppercase severity levels (DEBUG, INFO, WARNING, ERROR)
-- ISO timestamps
-- Service, environment, and version in bindings
-- Structured JSON output in production
-
-### PII Redaction
-
-Automatically redacts sensitive fields including:
-- Authorization headers and cookies
-- Passwords, tokens, API keys
-- Email addresses, phone numbers, SSN
-- Credit card numbers
-- Custom paths via `redactPaths` option
-
-Default redacted paths:
-- `req.headers.authorization`
-- `req.headers.cookie`
-- `req.body.password`
-- `req.body.token`
-- `*.email`
-- `*.phone`
-- And many more (see `DEFAULT_REDACT_PATHS`)
-
-### Lifecycle Management
-
-Prevents race conditions and post-destroy logging:
-- `flush()` - Flush pending logs
-- `destroy()` - Mark logger as destroyed
-- All log methods silently drop logs after destroy
-- Safe concurrent flush/destroy handling
 
 ## Exported API
 
-### Functions
+**Functions:**
+- `createNodeLogger(options)` - Create Node.js logger with lifecycle management
+- `withTenantContext(logger, tenant)` - Add tenant context (tenantId, campaignId, etc.)
+- `withTraceContext(logger, trace)` - Add trace context (traceId, spanId, etc.)
+- `mergeRedactPaths(customPaths)` - Merge custom paths with defaults
 
-- `createNodeLogger(options: NodeLoggerOptions, destination?: DestinationStream): LifecycleLogger` - Create a Node.js logger
-- `withTenantContext(logger: Logger, tenant: TenantContext): Logger` - Add tenant context
-- `withTraceContext(logger: Logger, trace: TraceContext): Logger` - Add trace context
-- `mergeRedactPaths(customPaths?: readonly string[]): readonly string[]` - Merge custom redaction paths
+**Types:** `Logger`, `LifecycleLogger`, `NodeLoggerOptions`, `LogLevel`, `TraceContext`, `TenantContext`
 
-### Types
+**Constants:** `DEFAULT_REDACT_PATHS`
 
-- `Logger` - Pino logger instance
-- `LifecycleLogger` - Logger with `destroy()` method
-- `NodeLoggerOptions` - Configuration for Node.js logger
-- `LogLevel` - `"debug" | "info" | "warn" | "error"`
-- `TraceContext` - Trace context fields (traceId, spanId, correlationId, requestId)
-- `TenantContext` - Tenant context fields (tenantId, campaignId, adminUserId, externalUserId)
-- `BaseLogContext` - Base context fields (service, component, environment, version)
-
-### Constants
-
-- `DEFAULT_REDACT_PATHS` - Default PII redaction paths
-
-### Re-exports
-
-- `pino` - Direct access to Pino library
-
-## Log Levels
-
-| Level | Severity | Use Case |
-|:------|:---------|:---------|
-| `debug` | DEBUG | Debug information |
-| `info` | INFO | Normal operations |
-| `warn` | WARNING | Warning conditions |
-| `error` | ERROR | Error conditions |
-
-## Dependencies
-
-- **pino** (^10.1.0) - Fast, low-overhead logging library
-- **pino-pretty** (^13.1.3) - Pretty printing for development
+**Re-exports:** `pino` (direct Pino access)

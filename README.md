@@ -7,7 +7,7 @@ Bitemporal, graph-backed memory system for AI coding agents. Captures reasoning 
 ## Quick Start
 
 ```bash
-# Prerequisites: Bun v1.3.5+, Docker
+# Prerequisites: Bun v1.3.5+, Docker, Python 3.12+ with uv
 
 git clone https://github.com/ccheney/engram.git
 cd engram
@@ -28,81 +28,127 @@ CLI Agents → Ingestion (6175) → NATS → Memory → FalkorDB
                            Neural Observatory (6178)
 ```
 
-**Storage**: FalkorDB (graph), Qdrant (vectors), NATS+JetStream (events), PostgreSQL (API keys)
+**Storage**: FalkorDB (graph), Qdrant (vectors), NATS+JetStream (events), PostgreSQL (API keys/usage)
+
+**Bitemporal**: All graph nodes track `vt_start/vt_end` (valid time) and `tt_start/tt_end` (transaction time) for time-travel queries.
 
 ## Project Structure
 
-```
-apps/
-├── api/          # REST API - memory operations, auth, rate limiting (6174)
-├── control/      # Session orchestration, VFS, time-travel
-├── ingestion/    # Event parsing, PII redaction (6175)
-├── mcp/          # MCP server - remember/recall/query tools
-├── memory/       # Graph persistence, turn aggregation
-├── observatory/  # Real-time visualization (6178)
-├── search/       # Python/FastAPI hybrid search (6176)
-└── tuner/        # Python/FastAPI hyperparameter optimization (6177)
+### Applications
 
-packages/
-├── benchmark/    # LongMemEval evaluation (Python)
-├── common/       # Utilities, errors
-├── events/       # Zod event schemas
-├── graph/        # Bitemporal models, repositories
-├── infra/        # Pulumi IaC (GCP/GKE)
-├── logger/       # Pino structured logging
-├── parser/       # Provider parsers (8 formats)
-├── storage/      # DB clients (Kafka, Redis, FalkorDB, Qdrant)
-├── temporal/     # Time-travel, rehydration
-├── tuner/        # Tuner client, CLI
-└── vfs/          # Virtual file system
-```
+| App | Port | Purpose |
+|-----|------|---------|
+| [api](apps/api) | 6174 | REST API - memory ops, OAuth, rate limiting, OpenTofu state backend |
+| [control](apps/control) | - | XState decision engine, VFS, MCP tool routing |
+| [ingestion](apps/ingestion) | 6175 | Event parsing from 8+ providers, PII redaction |
+| [mcp](apps/mcp) | stdio | MCP server - remember/recall/query/context tools |
+| [memory](apps/memory) | - | Graph persistence, turn aggregation, NATS consumer |
+| [observatory](apps/observatory) | 6178 | Next.js 16 real-time session visualization |
+| [search](apps/search) | 6176 | Python/FastAPI hybrid search, multi-tier reranking |
+| [tuner](apps/tuner) | 6177 | Python/FastAPI Optuna hyperparameter optimization |
+
+### Packages
+
+| Package | Purpose |
+|---------|---------|
+| [benchmark](packages/benchmark) | LongMemEval/MTEB/BEIR evaluation suite (Python) |
+| [common](packages/common) | Utilities, errors, constants, test fixtures |
+| [engram-plugin](packages/engram-plugin) | Claude Code plugin for memory commands |
+| [events](packages/events) | Zod schemas for RawStreamEvent/ParsedStreamEvent |
+| [graph](packages/graph) | Bitemporal models, repositories, QueryBuilder |
+| [infra](packages/infra) | OpenTofu IaC for Hetzner Cloud deployment |
+| [logger](packages/logger) | Pino structured logging with PII redaction |
+| [parser](packages/parser) | Provider parsers, extractors, redaction |
+| [storage](packages/storage) | FalkorDB, NATS, PostgreSQL, Redis, blob clients |
+| [temporal](packages/temporal) | Rehydrator, TimeTravelService, ReplayEngine |
+| [tsconfig](packages/tsconfig) | Shared TypeScript 7 configuration |
+| [tuner](packages/tuner) | TypeScript client/CLI for tuner service |
+| [vfs](packages/vfs) | VirtualFileSystem, NodeFileSystem, PatchManager |
 
 ## Commands
 
 ```bash
+# Development
 bun run dev          # Start all services
-bun run build        # Build everything
-bun test             # Run tests
+bun run infra:up     # Start infrastructure (Docker)
+bun run infra:down   # Stop infrastructure
+
+# Build & Test
+bun run build        # Build all packages
+bun run test         # Run Vitest tests
 bun run typecheck    # TypeScript validation
 bun run lint         # Biome linting
-bun run infra:up     # Start infrastructure
-bun run infra:down   # Stop infrastructure
+bun run format       # Biome formatting
+
+# Python services
+cd apps/search && uv sync && uv run search
+cd apps/tuner && uv sync && uv run tuner
 ```
 
 ## MCP Tools
 
 | Tool | Purpose |
 |------|---------|
-| `engram_remember` | Store memory with type and tags |
-| `engram_recall` | Retrieve memories via hybrid search |
-| `engram_query` | Execute Cypher queries (local only) |
-| `engram_context` | Get comprehensive context for task (local only) |
-| `engram_enrich_memory` | Enrich memory with summary/keywords (requires sampling) |
-| `engram_extract_facts` | Extract key facts from text (requires sampling) |
-| `engram_summarize` | Summarize text using client LLM (requires sampling) |
+| `remember` | Store memory with type (decision/insight/preference/fact) and tags |
+| `recall` | Retrieve memories via hybrid semantic/keyword search |
+| `query` | Execute read-only Cypher queries (local mode) |
+| `context` | Comprehensive context assembly for tasks (local mode) |
+| `summarize` | Condense text using client LLM (requires sampling) |
+| `extract_facts` | Parse text into atomic facts (requires sampling) |
+| `enrich_memory` | Auto-generate summary/keywords/category (requires sampling) |
 
 ## API Endpoints
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/v1/memory/remember` | POST | Store memory |
-| `/v1/memory/recall` | POST | Hybrid search |
-| `/v1/memory/query` | POST | Cypher query |
-| `/v1/memory/context` | POST | Context assembly |
+| Endpoint | Method | Scope | Purpose |
+|----------|--------|-------|---------|
+| `/v1/health` | GET | Public | Health check |
+| `/v1/memory/remember` | POST | `memory:write` | Store memory with deduplication |
+| `/v1/memory/recall` | POST | `memory:read` | Hybrid search with reranking |
+| `/v1/memory/query` | POST | `query:read` | Read-only Cypher queries |
+| `/v1/memory/context` | POST | `memory:read` | Context assembly |
+| `/v1/tofu` | GET/POST | `state:write` | OpenTofu remote state |
 
 ## Providers
 
-Anthropic, OpenAI, Gemini, Claude Code, Cline, Codex, XAI, OpenCode
+Ingestion supports 8+ LLM providers:
+
+| Provider | Key | Aliases |
+|----------|-----|---------|
+| Anthropic | `anthropic` | `claude` |
+| OpenAI | `openai` | `gpt`, `gpt-4` |
+| Google Gemini | `gemini` | - |
+| XAI (Grok) | `xai` | `grok` |
+| Claude Code | `claude_code` | `claude-code` |
+| Cline | `cline` | - |
+| Codex | `codex` | - |
+| OpenCode | `opencode` | - |
 
 ## Infrastructure
 
 All services use Kaprekar's constant (6174) as the base port.
 
-**Services**: API `6174` · Ingestion `6175` · Observatory `6178` · Search `6176`
+| Service | Port | Category |
+|---------|------|----------|
+| API | 6174 | Service |
+| Ingestion | 6175 | Service |
+| Search | 6176 | Service |
+| Tuner | 6177 | Service |
+| Observatory | 6178 | Service |
+| FalkorDB | 6179 | Database |
+| Qdrant | 6180 | Database |
+| NATS | 6181 | Database |
+| NATS Monitor | 6182 | Dev Tool |
+| PostgreSQL | 6183 | Database |
+| Optuna Dashboard | 6184 | Dev Tool |
 
-**Databases**: FalkorDB `6179` · NATS `6181` · PostgreSQL `6183` · Qdrant `6180`
+## Tech Stack
 
-**Dev Tools**: NATS Monitor `6182` · Optuna Dashboard `6184` · Tuner `6177`
+- **TypeScript**: Bun runtime, TypeScript 7 (tsgo), Biome
+- **Python**: uv, Ruff, FastAPI, Optuna, sentence-transformers
+- **Graph**: FalkorDB (Redis-based graph DB)
+- **Vectors**: Qdrant with BGE/SPLADE embeddings
+- **Messaging**: NATS JetStream
+- **Frontend**: Next.js 16, React 19, React Flow
 
 ## License
 

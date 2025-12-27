@@ -1,86 +1,62 @@
 # @engram/tsconfig
 
-Shared TypeScript configuration for the Engram monorepo.
+Shared TypeScript configuration for the Engram monorepo. Ensures consistent compilation settings, strict type checking, and modern JavaScript features across all packages and applications.
 
-## Overview
+## Purpose
 
-Provides a base TypeScript configuration that ensures consistent compilation settings, strict type checking, and modern JavaScript features across all packages and applications.
+Centralizes TypeScript compiler options to:
+- Enforce strict type checking across the monorepo
+- Enable TypeScript 7 (tsgo) optimizations (10x faster builds, multi-threaded compilation)
+- Support ESNext features (ES2025: Set methods, Iterator helpers, Promise.try)
+- Configure composite project references for parallel compilation
+- Maintain consistent module resolution and interoperability
 
 ## Configuration Files
 
-- `base.json` - Base TypeScript configuration with ESNext target and bundler module resolution
+- **`base.json`** - Base configuration with ESNext target, bundler module resolution, strict mode
 
 ## Usage
 
-Extend the base configuration in your package's `tsconfig.json`:
+Extend in your package's `tsconfig.json`:
 
 ```json
 {
   "extends": "@engram/tsconfig/base.json",
   "compilerOptions": {
     "rootDir": ".",
-    "outDir": "dist"
+    "outDir": "dist",
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
 ```
 
-## TypeScript Settings
+## Key Settings
 
-The base configuration uses TypeScript 7 (tsgo) with the following compiler options:
-
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| `target` | ESNext | Latest ES2025+ features (Set methods, Iterator helpers, Promise.try) |
+| Option | Value | Purpose |
+|--------|-------|---------|
+| `target` | ESNext | Latest ES2025+ features |
 | `module` | esnext | Modern ESM modules |
-| `moduleResolution` | bundler | Optimized for bundlers and modern tooling |
-| `lib` | ["ESNext", "DOM"] | Latest ECMAScript and DOM APIs |
-| `strict` | true | All strict type-checking options enabled |
-| `composite` | true | Enable project references for monorepo builds |
-| `declaration` | true | Generate .d.ts declaration files |
-| `declarationMap` | true | Generate sourcemaps for declarations |
-| `sourceMap` | true | Generate sourcemaps for debugging |
-| `esModuleInterop` | true | Better CommonJS/ESM interoperability |
-| `skipLibCheck` | true | Skip type checking of declaration files |
-| `forceConsistentCasingInFileNames` | true | Enforce case-sensitive imports |
+| `moduleResolution` | bundler | Optimized for Bun and modern tooling |
+| `strict` | true | All strict type-checking enabled |
+| `composite` | true | Project references for monorepo parallel builds |
+| `declaration` | true | Generate .d.ts files |
+| `sourceMap` | true | Enable debugging |
 
-### Default Path Aliases
+**Default path alias**: `@/*` → `./src/*`
 
-```json
-{
-  "paths": {
-    "@/*": ["./src/*"]
-  }
-}
-```
+**Default includes**: `src/**/*`
 
-### Default Includes/Excludes
+**Default excludes**: `node_modules`, `dist`, `**/*.test.ts`, `**/*.spec.ts`
 
-- **Include**: `src/**/*`
-- **Exclude**: `node_modules`, `dist`, `**/*.test.ts`, `**/*.spec.ts`
+## TypeScript 7 (tsgo)
 
-## Customization
+This configuration targets TypeScript 7's native Go implementation:
 
-Override settings for specific needs:
+- **10x faster builds** with multi-threaded, parallel project compilation
+- **ESNext target** for latest ES2025 features
+- **Bundler resolution** optimized for Bun runtime
+- **Downlevel emit** requires ES2021+ (no legacy transpilation)
 
-```json
-{
-  "extends": "@engram/tsconfig/base.json",
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "rootDir": ".",
-    "outDir": "build"
-  },
-  "include": ["src/**/*", "types/**/*"]
-}
-```
-
-## TypeScript 7 (tsgo) Notes
-
-This configuration is optimized for TypeScript 7's native Go implementation:
-
-- 10x faster builds with multi-threaded compilation
-- ESNext target enables latest ES2025 features
-- Bundler module resolution for optimal tooling integration
-- Composite projects enable parallel compilation across the monorepo
+Override settings as needed for framework-specific requirements (e.g., `jsx` for React, custom `outDir`).
