@@ -9,6 +9,11 @@ api.statient.com {
 		reverse_proxy tuner:6177
 	}
 
+	# Ingestion service endpoints
+	handle /ingest {
+		reverse_proxy ingestion:6175
+	}
+
 	# API service (memory, keys, usage, tofu, health)
 	handle /v1/* {
 		reverse_proxy api:6174

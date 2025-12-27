@@ -130,8 +130,7 @@ services:
     platform: linux/amd64
     environment:
       - QDRANT_URL=http://qdrant:6333
-      - QDRANT_COLLECTION=engram_memory
-      - QDRANT_TURNS_COLLECTION=engram_turns
+      - QDRANT_COLLECTION=engram_turns
       - NATS_URL=nats://nats:4222
       - REDIS_URL=redis://falkordb:6379
       - HF_API_TOKEN=${HF_API_TOKEN}
