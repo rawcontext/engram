@@ -1,37 +1,44 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-
 import type pg from "pg";
-import { PostgresClient } from "./postgres";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock functions - these won't actually work without proper module mocking
-const mockQuery = mock();
-const mockConnect = mock();
-const mockRelease = mock();
-const mockEnd = mock();
-const mockPoolQuery = mock();
+// Mock functions
+const mockQuery = vi.fn();
+const mockConnect = vi.fn();
+const mockRelease = vi.fn();
+const mockEnd = vi.fn();
 
 const mockClient = {
 	query: mockQuery,
 	release: mockRelease,
 };
 
-describe.skip("PostgresClient", () => {
+// Mock the pg module
+vi.mock("pg", () => {
+	class MockPool {
+		connect = mockConnect;
+		end = mockEnd;
+		query = mockQuery;
+	}
+
+	return {
+		default: {
+			Pool: MockPool,
+		},
+	};
+});
+
+// Import after mocking
+import { PostgresClient } from "./postgres";
+
+describe("PostgresClient", () => {
 	let client: PostgresClient;
 
 	beforeEach(() => {
-		mockQuery.mockClear();
-		mockConnect.mockClear();
-		mockRelease.mockClear();
-		mockEnd.mockClear();
-		mockPoolQuery.mockClear();
+		vi.clearAllMocks();
 		mockConnect.mockResolvedValue(mockClient);
 		mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
-		mockPoolQuery.mockResolvedValue({ rows: [], rowCount: 0 });
-		client = new PostgresClient({ url: "postgresql://localhost:5432/test" });
-	});
 
-	afterEach(() => {
-		// No cleanup needed
+		client = new PostgresClient({ url: "postgresql://localhost:5432/test" });
 	});
 
 	describe("connect", () => {
@@ -39,7 +46,7 @@ describe.skip("PostgresClient", () => {
 			await client.connect();
 
 			expect(mockConnect).toHaveBeenCalledTimes(1);
-			expect(mockClient.query).toHaveBeenCalledWith("SELECT 1");
+			expect(mockQuery).toHaveBeenCalledWith("SELECT 1");
 			expect(mockRelease).toHaveBeenCalledTimes(1);
 			expect(client.isConnected()).toBe(true);
 		});
@@ -47,20 +54,21 @@ describe.skip("PostgresClient", () => {
 		it("should be idempotent when already connected", async () => {
 			await client.connect();
 			mockConnect.mockClear();
-			mockClient.query.mockClear();
+			mockQuery.mockClear();
 
 			await client.connect();
 
 			expect(mockConnect).not.toHaveBeenCalled();
-			expect(mockClient.query).not.toHaveBeenCalled();
+			expect(mockQuery).not.toHaveBeenCalled();
 		});
 
 		it("should release client even if query fails", async () => {
-			mockClient.query.mockRejectedValueOnce(new Error("Connection failed"));
+			mockQuery.mockRejectedValueOnce(new Error("Connection failed"));
 
 			await expect(client.connect()).rejects.toThrow("Connection failed");
 
 			expect(mockRelease).toHaveBeenCalledTimes(1);
+			expect(client.isConnected()).toBe(false);
 		});
 	});
 
@@ -103,11 +111,11 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockPoolQuery.mockResolvedValueOnce(mockResult);
+			mockQuery.mockResolvedValueOnce(mockResult);
 
 			const result = await client.query("SELECT * FROM users");
 
-			expect(mockPoolQuery).toHaveBeenCalledWith("SELECT * FROM users", undefined);
+			expect(mockQuery).toHaveBeenCalledWith("SELECT * FROM users", undefined);
 			expect(result.rows).toEqual([{ id: 1, name: "test" }]);
 			expect(result.rowCount).toBe(1);
 		});
@@ -123,11 +131,11 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockPoolQuery.mockResolvedValueOnce(mockResult);
+			mockQuery.mockResolvedValueOnce(mockResult);
 
 			await client.query("SELECT * FROM users WHERE id = $1", [1]);
 
-			expect(mockPoolQuery).toHaveBeenCalledWith("SELECT * FROM users WHERE id = $1", [1]);
+			expect(mockQuery).toHaveBeenCalledWith("SELECT * FROM users WHERE id = $1", [1]);
 		});
 
 		it("should throw when not connected", async () => {
@@ -150,7 +158,7 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockPoolQuery.mockResolvedValueOnce(mockResult);
+			mockQuery.mockResolvedValueOnce(mockResult);
 
 			const result = await client.queryOne("SELECT * FROM users");
 
@@ -168,7 +176,7 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockPoolQuery.mockResolvedValueOnce(mockResult);
+			mockQuery.mockResolvedValueOnce(mockResult);
 
 			const result = await client.queryOne("SELECT * FROM users WHERE id = $1", [999]);
 
@@ -186,7 +194,7 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockPoolQuery.mockResolvedValueOnce(mockResult);
+			mockQuery.mockResolvedValueOnce(mockResult);
 
 			const result = await client.queryOne<{ id: number; name: string }>(
 				"SELECT * FROM users WHERE id = $1",
@@ -213,7 +221,7 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockPoolQuery.mockResolvedValueOnce(mockResult);
+			mockQuery.mockResolvedValueOnce(mockResult);
 
 			const result = await client.queryMany("SELECT * FROM users");
 
@@ -236,7 +244,7 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockPoolQuery.mockResolvedValueOnce(mockResult);
+			mockQuery.mockResolvedValueOnce(mockResult);
 
 			const result = await client.queryMany("SELECT * FROM users WHERE 1=0");
 
@@ -254,8 +262,8 @@ describe.skip("PostgresClient", () => {
 			});
 
 			expect(mockConnect).toHaveBeenCalled();
-			expect(mockClient.query).toHaveBeenCalledWith("BEGIN");
-			expect(mockClient.query).toHaveBeenCalledWith("COMMIT");
+			expect(mockQuery).toHaveBeenCalledWith("BEGIN");
+			expect(mockQuery).toHaveBeenCalledWith("COMMIT");
 			expect(mockRelease).toHaveBeenCalled();
 			expect(result).toBe("success");
 		});
@@ -271,15 +279,15 @@ describe.skip("PostgresClient", () => {
 				}),
 			).rejects.toThrow("Transaction failed");
 
-			expect(mockClient.query).toHaveBeenCalledWith("BEGIN");
-			expect(mockClient.query).toHaveBeenCalledWith("ROLLBACK");
+			expect(mockQuery).toHaveBeenCalledWith("BEGIN");
+			expect(mockQuery).toHaveBeenCalledWith("ROLLBACK");
 			expect(mockRelease).toHaveBeenCalled();
 		});
 
 		it("should release client even if rollback fails", async () => {
 			await client.connect();
 
-			mockClient.query.mockImplementation((sql: string) => {
+			mockQuery.mockImplementation((sql: string) => {
 				if (sql === "ROLLBACK") {
 					return Promise.reject(new Error("Rollback failed"));
 				}
@@ -314,7 +322,7 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockClient.query
+			mockQuery
 				.mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
 				.mockResolvedValueOnce(mockInsertResult) // INSERT
 				.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // COMMIT
@@ -328,12 +336,11 @@ describe.skip("PostgresClient", () => {
 			});
 
 			expect(result).toBe(1);
-			expect(mockClient.query).toHaveBeenCalledWith("BEGIN");
-			expect(mockClient.query).toHaveBeenCalledWith(
-				"INSERT INTO users (name) VALUES ($1) RETURNING id",
-				["test"],
-			);
-			expect(mockClient.query).toHaveBeenCalledWith("COMMIT");
+			expect(mockQuery).toHaveBeenCalledWith("BEGIN");
+			expect(mockQuery).toHaveBeenCalledWith("INSERT INTO users (name) VALUES ($1) RETURNING id", [
+				"test",
+			]);
+			expect(mockQuery).toHaveBeenCalledWith("COMMIT");
 		});
 	});
 
@@ -359,12 +366,12 @@ describe.skip("PostgresClient", () => {
 			await client.connect();
 
 			mockConnect.mockResolvedValueOnce(mockClient);
-			mockClient.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+			mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
 			const isHealthy = await client.healthCheck();
 
 			expect(isHealthy).toBe(true);
-			expect(mockClient.query).toHaveBeenCalledWith("SELECT 1");
+			expect(mockQuery).toHaveBeenCalledWith("SELECT 1");
 			expect(mockRelease).toHaveBeenCalled();
 		});
 
@@ -378,7 +385,7 @@ describe.skip("PostgresClient", () => {
 			await client.connect();
 
 			mockConnect.mockResolvedValueOnce(mockClient);
-			mockClient.query.mockRejectedValueOnce(new Error("Connection lost"));
+			mockQuery.mockRejectedValueOnce(new Error("Connection lost"));
 
 			const isHealthy = await client.healthCheck();
 
@@ -391,7 +398,7 @@ describe.skip("PostgresClient", () => {
 			await client.connect();
 
 			mockConnect.mockResolvedValueOnce(mockClient);
-			mockClient.query.mockRejectedValueOnce(new Error("Query failed"));
+			mockQuery.mockRejectedValueOnce(new Error("Query failed"));
 
 			await client.healthCheck();
 
@@ -418,11 +425,11 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockPoolQuery.mockResolvedValueOnce(mockResult);
+			mockQuery.mockResolvedValueOnce(mockResult);
 
 			const result = await client.query("SELECT * FROM users", []);
 
-			expect(mockPoolQuery).toHaveBeenCalledWith("SELECT * FROM users", []);
+			expect(mockQuery).toHaveBeenCalledWith("SELECT * FROM users", []);
 			expect(result.rows).toEqual([{ id: 1 }]);
 		});
 
@@ -443,7 +450,7 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockPoolQuery.mockResolvedValueOnce(mockResult);
+			mockQuery.mockResolvedValueOnce(mockResult);
 
 			const result = await client.queryOne<User>("SELECT * FROM users WHERE id = $1", [1]);
 
@@ -469,7 +476,7 @@ describe.skip("PostgresClient", () => {
 				fields: [],
 			} as pg.QueryResult;
 
-			mockPoolQuery.mockResolvedValueOnce(mockResult);
+			mockQuery.mockResolvedValueOnce(mockResult);
 
 			const result = await client.queryMany<User>("SELECT * FROM users");
 
