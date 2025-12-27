@@ -384,11 +384,36 @@ _anonymous_context = AuthContext(
 )
 
 
+def _is_internal_network(client_host: str | None) -> bool:
+    """Check if request is from Docker internal network (172.16.0.0/12).
+
+    Note: We intentionally exclude 127.0.0.1/localhost to maintain testability.
+    Health checks from localhost use unauthenticated GET endpoints.
+    """
+    if not client_host:
+        return False
+    # Docker uses 172.16.0.0/12 for bridge networks
+    return client_host.startswith("172.")
+
+
+# Internal service context (used for service-to-service calls)
+_internal_context = AuthContext(
+    id="internal",
+    prefix="internal",
+    method="internal",
+    type="internal",
+    user_id=None,
+    scopes=["*"],  # All scopes for internal service calls
+    rate_limit_rpm=10000,
+)
+
+
 def optional_scope(*required_scopes: str):
     """Dependency factory that requires scopes only when auth is enabled.
 
     When AUTH_ENABLED=false, returns an anonymous context with full permissions.
     When AUTH_ENABLED=true, validates the API key and required scopes.
+    When request is from internal Docker network, returns internal context.
 
     Args:
         required_scopes: Scopes that the API key must have (any of them).
@@ -410,5 +435,32 @@ def optional_scope(*required_scopes: str):
 
         return no_auth_checker
 
-    # Auth enabled - delegate to require_scope
-    return require_scope(*required_scopes)
+    # Auth enabled - check for internal network or require scope
+    async def internal_or_auth_checker(
+        request: Request,
+        credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    ) -> ApiKeyContext:
+        # Skip auth for internal Docker network requests (service-to-service)
+        client_host = request.client.host if request.client else None
+        if _is_internal_network(client_host):
+            return _internal_context
+
+        # External request - validate auth and check scopes
+        auth_context = await get_api_key(request, credentials)
+        if not any(scope in auth_context.scopes for scope in required_scopes):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "success": False,
+                    "error": {
+                        "code": "FORBIDDEN",
+                        "message": (
+                            f"API key lacks required scope. "
+                            f"Need one of: {', '.join(required_scopes)}"
+                        ),
+                    },
+                },
+            )
+        return auth_context
+
+    return internal_or_auth_checker
