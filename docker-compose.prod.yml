@@ -11,8 +11,8 @@ services:
       - "443:443"
     volumes:
       - ./configs/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./data/caddy/data:/data
-      - ./data/caddy/config:/config
+      - /var/lib/engram/caddy/data:/data
+      - /var/lib/engram/caddy/config:/config
     depends_on:
       api:
         condition: service_started
@@ -31,7 +31,7 @@ services:
     image: nats:2.12-alpine
     command: ["--jetstream", "--store_dir=/data", "-m", "6182"]
     volumes:
-      - ./data/nats:/data
+      - /var/lib/engram/nats:/data
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:6182/healthz"]
       interval: 5s
@@ -42,7 +42,7 @@ services:
   qdrant:
     image: qdrant/qdrant:latest
     volumes:
-      - ./data/qdrant:/qdrant/storage
+      - /var/lib/engram/qdrant:/qdrant/storage
     environment:
       - QDRANT__SERVICE__ENABLE_TLS=false
     healthcheck:
@@ -55,7 +55,7 @@ services:
   falkordb:
     image: falkordb/falkordb:latest
     volumes:
-      - ./data/falkordb:/data
+      - /var/lib/engram/falkordb:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -70,7 +70,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-engram}
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      - /var/lib/engram/postgres:/var/lib/postgresql/data
       - ./apps/api/src/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-engram}"]

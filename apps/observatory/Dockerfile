@@ -13,21 +13,21 @@ ENV NODE_ENV=production
 RUN addgroup -S engram && adduser -S engram -G engram
 
 # Copy full workspace for custom server dependencies
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/packages ./packages
+COPY --from=builder --chown=engram:engram /app/node_modules ./node_modules
+COPY --from=builder --chown=engram:engram /app/package.json ./package.json
+COPY --from=builder --chown=engram:engram /app/packages ./packages
 
 # Next.js standalone output (we use .next but not server.js)
-COPY --from=builder /app/apps/observatory/.next ./apps/observatory/.next
-RUN mkdir -p ./apps/observatory/public
+COPY --from=builder --chown=engram:engram /app/apps/observatory/.next ./apps/observatory/.next
+RUN mkdir -p ./apps/observatory/public && chown -R engram:engram ./apps/observatory/public
 
 # Custom server source and WebSocket handlers
-COPY --from=builder /app/apps/observatory/server.ts ./apps/observatory/
-COPY --from=builder /app/apps/observatory/lib ./apps/observatory/lib
-COPY --from=builder /app/apps/observatory/app ./apps/observatory/app
-COPY --from=builder /app/apps/observatory/package.json ./apps/observatory/
+COPY --from=builder --chown=engram:engram /app/apps/observatory/server.ts ./apps/observatory/
+COPY --from=builder --chown=engram:engram /app/apps/observatory/lib ./apps/observatory/lib
+COPY --from=builder --chown=engram:engram /app/apps/observatory/app ./apps/observatory/app
+COPY --from=builder --chown=engram:engram /app/apps/observatory/package.json ./apps/observatory/
 # Next.js config (required for image remotePatterns)
-COPY --from=builder /app/apps/observatory/next.config.mjs ./apps/observatory/
+COPY --from=builder --chown=engram:engram /app/apps/observatory/next.config.mjs ./apps/observatory/
 
 USER engram
 EXPOSE 3000

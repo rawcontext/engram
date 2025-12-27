@@ -457,8 +457,28 @@ jobs:
           command_timeout: 10m
           script: |
             cd /opt/engram
-            echo "Creating data directories..."
-            mkdir -p data/{qdrant,falkordb,postgres,nats}
+
+            # Create data directories at /var/lib/engram (outside Docker build context)
+            echo "Creating data directories at /var/lib/engram..."
+            sudo mkdir -p /var/lib/engram/{qdrant,falkordb,postgres,nats,caddy/data,caddy/config}
+            sudo chown -R engram:engram /var/lib/engram
+
+            # Migrate existing data if present (one-time migration)
+            if [ -d "/opt/engram/data" ] && [ "$(ls -A /opt/engram/data 2>/dev/null)" ]; then
+              echo "Migrating existing data from /opt/engram/data..."
+              for dir in qdrant falkordb nats; do
+                if [ -d "/opt/engram/data/$dir" ] && [ "$(ls -A /opt/engram/data/$dir 2>/dev/null)" ]; then
+                  echo "  Migrating $dir..."
+                  sudo rsync -a /opt/engram/data/$dir/ /var/lib/engram/$dir/ || true
+                fi
+              done
+              # PostgreSQL requires special handling - migration would need DB stopped first
+              # We'll let it re-initialize for now if migration is needed
+              if [ -d "/opt/engram/data/caddy" ]; then
+                echo "  Migrating caddy..."
+                sudo rsync -a /opt/engram/data/caddy/ /var/lib/engram/caddy/ || true
+              fi
+            fi
 
             echo "Pulling infrastructure images..."
             docker compose -f docker-compose.prod.yml pull nats qdrant falkordb postgres

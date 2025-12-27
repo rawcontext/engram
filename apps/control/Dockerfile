@@ -9,10 +9,10 @@ ENV NODE_ENV=production
 RUN addgroup -S engram && adduser -S engram -G engram
 
 # Control runs TypeScript directly with Bun
-COPY --from=builder /app/apps/control ./apps/control
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+COPY --from=builder --chown=engram:engram /app/apps/control ./apps/control
+COPY --from=builder --chown=engram:engram /app/packages ./packages
+COPY --from=builder --chown=engram:engram /app/node_modules ./node_modules
+COPY --from=builder --chown=engram:engram /app/package.json ./package.json
 
 USER engram
 EXPOSE 8080
