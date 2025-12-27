@@ -11,6 +11,19 @@ from src.rerankers.base import RankedResult
 from src.rerankers.router import RerankerRouter
 from src.utils.rate_limiter import RateLimitError, SlidingWindowRateLimiter
 
+# Check if local ML dependencies are available
+try:
+    import sentence_transformers  # noqa: F401
+
+    HAS_LOCAL_ML_DEPS = True
+except ImportError:
+    HAS_LOCAL_ML_DEPS = False
+
+requires_local_ml = pytest.mark.skipif(
+    not HAS_LOCAL_ML_DEPS,
+    reason="Requires local ML dependencies (sentence-transformers, etc.)",
+)
+
 # Test data
 SAMPLE_QUERY = "What is artificial intelligence?"
 SAMPLE_DOCS = [
@@ -112,6 +125,7 @@ class TestLoadReranker:
         with pytest.raises(ValueError, match="Unknown reranker tier"):
             router._load_reranker("unknown")
 
+    @requires_local_ml
     def test_load_fast_tier_flashrank_success(self, mock_settings) -> None:
         """Test fast tier loads FlashRank successfully."""
         router = RerankerRouter(settings=mock_settings)
@@ -183,6 +197,7 @@ class TestLoadReranker:
             )
             assert reranker is mock_hf_instance
 
+    @requires_local_ml
     def test_load_accurate_tier_local_backend(self, mock_settings) -> None:
         """Test accurate tier with local backend."""
         mock_settings.reranker_backend = "local"
@@ -229,6 +244,7 @@ class TestLoadReranker:
             )
             assert reranker is mock_hf_instance
 
+    @requires_local_ml
     def test_load_code_tier_local_backend(self, mock_settings) -> None:
         """Test code tier with local backend."""
         mock_settings.reranker_backend = "local"
@@ -249,6 +265,7 @@ class TestLoadReranker:
             )
             assert reranker is mock_ce_instance
 
+    @requires_local_ml
     def test_load_colbert_tier(self, mock_settings) -> None:
         """Test loading ColBERT tier."""
         router = RerankerRouter(settings=mock_settings)
@@ -267,6 +284,7 @@ class TestLoadReranker:
             )
             assert reranker is mock_colbert_instance
 
+    @requires_local_ml
     def test_load_colbert_tier_with_cuda(self, mock_settings) -> None:
         """Test loading ColBERT tier with CUDA device."""
         mock_settings.embedder_device = "cuda"
