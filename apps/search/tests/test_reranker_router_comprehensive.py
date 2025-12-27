@@ -1,6 +1,7 @@
 """Comprehensive tests for reranker router module."""
 
 import asyncio
+import builtins
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -110,6 +111,182 @@ class TestLoadReranker:
 
         with pytest.raises(ValueError, match="Unknown reranker tier"):
             router._load_reranker("unknown")
+
+    def test_load_fast_tier_flashrank_success(self, mock_settings) -> None:
+        """Test fast tier loads FlashRank successfully."""
+        router = RerankerRouter(settings=mock_settings)
+
+        with patch("src.rerankers.flash.FlashRankReranker") as mock_flash:
+            mock_flash_instance = MagicMock()
+            mock_flash.return_value = mock_flash_instance
+
+            reranker = router._load_reranker("fast")
+
+            # Should have created FlashRank reranker
+            mock_flash.assert_called_once_with(
+                model_name=mock_settings.reranker_fast_model,
+            )
+            assert reranker is mock_flash_instance
+
+    def test_load_fast_tier_flashrank_import_error(self, mock_settings) -> None:
+        """Test fast tier falls back to HuggingFace on FlashRank ImportError."""
+        router = RerankerRouter(settings=mock_settings)
+
+        # Mock the import to raise ImportError for FlashRank
+        import sys
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if "flash" in name:
+                raise ImportError("FlashRank not available")
+            return original_import(name, *args, **kwargs)
+
+        with (
+            patch("builtins.__import__", side_effect=mock_import),
+            patch("src.clients.huggingface.HuggingFaceReranker") as mock_hf,
+        ):
+            mock_hf_instance = MagicMock()
+            mock_hf.return_value = mock_hf_instance
+
+            reranker = router._load_reranker("fast")
+
+            # Should have created HuggingFace reranker
+            mock_hf.assert_called_once_with(
+                model_id=mock_settings.reranker_accurate_model,
+                api_token=mock_settings.hf_api_token,
+            )
+            assert reranker is mock_hf_instance
+
+    def test_load_accurate_tier_huggingface_backend(self, mock_settings) -> None:
+        """Test accurate tier with HuggingFace backend."""
+        mock_settings.reranker_backend = "huggingface"
+        mock_settings.hf_api_token = "test-token"
+
+        router = RerankerRouter(settings=mock_settings)
+
+        with (
+            patch("src.clients.huggingface.HuggingFaceReranker") as mock_hf,
+            patch("src.rerankers.router.logger") as mock_logger,
+        ):
+            mock_hf_instance = MagicMock()
+            mock_hf.return_value = mock_hf_instance
+
+            reranker = router._load_reranker("accurate")
+
+            # Should have logged that we're using HuggingFace
+            mock_logger.info.assert_any_call("Using HuggingFace reranker for accurate tier")
+
+            # Should have created HuggingFace reranker with correct params
+            mock_hf.assert_called_once_with(
+                model_id=mock_settings.reranker_accurate_model,
+                api_token="test-token",
+            )
+            assert reranker is mock_hf_instance
+
+    def test_load_accurate_tier_local_backend(self, mock_settings) -> None:
+        """Test accurate tier with local backend."""
+        mock_settings.reranker_backend = "local"
+
+        router = RerankerRouter(settings=mock_settings)
+
+        with patch("src.rerankers.cross_encoder.CrossEncoderReranker") as mock_ce:
+            mock_ce_instance = MagicMock()
+            mock_ce.return_value = mock_ce_instance
+
+            reranker = router._load_reranker("accurate")
+
+            # Should have created CrossEncoder reranker
+            mock_ce.assert_called_once_with(
+                model_name=mock_settings.reranker_accurate_model,
+                device=mock_settings.embedder_device,
+                batch_size=mock_settings.reranker_batch_size,
+            )
+            assert reranker is mock_ce_instance
+
+    def test_load_code_tier_huggingface_backend(self, mock_settings) -> None:
+        """Test code tier with HuggingFace backend."""
+        mock_settings.reranker_backend = "huggingface"
+        mock_settings.hf_api_token = "test-token"
+
+        router = RerankerRouter(settings=mock_settings)
+
+        with (
+            patch("src.clients.huggingface.HuggingFaceReranker") as mock_hf,
+            patch("src.rerankers.router.logger") as mock_logger,
+        ):
+            mock_hf_instance = MagicMock()
+            mock_hf.return_value = mock_hf_instance
+
+            reranker = router._load_reranker("code")
+
+            # Should have logged that we're using HuggingFace
+            mock_logger.info.assert_any_call("Using HuggingFace reranker for code tier")
+
+            # Should have created HuggingFace reranker with correct params
+            mock_hf.assert_called_once_with(
+                model_id=mock_settings.reranker_code_model,
+                api_token="test-token",
+            )
+            assert reranker is mock_hf_instance
+
+    def test_load_code_tier_local_backend(self, mock_settings) -> None:
+        """Test code tier with local backend."""
+        mock_settings.reranker_backend = "local"
+
+        router = RerankerRouter(settings=mock_settings)
+
+        with patch("src.rerankers.cross_encoder.CrossEncoderReranker") as mock_ce:
+            mock_ce_instance = MagicMock()
+            mock_ce.return_value = mock_ce_instance
+
+            reranker = router._load_reranker("code")
+
+            # Should have created CrossEncoder reranker
+            mock_ce.assert_called_once_with(
+                model_name=mock_settings.reranker_code_model,
+                device=mock_settings.embedder_device,
+                batch_size=mock_settings.reranker_batch_size,
+            )
+            assert reranker is mock_ce_instance
+
+    def test_load_colbert_tier(self, mock_settings) -> None:
+        """Test loading ColBERT tier."""
+        router = RerankerRouter(settings=mock_settings)
+
+        with patch("src.rerankers.colbert.ColBERTReranker") as mock_colbert:
+            mock_colbert_instance = MagicMock()
+            mock_colbert.return_value = mock_colbert_instance
+
+            reranker = router._load_reranker("colbert")
+
+            # Should have created ColBERT reranker
+            mock_colbert.assert_called_once_with(
+                model_name=mock_settings.reranker_colbert_model,
+                device=mock_settings.embedder_device,
+                n_gpu=0,  # CPU device
+            )
+            assert reranker is mock_colbert_instance
+
+    def test_load_colbert_tier_with_cuda(self, mock_settings) -> None:
+        """Test loading ColBERT tier with CUDA device."""
+        mock_settings.embedder_device = "cuda"
+
+        router = RerankerRouter(settings=mock_settings)
+
+        with patch("src.rerankers.colbert.ColBERTReranker") as mock_colbert:
+            mock_colbert_instance = MagicMock()
+            mock_colbert.return_value = mock_colbert_instance
+
+            reranker = router._load_reranker("colbert")
+
+            # Should have created ColBERT reranker with GPU
+            mock_colbert.assert_called_once_with(
+                model_name=mock_settings.reranker_colbert_model,
+                device="cuda",
+                n_gpu=1,  # CUDA device should use GPU
+            )
+            assert reranker is mock_colbert_instance
 
 
 class TestRerank:
@@ -473,6 +650,131 @@ class TestFallbackBehavior:
             assert degraded
             assert len(results) == 1
             assert results[0].score == 0.5
+
+    async def test_load_error_with_fallback(self, mock_settings) -> None:
+        """Test load error triggers fallback to different tier."""
+        with patch.object(RerankerRouter, "_load_reranker") as mock_load:
+            # First call (colbert) raises ImportError
+            # Second call (fast) succeeds
+            fast_reranker = MagicMock()
+            fast_results = [RankedResult(text="doc", score=0.8, original_index=0)]
+            fast_reranker.rerank_async = AsyncMock(return_value=fast_results)
+
+            def load_side_effect(tier):
+                if tier == "colbert":
+                    raise ImportError("ColBERT not available")
+                return fast_reranker
+
+            mock_load.side_effect = load_side_effect
+
+            router = RerankerRouter(settings=mock_settings)
+            results, tier_used, degraded = await router.rerank(
+                SAMPLE_QUERY,
+                SAMPLE_DOCS[:1],
+                tier="colbert",
+                fallback_tier="fast",
+            )
+
+            # Should have fallen back successfully
+            assert len(results) == 1
+            assert tier_used in ["colbert", "fast"]  # Implementation detail
+
+    async def test_timeout_with_fallback(self, mock_settings) -> None:
+        """Test timeout triggers fallback to different tier."""
+        with patch.object(RerankerRouter, "_load_reranker") as mock_load:
+            # Create two rerankers
+            slow_reranker = MagicMock()
+
+            async def slow_rerank(*args, **kwargs):
+                await asyncio.sleep(10)
+                return []
+
+            slow_reranker.rerank_async = slow_rerank
+
+            fast_reranker = MagicMock()
+            fast_results = [RankedResult(text="doc", score=0.8, original_index=0)]
+            fast_reranker.rerank_async = AsyncMock(return_value=fast_results)
+
+            def load_side_effect(tier):
+                if tier == "llm":
+                    return slow_reranker
+                return fast_reranker
+
+            mock_load.side_effect = load_side_effect
+
+            router = RerankerRouter(settings=mock_settings)
+            results, tier_used, degraded = await router.rerank(
+                SAMPLE_QUERY,
+                SAMPLE_DOCS[:1],
+                tier="llm",
+                timeout_ms=10,
+                fallback_tier="fast",
+            )
+
+            # Should have fallen back successfully
+            assert len(results) == 1
+
+    async def test_rate_limit_with_fallback(self, mock_settings) -> None:
+        """Test rate limit triggers fallback to different tier."""
+        with patch.object(RerankerRouter, "_load_reranker") as mock_load:
+            # Create two rerankers
+            rate_limited_reranker = MagicMock()
+            rate_limited_reranker.rerank_async = AsyncMock(
+                side_effect=RateLimitError("Rate limit", "budget", 60)
+            )
+
+            fallback_reranker = MagicMock()
+            fallback_results = [RankedResult(text="doc", score=0.8, original_index=0)]
+            fallback_reranker.rerank_async = AsyncMock(return_value=fallback_results)
+
+            def load_side_effect(tier):
+                if tier == "llm":
+                    return rate_limited_reranker
+                return fallback_reranker
+
+            mock_load.side_effect = load_side_effect
+
+            router = RerankerRouter(settings=mock_settings)
+            results, tier_used, degraded = await router.rerank(
+                SAMPLE_QUERY,
+                SAMPLE_DOCS[:1],
+                tier="llm",
+                fallback_tier="fast",
+            )
+
+            # Should have fallen back successfully
+            assert len(results) == 1
+
+    async def test_general_error_with_fallback(self, mock_settings) -> None:
+        """Test general error triggers fallback to different tier."""
+        with patch.object(RerankerRouter, "_load_reranker") as mock_load:
+            # Create two rerankers
+            failing_reranker = MagicMock()
+            failing_reranker.rerank_async = AsyncMock(
+                side_effect=RuntimeError("Something went wrong")
+            )
+
+            fallback_reranker = MagicMock()
+            fallback_results = [RankedResult(text="doc", score=0.8, original_index=0)]
+            fallback_reranker.rerank_async = AsyncMock(return_value=fallback_results)
+
+            def load_side_effect(tier):
+                if tier == "code":
+                    return failing_reranker
+                return fallback_reranker
+
+            mock_load.side_effect = load_side_effect
+
+            router = RerankerRouter(settings=mock_settings)
+            results, tier_used, degraded = await router.rerank(
+                SAMPLE_QUERY,
+                SAMPLE_DOCS[:1],
+                tier="code",
+                fallback_tier="fast",
+            )
+
+            # Should have fallen back successfully
+            assert len(results) == 1
 
 
 class TestEdgeCases:
