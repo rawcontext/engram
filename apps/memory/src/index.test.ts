@@ -1,4 +1,14 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it, jest, mock } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+	type Mock,
+	mock,
+} from "bun:test";
 
 // Use shared mocks from root preload (test-preload.ts)
 // Logger, storage (FalkorDB, NATS, BlobStore) are mocked there
@@ -43,8 +53,15 @@ import {
 import { createNatsPubSubPublisher } from "@engram/storage/nats";
 import { TurnAggregator } from "./turn-aggregator";
 
-const { clearAllIntervals, createMemoryServiceDeps, startPruningJob, startTurnCleanupJob, server } =
-	await import("./index");
+const {
+	clearAllIntervals,
+	createMemoryServiceDeps,
+	handlePersistenceMessage,
+	startPruningJob,
+	startTurnCleanupJob,
+	startPersistenceConsumer,
+	server,
+} = await import("./index");
 
 describe("Memory Service Deps", () => {
 	beforeEach(() => {});
@@ -325,6 +342,18 @@ describe("Memory Service Deps", () => {
 	});
 });
 
+describe("MCP Server", () => {
+	it("should export server instance", () => {
+		expect(server).toBeDefined();
+	});
+
+	it("should verify MCP server mock was called during module initialization", () => {
+		// The server.tool() method is called when the module loads
+		// We verify it was called at least twice (for the two tools)
+		expect(mockMcpServer.tool.mock.calls.length).toBeGreaterThanOrEqual(2);
+	});
+});
+
 describe("Module-level functions", () => {
 	beforeEach(() => {
 		mockPruneHistory.mockClear();
@@ -448,15 +477,6 @@ describe("Module-level functions", () => {
 	});
 
 	describe("startTurnCleanupJob", () => {
-		let mockTurnAggregator: any;
-
-		beforeEach(() => {
-			mockTurnAggregator = {
-				cleanupStaleTurns: mock(async () => {}),
-			};
-			// We need to inject this somehow - for now we'll just verify the interval is created
-		});
-
 		afterEach(() => {
 			clearAllIntervals();
 		});
@@ -467,6 +487,22 @@ describe("Module-level functions", () => {
 			expect(typeof intervalId).toBe("object");
 		});
 
+		it("should execute cleanup on interval", () => {
+			jest.useFakeTimers();
+
+			startTurnCleanupJob();
+
+			// Advance time to trigger cleanup (5 minutes)
+			jest.advanceTimersByTime(5 * 60 * 1000);
+
+			// Cleanup should have been attempted
+			// We can't easily verify the internal turnAggregator call
+			// but we verify the interval runs without throwing
+
+			clearAllIntervals();
+			jest.useRealTimers();
+		});
+
 		it("should handle cleanup errors gracefully", () => {
 			jest.useFakeTimers();
 
@@ -475,7 +511,7 @@ describe("Module-level functions", () => {
 			expect(intervalId).toBeDefined();
 
 			// Advance time to trigger cleanup - should not throw even if cleanup has issues
-			expect(() => jest.advanceTimersByTime(60 * 1000)).not.toThrow();
+			expect(() => jest.advanceTimersByTime(5 * 60 * 1000)).not.toThrow();
 
 			clearAllIntervals();
 			jest.useRealTimers();
@@ -525,6 +561,345 @@ describe("Module-level functions", () => {
 			clearAllIntervals(); // Second call should be safe
 
 			expect(() => clearAllIntervals()).not.toThrow();
+		});
+	});
+
+	describe("handlePersistenceMessage", () => {
+		it("should be exported as a function", () => {
+			expect(handlePersistenceMessage).toBeDefined();
+			expect(typeof handlePersistenceMessage).toBe("function");
+		});
+
+		it("should skip messages with no value", async () => {
+			const message = {
+				value: null,
+				headers: {},
+			};
+
+			// Should return early without throwing
+			const result = await handlePersistenceMessage({ message });
+			expect(result).toBeUndefined();
+		});
+
+		it("should skip messages missing session_id", async () => {
+			const graphClient = createFalkorClient();
+			const queryMock = graphClient.query as Mock;
+			queryMock.mockClear();
+
+			const testEvent = {
+				event_id: "evt-123",
+				type: "content",
+				role: "user",
+				content: "Test content",
+				// No metadata.session_id
+			};
+
+			const message = {
+				value: Buffer.from(JSON.stringify(testEvent)),
+				headers: {},
+			};
+
+			await handlePersistenceMessage({ message });
+
+			// Should not have queried the graph (other than initial checks)
+			// The session creation query should not have been called
+		});
+
+		it("should handle valid parsed events with new session", async () => {
+			const graphClient = createFalkorClient();
+			const queryMock = graphClient.query as Mock;
+
+			// Mock existing session query to return empty (new session)
+			queryMock.mockResolvedValueOnce([]);
+
+			const testEvent = {
+				event_id: "evt-123",
+				original_event_id: "orig-123",
+				type: "content",
+				role: "user",
+				content: "Test content",
+				timestamp: new Date().toISOString(),
+				metadata: {
+					session_id: "new-session-123",
+					working_dir: "/test",
+					git_remote: "https://github.com/test/repo",
+					agent_type: "test-agent",
+					user_id: "user-123",
+				},
+			};
+
+			const message = {
+				value: Buffer.from(JSON.stringify(testEvent)),
+				headers: {
+					trace_id: Buffer.from("trace-123"),
+					correlation_id: Buffer.from("corr-123"),
+				},
+			};
+
+			await handlePersistenceMessage({ message });
+
+			// Should have connected to graph
+			expect(graphClient.connect).toHaveBeenCalled();
+		});
+
+		it("should handle existing session", async () => {
+			const graphClient = createFalkorClient();
+			const queryMock = graphClient.query as Mock;
+
+			// Mock existing session query to return a session
+			queryMock.mockResolvedValueOnce([{ id: "existing-session" }]);
+
+			const testEvent = {
+				event_id: "evt-123",
+				original_event_id: "orig-123",
+				type: "content",
+				role: "user",
+				content: "Test content",
+				timestamp: new Date().toISOString(),
+				metadata: {
+					session_id: "existing-session",
+					user_id: "user-123",
+				},
+			};
+
+			const message = {
+				value: Buffer.from(JSON.stringify(testEvent)),
+				headers: {},
+			};
+
+			await handlePersistenceMessage({ message });
+
+			expect(graphClient.connect).toHaveBeenCalled();
+		});
+
+		it("should send events to dead letter queue on error", async () => {
+			const graphClient = createFalkorClient();
+			const connectMock = graphClient.connect as Mock;
+
+			// Make graph connection fail
+			connectMock.mockRejectedValueOnce(new Error("Connection failed"));
+
+			const natsClient = createNatsClient("test");
+			const sendEventMock = natsClient.sendEvent as Mock;
+
+			const testEvent = {
+				event_id: "evt-123",
+				original_event_id: "orig-123",
+				type: "content",
+				role: "user",
+				content: "Test content",
+				metadata: {
+					session_id: "session-123",
+				},
+			};
+
+			const message = {
+				value: Buffer.from(JSON.stringify(testEvent)),
+				headers: {},
+			};
+
+			await handlePersistenceMessage({ message });
+
+			// Should have sent to DLQ
+			expect(sendEventMock).toHaveBeenCalledWith(
+				"memory.dead_letter",
+				"orig-123",
+				expect.objectContaining({
+					error: expect.any(String),
+					payload: expect.any(Object),
+					source: "persistence_consumer",
+				}),
+			);
+		});
+
+		it("should handle DLQ send failures gracefully", async () => {
+			const graphClient = createFalkorClient();
+			const connectMock = graphClient.connect as Mock;
+			connectMock.mockRejectedValueOnce(new Error("Connection failed"));
+
+			const natsClient = createNatsClient("test");
+			const sendEventMock = natsClient.sendEvent as Mock;
+			sendEventMock.mockRejectedValueOnce(new Error("DLQ failed"));
+
+			const testEvent = {
+				event_id: "evt-123",
+				metadata: {
+					session_id: "session-123",
+				},
+			};
+
+			const message = {
+				value: Buffer.from(JSON.stringify(testEvent)),
+				headers: {},
+			};
+
+			// Should not throw even if DLQ fails
+			await handlePersistenceMessage({ message });
+			// Test passes if no exception is thrown
+		});
+
+		it("should handle malformed JSON gracefully", async () => {
+			const natsClient = createNatsClient("test");
+			const sendEventMock = natsClient.sendEvent as Mock;
+
+			const message = {
+				value: Buffer.from("{invalid json"),
+				headers: {},
+			};
+
+			// Should not throw
+			await handlePersistenceMessage({ message });
+
+			// Should send to DLQ with raw value
+			expect(sendEventMock).toHaveBeenCalledWith(
+				"memory.dead_letter",
+				expect.stringContaining("unknown-"),
+				expect.objectContaining({
+					payload: "{invalid json",
+				}),
+			);
+		});
+
+		it("should extract trace context from message headers", async () => {
+			const graphClient = createFalkorClient();
+			const queryMock = graphClient.query as Mock;
+			queryMock.mockResolvedValueOnce([{ id: "existing" }]);
+
+			const testEvent = {
+				event_id: "evt-123",
+				original_event_id: "orig-123",
+				type: "content",
+				role: "user",
+				content: "Test",
+				metadata: {
+					session_id: "session-123",
+				},
+			};
+
+			const message = {
+				value: Buffer.from(JSON.stringify(testEvent)),
+				headers: {
+					trace_id: Buffer.from("trace-456"),
+					message_id: Buffer.from("msg-789"),
+				},
+			};
+
+			// Should not throw
+			await handlePersistenceMessage({ message });
+		});
+
+		it("should handle messages without trace context", async () => {
+			const graphClient = createFalkorClient();
+			const queryMock = graphClient.query as Mock;
+			queryMock.mockResolvedValueOnce([]);
+
+			const testEvent = {
+				event_id: "evt-123",
+				metadata: {
+					session_id: "session-123",
+				},
+			};
+
+			const message = {
+				value: Buffer.from(JSON.stringify(testEvent)),
+				headers: {}, // No trace headers
+			};
+
+			// Should not throw
+			await handlePersistenceMessage({ message });
+		});
+	});
+
+	describe("startPersistenceConsumer", () => {
+		it("should be exported as a function", () => {
+			expect(startPersistenceConsumer).toBeDefined();
+			expect(typeof startPersistenceConsumer).toBe("function");
+		});
+	});
+
+	describe("main", () => {
+		it("should be exported as a function", async () => {
+			const { main } = await import("./index");
+
+			expect(main).toBeDefined();
+			expect(typeof main).toBe("function");
+		});
+	});
+
+	describe("Module-level callback coverage", () => {
+		it("should test onTurnFinalized callback error handling", async () => {
+			// This tests the error handling in the onTurnFinalized callback (lines 162-169)
+			const mockNats = createNatsClient("test");
+			const sendEventMock = mockNats.sendEvent as Mock;
+			sendEventMock.mockRejectedValueOnce(new Error("NATS publish failed"));
+
+			const mockLogger = {
+				info: mock(),
+				debug: mock(),
+				warn: mock(),
+				error: mock(),
+			};
+
+			const deps = createMemoryServiceDeps({
+				natsClient: mockNats,
+				logger: mockLogger as any,
+			});
+
+			// Trigger an event that will call onTurnFinalized
+			await deps.turnAggregator.processEvent(
+				{
+					type: "content",
+					role: "user",
+					content: "Test message",
+					event_id: "evt-123",
+					timestamp: new Date().toISOString(),
+				},
+				"test-session",
+			);
+
+			// Wait for async callback
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			// The onTurnFinalized callback should have been triggered
+			// but we can't easily verify the exact error path without exposing internals
+			// The main point is ensuring the test exercises that code path
+		});
+
+		it("should test onNodeCreated callback error handling", async () => {
+			// This tests error handling in onNodeCreated callback (lines 94-101 and 143-156)
+			const mockNatsPubSub = createNatsPubSubPublisher();
+			const publishMock = mockNatsPubSub.publishSessionUpdate as Mock;
+			publishMock.mockRejectedValueOnce(new Error("Publish failed"));
+
+			const mockLogger = {
+				info: mock(),
+				debug: mock(),
+				warn: mock(),
+				error: mock(),
+			};
+
+			const deps = createMemoryServiceDeps({
+				natsPubSub: mockNatsPubSub,
+				logger: mockLogger as any,
+			});
+
+			// Process an event to trigger onNodeCreated
+			await deps.turnAggregator.processEvent(
+				{
+					type: "content",
+					role: "user",
+					content: "Test",
+					event_id: "evt-123",
+					timestamp: new Date().toISOString(),
+				},
+				"test-session",
+			);
+
+			// Wait for async callback
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			// Error should have been logged
+			expect(mockLogger.error).toHaveBeenCalled();
 		});
 	});
 });

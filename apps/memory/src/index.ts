@@ -229,7 +229,164 @@ export function clearAllIntervals(): void {
 	}
 }
 
-// NATS Consumer for Persistence
+/**
+ * Message handler for NATS persistence consumer.
+ * Extracted for testability.
+ */
+export async function handlePersistenceMessage({ message }: { message: any }) {
+	// Extract trace context from NATS message headers
+	const headers = message.headers || {};
+	const traceId = headers.trace_id?.toString();
+	const correlationId = headers.correlation_id?.toString() || headers.message_id?.toString();
+
+	// Create child logger with trace context for this message
+	const messageLogger =
+		traceId || correlationId ? withTraceContext(logger, { traceId, correlationId }) : logger;
+
+	// Define event type for type safety
+	interface ParsedEvent {
+		event_id?: string;
+		original_event_id?: string;
+		type?: string;
+		role?: string;
+		content?: string;
+		thought?: string;
+		timestamp?: string;
+		metadata?: {
+			session_id?: string;
+			working_dir?: string;
+			git_remote?: string;
+			agent_type?: string;
+			user_id?: string;
+		};
+	}
+
+	let event: ParsedEvent | undefined;
+	let rawValue: string | undefined;
+	try {
+		rawValue = message.value?.toString();
+		if (!rawValue) return;
+		event = JSON.parse(rawValue) as ParsedEvent;
+
+		messageLogger.info(
+			{
+				event_summary: {
+					id: event.event_id,
+					meta: event.metadata,
+					orig: event.original_event_id,
+				},
+			},
+			"Memory received event",
+		);
+
+		const sessionId = event.metadata?.session_id || event.original_event_id; // ingestion might need to pass session_id better
+
+		if (!sessionId) {
+			messageLogger.warn("Event missing session_id, skipping persistence");
+			return;
+		}
+
+		// Persist to FalkorDB
+		await falkor.connect();
+
+		// 1. Check if session already exists
+		const existingSession = await falkor.query(`MATCH (s:Session {id: $sessionId}) RETURN s`, {
+			sessionId,
+		});
+		const isNewSession =
+			!existingSession || (Array.isArray(existingSession) && existingSession.length === 0);
+
+		// 2. Ensure Session Exists and update last_event_at + project context
+		const now = Date.now();
+		const workingDir = event.metadata?.working_dir || null;
+		const gitRemote = event.metadata?.git_remote || null;
+		const agentType = event.metadata?.agent_type || "unknown";
+
+		await falkor.query(
+			`MERGE (s:Session {id: $sessionId})
+                     ON CREATE SET
+                        s.started_at = $now,
+                        s.last_event_at = $now,
+                        s.user_id = $userId,
+                        s.working_dir = $workingDir,
+                        s.git_remote = $gitRemote,
+                        s.agent_type = $agentType
+                     ON MATCH SET
+                        s.last_event_at = $now,
+                        s.working_dir = COALESCE($workingDir, s.working_dir),
+                        s.git_remote = COALESCE($gitRemote, s.git_remote),
+                        s.agent_type = CASE WHEN $agentType <> 'unknown' THEN $agentType ELSE s.agent_type END`,
+			{
+				sessionId,
+				now,
+				userId: event.metadata?.user_id || "unknown",
+				workingDir,
+				gitRemote,
+				agentType,
+			},
+		);
+
+		// 3. If new session, publish to global sessions subject for homepage (via NATS pub/sub)
+		// Note: use camelCase to match frontend SessionListItem interface
+		if (isNewSession) {
+			await natsPubSub.publishGlobalSessionEvent("session_created", {
+				id: sessionId,
+				title: null,
+				userId: event.metadata?.user_id || "unknown",
+				startedAt: now,
+				lastEventAt: now,
+				eventCount: 1,
+				preview: null,
+				isActive: true,
+			});
+			logger.info({ sessionId }, "Published session_created event");
+		}
+
+		// 4. Aggregate into Turn nodes (new hierarchical model)
+		// This creates Turn, Reasoning, and FileTouch nodes
+		try {
+			await turnAggregator.processEvent(event, sessionId);
+		} catch (aggError) {
+			logger.error({ err: aggError, sessionId }, "Turn aggregation failed, continuing with legacy");
+		}
+
+		// Publish 'memory.node_created' for Search Service indexing
+		// Note: Real-time graph node updates are published via TurnAggregator's onNodeCreated callback
+		const eventId = event.original_event_id || crypto.randomUUID();
+		const type = event.type || "unknown";
+		const content = event.content || event.thought || "";
+		const role = event.role || "system";
+
+		await nats.sendEvent("memory.node_created", eventId, {
+			id: eventId,
+			labels: ["Turn"],
+			session_id: sessionId,
+			properties: { content, role, type },
+		});
+	} catch (e) {
+		const errorMessage = e instanceof Error ? e.message : String(e);
+		logger.error({ err: e }, "Persistence error");
+
+		// Send to Dead Letter Queue for later analysis/retry
+		try {
+			const eventId = event?.original_event_id || event?.event_id || `unknown-${Date.now()}`;
+			await nats.sendEvent("memory.dead_letter", String(eventId), {
+				error: errorMessage,
+				payload: event ?? rawValue,
+				timestamp: new Date().toISOString(),
+				source: "persistence_consumer",
+			});
+			logger.warn({ eventId }, "Sent failed message to memory DLQ");
+		} catch (dlqError) {
+			logger.error({ err: dlqError }, "Failed to send to DLQ");
+		}
+	}
+}
+
+/**
+ * Start NATS consumer for persistence operations.
+ * Exported for testing.
+ */
 export async function startPersistenceConsumer() {
 	const consumer = await nats.getConsumer({ groupId: "memory-group" });
 	await consumer.subscribe({ topic: "parsed_events", fromBeginning: false });
@@ -278,158 +435,7 @@ export async function startPersistenceConsumer() {
 	process.once("SIGINT", () => shutdown("SIGINT"));
 
 	await consumer.run({
-		eachMessage: async ({ message }) => {
-			// Extract trace context from NATS message headers
-			const headers = message.headers || {};
-			const traceId = headers.trace_id?.toString();
-			const correlationId = headers.correlation_id?.toString() || headers.message_id?.toString();
-
-			// Create child logger with trace context for this message
-			const messageLogger =
-				traceId || correlationId ? withTraceContext(logger, { traceId, correlationId }) : logger;
-
-			// Define event type for type safety
-			interface ParsedEvent {
-				event_id?: string;
-				original_event_id?: string;
-				type?: string;
-				role?: string;
-				content?: string;
-				thought?: string;
-				timestamp?: string;
-				metadata?: {
-					session_id?: string;
-					working_dir?: string;
-					git_remote?: string;
-					agent_type?: string;
-					user_id?: string;
-				};
-			}
-
-			let event: ParsedEvent | undefined;
-			let rawValue: string | undefined;
-			try {
-				rawValue = message.value?.toString();
-				if (!rawValue) return;
-				event = JSON.parse(rawValue) as ParsedEvent;
-
-				messageLogger.info(
-					{
-						event_summary: {
-							id: event.event_id,
-							meta: event.metadata,
-							orig: event.original_event_id,
-						},
-					},
-					"Memory received event",
-				);
-
-				const sessionId = event.metadata?.session_id || event.original_event_id; // ingestion might need to pass session_id better
-
-				if (!sessionId) {
-					messageLogger.warn("Event missing session_id, skipping persistence");
-					return;
-				}
-
-				// Persist to FalkorDB
-				await falkor.connect();
-
-				// 1. Check if session already exists
-				const existingSession = await falkor.query(`MATCH (s:Session {id: $sessionId}) RETURN s`, {
-					sessionId,
-				});
-				const isNewSession =
-					!existingSession || (Array.isArray(existingSession) && existingSession.length === 0);
-
-				// 2. Ensure Session Exists and update last_event_at + project context
-				const now = Date.now();
-				const workingDir = event.metadata?.working_dir || null;
-				const gitRemote = event.metadata?.git_remote || null;
-				const agentType = event.metadata?.agent_type || "unknown";
-
-				await falkor.query(
-					`MERGE (s:Session {id: $sessionId})
-                     ON CREATE SET
-                        s.started_at = $now,
-                        s.last_event_at = $now,
-                        s.user_id = $userId,
-                        s.working_dir = $workingDir,
-                        s.git_remote = $gitRemote,
-                        s.agent_type = $agentType
-                     ON MATCH SET
-                        s.last_event_at = $now,
-                        s.working_dir = COALESCE($workingDir, s.working_dir),
-                        s.git_remote = COALESCE($gitRemote, s.git_remote),
-                        s.agent_type = CASE WHEN $agentType <> 'unknown' THEN $agentType ELSE s.agent_type END`,
-					{
-						sessionId,
-						now,
-						userId: event.metadata?.user_id || "unknown",
-						workingDir,
-						gitRemote,
-						agentType,
-					},
-				);
-
-				// 3. If new session, publish to global sessions subject for homepage (via NATS pub/sub)
-				// Note: use camelCase to match frontend SessionListItem interface
-				if (isNewSession) {
-					await natsPubSub.publishGlobalSessionEvent("session_created", {
-						id: sessionId,
-						title: null,
-						userId: event.metadata?.user_id || "unknown",
-						startedAt: now,
-						lastEventAt: now,
-						eventCount: 1,
-						preview: null,
-						isActive: true,
-					});
-					logger.info({ sessionId }, "Published session_created event");
-				}
-
-				// 4. Aggregate into Turn nodes (new hierarchical model)
-				// This creates Turn, Reasoning, and FileTouch nodes
-				try {
-					await turnAggregator.processEvent(event, sessionId);
-				} catch (aggError) {
-					logger.error(
-						{ err: aggError, sessionId },
-						"Turn aggregation failed, continuing with legacy",
-					);
-				}
-
-				// Publish 'memory.node_created' for Search Service indexing
-				// Note: Real-time graph node updates are published via TurnAggregator's onNodeCreated callback
-				const eventId = event.original_event_id || crypto.randomUUID();
-				const type = event.type || "unknown";
-				const content = event.content || event.thought || "";
-				const role = event.role || "system";
-
-				await nats.sendEvent("memory.node_created", eventId, {
-					id: eventId,
-					labels: ["Turn"],
-					session_id: sessionId,
-					properties: { content, role, type },
-				});
-			} catch (e) {
-				const errorMessage = e instanceof Error ? e.message : String(e);
-				logger.error({ err: e }, "Persistence error");
-
-				// Send to Dead Letter Queue for later analysis/retry
-				try {
-					const eventId = event?.original_event_id || event?.event_id || `unknown-${Date.now()}`;
-					await nats.sendEvent("memory.dead_letter", String(eventId), {
-						error: errorMessage,
-						payload: event ?? rawValue,
-						timestamp: new Date().toISOString(),
-						source: "persistence_consumer",
-					});
-					logger.warn({ eventId }, "Sent failed message to memory DLQ");
-				} catch (dlqError) {
-					logger.error({ err: dlqError }, "Failed to send to DLQ");
-				}
-			}
-		},
+		eachMessage: handlePersistenceMessage,
 	});
 	logger.info("Memory Persistence Consumer started");
 }
@@ -504,7 +510,11 @@ server.tool(
 // Start Server
 export { server };
 
-async function main() {
+/**
+ * Main entry point for the memory service.
+ * Exported for testing.
+ */
+export async function main() {
 	await falkor.connect();
 	startPruningJob();
 	startTurnCleanupJob();
