@@ -91,6 +91,7 @@ class EngramSearchClient:
     def __init__(
         self,
         base_url: str = "http://localhost:6176",
+        api_key: str | None = None,
         timeout: float = 30.0,
         max_retries: int = 3,
     ) -> None:
@@ -99,14 +100,21 @@ class EngramSearchClient:
 
         Args:
             base_url: Base URL of the search-py service
+            api_key: Optional API key for authentication
             timeout: Request timeout in seconds
             max_retries: Maximum number of retry attempts
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=timeout,
+            headers=headers,
             transport=httpx.AsyncHTTPTransport(retries=max_retries),
         )
         logger.info(f"Initialized EngramSearchClient with base_url={self.base_url}")

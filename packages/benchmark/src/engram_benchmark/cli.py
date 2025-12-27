@@ -153,6 +153,14 @@ def run(
             help="URL for Engram search-py service (only for --retriever=engram)",
         ),
     ] = "http://localhost:6176",
+    search_api_key: Annotated[
+        str | None,
+        typer.Option(
+            "--search-api-key",
+            help="API key for Engram search service authentication",
+            envvar="SEARCH_API_KEY",
+        ),
+    ] = None,
     search_strategy: Annotated[
         str,
         typer.Option(
@@ -235,7 +243,7 @@ def run(
                 raise typer.Exit(1)
 
             # Create Engram search client
-            search_client = EngramSearchClient(base_url=search_url)
+            search_client = EngramSearchClient(base_url=search_url, api_key=search_api_key)
 
             # Test connection
             try:
