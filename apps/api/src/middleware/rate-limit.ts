@@ -1,7 +1,7 @@
 import type { Logger } from "@engram/logger";
 import type { Context, Next } from "hono";
 import { createClient } from "redis";
-import type { ApiKeyContext } from "./auth";
+import type { AuthContext } from "./auth";
 
 export interface RateLimiterOptions {
 	redisUrl: string;
@@ -11,7 +11,7 @@ export interface RateLimiterOptions {
 /**
  * Rate limiting middleware using sliding window algorithm with Redis
  *
- * Limits requests per minute based on API key tier.
+ * Limits requests per minute based on token rate limit.
  * Uses Redis for distributed rate limiting across multiple instances.
  */
 export function rateLimiter(options: RateLimiterOptions) {
@@ -50,18 +50,18 @@ export function rateLimiter(options: RateLimiterOptions) {
 	};
 
 	return async (c: Context, next: Next) => {
-		const apiKey = c.get("apiKey") as ApiKeyContext | undefined;
+		const auth = c.get("auth") as AuthContext | undefined;
 
-		if (!apiKey) {
-			// No API key context, skip rate limiting
+		if (!auth) {
+			// No auth context, skip rate limiting
 			await next();
 			return;
 		}
 
 		const now = Date.now();
 		const windowMs = 60 * 1000; // 1 minute
-		const limit = apiKey.rateLimit;
-		const key = `ratelimit:${apiKey.keyPrefix}`;
+		const limit = auth.rateLimit;
+		const key = `ratelimit:${auth.prefix}`;
 
 		try {
 			const redis = await getRedisClient();
@@ -102,10 +102,7 @@ export function rateLimiter(options: RateLimiterOptions) {
 				const retryAfter = Math.ceil((resetAt - now) / 1000);
 				c.header("Retry-After", String(retryAfter));
 
-				logger.warn(
-					{ keyId: apiKey.keyId, keyPrefix: apiKey.keyPrefix, count, limit },
-					"Rate limit exceeded",
-				);
+				logger.warn({ tokenId: auth.id, prefix: auth.prefix, count, limit }, "Rate limit exceeded");
 
 				return c.json(
 					{

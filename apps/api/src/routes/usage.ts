@@ -2,11 +2,11 @@ import type { Logger } from "@engram/logger";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { UsageRepository } from "../db/usage";
-import type { ApiKeyContext } from "../middleware/auth";
+import type { AuthContext } from "../middleware/auth";
 
 type Env = {
 	Variables: {
-		apiKey: ApiKeyContext;
+		auth: AuthContext;
 	};
 };
 
@@ -26,10 +26,10 @@ export function createUsageRoutes(options: UsageRoutesOptions) {
 	const { usageRepo, logger } = options;
 	const app = new Hono<Env>();
 
-	// GET /v1/usage - Get usage statistics for the authenticated API key
+	// GET /v1/usage - Get usage statistics for the authenticated token
 	app.get("/", async (c) => {
 		try {
-			const apiKey = c.get("apiKey") as ApiKeyContext;
+			const auth = c.get("auth") as AuthContext;
 
 			// Parse query parameters
 			const queryParams = {
@@ -60,7 +60,7 @@ export function createUsageRoutes(options: UsageRoutesOptions) {
 			};
 
 			if (parsed.data.granularity === "summary") {
-				const summary = await usageRepo.getUsageSummary(apiKey.keyId, options);
+				const summary = await usageRepo.getUsageSummary(auth.id, options);
 
 				return c.json({
 					success: true,
@@ -81,7 +81,7 @@ export function createUsageRoutes(options: UsageRoutesOptions) {
 				});
 			}
 
-			const periods = await usageRepo.getUsageStats(apiKey.keyId, {
+			const periods = await usageRepo.getUsageStats(auth.id, {
 				...options,
 				limit: 100,
 			});

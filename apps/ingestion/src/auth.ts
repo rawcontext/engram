@@ -1,9 +1,7 @@
 /**
  * Authentication middleware for Ingestion service.
  *
- * Supports both API keys and OAuth tokens:
- * - API keys: engram_live_<32 chars> or engram_test_<32 chars>
- * - OAuth tokens: engram_oauth_<32 hex chars>
+ * Supports OAuth tokens: engram_oauth_<32 hex chars>
  */
 
 import { createHash } from "node:crypto";
@@ -13,21 +11,13 @@ import pg from "pg";
 
 const { Pool } = pg;
 
-const API_KEY_PATTERN = /^engram_(live|test)_[a-zA-Z0-9]{32}$/;
 const OAUTH_TOKEN_PATTERN = /^engram_oauth_[a-f0-9]{32}$/;
+const DEV_TOKEN_PATTERN = /^engram_dev_[a-zA-Z0-9_]+$/;
 
 interface AuthConfig {
 	enabled: boolean;
 	postgresUrl: string;
 	logger: Logger;
-}
-
-interface ApiKeyRow {
-	id: string;
-	key_prefix: string;
-	scopes: string[];
-	is_active: boolean;
-	expires_at: Date | null;
 }
 
 interface OAuthTokenRow {
@@ -42,7 +32,7 @@ interface OAuthTokenRow {
 interface AuthContext {
 	id: string;
 	prefix: string;
-	method: "api_key" | "oauth";
+	method: "oauth" | "dev";
 	scopes: string[];
 }
 
@@ -57,9 +47,9 @@ export function initAuth(config: AuthConfig): void {
 			max: 5,
 			idleTimeoutMillis: 30000,
 		});
-		config.logger.info("API key authentication enabled");
+		config.logger.info("OAuth authentication enabled");
 	} else {
-		config.logger.warn("API key authentication DISABLED (AUTH_ENABLED=false)");
+		config.logger.warn("OAuth authentication DISABLED (AUTH_ENABLED=false)");
 	}
 }
 
@@ -68,35 +58,6 @@ export async function closeAuth(): Promise<void> {
 		await pool.end();
 		pool = null;
 	}
-}
-
-async function validateApiKey(apiKey: string): Promise<AuthContext | null> {
-	if (!pool) return null;
-
-	const keyHash = createHash("sha256").update(apiKey).digest("hex");
-
-	const result = await pool.query<ApiKeyRow>(
-		`SELECT id, key_prefix, scopes, is_active, expires_at
-		 FROM api_keys
-		 WHERE key_hash = $1`,
-		[keyHash],
-	);
-
-	if (result.rows.length === 0) return null;
-
-	const key = result.rows[0];
-	if (!key.is_active) return null;
-	if (key.expires_at && new Date(key.expires_at) < new Date()) return null;
-
-	// Update last_used_at (fire and forget)
-	pool.query("UPDATE api_keys SET last_used_at = NOW() WHERE id = $1", [key.id]).catch(() => {});
-
-	return {
-		id: key.id,
-		prefix: key.key_prefix,
-		method: "api_key",
-		scopes: key.scopes,
-	};
 }
 
 async function validateOAuthToken(token: string): Promise<AuthContext | null> {
@@ -132,14 +93,19 @@ async function validateOAuthToken(token: string): Promise<AuthContext | null> {
 }
 
 async function validateToken(token: string): Promise<AuthContext | null> {
-	// Try OAuth token first
-	if (OAUTH_TOKEN_PATTERN.test(token)) {
-		return validateOAuthToken(token);
+	// Handle dev tokens for local development
+	if (DEV_TOKEN_PATTERN.test(token)) {
+		return {
+			id: "dev",
+			prefix: token.slice(0, 20),
+			method: "dev",
+			scopes: ["memory:read", "memory:write", "query:read", "ingest:write"],
+		};
 	}
 
-	// Try API key
-	if (API_KEY_PATTERN.test(token)) {
-		return validateApiKey(token);
+	// Try OAuth token
+	if (OAUTH_TOKEN_PATTERN.test(token)) {
+		return validateOAuthToken(token);
 	}
 
 	return null;
@@ -169,7 +135,7 @@ function sendForbidden(res: ServerResponse, message: string): void {
  * Authenticate incoming request. Returns true if authorized, false if rejected.
  * When false, response has already been sent.
  *
- * Supports both API keys and OAuth tokens.
+ * Supports OAuth tokens only.
  */
 export async function authenticateRequest(
 	req: IncomingMessage,
@@ -196,7 +162,7 @@ export async function authenticateRequest(
 	const token = authHeader.slice(7);
 
 	// Check if token matches any valid format
-	if (!API_KEY_PATTERN.test(token) && !OAUTH_TOKEN_PATTERN.test(token)) {
+	if (!OAUTH_TOKEN_PATTERN.test(token) && !DEV_TOKEN_PATTERN.test(token)) {
 		sendUnauthorized(res, "Invalid token format");
 		return false;
 	}

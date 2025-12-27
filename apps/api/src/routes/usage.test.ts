@@ -2,11 +2,13 @@ import { describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { createUsageRoutes } from "./usage";
 
-// Mock API key context middleware
-const mockApiKeyContext = {
-	keyId: "key-123",
-	keyPrefix: "engram_live_...",
-	keyType: "live" as const,
+// Mock auth context middleware
+const mockAuthContext = {
+	id: "token-123",
+	prefix: "engram_oauth_...",
+	method: "oauth" as const,
+	type: "oauth" as const,
+	userId: "user-123",
 	scopes: ["memory:read", "memory:write"],
 	rateLimit: 60,
 };
@@ -23,7 +25,7 @@ function createApp(usageRepo: any) {
 
 	// Mock auth middleware
 	app.use("*", async (c, next) => {
-		c.set("apiKey", mockApiKeyContext);
+		c.set("auth", mockAuthContext);
 		await next();
 	});
 
@@ -63,7 +65,7 @@ describe("Usage Routes", () => {
 				recall: 500,
 				query: 100,
 			});
-			expect(mockUsageRepo.getUsageSummary).toHaveBeenCalledWith("key-123", {
+			expect(mockUsageRepo.getUsageSummary).toHaveBeenCalledWith("token-123", {
 				startDate: undefined,
 				endDate: undefined,
 			});
@@ -105,7 +107,7 @@ describe("Usage Routes", () => {
 			);
 
 			expect(res.status).toBe(200);
-			expect(mockUsageRepo.getUsageSummary).toHaveBeenCalledWith("key-123", {
+			expect(mockUsageRepo.getUsageSummary).toHaveBeenCalledWith("token-123", {
 				startDate: new Date("2024-01-01T00:00:00Z"),
 				endDate: new Date("2024-01-07T23:59:59Z"),
 			});
@@ -141,7 +143,7 @@ describe("Usage Routes", () => {
 			expect(body.data.periods[0].requestCount).toBe(50);
 			expect(body.data.periods[0].errorCount).toBe(2);
 			expect(body.data.periods[1].requestCount).toBe(30);
-			expect(mockUsageRepo.getUsageStats).toHaveBeenCalledWith("key-123", {
+			expect(mockUsageRepo.getUsageStats).toHaveBeenCalledWith("token-123", {
 				startDate: undefined,
 				endDate: undefined,
 				limit: 100,
@@ -159,7 +161,7 @@ describe("Usage Routes", () => {
 			);
 
 			expect(res.status).toBe(200);
-			expect(mockUsageRepo.getUsageStats).toHaveBeenCalledWith("key-123", {
+			expect(mockUsageRepo.getUsageStats).toHaveBeenCalledWith("token-123", {
 				startDate: new Date("2024-01-01T00:00:00Z"),
 				endDate: new Date("2024-01-31T23:59:59Z"),
 				limit: 100,
@@ -223,7 +225,7 @@ describe("Usage Routes", () => {
 
 			const app = new Hono();
 			app.use("*", async (c, next) => {
-				c.set("apiKey", mockApiKeyContext);
+				c.set("auth", mockAuthContext);
 				await next();
 			});
 			app.route(

@@ -2,7 +2,7 @@
  * HTTP client for search service
  * Base URL: http://localhost:6176 (configurable via SEARCH_URL env var)
  * Endpoints are under /v1/search/* namespace
- * Auth: Uses ENGRAM_API_KEY for service-to-service authentication
+ * Auth: Uses ENGRAM_AUTH_TOKEN for service-to-service authentication
  */
 
 export type RerankerTier = "fast" | "accurate" | "code" | "llm";
@@ -67,14 +67,14 @@ export async function search(
 ): Promise<SearchPyResponse> {
 	const url = baseUrl || process.env.SEARCH_URL || "http://localhost:6176";
 	const endpoint = `${url}/v1/search/query`;
-	const apiKey = process.env.ENGRAM_API_KEY;
+	const authToken = process.env.ENGRAM_AUTH_TOKEN;
 
 	const headers: Record<string, string> = {
 		"Content-Type": "application/json",
 	};
 
-	if (apiKey) {
-		headers.Authorization = `Bearer ${apiKey}`;
+	if (authToken) {
+		headers.Authorization = `Bearer ${authToken}`;
 	}
 
 	try {

@@ -4,17 +4,17 @@ import { SearchPyError, search } from "./search-client";
 global.fetch = mock();
 
 describe("search-client", () => {
-	const originalEngramApiKey = process.env.ENGRAM_API_KEY;
+	const originalAuthToken = process.env.ENGRAM_AUTH_TOKEN;
 
 	beforeEach(() => {
-		// Clear API key for tests that check exact headers
-		delete process.env.ENGRAM_API_KEY;
+		// Clear auth token for tests that check exact headers
+		delete process.env.ENGRAM_AUTH_TOKEN;
 	});
 
 	afterEach(() => {
 		// Restore original value
-		if (originalEngramApiKey) {
-			process.env.ENGRAM_API_KEY = originalEngramApiKey;
+		if (originalAuthToken) {
+			process.env.ENGRAM_AUTH_TOKEN = originalAuthToken;
 		}
 	});
 
@@ -87,8 +87,8 @@ describe("search-client", () => {
 			process.env.SEARCH_URL = originalEnv;
 		});
 
-		it("should include Authorization header when ENGRAM_API_KEY is set", async () => {
-			process.env.ENGRAM_API_KEY = "test_api_key";
+		it("should include Authorization header when ENGRAM_AUTH_TOKEN is set", async () => {
+			process.env.ENGRAM_AUTH_TOKEN = "test_auth_token";
 			const mockResponse = { results: [], total: 0, took_ms: 10 };
 
 			(fetch as Mock).mockResolvedValue({
@@ -102,12 +102,12 @@ describe("search-client", () => {
 				"http://localhost:6176/v1/search/query",
 				expect.objectContaining({
 					headers: expect.objectContaining({
-						Authorization: "Bearer test_api_key",
+						Authorization: "Bearer test_auth_token",
 					}),
 				}),
 			);
 
-			delete process.env.ENGRAM_API_KEY;
+			delete process.env.ENGRAM_AUTH_TOKEN;
 		});
 
 		it("should include all request parameters", async () => {

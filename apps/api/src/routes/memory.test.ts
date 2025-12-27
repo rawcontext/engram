@@ -2,11 +2,13 @@ import { describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { createMemoryRoutes } from "./memory";
 
-// Mock API key context middleware
-const mockApiKeyContext = {
-	keyId: "key-123",
-	keyPrefix: "engram_live_...",
-	keyType: "live" as const,
+// Mock auth context middleware
+const mockAuthContext = {
+	id: "token-123",
+	prefix: "engram_oauth_...",
+	method: "oauth" as const,
+	type: "oauth" as const,
+	userId: "user-123",
 	scopes: ["memory:read", "memory:write", "query:read"],
 	rateLimit: 60,
 };
@@ -23,7 +25,7 @@ function createApp(memoryService: any) {
 
 	// Mock auth middleware
 	app.use("*", async (c, next) => {
-		c.set("apiKey", mockApiKeyContext);
+		c.set("auth", mockAuthContext);
 		await next();
 	});
 
@@ -365,7 +367,7 @@ describe("Memory Routes", () => {
 
 			const app = new Hono();
 			app.use("*", async (c, next) => {
-				c.set("apiKey", mockApiKeyContext);
+				c.set("auth", mockAuthContext);
 				await next();
 			});
 			app.route(
@@ -402,7 +404,7 @@ describe("Memory Routes", () => {
 
 			const app = new Hono();
 			app.use("*", async (c, next) => {
-				c.set("apiKey", mockApiKeyContext);
+				c.set("auth", mockAuthContext);
 				await next();
 			});
 			app.route(
@@ -439,7 +441,7 @@ describe("Memory Routes", () => {
 
 			const app = new Hono();
 			app.use("*", async (c, next) => {
-				c.set("apiKey", mockApiKeyContext);
+				c.set("auth", mockAuthContext);
 				await next();
 			});
 			app.route(
@@ -476,7 +478,7 @@ describe("Memory Routes", () => {
 
 			const app = new Hono();
 			app.use("*", async (c, next) => {
-				c.set("apiKey", mockApiKeyContext);
+				c.set("auth", mockAuthContext);
 				await next();
 			});
 			app.route(

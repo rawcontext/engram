@@ -1,69 +1,50 @@
 import type { Logger } from "@engram/logger";
 import type { Context, Next } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import type { ApiKey, ApiKeyRepository } from "../db/api-keys";
 import type { OAuthToken, OAuthTokenRepository } from "../db/oauth-tokens";
 
 // Token patterns
-const API_KEY_PATTERN = /^engram_(live|test)_[a-zA-Z0-9]{32}$/;
 const OAUTH_TOKEN_PATTERN = /^engram_oauth_[a-zA-Z0-9]{32}$/;
 const DEV_TOKEN_PATTERN = /^engram_dev_[a-zA-Z0-9_]+$/;
 
 export interface AuthOptions {
 	logger: Logger;
-	apiKeyRepo: ApiKeyRepository;
-	oauthTokenRepo?: OAuthTokenRepository;
+	oauthTokenRepo: OAuthTokenRepository;
 }
 
 /**
- * Unified auth context that works for both API keys and OAuth tokens.
+ * Auth context for OAuth tokens.
  */
 export interface AuthContext {
-	/** Unique identifier (key ID or token ID) */
+	/** Unique token ID */
 	id: string;
 	/** Display prefix for logging */
 	prefix: string;
 	/** Authentication method */
-	method: "api_key" | "oauth";
-	/** Token/key type */
-	type: "live" | "test" | "oauth" | "dev";
-	/** User ID (optional for API keys, required for OAuth) */
-	userId?: string;
+	method: "oauth" | "dev";
+	/** Token type */
+	type: "oauth" | "dev";
+	/** User ID */
+	userId: string;
 	/** Granted scopes */
 	scopes: string[];
 	/** Rate limit (requests per minute) */
 	rateLimit: number;
-	/** User info (only for OAuth tokens) */
+	/** User info */
 	user?: {
 		name: string;
 		email: string;
 	};
-
-	// Backward compatibility aliases
-	/** @deprecated Use `id` instead */
-	keyId: string;
-	/** @deprecated Use `prefix` instead */
-	keyPrefix: string;
-	/** @deprecated Use `type` instead */
-	keyType: "live" | "test" | "oauth" | "dev";
-}
-
-// Keep backward compatibility
-export type ApiKeyContext = AuthContext;
-
-export interface ApiKeyAuthOptions {
-	logger: Logger;
-	apiKeyRepo: ApiKeyRepository;
 }
 
 /**
- * Unified authentication middleware
+ * OAuth authentication middleware
  *
- * Validates Bearer tokens against both API keys and OAuth tokens.
+ * Validates Bearer tokens against OAuth tokens.
  * Sets the auth context on the request for downstream use.
  */
 export function auth(options: AuthOptions) {
-	const { logger, apiKeyRepo, oauthTokenRepo } = options;
+	const { logger, oauthTokenRepo } = options;
 
 	return async (c: Context, next: Next) => {
 		const authHeader = c.req.header("Authorization");
@@ -96,25 +77,26 @@ export function auth(options: AuthOptions) {
 
 		const token = authHeader.slice(7); // Remove "Bearer " prefix
 
-		// Try OAuth token first if it matches the pattern
-		if (OAUTH_TOKEN_PATTERN.test(token) && oauthTokenRepo) {
-			const result = await validateOAuthToken(token, oauthTokenRepo, logger);
-			if (result.success) {
-				c.set("apiKey", result.context);
-				c.set("auth", result.context);
-				await next();
-				return;
-			}
-			if (result.error) {
-				return c.json(result.error, result.status ?? 401);
-			}
+		// Handle dev tokens for local development
+		if (DEV_TOKEN_PATTERN.test(token)) {
+			const devContext: AuthContext = {
+				id: "dev",
+				prefix: token.slice(0, 20),
+				method: "dev",
+				type: "dev",
+				userId: "dev",
+				scopes: ["memory:read", "memory:write", "query:read", "state:write"],
+				rateLimit: 1000,
+			};
+			c.set("auth", devContext);
+			await next();
+			return;
 		}
 
-		// Try API key
-		if (API_KEY_PATTERN.test(token) || DEV_TOKEN_PATTERN.test(token)) {
-			const result = await validateApiKey(token, apiKeyRepo, logger);
+		// Validate OAuth token
+		if (OAUTH_TOKEN_PATTERN.test(token)) {
+			const result = await validateOAuthToken(token, oauthTokenRepo, logger);
 			if (result.success) {
-				c.set("apiKey", result.context);
 				c.set("auth", result.context);
 				await next();
 				return;
@@ -136,16 +118,6 @@ export function auth(options: AuthOptions) {
 			401,
 		);
 	};
-}
-
-/**
- * Legacy API key authentication middleware (for backward compatibility)
- */
-export function apiKeyAuth(options: ApiKeyAuthOptions) {
-	return auth({
-		logger: options.logger,
-		apiKeyRepo: options.apiKeyRepo,
-	});
 }
 
 // =============================================================================
@@ -206,75 +178,11 @@ async function validateOAuthToken(
 		scopes: validatedToken.scopes,
 		rateLimit: validatedToken.rateLimitRpm,
 		user: validatedToken.user,
-		// Backward compatibility
-		keyId: validatedToken.id,
-		keyPrefix: validatedToken.accessTokenPrefix,
-		keyType: "oauth",
 	};
 
 	logger.debug(
 		{ tokenId: context.id, prefix: context.prefix, userId: context.userId },
 		"OAuth token authenticated",
-	);
-
-	return { success: true, context };
-}
-
-async function validateApiKey(
-	key: string,
-	repo: ApiKeyRepository,
-	logger: Logger,
-): Promise<ValidationResult> {
-	let validatedKey: ApiKey | null;
-
-	try {
-		validatedKey = await repo.validate(key);
-	} catch (error) {
-		logger.error({ error }, "Failed to validate API key");
-		return {
-			success: false,
-			error: {
-				success: false,
-				error: {
-					code: "INTERNAL_ERROR",
-					message: "Failed to validate API key",
-				},
-			},
-			status: 500,
-		};
-	}
-
-	if (!validatedKey) {
-		return {
-			success: false,
-			error: {
-				success: false,
-				error: {
-					code: "UNAUTHORIZED",
-					message: "Invalid or expired API key",
-				},
-			},
-			status: 401,
-		};
-	}
-
-	const context: AuthContext = {
-		id: validatedKey.id,
-		prefix: validatedKey.keyPrefix,
-		method: "api_key",
-		type: validatedKey.keyType,
-		userId: validatedKey.userId,
-		scopes: validatedKey.scopes,
-		rateLimit: validatedKey.rateLimitRpm,
-		// Backward compatibility
-		keyId: validatedKey.id,
-		keyPrefix: validatedKey.keyPrefix,
-		keyType: validatedKey.keyType,
-	};
-
-	logger.debug(
-		{ keyId: context.id, prefix: context.prefix, type: context.type },
-		"API key authenticated",
 	);
 
 	return { success: true, context };

@@ -5,14 +5,12 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger as honoLogger } from "hono/logger";
 import { loadConfig } from "./config";
-import { ApiKeyRepository } from "./db/api-keys";
 import { runMigrations } from "./db/migrate";
+import { OAuthTokenRepository } from "./db/oauth-tokens";
 import { StateRepository } from "./db/state";
 import { UsageRepository } from "./db/usage";
-import { apiKeyAuth } from "./middleware/auth";
+import { auth } from "./middleware/auth";
 import { rateLimiter } from "./middleware/rate-limit";
-import { requireScopes } from "./middleware/scopes";
-import { createApiKeyRoutes } from "./routes/api-keys";
 import { createHealthRoutes } from "./routes/health";
 import { createMemoryRoutes } from "./routes/memory";
 import { createStateRoutes } from "./routes/state";
@@ -42,7 +40,7 @@ async function main() {
 	await runMigrations(postgresClient, logger);
 
 	// Initialize repositories
-	const apiKeyRepo = new ApiKeyRepository(postgresClient);
+	const oauthTokenRepo = new OAuthTokenRepository(postgresClient);
 	const usageRepo = new UsageRepository(postgresClient);
 	const stateRepo = new StateRepository(postgresClient);
 
@@ -65,23 +63,17 @@ async function main() {
 
 	// Protected routes
 	const protectedRoutes = new Hono();
-	protectedRoutes.use("*", apiKeyAuth({ logger, apiKeyRepo }));
+	protectedRoutes.use("*", auth({ logger, oauthTokenRepo }));
 	protectedRoutes.use("*", rateLimiter({ redisUrl: config.redisUrl, logger }));
 
 	// Memory routes - require memory scopes
 	protectedRoutes.route("/memory", createMemoryRoutes({ memoryService, logger }));
 
-	// Usage routes - any authenticated key can view usage
+	// Usage routes - any authenticated token can view usage
 	protectedRoutes.route("/usage", createUsageRoutes({ usageRepo, logger }));
 
-	// API key management routes - require keys:manage scope
-	const keyManagementRoutes = new Hono();
-	keyManagementRoutes.use("*", requireScopes("keys:manage"));
-	keyManagementRoutes.route("/", createApiKeyRoutes({ apiKeyRepo, logger }));
-	protectedRoutes.route("/keys", keyManagementRoutes);
-
-	// OpenTofu state routes - uses Basic Auth (password = API key with state:write scope)
-	app.route("/v1/tofu", createStateRoutes({ stateRepo, apiKeyRepo, logger }));
+	// OpenTofu state routes - uses Basic Auth (password = OAuth token with state:write scope)
+	app.route("/v1/tofu", createStateRoutes({ stateRepo, oauthTokenRepo, logger }));
 
 	app.route("/v1", protectedRoutes);
 

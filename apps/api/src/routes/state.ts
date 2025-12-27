@@ -1,22 +1,22 @@
 import type { Logger } from "@engram/logger";
 import { Hono } from "hono";
 import { basicAuth } from "hono/basic-auth";
-import type { ApiKeyRepository } from "../db/api-keys.js";
+import type { OAuthTokenRepository } from "../db/oauth-tokens.js";
 import type { LockInfo, StateRepository } from "../db/state.js";
 
 interface StateRoutesOptions {
 	stateRepo: StateRepository;
-	apiKeyRepo: ApiKeyRepository;
+	oauthTokenRepo: OAuthTokenRepository;
 	logger: Logger;
 }
 
 /**
  * HTTP backend routes for OpenTofu/Terraform remote state
  *
- * Uses Basic Auth where password is an API key with state:write scope.
+ * Uses Basic Auth where password is an OAuth token with state:write scope.
  * Set environment variables:
  *   TF_HTTP_USERNAME=tofu
- *   TF_HTTP_PASSWORD=engram_live_xxxxx
+ *   TF_HTTP_PASSWORD=engram_oauth_xxxxx
  *
  * Implements the HTTP backend protocol:
  * - GET /state - Get current state
@@ -24,26 +24,29 @@ interface StateRoutesOptions {
  * - LOCK /state - Acquire lock (custom method, also accepts POST)
  * - UNLOCK /state - Release lock (custom method, also accepts POST/DELETE)
  */
-export function createStateRoutes({ stateRepo, apiKeyRepo, logger }: StateRoutesOptions) {
+export function createStateRoutes({ stateRepo, oauthTokenRepo, logger }: StateRoutesOptions) {
 	const app = new Hono();
 	const STATE_ID = "default"; // Single state for now, could be parameterized
 
-	// Basic auth middleware - validates API key and checks for state:write scope
+	// Basic auth middleware - validates OAuth token and checks for state:write scope
 	app.use(
 		"*",
 		basicAuth({
 			verifyUser: async (_username, password, _c) => {
-				// Password is the API key
-				const apiKey = await apiKeyRepo.validate(password);
-				if (!apiKey) {
-					logger.warn("Invalid API key for tofu state");
+				// Password is the OAuth token
+				const token = await oauthTokenRepo.validate(password);
+				if (!token) {
+					logger.warn("Invalid OAuth token for tofu state");
 					return false;
 				}
-				if (!apiKey.scopes.includes("state:write")) {
-					logger.warn({ keyPrefix: apiKey.keyPrefix }, "API key missing state:write scope");
+				if (!token.scopes.includes("state:write")) {
+					logger.warn(
+						{ tokenPrefix: token.accessTokenPrefix },
+						"OAuth token missing state:write scope",
+					);
 					return false;
 				}
-				logger.debug({ keyPrefix: apiKey.keyPrefix }, "Tofu state auth successful");
+				logger.debug({ tokenPrefix: token.accessTokenPrefix }, "Tofu state auth successful");
 				return true;
 			},
 		}),
