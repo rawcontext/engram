@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "./providers";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 
@@ -12,11 +13,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<body className="antialiased">
-				<Sidebar />
-				<Header />
-				<main className="ml-[var(--sidebar-width)] pt-[var(--header-height)] min-h-screen relative z-10">
-					<div className="p-6">{children}</div>
-				</main>
+				<Providers>
+					<Sidebar />
+					<Header />
+					<main className="ml-[var(--sidebar-width)] pt-[var(--header-height)] min-h-screen relative z-10">
+						<div className="p-6">{children}</div>
+					</main>
+				</Providers>
 			</body>
 		</html>
 	);

@@ -58,6 +58,7 @@
         "better-auth": "^1.4.7",
         "lucide-react": "^0.562.0",
         "next": "^16.1.0",
+        "pg": "^8.16.0",
         "react": "^19.2.3",
         "react-dom": "^19.2.3",
         "recharts": "^2.15.4",
