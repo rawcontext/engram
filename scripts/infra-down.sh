@@ -11,11 +11,9 @@ echo "=============================================="
 echo "Stopping TypeScript services..."
 pkill -f "tsx.*@engram/memory" 2>/dev/null || true
 pkill -f "tsx.*@engram/ingestion" 2>/dev/null || true
-pkill -f "tsx.*@engram/control" 2>/dev/null || true
 pkill -f "tsx.*@engram/observatory" 2>/dev/null || true
 pkill -f "tsx.*apps/memory" 2>/dev/null || true
 pkill -f "tsx.*apps/ingestion" 2>/dev/null || true
-pkill -f "tsx.*apps/control" 2>/dev/null || true
 pkill -f "tsx.*apps/observatory" 2>/dev/null || true
 
 # Stop Python services

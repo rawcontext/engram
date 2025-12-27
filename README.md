@@ -39,7 +39,6 @@ CLI Agents → Ingestion (6175) → NATS → Memory → FalkorDB
 | App | Port | Purpose |
 |-----|------|---------|
 | [api](apps/api) | 6174 | REST API - memory ops, OAuth, rate limiting, OpenTofu state backend |
-| [control](apps/control) | - | XState decision engine, VFS, MCP tool routing |
 | [ingestion](apps/ingestion) | 6175 | Event parsing from 8+ providers, PII redaction |
 | [mcp](apps/mcp) | stdio | MCP server - remember/recall/query/context tools |
 | [memory](apps/memory) | - | Graph persistence, turn aggregation, NATS consumer |

@@ -4,7 +4,7 @@ Virtual file system implementations for Engram's bitemporal agent memory system.
 
 ## Purpose
 
-Provides file system abstractions for agent sessions, time-travel reconstruction, testing, and production I/O. Used by `@engram/temporal` for VFS state rehydration and `apps/control` for session orchestration.
+Provides file system abstractions for agent sessions, time-travel reconstruction, testing, and production I/O. Used by `@engram/temporal` for VFS state rehydration.
 
 ## Installation
 

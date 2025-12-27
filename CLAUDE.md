@@ -56,7 +56,6 @@ IMPORTANT: Run `uv run ruff check` and `uv run pytest` before committing.
 ```
 apps/
 ├── api/         # Cloud REST API (Hono) - memory operations, API key auth, rate limiting (port 6174)
-├── control/     # Session orchestration, XState decision engine, VFS, MCP tool integration
 ├── ingestion/   # Event parsing pipeline, 8+ provider parsers, PII redaction (port 6175)
 ├── mcp/         # Engram MCP server - remember/recall/query/context tools (stdio + HTTP ingest)
 ├── memory/      # Graph persistence, turn aggregation, real-time pub/sub (NATS consumer)

@@ -34,9 +34,6 @@ echo "Memory service started (logs: /tmp/engram-memory.log)"
 (cd apps/ingestion && bun run dev) > /tmp/engram-ingestion.log 2>&1 &
 echo "Ingestion service started (logs: /tmp/engram-ingestion.log)"
 
-(cd apps/control && bun run dev) > /tmp/engram-control.log 2>&1 &
-echo "Control service started (logs: /tmp/engram-control.log)"
-
 (cd apps/observatory && bun run dev) > /tmp/engram-observatory.log 2>&1 &
 echo "Observatory service started (logs: /tmp/engram-observatory.log)"
 
@@ -54,7 +51,6 @@ echo ""
 echo "Services:"
 echo "  Memory:      http://localhost:stdio (MCP)"
 echo "  Ingestion:   http://localhost:6175"
-echo "  Control:     http://localhost:stdio (MCP)"
 echo "  Observatory: http://localhost:6178"
 echo "  Search:      http://localhost:6176"
 echo ""

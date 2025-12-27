@@ -106,7 +106,6 @@ updates:
   - package-ecosystem: "docker"
     directories:
       - "/apps/api"
-      - "/apps/control"
       - "/apps/ingestion"
       - "/apps/memory"
       - "/apps/observatory"
