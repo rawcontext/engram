@@ -66,8 +66,13 @@ export function isLocalhostUrl(url: string): boolean {
  * Detect whether to run in cloud or local mode based on API URL.
  * - localhost URLs → local mode (uses dev API key, no OAuth)
  * - Remote URLs → cloud mode (OAuth required)
+ * - ENGRAM_FORCE_OAUTH=true → cloud mode (forces OAuth for local testing)
  */
 export function detectMode(config: Config): "cloud" | "local" {
+	// Allow forcing OAuth mode for local testing
+	if (process.env.ENGRAM_FORCE_OAUTH === "true") {
+		return "cloud";
+	}
 	return isLocalhostUrl(config.engramApiUrl) ? "local" : "cloud";
 }
 
@@ -76,6 +81,7 @@ export function loadConfig(): Config {
 	const isLocalhost = isLocalhostUrl(apiUrl);
 
 	// Determine Observatory URL based on API URL
+	// When forcing OAuth locally (ENGRAM_FORCE_OAUTH=true), will use local Observatory by default
 	const observatoryUrl =
 		process.env.ENGRAM_OBSERVATORY_URL ??
 		(isLocalhost ? DEFAULT_OBSERVATORY_URL : PRODUCTION_OBSERVATORY_URL);

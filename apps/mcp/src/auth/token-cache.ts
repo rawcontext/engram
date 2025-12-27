@@ -53,7 +53,17 @@ export class TokenCache {
 			const content = readFileSync(this.cachePath, "utf-8");
 			this.tokens = JSON.parse(content) as CachedTokens;
 
-			this.logger.debug({ user: this.tokens.user.email }, "Loaded tokens from cache");
+			// Validate required fields
+			if (!this.tokens.access_token || !this.tokens.expires_at || !this.tokens.user) {
+				this.logger.warn({ path: this.cachePath }, "Token cache missing required fields");
+				return null;
+			}
+
+			const expiresIn = Math.round((this.tokens.expires_at - Date.now()) / 1000 / 60);
+			this.logger.debug(
+				{ user: this.tokens.user.email, expiresInMinutes: expiresIn },
+				"Loaded tokens from cache",
+			);
 			return this.tokens;
 		} catch (error) {
 			this.logger.warn({ error, path: this.cachePath }, "Failed to load token cache");

@@ -12,7 +12,13 @@ async function main() {
 
 	// In cloud mode, authenticate via OAuth device flow
 	if (mode === "cloud") {
-		if (!hasValidCredentials(logger)) {
+		const hasCredentials = hasValidCredentials(logger);
+		logger.debug(
+			{ hasCredentials, cachePath: tokenCache?.["cachePath"] },
+			"Checking OAuth credentials",
+		);
+
+		if (!hasCredentials) {
 			// Start device flow authentication
 			if (!deviceFlowClient) {
 				throw new Error("Device flow client not initialized");
