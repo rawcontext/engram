@@ -394,6 +394,225 @@ export class ApiClient {
 	getWebSocketUrl(path: string): string {
 		return `${this.wsUrl}${path}`;
 	}
+
+	// Admin Tools - Graph Query Executor
+	async executeGraphQuery(
+		query: string,
+		params?: Record<string, unknown>,
+	): Promise<{
+		results: Array<Record<string, unknown>>;
+		executionTime: number;
+		nodeCount: number;
+		relationshipCount: number;
+	}> {
+		return this.fetch("/v1/memory/query", {
+			method: "POST",
+			body: JSON.stringify({ cypher: query, params }),
+		});
+	}
+
+	// Admin Tools - Vector Search
+	async vectorSearch(
+		query: string,
+		options: {
+			strategy?: "dense" | "sparse" | "hybrid";
+			rerank?: boolean;
+			rerank_tier?: "fast" | "accurate" | "code" | "llm";
+			limit?: number;
+		} = {},
+	): Promise<{
+		results: Array<{
+			id: string;
+			content: string;
+			score: number;
+			type?: string;
+			metadata?: Record<string, unknown>;
+		}>;
+		latency: number;
+		strategy: string;
+	}> {
+		return this.fetch("/v1/memory/recall", {
+			method: "POST",
+			body: JSON.stringify({ query, ...options }),
+		});
+	}
+
+	// Admin Tools - Cache Management
+	async clearCache(cacheType: "embedding" | "query" | "all"): Promise<{
+		success: boolean;
+		clearedKeys: number;
+		timestamp: number;
+	}> {
+		return this.fetch("/v1/admin/cache/clear", {
+			method: "POST",
+			body: JSON.stringify({ type: cacheType }),
+		});
+	}
+
+	// Admin Tools - NATS Consumer Reset
+	async resetConsumer(stream: string): Promise<{
+		success: boolean;
+		stream: string;
+		consumer: string;
+		timestamp: number;
+	}> {
+		return this.fetch("/v1/admin/consumers/reset", {
+			method: "POST",
+			body: JSON.stringify({ stream }),
+		});
+	}
+
+	// Admin Tools - Get available NATS streams
+	async getStreams(): Promise<{
+		streams: Array<{
+			name: string;
+			messages: number;
+			consumers: number;
+		}>;
+	}> {
+		return this.fetch("/v1/admin/streams");
+	}
+
+	// Alert Configuration - Alert Rules
+	async getAlertRules(): Promise<{
+		rules: Array<{
+			id: string;
+			name: string;
+			metric: string;
+			condition: "greater_than" | "less_than" | "equals";
+			threshold: number;
+			duration: number;
+			severity: "critical" | "warning" | "info";
+			enabled: boolean;
+			status: "active" | "triggered" | "muted";
+			channels: string[];
+			lastTriggered?: number;
+		}>;
+	}> {
+		return this.fetch("/v1/alerts/rules");
+	}
+
+	async createAlertRule(rule: {
+		name: string;
+		metric: string;
+		condition: "greater_than" | "less_than" | "equals";
+		threshold: number;
+		duration: number;
+		severity: "critical" | "warning" | "info";
+		channels: string[];
+	}): Promise<{ id: string; success: boolean }> {
+		return this.fetch("/v1/alerts/rules", {
+			method: "POST",
+			body: JSON.stringify(rule),
+		});
+	}
+
+	async updateAlertRule(
+		id: string,
+		updates: Partial<{
+			name: string;
+			metric: string;
+			condition: "greater_than" | "less_than" | "equals";
+			threshold: number;
+			duration: number;
+			severity: "critical" | "warning" | "info";
+			enabled: boolean;
+			channels: string[];
+		}>,
+	): Promise<{ success: boolean }> {
+		return this.fetch(`/v1/alerts/rules/${id}`, {
+			method: "PATCH",
+			body: JSON.stringify(updates),
+		});
+	}
+
+	async deleteAlertRule(id: string): Promise<{ success: boolean }> {
+		return this.fetch(`/v1/alerts/rules/${id}`, { method: "DELETE" });
+	}
+
+	// Alert Configuration - Notification Channels
+	async getNotificationChannels(): Promise<{
+		channels: Array<{
+			id: string;
+			name: string;
+			type: "slack" | "email" | "webhook" | "pagerduty";
+			config: Record<string, string>;
+			verified: boolean;
+			createdAt: number;
+		}>;
+	}> {
+		return this.fetch("/v1/alerts/channels");
+	}
+
+	async createNotificationChannel(channel: {
+		name: string;
+		type: "slack" | "email" | "webhook" | "pagerduty";
+		config: Record<string, string>;
+	}): Promise<{ id: string; success: boolean }> {
+		return this.fetch("/v1/alerts/channels", {
+			method: "POST",
+			body: JSON.stringify(channel),
+		});
+	}
+
+	async testNotificationChannel(id: string): Promise<{ success: boolean; message: string }> {
+		return this.fetch(`/v1/alerts/channels/${id}/test`, { method: "POST" });
+	}
+
+	async deleteNotificationChannel(id: string): Promise<{ success: boolean }> {
+		return this.fetch(`/v1/alerts/channels/${id}`, { method: "DELETE" });
+	}
+
+	// Alert Configuration - Alert History
+	async getAlertHistory(limit = 50): Promise<{
+		alerts: Array<{
+			id: string;
+			ruleId: string;
+			ruleName: string;
+			severity: "critical" | "warning" | "info";
+			state: "firing" | "resolved";
+			triggeredAt: number;
+			resolvedAt?: number;
+			acknowledged: boolean;
+			acknowledgedBy?: string;
+		}>;
+	}> {
+		return this.fetch(`/v1/alerts/history?limit=${limit}`);
+	}
+
+	async acknowledgeAlert(id: string): Promise<{ success: boolean }> {
+		return this.fetch(`/v1/alerts/history/${id}/acknowledge`, { method: "POST" });
+	}
+
+	// Server Metrics
+	async getServerMetrics(
+		serverId?: string,
+		timeRange: "1h" | "6h" | "24h" | "7d" = "1h",
+	): Promise<{
+		current: {
+			cpu: { usage: number; cores: number };
+			memory: { used: number; total: number; percentage: number };
+			disk: { read: number; write: number };
+			network: { in: number; out: number };
+		};
+		history: Array<{
+			timestamp: number;
+			cpu: number;
+			memory: number;
+			diskRead: number;
+			diskWrite: number;
+			networkIn: number;
+			networkOut: number;
+		}>;
+		thresholds?: {
+			cpu: { warning: number; critical: number };
+			memory: { warning: number; critical: number };
+		};
+	}> {
+		const params = new URLSearchParams({ range: timeRange });
+		if (serverId) params.set("serverId", serverId);
+		return this.fetch(`/v1/metrics/server?${params.toString()}`);
+	}
 }
 
 import { useMemo } from "react";

@@ -1,17 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
-	LayoutDashboard,
-	Server,
+	Activity,
+	Bell,
 	HardDrive,
+	LayoutDashboard,
 	Rocket,
 	ScrollText,
-	Activity,
-	Wrench,
+	Server,
 	Terminal,
+	Wrench,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const navigation = [
 	{ name: "Overview", href: "/", icon: LayoutDashboard },
@@ -20,6 +21,7 @@ const navigation = [
 	{ name: "Deployments", href: "/deployments", icon: Rocket },
 	{ name: "Logs", href: "/logs", icon: ScrollText },
 	{ name: "Performance", href: "/performance", icon: Activity },
+	{ name: "Alerts", href: "/alerts", icon: Bell },
 	{ name: "Tools", href: "/tools", icon: Wrench },
 ];
 
