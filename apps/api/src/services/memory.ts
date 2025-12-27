@@ -184,10 +184,9 @@ export class MemoryService {
 		filters?: RecallFilters,
 		rerankOptions?: RerankOptions,
 	): Promise<MemoryResult[]> {
-		// Map memory type to search type for Qdrant
-		// Memory types: decision, context, insight, preference, fact
-		// Search types: thought, code, doc
-		const searchType = filters?.type ? "doc" : undefined;
+		// Note: Qdrant search filters use semantic types (thought/code/doc),
+		// not memory types (decision/context/insight/preference/fact).
+		// Memory type filtering is applied post-search via resultMap filtering.
 
 		// Build search filters for Qdrant
 		const searchFilters: Record<string, unknown> = {};
@@ -214,10 +213,7 @@ export class MemoryService {
 				rerank: rerankOptions?.rerank ?? true,
 				rerank_tier: rerankOptions?.rerank_tier ?? "fast",
 				collection: QdrantCollections.MEMORY,
-				filters: {
-					type: searchType,
-					...searchFilters,
-				},
+				filters: searchFilters,
 			});
 
 			this.logger.debug(
@@ -312,10 +308,14 @@ export class MemoryService {
 				}
 			}
 
+			// Apply type filter post-merge (Qdrant doesn't filter by memory type)
+			let results = Array.from(resultMap.values());
+			if (filters?.type) {
+				results = results.filter((r) => r.type === filters.type);
+			}
+
 			// Sort by score and limit
-			return Array.from(resultMap.values())
-				.toSorted((a, b) => (b.score ?? 0) - (a.score ?? 0))
-				.slice(0, limit);
+			return results.toSorted((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, limit);
 		} catch (error) {
 			// Fallback to keyword search if vector search fails
 			this.logger.warn({ error }, "Vector search failed, falling back to keyword search");
