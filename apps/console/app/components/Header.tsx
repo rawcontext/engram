@@ -1,32 +1,19 @@
 "use client";
 
 import { Badge } from "@tremor/react";
-import { Bell, ChevronDown, Globe, Settings, User } from "lucide-react";
+import { Bell, Settings, User } from "lucide-react";
 import { useEnvironment } from "../../lib/environment";
+import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function Header() {
-	const { environment, isConnected } = useEnvironment();
-
-	// Extract host from API URL for display
-	const displayHost = environment.apiUrl.replace(/^https?:\/\//, "");
+	const { isConnected } = useEnvironment();
 
 	return (
 		<header className="fixed top-0 left-[var(--sidebar-width)] right-0 h-[var(--header-height)] bg-[rgba(var(--console-panel),0.8)] backdrop-blur-xl border-b border-[rgba(var(--console-cyan),0.1)] z-30 flex items-center justify-between px-6">
 			{/* Left: Environment Switcher */}
 			<div className="flex items-center gap-4">
-				<button className="panel flex items-center gap-3 px-4 py-2 hover:border-[rgba(var(--console-cyan),0.3)] transition-colors group">
-					<Globe className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
-					<div className="flex flex-col items-start">
-						<span className="font-mono text-xs text-[rgb(var(--text-primary))]">
-							{environment.name}
-						</span>
-						<span className="font-mono text-[10px] text-[rgb(var(--text-muted))]">
-							{displayHost}
-						</span>
-					</div>
-					<ChevronDown className="w-4 h-4 text-[rgb(var(--text-muted))] group-hover:text-[rgb(var(--text-secondary))] transition-colors" />
-				</button>
+				<EnvironmentSwitcher />
 
 				<Badge color={isConnected ? "emerald" : "red"} className="font-mono">
 					{isConnected ? "Connected" : "Disconnected"}
