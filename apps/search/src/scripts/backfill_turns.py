@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Cypher query to get all turns with their session info
 TURNS_QUERY = """
-MATCH (s:Session)-[:CONTAINS]->(t:Turn)
+MATCH (s:Session)-[:HAS_TURN]->(t:Turn)
 WHERE t.vt_end IS NULL
 RETURN
     t.id AS turn_id,
@@ -122,7 +122,7 @@ class TurnsBackfiller:
 
         # Execute graph query via Redis
         # FalkorDB uses GRAPH.QUERY command
-        result = await self._redis.execute_command("GRAPH.QUERY", "engram", query)
+        result = await self._redis.execute_command("GRAPH.QUERY", "EngramGraph", query)
 
         # Parse FalkorDB response
         # Response format: [headers, [[row1], [row2], ...], stats]

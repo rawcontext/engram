@@ -254,13 +254,18 @@ export class IngestionProcessor {
 			original_event_id: rawEvent.event_id,
 			timestamp: rawEvent.ingest_timestamp,
 			metadata,
+			// Preserve bitemporal fields from raw event
+			vt_start: rawEvent.vt_start,
+			vt_end: rawEvent.vt_end,
+			tt_start: rawEvent.tt_start,
+			tt_end: rawEvent.tt_end,
 		};
 
 		// Validate against schema before publishing
 		const validatedEvent = ParsedStreamEventSchema.parse(parsedEvent);
 
-		// 7. Publish validated event
-		await this.natsClient.sendEvent("parsed_events", sessionId, validatedEvent);
+		// 7. Publish validated event (use event_id as deduplication key, not sessionId)
+		await this.natsClient.sendEvent("parsed_events", validatedEvent.event_id, validatedEvent);
 
 		this.logger.info(
 			{ eventId: validatedEvent.event_id, originalEventId: rawEvent.event_id, sessionId },
