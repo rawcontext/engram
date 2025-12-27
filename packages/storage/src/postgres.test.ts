@@ -1,11 +1,11 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type pg from "pg";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock functions
-const mockQuery = vi.fn();
-const mockConnect = vi.fn();
-const mockRelease = vi.fn();
-const mockEnd = vi.fn();
+// Create mock functions
+const mockQuery = mock(async () => ({ rows: [], rowCount: 0 }));
+const mockConnect = mock(async () => mockClient);
+const mockRelease = mock(() => {});
+const mockEnd = mock(async () => {});
 
 const mockClient = {
 	query: mockQuery,
@@ -13,28 +13,36 @@ const mockClient = {
 };
 
 // Mock the pg module
-vi.mock("pg", () => {
-	class MockPool {
-		connect = mockConnect;
-		end = mockEnd;
-		query = mockQuery;
-	}
-
-	return {
-		default: {
-			Pool: MockPool,
+mock.module("pg", () => ({
+	default: {
+		Pool: class MockPool {
+			connect(...args: any[]) {
+				return mockConnect(...args);
+			}
+			end(...args: any[]) {
+				return mockEnd(...args);
+			}
+			query(...args: any[]) {
+				return mockQuery(...args);
+			}
 		},
-	};
-});
+	},
+}));
 
-// Import after mocking
-import { PostgresClient } from "./postgres";
+// Use dynamic import to ensure mock is applied
+const { PostgresClient } = await import("./postgres");
 
 describe("PostgresClient", () => {
 	let client: PostgresClient;
 
 	beforeEach(() => {
-		vi.clearAllMocks();
+		// Clear all mocks
+		mockQuery.mockClear();
+		mockConnect.mockClear();
+		mockRelease.mockClear();
+		mockEnd.mockClear();
+
+		// Reset default implementations
 		mockConnect.mockResolvedValue(mockClient);
 		mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
 

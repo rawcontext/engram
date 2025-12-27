@@ -331,7 +331,7 @@ class TestHelperFunctions:
 
     def test_record_reranker_score_improvement(self):
         """Test recording reranker score improvement."""
-        from src.utils.metrics import RERANKER_SCORE_IMPROVEMENT, record_reranker_score_improvement
+        from src.utils.metrics import record_reranker_score_improvement
 
         # Record positive improvement
         record_reranker_score_improvement(tier="fast", improvement=0.25)
@@ -401,7 +401,7 @@ class TestHelperFunctions:
 
     def test_set_nats_consumer_lag(self):
         """Test setting NATS consumer lag."""
-        from src.utils.metrics import NATS_CONSUMER_LAG, set_nats_consumer_lag
+        from src.utils.metrics import set_nats_consumer_lag
 
         set_nats_consumer_lag(topic="events.parsed", partition=0, lag=100)
         set_nats_consumer_lag(topic="events.parsed", partition=1, lag=50)
@@ -485,7 +485,7 @@ class TestHelperFunctions:
 
     def test_set_model_memory_usage(self):
         """Test setting model memory usage."""
-        from src.utils.metrics import MODEL_MEMORY_USAGE_BYTES, set_model_memory_usage
+        from src.utils.metrics import set_model_memory_usage
 
         set_model_memory_usage(
             model_type="embedder", model_name="BAAI/bge-large-en-v1.5", bytes_used=1024 * 1024 * 512

@@ -4,7 +4,7 @@
  * @module @engram/tuner/executor
  */
 
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import type { BenchmarkReport } from "./benchmark-types.js";
 import type { TrialConfig } from "./config-mapper.js";
 import {
@@ -398,7 +398,7 @@ describe("evaluateWithBenchmark", () => {
 
 	it("should successfully run benchmark and return metrics", async () => {
 		// Mock child_process.spawn
-		const mockSpawn = mock((cmd: string, args: string[], options: any) => {
+		const mockSpawn = mock((_cmd: string, _args: string[], _options: any) => {
 			// Simulate successful process
 			const mockProc = {
 				stdout: {
@@ -423,7 +423,7 @@ describe("evaluateWithBenchmark", () => {
 		});
 
 		// Mock fs promises
-		const mockMkdtemp = mock((prefix: string) => Promise.resolve("/tmp/engram-benchmark-test123"));
+		const mockMkdtemp = mock((_prefix: string) => Promise.resolve("/tmp/engram-benchmark-test123"));
 		const mockReaddir = mock(() => Promise.resolve(["report_2025-01-01.json"]));
 		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockReport)));
 		const mockRm = mock(() => Promise.resolve());
@@ -448,7 +448,7 @@ describe("evaluateWithBenchmark", () => {
 			join: (...args: string[]) => args.join("/"),
 		}));
 
-		const onProgress = mock((stage: string, percent: number) => {});
+		const onProgress = mock((_stage: string, _percent: number) => {});
 
 		const options: EvaluationAdapterOptions = {
 			dataset: "/test/dataset.json",
@@ -816,7 +816,7 @@ describe("evaluateWithBenchmark", () => {
 	});
 
 	it("should build correct CLI args with reranking enabled", async () => {
-		const mockSpawn = mock((cmd: string, args: string[], options: any) => {
+		const mockSpawn = mock((_cmd: string, args: string[], _options: any) => {
 			// Verify args include rerank flags
 			expect(args).toContain("--rerank");
 			expect(args).toContain("--rerank-tier");
@@ -874,7 +874,7 @@ describe("evaluateWithBenchmark", () => {
 			abstention: {},
 		};
 
-		const mockSpawn = mock((cmd: string, args: string[], options: any) => {
+		const mockSpawn = mock((_cmd: string, args: string[], _options: any) => {
 			// Verify args do NOT include rerank flags
 			expect(args).not.toContain("--rerank");
 
@@ -922,7 +922,7 @@ describe("evaluateWithBenchmark", () => {
 	});
 
 	it("should include limit in CLI args when provided", async () => {
-		const mockSpawn = mock((cmd: string, args: string[], options: any) => {
+		const mockSpawn = mock((_cmd: string, args: string[], _options: any) => {
 			expect(args).toContain("--limit");
 			expect(args).toContain("50");
 
@@ -971,7 +971,7 @@ describe("evaluateWithBenchmark", () => {
 	});
 
 	it("should use custom qdrantUrl when provided", async () => {
-		const mockSpawn = mock((cmd: string, args: string[], options: any) => {
+		const mockSpawn = mock((_cmd: string, args: string[], _options: any) => {
 			expect(args).toContain("--search-url");
 			expect(args).toContain("http://custom:6180");
 
@@ -1020,7 +1020,7 @@ describe("evaluateWithBenchmark", () => {
 	});
 
 	it("should use default search URL when qdrantUrl not provided", async () => {
-		const mockSpawn = mock((cmd: string, args: string[], options: any) => {
+		const mockSpawn = mock((_cmd: string, args: string[], _options: any) => {
 			expect(args).toContain("--search-url");
 			expect(args).toContain("http://localhost:5002");
 

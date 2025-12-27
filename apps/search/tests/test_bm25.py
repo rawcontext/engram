@@ -1,6 +1,6 @@
 """Tests for BM25 sparse embedder."""
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -227,7 +227,7 @@ class TestBM25Embedder:
             mock_loop.run_in_executor = mock_future
             mock_get_loop.return_value = mock_loop
 
-            result = await embedder.embed_sparse_async("test")
+            await embedder.embed_sparse_async("test")
 
             mock_loop.run_in_executor.assert_called_once()
             # First arg is None (default executor), second is the sync function
@@ -341,7 +341,7 @@ class TestBM25Embedder:
             mock_loop.run_in_executor = mock_future
             mock_get_loop.return_value = mock_loop
 
-            result = await embedder.embed_sparse_batch_async(["test"])
+            await embedder.embed_sparse_batch_async(["test"])
 
             mock_loop.run_in_executor.assert_called_once()
             assert mock_loop.run_in_executor.call_args[0][0] is None
@@ -400,7 +400,7 @@ class TestBM25EmbedderIntegration:
 
         assert isinstance(result, dict)
         assert len(result) > 0
-        assert all(isinstance(k, int) for k in result.keys())
+        assert all(isinstance(k, int) for k in result)
         assert all(isinstance(v, float) for v in result.values())
         assert all(v > 0 for v in result.values())
 

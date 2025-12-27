@@ -133,7 +133,6 @@ class TestLoadReranker:
         router = RerankerRouter(settings=mock_settings)
 
         # Mock the import to raise ImportError for FlashRank
-        import sys
 
         original_import = builtins.__import__
 

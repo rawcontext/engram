@@ -1,6 +1,5 @@
 """Tests for turn backfill script."""
 
-import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -429,7 +428,7 @@ class TestTurnsBackfillerEdgeCases:
 
         with patch("src.scripts.backfill_turns.redis.from_url", return_value=mock_redis):
             await backfiller.connect()
-            turns = await backfiller.query_turns(limit=5)
+            await backfiller.query_turns(limit=5)
             await backfiller.disconnect()
 
         # Verify LIMIT was added to query

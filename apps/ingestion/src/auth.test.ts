@@ -1,21 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-// Mock pg module
+// Create mock functions (matching pattern from blob.test.ts)
 const queryMock = mock(async () => ({ rows: [] }));
 const endMock = mock(async () => {});
 
-mock.module("pg", () => ({
-	default: {
-		Pool: class {
-			query = queryMock;
-			end = endMock;
+// Mock pg module BEFORE any static imports that use it
+// Note: Static imports are hoisted, so we must mock before the module system loads pg
+mock.module("pg", () => {
+	class MockPool {
+		query(...args: any[]) {
+			return queryMock.apply(queryMock, args);
+		}
+		end(...args: any[]) {
+			return endMock.apply(endMock, args);
+		}
+	}
+	return {
+		default: {
+			Pool: MockPool,
 		},
-	},
-}));
+	};
+});
 
-// Import after mocking
-import { authenticateRequest, closeAuth, initAuth } from "./auth";
+// Use dynamic import to ensure mock is applied first
+// This works because dynamic imports are NOT hoisted
+const { authenticateRequest, closeAuth, initAuth } = await import("./auth");
 
 describe("Auth", () => {
 	let mockLogger: any;
@@ -277,7 +287,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "a".repeat(32);
+			const validToken = `engram_oauth_${"a".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response
@@ -314,7 +324,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "a".repeat(32);
+			const validToken = `engram_oauth_${"a".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock empty database response
@@ -345,7 +355,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "b".repeat(32);
+			const validToken = `engram_oauth_${"b".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response with revoked token
@@ -381,7 +391,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "c".repeat(32);
+			const validToken = `engram_oauth_${"c".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response with expired token
@@ -420,7 +430,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "d".repeat(32);
+			const validToken = `engram_oauth_${"d".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response with future expiration
@@ -458,7 +468,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "e".repeat(32);
+			const validToken = `engram_oauth_${"e".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response with different scopes
@@ -503,7 +513,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "f".repeat(32);
+			const validToken = `engram_oauth_${"f".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response
@@ -538,7 +548,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "g".repeat(32);
+			const validToken = `engram_oauth_${"g".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database error
@@ -573,7 +583,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "h".repeat(32);
+			const validToken = `engram_oauth_${"h".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response
@@ -608,7 +618,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "i".repeat(32);
+			const validToken = `engram_oauth_${"i".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response for SELECT
@@ -733,7 +743,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			mockReq.headers = { authorization: "Bearer engram_oauth_" + "A".repeat(32) };
+			mockReq.headers = { authorization: `Bearer engram_oauth_${"A".repeat(32)}` };
 
 			const result = await authenticateRequest(
 				mockReq as IncomingMessage,
@@ -787,7 +797,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "j".repeat(32);
+			const validToken = `engram_oauth_${"j".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			queryMock.mockResolvedValueOnce({
@@ -845,7 +855,7 @@ describe("Auth", () => {
 			initAuth(config);
 			await closeAuth(); // Close pool
 
-			const validToken = "engram_oauth_" + "k".repeat(32);
+			const validToken = `engram_oauth_${"k".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			const result = await authenticateRequest(
@@ -888,7 +898,7 @@ describe("Auth", () => {
 
 			initAuth(config);
 
-			const validToken = "engram_oauth_" + "l".repeat(32);
+			const validToken = `engram_oauth_${"l".repeat(32)}`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			queryMock.mockResolvedValueOnce({
