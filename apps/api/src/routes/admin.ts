@@ -17,7 +17,7 @@ const ResetConsumerSchema = z.object({
 });
 
 export function createAdminRoutes(options: AdminRoutesOptions) {
-	const { logger, redisUrl } = options;
+	const { logger } = options;
 	const app = new Hono();
 
 	// GET /v1/admin/streams - List NATS streams

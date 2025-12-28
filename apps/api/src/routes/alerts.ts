@@ -458,7 +458,7 @@ export function createAlertsRoutes(options: AlertsRoutesOptions) {
 
 	// GET /v1/alerts/history - Get alert history
 	app.get("/history", requireScopes("alerts:read"), async (c) => {
-		const limit = Number.parseInt(c.req.query("limit") || "50");
+		const limit = Number.parseInt(c.req.query("limit") || "50", 10);
 
 		const alerts = alertHistory.slice(0, limit);
 

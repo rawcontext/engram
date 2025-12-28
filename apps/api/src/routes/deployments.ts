@@ -100,7 +100,7 @@ export function createDeploymentsRoutes(options: DeploymentsRoutesOptions) {
 	app.get("/", requireScopes("deployments:read"), async (c) => {
 		try {
 			const environment = c.req.query("environment");
-			const limit = Number.parseInt(c.req.query("limit") || "20");
+			const limit = Number.parseInt(c.req.query("limit") || "20", 10);
 
 			let filtered = [...deployments];
 

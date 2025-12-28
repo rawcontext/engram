@@ -131,13 +131,11 @@ function TimeRangeSelector({
 // ============================================
 
 function MetricToggle({
-	id,
 	label,
 	color,
 	enabled,
 	onChange,
 }: {
-	id: string;
 	label: string;
 	color: string;
 	enabled: boolean;
@@ -380,7 +378,6 @@ export function ServerMetricsChart({
 				{METRIC_CATEGORIES.map((cat) => (
 					<MetricToggle
 						key={cat.id}
-						id={cat.id}
 						label={cat.label}
 						color={cat.color}
 						enabled={enabledMetrics[cat.id]}

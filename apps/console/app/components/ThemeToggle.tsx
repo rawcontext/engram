@@ -9,6 +9,7 @@ export function ThemeToggle() {
 
 	return (
 		<button
+			type="button"
 			onClick={toggle}
 			className="relative w-9 h-9 rounded-lg flex items-center justify-center text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-primary))] hover:bg-[rgba(var(--console-cyan),0.05)] transition-all group overflow-hidden"
 			aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}

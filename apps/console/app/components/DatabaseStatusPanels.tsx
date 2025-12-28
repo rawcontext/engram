@@ -243,6 +243,7 @@ function SkeletonCard() {
 			</div>
 			<div className="grid grid-cols-2 gap-3 mb-4">
 				{Array.from({ length: 4 }).map((_, i) => (
+					// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton items
 					<div key={i} className="space-y-1">
 						<div className="h-2 w-12 rounded bg-[rgb(var(--console-surface))]" />
 						<div className="h-4 w-8 rounded bg-[rgb(var(--console-surface))]" />
@@ -254,6 +255,7 @@ function SkeletonCard() {
 					<div className="h-3 w-16 rounded bg-[rgb(var(--console-surface))]" />
 					<div className="flex gap-0.5">
 						{Array.from({ length: 5 }).map((_, i) => (
+							// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton items
 							<div key={i} className="w-2 h-4 rounded-sm bg-[rgb(var(--console-surface))]" />
 						))}
 					</div>
@@ -344,6 +346,7 @@ export function DatabaseStatusPanels({
 				)}
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 					{Array.from({ length: 4 }).map((_, i) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton items
 						<SkeletonCard key={i} />
 					))}
 				</div>

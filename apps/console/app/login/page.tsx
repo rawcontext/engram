@@ -1,9 +1,9 @@
 "use client";
 
-import { signIn } from "../../lib/auth-client";
 import { Terminal } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { signIn } from "../../lib/auth-client";
 
 function LoginContent() {
 	const searchParams = useSearchParams();
@@ -44,6 +44,7 @@ function LoginContent() {
 
 				{/* Sign In Button */}
 				<button
+					type="button"
 					onClick={handleGoogleSignIn}
 					className="w-full panel-elevated flex items-center justify-center gap-3 px-4 py-3 rounded-lg hover:border-[rgba(var(--console-cyan),0.3)] transition-all hover-lift"
 				>

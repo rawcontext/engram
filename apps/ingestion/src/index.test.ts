@@ -712,7 +712,8 @@ describe("Ingestion Service", () => {
 			await processor.processEvent(event as any);
 
 			const call = mockSendEvent.mock.calls[0];
-			expect(call[1]).toBe(eventId); // Session ID should be event_id
+			const parsedEvent = call[2] as { metadata: { session_id: string } };
+			expect(parsedEvent.metadata.session_id).toBe(eventId); // Session ID should fall back to event_id
 		});
 
 		it("should handle missing headers gracefully", async () => {

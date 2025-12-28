@@ -43,7 +43,7 @@ describe("GeminiParser", () => {
 			expect(result?.content).toBe("4");
 		});
 
-		it("should skip user messages", () => {
+		it("should parse user messages", () => {
 			const payload = {
 				type: "message",
 				timestamp: "2025-12-09T00:13:15.893Z",
@@ -52,7 +52,11 @@ describe("GeminiParser", () => {
 			};
 
 			const result = parser.parse(payload);
-			expect(result).toBeNull();
+			expect(result).toEqual({
+				type: "content",
+				role: "user",
+				content: "What is 2+2?",
+			});
 		});
 
 		it("should return null for empty content", () => {

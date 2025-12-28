@@ -495,6 +495,7 @@ export default function DeploymentsPage() {
 					<tbody className="divide-y divide-[rgba(var(--console-cyan),0.05)]">
 						{isLoading ? (
 							Array.from({ length: 5 }).map((_, i) => (
+								// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
 								<tr key={`skeleton-${i}`}>
 									<td className="px-4 py-3">
 										<div className="h-6 w-20 rounded-full bg-[rgb(var(--console-surface))] animate-pulse" />

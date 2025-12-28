@@ -89,6 +89,7 @@ export function EnvironmentSwitcher() {
 		<div className="relative" ref={dropdownRef}>
 			{/* Trigger Button */}
 			<button
+				type="button"
 				ref={triggerRef}
 				onClick={() => setIsOpen(!isOpen)}
 				className="panel flex items-center gap-3 px-4 py-2 hover:border-[rgba(var(--console-cyan),0.3)] transition-all group"
@@ -157,8 +158,10 @@ export function EnvironmentSwitcher() {
 											: "hover:bg-[rgba(var(--console-cyan),0.05)]"
 									}`}
 									onClick={() => handleSelect(env.id)}
+									onKeyDown={(e) => e.key === "Enter" && handleSelect(env.id)}
 									role="option"
 									aria-selected={isSelected}
+									tabIndex={0}
 								>
 									{/* Icon */}
 									<div
@@ -205,6 +208,7 @@ export function EnvironmentSwitcher() {
 										<div className="w-2 h-2 rounded-full bg-[rgb(var(--console-cyan))] shadow-[0_0_8px_rgba(var(--console-cyan),0.5)]" />
 									) : env.isCustom ? (
 										<button
+											type="button"
 											onClick={(e) => {
 												e.stopPropagation();
 												removeCustomEnvironment(env.id);
@@ -224,6 +228,7 @@ export function EnvironmentSwitcher() {
 					<div className="border-t border-[rgba(var(--console-cyan),0.1)]">
 						{!showAddForm ? (
 							<button
+								type="button"
 								onClick={() => setShowAddForm(true)}
 								className="w-full flex items-center gap-2 px-3 py-2.5 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-primary))] hover:bg-[rgba(var(--console-cyan),0.05)] transition-all"
 							>
@@ -251,7 +256,6 @@ export function EnvironmentSwitcher() {
 									onChange={(e) => setNewName(e.target.value)}
 									placeholder="Environment name"
 									className="w-full px-3 py-2 bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.1)] rounded-md font-mono text-xs text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))] focus:outline-none focus:border-[rgba(var(--console-cyan),0.3)] transition-colors"
-									autoFocus
 								/>
 
 								<input

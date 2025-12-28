@@ -1,3 +1,4 @@
+// biome-ignore-all lint/a11y/noLabelWithoutControl: using custom Select components
 "use client";
 
 import {
@@ -13,14 +14,12 @@ import {
 	Loader2,
 	Mail,
 	MessageSquare,
-	Play,
 	Plus,
 	Send,
 	Shield,
 	Trash2,
 	Webhook,
 	X,
-	XCircle,
 	Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -755,7 +754,7 @@ function AlertRuleModal({
 					<Select
 						value={duration.toString() as "60" | "300" | "600" | "900" | "1800"}
 						options={DURATIONS.map((d) => ({ value: d.value.toString(), label: d.label }))}
-						onChange={(v) => setDuration(Number.parseInt(v))}
+						onChange={(v) => setDuration(Number.parseInt(v, 10))}
 						label="Duration"
 					/>
 				</div>
