@@ -53,7 +53,12 @@ ssh engram@$SERVER_IP << 'EOF'
     cd /opt/engram
 
     echo "Creating data directories..."
-    mkdir -p data/{qdrant,falkordb,postgres,nats}
+    sudo mkdir -p /var/lib/engram/{qdrant,falkordb,postgres,nats,caddy/data,caddy/config}
+
+    # Fix postgres ownership (UID 70 is postgres user in alpine container)
+    # This prevents "Permission denied" errors on pg_filenode.map
+    echo "Fixing postgres directory ownership..."
+    sudo chown -R 70:70 /var/lib/engram/postgres
 
     echo "Pulling latest images..."
     docker compose -f docker-compose.prod.yml pull

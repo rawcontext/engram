@@ -255,10 +255,12 @@ An abstention is when the model explicitly or implicitly indicates it doesn't ha
 - Hedging extensively without providing a clear answer
 - Providing very vague or non-committal responses
 
-Respond with JSON indicating:
-1. Whether this is an abstention (true/false)
-2. Your confidence level (0.0 to 1.0)
-3. Brief reasoning for your judgment
+Respond with JSON using EXACTLY these field names:
+- "is_abstention": boolean (true if this is an abstention, false otherwise)
+- "confidence": number between 0.0 and 1.0
+- "reasoning": string with brief explanation
+
+Example: {{"is_abstention": true, "confidence": 0.9, "reasoning": "Response explicitly states 'I don't know'"}}
 
 Consider both explicit phrases and implicit indicators of uncertainty."""
 
