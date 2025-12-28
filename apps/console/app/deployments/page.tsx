@@ -322,49 +322,6 @@ function DeploymentRow({
 }
 
 // ============================================
-// Mock Data Generator
-// ============================================
-
-const COMMIT_MESSAGES = [
-	"feat: add user authentication flow",
-	"fix: resolve memory leak in event handler",
-	"chore: update dependencies to latest versions",
-	"refactor: improve search query performance",
-	"docs: update API documentation",
-	"feat: implement rate limiting middleware",
-	"fix: correct timezone handling in scheduler",
-	"perf: optimize database query patterns",
-	"feat: add webhook support for notifications",
-	"fix: handle edge case in data validation",
-];
-
-const BRANCHES = ["main", "develop", "feature/auth", "fix/memory-leak", "release/v2.1"];
-const USERS = ["chris", "deploy-bot", "github-actions"];
-
-function generateMockDeployments(count: number): Deployment[] {
-	const now = Date.now();
-	const statuses: DeploymentStatus[] = ["success", "success", "success", "failed", "success"];
-
-	return Array.from({ length: count }, (_, i) => {
-		const status = i === 0 && Math.random() > 0.7 ? "in_progress" : statuses[i % statuses.length];
-		const environment: Environment = i < 3 ? "production" : i < 7 ? "staging" : "development";
-
-		return {
-			id: `deploy_${now}_${i}`,
-			status,
-			commitHash: Math.random().toString(16).slice(2, 10) + Math.random().toString(16).slice(2, 6),
-			commitMessage: COMMIT_MESSAGES[Math.floor(Math.random() * COMMIT_MESSAGES.length)],
-			branch: BRANCHES[Math.floor(Math.random() * BRANCHES.length)],
-			environment,
-			duration: status === "in_progress" ? undefined : 45000 + Math.floor(Math.random() * 90000),
-			deployedAt: now - i * (1800000 + Math.random() * 3600000),
-			deployedBy: USERS[Math.floor(Math.random() * USERS.length)],
-			version: `v2.${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 100)}`,
-		};
-	});
-}
-
-// ============================================
 // Main Component
 // ============================================
 
@@ -379,8 +336,9 @@ export default function DeploymentsPage() {
 		try {
 			const data = await apiClient.getDeployments();
 			setDeployments(data);
-		} catch {
-			setDeployments(generateMockDeployments(15));
+		} catch (err) {
+			console.error("Failed to fetch deployments:", err);
+			// Keep empty state - no mock data
 		} finally {
 			setIsLoading(false);
 		}

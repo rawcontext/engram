@@ -499,53 +499,9 @@ export default function OverviewPage() {
 			]);
 			setAlerts(alertsData.alerts);
 			setDeployments(deploymentsData);
-		} catch {
-			// Mock data for demo
-			setAlerts([
-				{
-					id: "alert-1",
-					ruleId: "rule-1",
-					ruleName: "High Latency",
-					severity: "warning",
-					state: "firing",
-					triggeredAt: Date.now() - 300000,
-					acknowledged: false,
-				},
-				{
-					id: "alert-2",
-					ruleId: "rule-2",
-					ruleName: "Error Rate Spike",
-					severity: "critical",
-					state: "resolved",
-					triggeredAt: Date.now() - 3600000,
-					resolvedAt: Date.now() - 1800000,
-					acknowledged: true,
-				},
-			]);
-			setDeployments([
-				{
-					id: "dep-1",
-					status: "success",
-					commitHash: "abc123",
-					commitMessage: "feat: add new search endpoint",
-					branch: "main",
-					environment: "production",
-					duration: 145000,
-					deployedAt: Date.now() - 7200000,
-					deployedBy: "chris@cheney.dev",
-					version: "v1.2.3",
-				},
-				{
-					id: "dep-2",
-					status: "in_progress",
-					commitHash: "def456",
-					commitMessage: "fix: memory leak in aggregator",
-					branch: "main",
-					environment: "staging",
-					deployedAt: Date.now() - 600000,
-					deployedBy: "ci@github.com",
-				},
-			]);
+		} catch (err) {
+			console.error("Failed to fetch activity data:", err);
+			// Keep empty state - no mock data
 		} finally {
 			setIsLoading(false);
 		}

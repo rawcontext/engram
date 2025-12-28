@@ -229,63 +229,6 @@ function LogEntryRow({ entry, isNew }: { entry: LogEntry; isNew?: boolean }) {
 }
 
 // ============================================
-// Mock Data Generator
-// ============================================
-
-const LOG_MESSAGES: Record<LogLevel, string[]> = {
-	debug: [
-		"Cache hit for session_abc123, returning cached response",
-		"Query optimization applied: index scan preferred",
-		"WebSocket heartbeat sent to 12 connected clients",
-		"Memory pool allocated: 2048 bytes for request context",
-		"Trace ID generated: tr_7f8a9b2c3d4e5f",
-	],
-	info: [
-		"Request processed successfully in 23ms",
-		"New session started: sess_xyz789",
-		"Vector embeddings generated for 5 documents",
-		"Batch ingestion completed: 150 events processed",
-		"Search query executed with hybrid strategy",
-		"Memory sync completed with remote cluster",
-	],
-	warn: [
-		"Rate limit approaching threshold (85%) for API key ending in ...3f2a",
-		"Slow query detected: 1.2s for complex aggregation",
-		"Connection pool running low, 3 connections remaining",
-		"Deprecated endpoint /v1/legacy accessed from 192.168.1.50",
-		"Retry attempt 2/3 for external service call",
-	],
-	error: [
-		"Failed to connect to FalkorDB: connection timeout after 5000ms",
-		"Vector search failed: Qdrant returned 503 Service Unavailable",
-		"Authentication failed for token ending in ...8x2q",
-		"OutOfMemory: heap allocation exceeded 512MB limit",
-		"Invalid JSON payload in request body: unexpected token at position 42",
-	],
-};
-
-function generateMockLogs(count: number): LogEntry[] {
-	const now = Date.now();
-	return Array.from({ length: count }, (_, i) => {
-		const level = LOG_LEVELS[Math.floor(Math.random() * LOG_LEVELS.length)];
-		const messages = LOG_MESSAGES[level];
-		const service = SERVICES[Math.floor(Math.random() * SERVICES.length)];
-
-		return {
-			id: `log_${now}_${i}`,
-			timestamp: now - (count - i) * (2000 + Math.random() * 3000),
-			service,
-			level,
-			message: messages[Math.floor(Math.random() * messages.length)],
-			metadata:
-				Math.random() > 0.7
-					? { requestId: `req_${Math.random().toString(36).slice(2, 10)}` }
-					: undefined,
-		};
-	});
-}
-
-// ============================================
 // Main Component
 // ============================================
 
@@ -312,9 +255,9 @@ export default function LogsPage() {
 		try {
 			const data = await apiClient.getLogEntries(filters);
 			setLogs(data);
-		} catch {
-			// Use mock data if API doesn't exist
-			setLogs(generateMockLogs(50));
+		} catch (err) {
+			console.error("Failed to fetch logs:", err);
+			// Keep empty state - no mock data
 		} finally {
 			setIsLoading(false);
 		}
@@ -325,33 +268,16 @@ export default function LogsPage() {
 		fetchLogs();
 	}, [fetchLogs]);
 
-	// Simulate streaming new logs
+	// Poll for new logs when streaming
 	useEffect(() => {
 		if (!isStreaming) return;
 
-		const interval = setInterval(
-			() => {
-				const newLog = generateMockLogs(1)[0];
-				newLog.timestamp = Date.now();
-				newLog.id = `log_${Date.now()}_new`;
-
-				setLogs((prev) => [...prev.slice(-99), newLog]);
-				setNewLogIds((prev) => new Set([...prev, newLog.id]));
-
-				// Clear "new" status after animation
-				setTimeout(() => {
-					setNewLogIds((prev) => {
-						const next = new Set(prev);
-						next.delete(newLog.id);
-						return next;
-					});
-				}, 1000);
-			},
-			3000 + Math.random() * 4000,
-		);
+		const interval = setInterval(() => {
+			fetchLogs();
+		}, 5000);
 
 		return () => clearInterval(interval);
-	}, [isStreaming]);
+	}, [isStreaming, fetchLogs]);
 
 	// Auto-scroll to bottom when new logs arrive
 	const logsLength = logs.length;

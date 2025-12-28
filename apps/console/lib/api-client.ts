@@ -42,28 +42,35 @@ export interface ApiError extends Error {
 export class ApiClient {
 	private baseUrl: string;
 	private wsUrl: string;
-	private authToken?: string;
+	private useProxy: boolean;
 
-	constructor(environment: EnvironmentConfig, authToken?: string) {
+	constructor(environment: EnvironmentConfig, _authToken?: string) {
 		this.baseUrl = environment.apiUrl;
 		this.wsUrl = environment.wsUrl;
-		this.authToken = authToken;
+		// Always use proxy for authenticated API calls - the proxy validates session
+		// and adds service token for Engram API requests
+		this.useProxy = true;
 	}
 
+	/**
+	 * Make a request through the session-validated proxy
+	 * Proxy validates session and adds Engram API auth token
+	 */
 	private async fetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-		const url = `${this.baseUrl}${path}`;
+		// Route through proxy which validates session and adds auth
+		// Path should be like /v1/metrics -> /api/proxy/metrics
+		const proxyPath = path.replace(/^\/v1\//, "/api/proxy/");
+		const url = this.useProxy ? proxyPath : `${this.baseUrl}${path}`;
+
 		const headers: HeadersInit = {
 			"Content-Type": "application/json",
 			...options.headers,
 		};
 
-		if (this.authToken) {
-			(headers as Record<string, string>).Authorization = `Bearer ${this.authToken}`;
-		}
-
 		const response = await fetch(url, {
 			...options,
 			headers,
+			credentials: "include", // Include session cookies for proxy
 		});
 
 		if (!response.ok) {
@@ -85,6 +92,28 @@ export class ApiClient {
 			return json.data as T;
 		}
 		return json as T;
+	}
+
+	/**
+	 * Make a direct request to external services (not through proxy)
+	 * Used for health checks and non-Engram API calls
+	 */
+	private async fetchDirect<T>(url: string, options: RequestInit = {}): Promise<T> {
+		const response = await fetch(url, {
+			...options,
+			headers: {
+				"Content-Type": "application/json",
+				...options.headers,
+			},
+		});
+
+		if (!response.ok) {
+			const error = new Error(`API error: ${response.statusText}`) as ApiError;
+			error.status = response.status;
+			throw error;
+		}
+
+		return response.json();
 	}
 
 	// Health checks
@@ -113,6 +142,7 @@ export class ApiClient {
 	}
 
 	// Check multiple services health
+	// These are direct health checks to external services, not through proxy
 	async getAllServicesHealth(): Promise<ServiceHealth[]> {
 		const services = [
 			{ name: "API", port: 6174, path: "/v1/health" },
@@ -124,6 +154,7 @@ export class ApiClient {
 
 		const results = await Promise.allSettled(
 			services.map(async (service) => {
+				// Direct health checks to services
 				const url = this.baseUrl.replace(/:(\d+)/, `:${service.port}`);
 				const start = performance.now();
 

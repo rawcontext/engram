@@ -270,18 +270,8 @@ function GraphQueryPanel() {
 			const data = await apiClient.executeGraphQuery(query, { now: Date.now() });
 			setResult(data);
 		} catch (err) {
-			// Mock response for demo
-			setResult({
-				results: [
-					{ label: "Memory", count: 1247 },
-					{ label: "Session", count: 89 },
-					{ label: "Turn", count: 3421 },
-					{ label: "FileTouch", count: 5678 },
-				],
-				executionTime: 12.4,
-				nodeCount: 10435,
-				relationshipCount: 15892,
-			});
+			const message = err instanceof Error ? err.message : "Query execution failed";
+			setError(message);
 		} finally {
 			setIsExecuting(false);
 		}
@@ -481,44 +471,9 @@ function VectorSearchPanel() {
 				limit,
 			});
 			setResult(data);
-		} catch {
-			// Mock response for demo
-			setResult({
-				results: [
-					{
-						id: "mem-001",
-						content: "User prefers TypeScript over JavaScript for all new projects",
-						score: 0.94,
-						type: "preference",
-					},
-					{
-						id: "mem-002",
-						content: "Architecture decision: Use FalkorDB for graph storage due to Cypher support",
-						score: 0.87,
-						type: "decision",
-					},
-					{
-						id: "mem-003",
-						content: "Debugging insight: NATS consumer lag caused by slow reranker tier",
-						score: 0.82,
-						type: "insight",
-					},
-					{
-						id: "mem-004",
-						content: "The search service uses a multi-tier reranking pipeline for quality",
-						score: 0.78,
-						type: "fact",
-					},
-					{
-						id: "mem-005",
-						content: "Context7 MCP should be used for library documentation lookups",
-						score: 0.71,
-						type: "fact",
-					},
-				].slice(0, limit),
-				latency: Date.now() - startTime,
-				strategy,
-			});
+		} catch (err) {
+			console.error("Vector search failed:", err);
+			// Keep empty result - no mock data
 		} finally {
 			if (timerRef.current) {
 				clearInterval(timerRef.current);
@@ -731,15 +686,9 @@ function CacheControlsPanel() {
 				if (data.streams.length > 0) {
 					setSelectedStream(data.streams[0].name);
 				}
-			} catch {
-				// Mock streams for demo
-				const mockStreams = [
-					{ name: "events.raw", messages: 15234, consumers: 2 },
-					{ name: "events.parsed", messages: 14892, consumers: 3 },
-					{ name: "events.enriched", messages: 14501, consumers: 1 },
-				];
-				setStreams(mockStreams);
-				setSelectedStream(mockStreams[0].name);
+			} catch (err) {
+				console.error("Failed to fetch streams:", err);
+				// Keep empty state - no mock data
 			}
 		}
 		fetchStreams();
@@ -768,15 +717,14 @@ function CacheControlsPanel() {
 						result: { success: true, message: "Operation completed successfully" },
 					},
 				}));
-			} catch {
-				// Mock success for demo
+			} catch (err) {
+				console.error("Cache action failed:", err);
 				setActions((prev) => ({
 					...prev,
 					[actionType]: {
 						...prev[actionType],
 						isLoading: false,
-						lastExecuted: Date.now(),
-						result: { success: true, message: "Operation completed successfully" },
+						result: { success: false, message: "Operation failed" },
 					},
 				}));
 			}

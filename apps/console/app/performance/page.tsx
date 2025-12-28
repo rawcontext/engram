@@ -445,88 +445,6 @@ function PercentileSkeleton() {
 }
 
 // ============================================
-// Mock Data Generator
-// ============================================
-
-function generateMockData(): PerformanceMetrics {
-	const now = Date.now();
-	const hourMs = 60 * 60 * 1000;
-
-	// Generate sparkline with realistic latency values
-	const generateSparkline = (base: number, variance: number) =>
-		Array.from({ length: 24 }, (_, i) => ({
-			index: i,
-			value: base + (Math.random() - 0.5) * variance * 2,
-		}));
-
-	// Percentiles
-	const percentiles: PercentileData[] = [
-		{
-			id: "p50",
-			label: "P50 Latency",
-			value: 23 + Math.random() * 5,
-			change: -2.3 + Math.random() * 4,
-			sparkline: generateSparkline(25, 8),
-			threshold: 50,
-		},
-		{
-			id: "p95",
-			label: "P95 Latency",
-			value: 89 + Math.random() * 20,
-			change: 3.1 + Math.random() * 6,
-			sparkline: generateSparkline(95, 20),
-			threshold: 150,
-		},
-		{
-			id: "p99",
-			label: "P99 Latency",
-			value: 245 + Math.random() * 50,
-			change: 12.4 + Math.random() * 10,
-			sparkline: generateSparkline(260, 50),
-			threshold: 300,
-		},
-	];
-
-	// Latency distribution
-	const totalRequests = 50000 + Math.floor(Math.random() * 10000);
-	const bucketRatios = [0.35, 0.28, 0.18, 0.1, 0.05, 0.025, 0.015];
-	const latencyDistribution: LatencyBucket[] = [
-		{ range: "0-10ms", count: 0, percentage: 0 },
-		{ range: "10-25ms", count: 0, percentage: 0 },
-		{ range: "25-50ms", count: 0, percentage: 0 },
-		{ range: "50-100ms", count: 0, percentage: 0 },
-		{ range: "100-250ms", count: 0, percentage: 0 },
-		{ range: "250-500ms", count: 0, percentage: 0 },
-		{ range: "500ms+", count: 0, percentage: 0 },
-	].map((bucket, i) => ({
-		...bucket,
-		count: Math.floor(totalRequests * bucketRatios[i] * (0.9 + Math.random() * 0.2)),
-		percentage: bucketRatios[i] * 100,
-	}));
-
-	// Strategy comparison over time
-	const strategyComparison: StrategyDataPoint[] = Array.from({ length: 24 }, (_, i) => {
-		const date = new Date(now - (23 - i) * hourMs);
-		return {
-			timestamp: date.toLocaleTimeString("en-US", {
-				hour: "2-digit",
-				minute: "2-digit",
-			}),
-			dense: 35 + Math.random() * 15 + Math.sin(i / 4) * 5,
-			sparse: 45 + Math.random() * 20 + Math.cos(i / 3) * 8,
-			hybrid: 28 + Math.random() * 10 + Math.sin(i / 5) * 4,
-		};
-	});
-
-	return {
-		percentiles,
-		latencyDistribution,
-		strategyComparison,
-		lastUpdated: now,
-	};
-}
-
-// ============================================
 // Main Component
 // ============================================
 
@@ -546,12 +464,11 @@ export default function PerformancePage() {
 			}
 
 			try {
-				// Try to fetch from API - falls back to mock data
 				const data = await apiClient.getPerformanceMetrics(timeRange);
 				setMetrics(data);
-			} catch {
-				// Use mock data if API endpoint doesn't exist
-				setMetrics(generateMockData());
+			} catch (err) {
+				console.error("Failed to fetch performance metrics:", err);
+				// Keep empty state - no mock data
 			} finally {
 				setIsLoading(false);
 				setIsRefreshing(false);

@@ -70,61 +70,6 @@ const METRIC_CATEGORIES = [
 ];
 
 // ============================================
-// Mock Data Generator
-// ============================================
-
-function generateMockData(timeRange: TimeRange): {
-	current: CurrentMetrics;
-	history: MetricDataPoint[];
-	thresholds: Thresholds;
-} {
-	const now = Date.now();
-	const intervals: Record<TimeRange, { count: number; step: number }> = {
-		"1h": { count: 60, step: 60000 },
-		"6h": { count: 72, step: 300000 },
-		"24h": { count: 96, step: 900000 },
-		"7d": { count: 168, step: 3600000 },
-	};
-
-	const { count, step } = intervals[timeRange];
-
-	// Generate history with realistic patterns
-	const history: MetricDataPoint[] = Array.from({ length: count }, (_, i) => {
-		const hour = ((now - (count - i) * step) / 3600000) % 24;
-		const dayMultiplier = hour >= 9 && hour <= 17 ? 1.3 : 0.7;
-
-		return {
-			timestamp: now - (count - i) * step,
-			cpu: Math.min(
-				100,
-				Math.max(5, 25 + Math.sin(i / 10) * 15 + Math.random() * 20 * dayMultiplier),
-			),
-			memory: Math.min(100, Math.max(30, 55 + Math.sin(i / 20) * 10 + Math.random() * 10)),
-			diskRead: Math.max(0, 15 + Math.sin(i / 8) * 10 + Math.random() * 30 * dayMultiplier),
-			diskWrite: Math.max(0, 8 + Math.cos(i / 12) * 5 + Math.random() * 20 * dayMultiplier),
-			networkIn: Math.max(0, 120 + Math.sin(i / 6) * 50 + Math.random() * 80 * dayMultiplier),
-			networkOut: Math.max(0, 80 + Math.cos(i / 8) * 30 + Math.random() * 60 * dayMultiplier),
-		};
-	});
-
-	const lastPoint = history[history.length - 1];
-
-	return {
-		current: {
-			cpu: { usage: lastPoint.cpu, cores: 8 },
-			memory: { used: 12.4, total: 16, percentage: lastPoint.memory },
-			disk: { read: lastPoint.diskRead, write: lastPoint.diskWrite },
-			network: { in: lastPoint.networkIn, out: lastPoint.networkOut },
-		},
-		history,
-		thresholds: {
-			cpu: { warning: 70, critical: 90 },
-			memory: { warning: 80, critical: 95 },
-		},
-	};
-}
-
-// ============================================
 // Time Range Selector
 // ============================================
 
@@ -311,12 +256,9 @@ export function ServerMetricsChart({
 				setCurrent(data.current);
 				setHistory(data.history);
 				if (data.thresholds) setThresholds(data.thresholds);
-			} catch {
-				// Use mock data for demo
-				const mockData = generateMockData(timeRange);
-				setCurrent(mockData.current);
-				setHistory(mockData.history);
-				setThresholds(mockData.thresholds);
+			} catch (err) {
+				console.error("Failed to fetch server metrics:", err);
+				// Keep empty state - no mock data
 			} finally {
 				setIsLoading(false);
 			}
