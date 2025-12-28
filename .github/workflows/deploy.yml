@@ -141,6 +141,59 @@ jobs:
         working-directory: packages/infra
         run: tofu validate
 
+      - name: Import Existing Resources
+        working-directory: packages/infra
+        env:
+          TF_HTTP_USERNAME: tofu
+          TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
+          TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
+          TF_VAR_domain: ${{ env.DOMAIN }}
+          TF_VAR_ssh_public_key: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+        run: |
+          # Install hcloud CLI
+          curl -sL https://github.com/hetznercloud/cli/releases/download/v1.49.0/hcloud-linux-amd64.tar.gz | tar xz
+          chmod +x hcloud
+
+          # Check if resources exist in state already
+          if tofu state list 2>/dev/null | grep -q "hcloud_server.engram"; then
+            echo "Resources already in state, skipping import"
+            exit 0
+          fi
+
+          echo "Checking for existing Hetzner resources to import..."
+
+          # Get SSH key ID
+          SSH_KEY_ID=$(./hcloud ssh-key list -o noheader | grep "engram-key" | awk '{print $1}' || true)
+          if [ -n "$SSH_KEY_ID" ]; then
+            echo "Importing SSH key (ID: $SSH_KEY_ID)..."
+            tofu import -lock=false hcloud_ssh_key.engram "$SSH_KEY_ID" || echo "SSH key import failed or already exists"
+          fi
+
+          # Get server ID
+          SERVER_ID=$(./hcloud server list -o noheader | grep "engram" | awk '{print $1}' || true)
+          if [ -n "$SERVER_ID" ]; then
+            echo "Importing server (ID: $SERVER_ID)..."
+            tofu import -lock=false hcloud_server.engram "$SERVER_ID" || echo "Server import failed or already exists"
+          fi
+
+          # Get firewall ID
+          FIREWALL_ID=$(./hcloud firewall list -o noheader | grep "engram-firewall" | awk '{print $1}' || true)
+          if [ -n "$FIREWALL_ID" ]; then
+            echo "Importing firewall (ID: $FIREWALL_ID)..."
+            tofu import -lock=false hcloud_firewall.engram "$FIREWALL_ID" || echo "Firewall import failed or already exists"
+
+            # Import firewall attachment if both firewall and server exist
+            if [ -n "$SERVER_ID" ]; then
+              echo "Importing firewall attachment..."
+              tofu import -lock=false hcloud_firewall_attachment.engram "$FIREWALL_ID" || echo "Firewall attachment import failed or already exists"
+            fi
+          fi
+
+          echo "Import complete. Checking state..."
+          tofu state list || true
+
       - name: OpenTofu Plan
         working-directory: packages/infra
         env:
