@@ -25,3 +25,11 @@ resource "vercel_dns_record" "observatory" {
   ttl    = 60
   value  = hcloud_server.engram.ipv4_address
 }
+
+resource "vercel_dns_record" "console" {
+  domain = var.domain
+  name   = "console"
+  type   = "A"
+  ttl    = 60
+  value  = hcloud_server.engram.ipv4_address
+}
