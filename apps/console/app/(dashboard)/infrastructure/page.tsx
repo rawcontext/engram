@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge, Title } from "@tremor/react";
 import {
 	Activity,
 	Box,
@@ -15,7 +14,8 @@ import {
 	Search,
 	Server,
 } from "lucide-react";
-import { DatabaseStatusPanels } from "../../components/DatabaseStatusPanels";
+import { DatabaseStatusPanels } from "@/components/dashboard/database-status-panels";
+import { Badge } from "@/components/ui/badge";
 import { VersionMatrix } from "../../components/VersionMatrix";
 
 interface ResourceGauge {
@@ -209,11 +209,12 @@ export default function InfrastructurePage() {
 						System resources, containers, and database health
 					</p>
 				</div>
-				<Badge color="emerald" size="lg" className="font-mono">
-					<span className="flex items-center gap-1.5">
-						<Play className="w-3 h-3" />
-						{runningContainers}/{CONTAINERS.length} Containers
-					</span>
+				<Badge
+					variant="default"
+					className="bg-green-500/10 text-green-500 hover:bg-green-500/20 font-mono"
+				>
+					<Play className="mr-1 h-3 w-3" />
+					{runningContainers}/{CONTAINERS.length} Containers
 				</Badge>
 			</div>
 
@@ -223,9 +224,9 @@ export default function InfrastructurePage() {
 				<div className="panel p-5">
 					<div className="flex items-center gap-2 mb-5">
 						<Cpu className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
-						<Title className="!text-[rgb(var(--text-primary))] !font-display !text-base">
+						<h3 className="text-[rgb(var(--text-primary))] font-display text-base">
 							System Resources
-						</Title>
+						</h3>
 					</div>
 					<div className="space-y-4">
 						{RESOURCES.map((resource) => (
@@ -239,9 +240,9 @@ export default function InfrastructurePage() {
 					<div className="flex items-center justify-between mb-4">
 						<div className="flex items-center gap-2">
 							<Box className="w-4 h-4 text-[rgb(var(--console-purple))]" />
-							<Title className="!text-[rgb(var(--text-primary))] !font-display !text-base">
+							<h3 className="text-[rgb(var(--text-primary))] font-display text-base">
 								Docker Containers
-							</Title>
+							</h3>
 						</div>
 						<span className="text-xs font-mono text-[rgb(var(--console-green))]">
 							{runningContainers} running

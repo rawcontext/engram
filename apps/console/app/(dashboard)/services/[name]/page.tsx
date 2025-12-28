@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge, Title } from "@tremor/react";
 import {
 	AlertCircle,
 	ArrowLeft,
@@ -22,6 +21,8 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
 import { type ServiceHealth, useApiClient } from "@/lib/api-client";
 
 interface ServiceConfig {
@@ -171,25 +172,29 @@ function StatusBadge({ status }: { status: string }) {
 	switch (status) {
 		case "online":
 			return (
-				<Badge color="emerald" size="lg" className="font-mono">
-					<span className="flex items-center gap-1.5">
-						<span className="relative flex h-2 w-2">
-							<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-							<span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-						</span>
-						ONLINE
+				<Badge
+					variant="default"
+					className="bg-green-500/10 text-green-500 hover:bg-green-500/20 font-mono"
+				>
+					<span className="relative flex h-2 w-2 mr-1.5">
+						<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+						<span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
 					</span>
+					ONLINE
 				</Badge>
 			);
 		case "warning":
 			return (
-				<Badge color="amber" size="lg" className="font-mono">
+				<Badge
+					variant="secondary"
+					className="bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 font-mono"
+				>
 					DEGRADED
 				</Badge>
 			);
 		default:
 			return (
-				<Badge color="red" size="lg" className="font-mono">
+				<Badge variant="destructive" className="font-mono">
 					OFFLINE
 				</Badge>
 			);
@@ -357,9 +362,9 @@ export default function ServiceDetailPage() {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-[400px] text-center">
 				<XCircle className="w-16 h-16 text-[rgb(var(--console-red))] mb-4" />
-				<Title className="!text-[rgb(var(--text-primary))] !font-display mb-2">
+				<h2 className="text-[rgb(var(--text-primary))] font-display text-xl mb-2">
 					Service Not Found
-				</Title>
+				</h2>
 				<p className="text-[rgb(var(--text-muted))] mb-6">
 					The service "{params.name}" does not exist.
 				</p>
@@ -469,9 +474,9 @@ export default function ServiceDetailPage() {
 				<div className="panel p-5">
 					<div className="flex items-center gap-2 mb-5">
 						<Cpu className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
-						<Title className="!text-[rgb(var(--text-primary))] !font-display !text-base">
+						<h3 className="text-[rgb(var(--text-primary))] font-display text-base">
 							Resource Usage
-						</Title>
+						</h3>
 					</div>
 					<div className="space-y-5">
 						<GaugeBar value={metrics?.cpu ?? 0} label="CPU" colorVar={config.colorVar} />
@@ -484,9 +489,7 @@ export default function ServiceDetailPage() {
 				<div className="panel p-5">
 					<div className="flex items-center gap-2 mb-5">
 						<Network className="w-4 h-4 text-[rgb(var(--console-purple))]" />
-						<Title className="!text-[rgb(var(--text-primary))] !font-display !text-base">
-							Dependencies
-						</Title>
+						<h3 className="text-[rgb(var(--text-primary))] font-display text-base">Dependencies</h3>
 					</div>
 					{config.dependencies.length > 0 ? (
 						<div className="flex flex-wrap gap-2">
@@ -530,11 +533,12 @@ export default function ServiceDetailPage() {
 				<div className="flex items-center justify-between mb-4">
 					<div className="flex items-center gap-2">
 						<Terminal className="w-4 h-4 text-[rgb(var(--console-green))]" />
-						<Title className="!text-[rgb(var(--text-primary))] !font-display !text-base">
-							Recent Logs
-						</Title>
+						<h3 className="text-[rgb(var(--text-primary))] font-display text-base">Recent Logs</h3>
 					</div>
-					<Badge color="blue" className="font-mono">
+					<Badge
+						variant="default"
+						className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 font-mono"
+					>
 						Live
 					</Badge>
 				</div>

@@ -94,7 +94,7 @@ interface HealthHistory {
 	timestamp: number;
 }
 
-function HealthHistoryBar({ history, status }: { history: HealthHistory[]; status: string }) {
+function HealthHistoryBar({ history }: { history: HealthHistory[] }) {
 	const getStatusColor = (entryStatus: string) => {
 		switch (entryStatus) {
 			case "online":
@@ -242,7 +242,7 @@ function DatabaseCard({ health, config, metrics, history }: DatabaseCardProps) {
 							</span>
 						)}
 					</div>
-					<HealthHistoryBar history={history} status={health.status} />
+					<HealthHistoryBar history={history} />
 				</div>
 			</CardContent>
 		</Card>

@@ -14,7 +14,6 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { Area, AreaChart, XAxis, YAxis } from "recharts";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";

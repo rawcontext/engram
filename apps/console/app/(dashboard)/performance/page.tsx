@@ -1,6 +1,5 @@
 "use client";
 
-import { AreaChart, BarChart, SparkAreaChart } from "@tremor/react";
 import {
 	ArrowDownRight,
 	ArrowUpRight,
@@ -12,6 +11,16 @@ import {
 	Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Area, AreaChart, Bar, BarChart, XAxis, YAxis } from "recharts";
+
+import { Button } from "@/components/ui/button";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useApiClient } from "@/lib/api-client";
 
 // ============================================
@@ -65,47 +74,29 @@ function TimeRangeSelector({
 	value: string;
 	onChange: (value: string) => void;
 }) {
-	const [isOpen, setIsOpen] = useState(false);
 	const selected = TIME_RANGES.find((r) => r.id === value) || TIME_RANGES[2];
 
 	return (
-		<div className="relative">
-			<button
-				type="button"
-				onClick={() => setIsOpen(!isOpen)}
-				className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] hover:border-[rgba(var(--console-cyan),0.3)] transition-colors font-mono text-sm text-[rgb(var(--text-secondary))]"
-			>
-				<Clock className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
-				<span>{selected.label}</span>
-				<ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-			</button>
-
-			{isOpen && (
-				<>
-					{/* biome-ignore lint/a11y/useKeyWithClickEvents: overlay dismissal */}
-					<div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-					<div className="absolute right-0 top-full mt-2 z-20 min-w-[140px] py-1 rounded-lg bg-[rgb(var(--console-panel))] border border-[rgba(var(--console-cyan),0.2)] shadow-xl shadow-black/30">
-						{TIME_RANGES.map((range) => (
-							<button
-								type="button"
-								key={range.id}
-								onClick={() => {
-									onChange(range.id);
-									setIsOpen(false);
-								}}
-								className={`w-full px-4 py-2 text-left text-sm font-mono transition-colors ${
-									range.id === value
-										? "text-[rgb(var(--console-cyan))] bg-[rgba(var(--console-cyan),0.1)]"
-										: "text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))] hover:bg-[rgb(var(--console-surface))]"
-								}`}
-							>
-								{range.label}
-							</button>
-						))}
-					</div>
-				</>
-			)}
-		</div>
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button variant="outline" size="sm" className="gap-2 font-mono">
+					<Clock className="h-4 w-4 text-primary" />
+					<span>{selected.label}</span>
+					<ChevronDown className="h-4 w-4" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end">
+				{TIME_RANGES.map((range) => (
+					<DropdownMenuItem
+						key={range.id}
+						onClick={() => onChange(range.id)}
+						className="font-mono text-xs"
+					>
+						{range.label}
+					</DropdownMenuItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }
 
@@ -130,6 +121,23 @@ function PercentileCard({ data, isLoading }: { data: PercentileData; isLoading: 
 	const colorVar = PERCENTILE_COLORS[data.id] || "--console-cyan";
 	const isPositive = data.change <= 0; // Lower latency is better
 	const isAboveThreshold = data.threshold && data.value > data.threshold;
+
+	const chartData = data.sparkline.map((point) => ({
+		index: point.index,
+		value: point.value,
+	}));
+
+	const chartConfig = {
+		value: {
+			label: "Latency",
+			color:
+				data.id === "p99"
+					? "hsl(var(--destructive))"
+					: data.id === "p95"
+						? "hsl(45 100% 50%)"
+						: "hsl(142 76% 36%)",
+		},
+	};
 
 	return (
 		<div className="panel p-5 hover-lift group relative overflow-hidden">
@@ -201,14 +209,18 @@ function PercentileCard({ data, isLoading }: { data: PercentileData; isLoading: 
 
 			{/* Sparkline */}
 			<div className="absolute bottom-3 right-3 w-24 h-10 opacity-30 group-hover:opacity-60 transition-opacity">
-				<SparkAreaChart
-					data={data.sparkline}
-					categories={["value"]}
-					index="index"
-					colors={[data.id === "p99" ? "red" : data.id === "p95" ? "amber" : "green"]}
-					className="h-10 w-full"
-					curveType="monotone"
-				/>
+				<ChartContainer config={chartConfig} className="h-full w-full">
+					<AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+						<Area
+							type="monotone"
+							dataKey="value"
+							stroke={chartConfig.value.color}
+							fill={chartConfig.value.color}
+							fillOpacity={0.3}
+							strokeWidth={1}
+						/>
+					</AreaChart>
+				</ChartContainer>
 			</div>
 		</div>
 	);
@@ -224,6 +236,13 @@ function LatencyHistogram({ data, isLoading }: { data: LatencyBucket[]; isLoadin
 		Requests: bucket.count,
 		percentage: bucket.percentage,
 	}));
+
+	const chartConfig = {
+		Requests: {
+			label: "Requests",
+			color: "hsl(270 70% 60%)",
+		},
+	};
 
 	return (
 		<div className="panel p-6 relative overflow-hidden">
@@ -270,17 +289,23 @@ function LatencyHistogram({ data, isLoading }: { data: LatencyBucket[]; isLoadin
 				</div>
 			) : (
 				<div className="h-72">
-					<BarChart
-						data={chartData}
-						index="range"
-						categories={["Requests"]}
-						colors={["violet"]}
-						valueFormatter={(v) => `${v.toLocaleString()} req`}
-						showLegend={false}
-						showGridLines={false}
-						className="h-full [&_.tremor-BarChart-bar]:!rounded-t"
-						yAxisWidth={60}
-					/>
+					<ChartContainer config={chartConfig} className="h-full w-full">
+						<BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+							<XAxis dataKey="range" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+							<YAxis
+								width={60}
+								axisLine={false}
+								tickLine={false}
+								tick={{ fontSize: 10 }}
+								tickFormatter={(v) => `${v.toLocaleString()}`}
+							/>
+							<ChartTooltip
+								content={<ChartTooltipContent />}
+								cursor={{ fill: "var(--muted)", opacity: 0.2 }}
+							/>
+							<Bar dataKey="Requests" fill="var(--color-Requests)" radius={[4, 4, 0, 0]} />
+						</BarChart>
+					</ChartContainer>
 				</div>
 			)}
 
@@ -324,6 +349,21 @@ function StrategyComparisonChart({
 		Sparse: point.sparse,
 		Hybrid: point.hybrid,
 	}));
+
+	const chartConfig = {
+		Dense: {
+			label: "Dense",
+			color: "hsl(190 95% 50%)",
+		},
+		Sparse: {
+			label: "Sparse",
+			color: "hsl(45 100% 50%)",
+		},
+		Hybrid: {
+			label: "Hybrid",
+			color: "hsl(270 70% 60%)",
+		},
+	};
 
 	return (
 		<div className="panel p-6 relative overflow-hidden">
@@ -378,18 +418,62 @@ function StrategyComparisonChart({
 				</div>
 			) : (
 				<div className="h-72">
-					<AreaChart
-						data={chartData}
-						index="timestamp"
-						categories={["Dense", "Sparse", "Hybrid"]}
-						colors={["cyan", "amber", "violet"]}
-						valueFormatter={(v) => `${v.toFixed(0)}ms`}
-						showLegend={false}
-						showGridLines={false}
-						className="h-full"
-						curveType="monotone"
-						yAxisWidth={50}
-					/>
+					<ChartContainer config={chartConfig} className="h-full w-full">
+						<AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+							<defs>
+								<linearGradient id="gradientDense" x1="0" y1="0" x2="0" y2="1">
+									<stop offset="0%" stopColor="var(--color-Dense)" stopOpacity={0.3} />
+									<stop offset="100%" stopColor="var(--color-Dense)" stopOpacity={0} />
+								</linearGradient>
+								<linearGradient id="gradientSparse" x1="0" y1="0" x2="0" y2="1">
+									<stop offset="0%" stopColor="var(--color-Sparse)" stopOpacity={0.3} />
+									<stop offset="100%" stopColor="var(--color-Sparse)" stopOpacity={0} />
+								</linearGradient>
+								<linearGradient id="gradientHybrid" x1="0" y1="0" x2="0" y2="1">
+									<stop offset="0%" stopColor="var(--color-Hybrid)" stopOpacity={0.3} />
+									<stop offset="100%" stopColor="var(--color-Hybrid)" stopOpacity={0} />
+								</linearGradient>
+							</defs>
+							<XAxis
+								dataKey="timestamp"
+								axisLine={false}
+								tickLine={false}
+								tick={{ fontSize: 10 }}
+							/>
+							<YAxis
+								width={50}
+								axisLine={false}
+								tickLine={false}
+								tick={{ fontSize: 10 }}
+								tickFormatter={(v) => `${v}ms`}
+							/>
+							<ChartTooltip
+								content={<ChartTooltipContent indicator="line" />}
+								cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+							/>
+							<Area
+								type="monotone"
+								dataKey="Dense"
+								stroke="var(--color-Dense)"
+								fill="url(#gradientDense)"
+								strokeWidth={1.5}
+							/>
+							<Area
+								type="monotone"
+								dataKey="Sparse"
+								stroke="var(--color-Sparse)"
+								fill="url(#gradientSparse)"
+								strokeWidth={1.5}
+							/>
+							<Area
+								type="monotone"
+								dataKey="Hybrid"
+								stroke="var(--color-Hybrid)"
+								fill="url(#gradientHybrid)"
+								strokeWidth={1.5}
+							/>
+						</AreaChart>
+					</ChartContainer>
 				</div>
 			)}
 

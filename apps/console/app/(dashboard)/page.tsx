@@ -19,15 +19,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Area, AreaChart } from "recharts";
-
+import { MetricsGrid } from "@/components/dashboard/metrics-grid";
+import { ServiceHealthGrid } from "@/components/dashboard/service-health-grid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MetricsGrid } from "@/components/dashboard/metrics-grid";
-import { ServiceHealthGrid } from "@/components/dashboard/service-health-grid";
 import { type ServiceHealth, useApiClient } from "@/lib/api-client";
 
 // ============================================

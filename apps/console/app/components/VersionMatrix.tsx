@@ -1,6 +1,5 @@
 "use client";
 
-import { Title } from "@tremor/react";
 import {
 	AlertTriangle,
 	ArrowUp,
@@ -188,7 +187,7 @@ export function VersionMatrix({ showHeader = true, filterType = "all" }: Version
 		<div className="panel p-5">
 			{showHeader && (
 				<div className="flex items-center justify-between mb-4">
-					<Title className="!text-[rgb(var(--text-primary))] !font-display">Version Matrix</Title>
+					<h3 className="font-display text-lg text-[rgb(var(--text-primary))]">Version Matrix</h3>
 					<div className="flex items-center gap-4 text-xs font-mono">
 						<span className="text-[rgb(var(--console-green))]">{stats.current} current</span>
 						{stats.update > 0 && (
