@@ -3,10 +3,17 @@
 # Mocks module-level singletons (FalkorDB, NATS, Logger) before tests import them
 preload = ["./test-preload.ts"]
 
-# Exclude Playwright e2e tests (they use a different runner)
-# and other files that aren't Bun tests
+# Exclude non-Bun test files
 ignore = [
   "**/*.spec.ts",
-  "**/playwright.config.ts",
   "**/node_modules/**",
 ]
+
+# Timeouts (30s for long-running tests)
+timeout = 30000
+
+# Coverage configuration
+# Note: Run with --coverage flag to enable (bun test --coverage)
+# coverageDir = "./coverage"
+# coverageReporter = ["text", "lcov", "html"]
+# coverageThreshold = { line = 90, function = 90, statement = 90 }

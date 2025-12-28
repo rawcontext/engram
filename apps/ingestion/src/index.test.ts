@@ -1432,14 +1432,6 @@ describe("Ingestion Service", () => {
 			}
 		});
 
-		it.skip("should handle request stream errors gracefully", async () => {
-			// Lines 418-422 handle request stream errors (network failures, client aborts).
-			// These are extremely difficult to test reliably in a unit test environment
-			// because they require simulating network-level failures. The error handler
-			// is critical for production but impractical to test without integration tests
-			// involving actual network failures.
-		});
-
 		it("should handle non-POST requests to /ingest", async () => {
 			const server = (await import("./index")).createIngestionServer(5563);
 			const address = await new Promise<string>((resolve) => {

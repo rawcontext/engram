@@ -3,7 +3,7 @@
 	"remoteCache": {
 		"signature": true
 	},
-	"globalDependencies": ["tsconfig.json", "biome.json"],
+	"globalDependencies": ["tsconfig.json", "biome.json", "bunfig.toml"],
 	"globalPassThroughEnv": ["CI", "NODE_ENV", "GITHUB_ACTIONS"],
 	"globalEnv": ["REDIS_URL", "QDRANT_URL"],
 	"tasks": {
@@ -18,9 +18,9 @@
 			"inputs": ["$TURBO_DEFAULT$", "tsconfig.json"],
 			"outputLogs": "new-only"
 		},
-		"lint": {
-			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/biome.json"],
-			"outputLogs": "new-only"
+		"dev": {
+			"cache": false,
+			"persistent": true
 		},
 		"//#lint:run": {
 			"inputs": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "biome.json"],
@@ -30,11 +30,20 @@
 			"inputs": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "biome.json"],
 			"outputLogs": "new-only"
 		},
-		"dev": {
-			"cache": false,
-			"persistent": true
+		"//#test:ts": {
+			"dependsOn": ["^build"],
+			"inputs": [
+				"apps/**/*.ts",
+				"apps/**/*.tsx",
+				"packages/**/*.ts",
+				"!packages/benchmark/**",
+				"test-preload.ts",
+				"bunfig.toml"
+			],
+			"outputs": ["coverage/**"],
+			"outputLogs": "new-only"
 		},
-		"test": {
+		"test:py": {
 			"inputs": ["src/**/*.py", "tests/**/*.py", "pyproject.toml"],
 			"outputs": ["coverage/**", ".coverage", "htmlcov/**"],
 			"outputLogs": "new-only"

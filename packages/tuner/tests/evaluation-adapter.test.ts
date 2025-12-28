@@ -1,7 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
+import { describe, expect, it } from "bun:test";
 import type { BenchmarkReport } from "../src/executor/benchmark-types.js";
 import type { TrialConfig } from "../src/executor/config-mapper.js";
 import {
@@ -377,273 +374,32 @@ describe("mapBenchmarkToTrialMetrics", () => {
 
 // NOTE: evaluateWithBenchmark involves spawning child processes which is difficult to test
 // in a unit test environment. The function is primarily tested via integration tests.
-describe.skip("evaluateWithBenchmark", () => {
-	// Skipped: Involves spawning child processes, tested via integration tests
-	let tmpDir: string;
-
-	beforeEach(async () => {
-		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "benchmark-test-"));
-	});
-
-	afterEach(async () => {
-		try {
-			await fs.rm(tmpDir, { recursive: true, force: true });
-		} catch {
-			// Ignore cleanup errors
-		}
-	});
-
-	const baseTrialConfig: TrialConfig = {
-		reranker: { enabled: true, defaultTier: "accurate", depth: 30 },
-		search: { minScore: { hybrid: 0.5 } },
-		abstention: { minRetrievalScore: 0.3 },
-	};
-
-	// Skip: Bun's mock.module must be called before imports, not inside tests
-	it.skip("should throw when benchmark CLI spawning fails", async () => {
-		await expect(
-			evaluateWithBenchmark(baseTrialConfig, {
-				dataset: "/test/dataset.json",
-			}),
-		).rejects.toThrow();
-	});
-
+describe("evaluateWithBenchmark", () => {
 	it("should throw when dataset is not a string", async () => {
-		const invalidConfig = {
-			...baseTrialConfig,
+		const config: TrialConfig = {
+			reranker: { enabled: true, defaultTier: "accurate", depth: 30 },
+			search: { minScore: { hybrid: 0.5 } },
+			abstention: { minRetrievalScore: 0.3 },
 		};
 
 		await expect(
-			evaluateWithBenchmark(invalidConfig, {
+			evaluateWithBenchmark(config, {
 				dataset: null as any,
 			}),
 		).rejects.toThrow("dataset must be a string");
 	});
 
 	it("should throw when rerankTier is not a string", async () => {
-		const invalidConfig: TrialConfig = {
+		const config: TrialConfig = {
 			reranker: { defaultTier: 123 as any },
 			search: {},
 			abstention: {},
 		};
 
 		await expect(
-			evaluateWithBenchmark(invalidConfig, {
+			evaluateWithBenchmark(config, {
 				dataset: "/test/dataset.json",
 			}),
 		).rejects.toThrow("rerankTier must be a string");
-	});
-
-	it.skip("should handle progress callbacks", async () => {
-		const progressUpdates: Array<{ stage: string; percent: number }> = [];
-
-		const mockSpawn = mock(() => {
-			const EventEmitter = require("node:events");
-			const proc = new EventEmitter();
-			proc.stdout = new EventEmitter();
-			proc.stderr = new EventEmitter();
-
-			setTimeout(() => {
-				proc.stdout.emit("data", Buffer.from("Embedding: 50%"));
-				proc.stdout.emit("data", Buffer.from("Evaluation: 75%"));
-				proc.emit("close", 0);
-			}, 10);
-
-			return proc;
-		});
-
-		vi.mock("node:child_process", () => ({
-			spawn: mockSpawn,
-		}));
-
-		// Create a test report file
-		const reportPath = path.join(tmpDir, "report_test.json");
-		const report = createBenchmarkReport({
-			accuracy: 0.8,
-			recallAt1: 0.7,
-			recallAt5: 0.8,
-			recallAt10: 0.9,
-			ndcgAt10: 0.75,
-			mrr: 0.72,
-			abstentionPrecision: 0.8,
-			abstentionRecall: 0.7,
-			abstentionF1: 0.74,
-			p50Latency: 50,
-			p95Latency: 100,
-			p99Latency: 150,
-			totalDurationMs: 5000,
-		});
-
-		await fs.writeFile(reportPath, JSON.stringify(report));
-
-		// Mock fs.promises.readdir to return our report
-		const originalReaddir = fs.readdir;
-		spyOn(fs, "readdir").mockResolvedValue(["report_test.json"] as any);
-
-		try {
-			await evaluateWithBenchmark(baseTrialConfig, {
-				dataset: "/test/dataset.json",
-				onProgress: (stage, pct) => {
-					progressUpdates.push({ stage, percent: pct });
-				},
-			});
-
-			expect(progressUpdates.length).toBeGreaterThan(0);
-		} finally {
-			spyOn(fs, "readdir").mockRestore();
-		}
-	});
-
-	it.skip("should handle benchmark process errors", async () => {
-		const mockSpawn = mock(() => {
-			const EventEmitter = require("node:events");
-			const proc = new EventEmitter();
-			proc.stdout = new EventEmitter();
-			proc.stderr = new EventEmitter();
-
-			setTimeout(() => {
-				proc.emit("error", new Error("Command not found"));
-			}, 10);
-
-			return proc;
-		});
-
-		vi.mock("node:child_process", () => ({
-			spawn: mockSpawn,
-		}));
-
-		await expect(
-			evaluateWithBenchmark(baseTrialConfig, {
-				dataset: "/test/dataset.json",
-			}),
-		).rejects.toThrow("Failed to spawn engram-benchmark CLI");
-	});
-
-	it.skip("should handle non-zero exit code", async () => {
-		const mockSpawn = mock(() => {
-			const EventEmitter = require("node:events");
-			const proc = new EventEmitter();
-			proc.stdout = new EventEmitter();
-			proc.stderr = new EventEmitter();
-
-			setTimeout(() => {
-				proc.stderr.emit("data", Buffer.from("Error: Something went wrong"));
-				proc.emit("close", 1);
-			}, 10);
-
-			return proc;
-		});
-
-		vi.mock("node:child_process", () => ({
-			spawn: mockSpawn,
-		}));
-
-		await expect(
-			evaluateWithBenchmark(baseTrialConfig, {
-				dataset: "/test/dataset.json",
-			}),
-		).rejects.toThrow("exited with code 1");
-	});
-
-	it.skip("should throw when no JSON report found", async () => {
-		const mockSpawn = mock(() => {
-			const EventEmitter = require("node:events");
-			const proc = new EventEmitter();
-			proc.stdout = new EventEmitter();
-			proc.stderr = new EventEmitter();
-
-			setTimeout(() => {
-				proc.emit("close", 0);
-			}, 10);
-
-			return proc;
-		});
-
-		vi.mock("node:child_process", () => ({
-			spawn: mockSpawn,
-		}));
-
-		// Mock readdir to return no JSON files
-		spyOn(fs, "readdir").mockResolvedValue(["other.txt"] as any);
-
-		try {
-			await expect(
-				evaluateWithBenchmark(baseTrialConfig, {
-					dataset: "/test/dataset.json",
-				}),
-			).rejects.toThrow("No JSON report found");
-		} finally {
-			spyOn(fs, "readdir").mockRestore();
-		}
-	});
-
-	it.skip("should throw when JSON parsing fails", async () => {
-		const mockSpawn = mock(() => {
-			const EventEmitter = require("node:events");
-			const proc = new EventEmitter();
-			proc.stdout = new EventEmitter();
-			proc.stderr = new EventEmitter();
-
-			setTimeout(() => {
-				proc.emit("close", 0);
-			}, 10);
-
-			return proc;
-		});
-
-		vi.mock("node:child_process", () => ({
-			spawn: mockSpawn,
-		}));
-
-		// Create invalid JSON file
-		const reportPath = path.join(tmpDir, "report_invalid.json");
-		await fs.writeFile(reportPath, "{ invalid json }");
-
-		spyOn(fs, "readdir").mockResolvedValue(["report_invalid.json"] as any);
-
-		try {
-			await expect(
-				evaluateWithBenchmark(baseTrialConfig, {
-					dataset: "/test/dataset.json",
-				}),
-			).rejects.toThrow("Failed to parse benchmark report JSON");
-		} finally {
-			spyOn(fs, "readdir").mockRestore();
-		}
-	});
-
-	it.skip("should throw when JSON is not an object", async () => {
-		const mockSpawn = mock(() => {
-			const EventEmitter = require("node:events");
-			const proc = new EventEmitter();
-			proc.stdout = new EventEmitter();
-			proc.stderr = new EventEmitter();
-
-			setTimeout(() => {
-				proc.emit("close", 0);
-			}, 10);
-
-			return proc;
-		});
-
-		vi.mock("node:child_process", () => ({
-			spawn: mockSpawn,
-		}));
-
-		// Create JSON array instead of object
-		const reportPath = path.join(tmpDir, "report_array.json");
-		await fs.writeFile(reportPath, "[]");
-
-		spyOn(fs, "readdir").mockResolvedValue(["report_array.json"] as any);
-
-		try {
-			await expect(
-				evaluateWithBenchmark(baseTrialConfig, {
-					dataset: "/test/dataset.json",
-				}),
-			).rejects.toThrow("Invalid benchmark report: expected an object");
-		} finally {
-			spyOn(fs, "readdir").mockRestore();
-		}
 	});
 });

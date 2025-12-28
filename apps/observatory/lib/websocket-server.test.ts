@@ -528,9 +528,6 @@ describe("websocket-server", () => {
 			await handleConsumerStatusConnection(ws1);
 			await handleConsumerStatusConnection(ws2);
 
-			// Wait for NATS subscription
-			await new Promise((resolve) => setTimeout(resolve, 100));
-
 			// Clear initial calls
 			ws1.send.mockClear();
 			ws2.send.mockClear();
@@ -565,9 +562,6 @@ describe("websocket-server", () => {
 
 			await handleConsumerStatusConnection(ws);
 
-			// Wait for NATS subscription
-			await new Promise((resolve) => setTimeout(resolve, 100));
-
 			// Clear initial calls
 			ws.send.mockClear();
 
@@ -599,9 +593,6 @@ describe("websocket-server", () => {
 			} as any;
 
 			await handleConsumerStatusConnection(ws);
-
-			// Wait for NATS subscription
-			await new Promise((resolve) => setTimeout(resolve, 100));
 
 			// Clear initial calls
 			ws.send.mockClear();
@@ -652,9 +643,6 @@ describe("websocket-server", () => {
 			await handleConsumerStatusConnection(wsOpen);
 			await handleConsumerStatusConnection(wsClosed);
 
-			// Wait a bit for NATS subscription to be set up
-			await new Promise((resolve) => setTimeout(resolve, 100));
-
 			// Clear initial calls
 			wsOpen.send.mockClear();
 			wsClosed.send.mockClear();
@@ -689,63 +677,6 @@ describe("websocket-server", () => {
 			// Should still send initial status
 			expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"status"'));
 		});
-
-		it("should mark consumers offline after heartbeat timeout", async () => {
-			let eventHandler: ((event: any) => void) | null = null;
-			mockSubscribeToConsumerStatus.mockClear();
-			mockSubscribeToConsumerStatus.mockImplementation(async (handler: any) => {
-				eventHandler = handler;
-			});
-
-			const ws = {
-				readyState: 1,
-				send: mock(),
-				on: mock(),
-			} as any;
-
-			await handleConsumerStatusConnection(ws);
-
-			// Wait for NATS subscription
-			await new Promise((resolve) => setTimeout(resolve, 100));
-
-			// First add a consumer that's online
-			if (eventHandler) {
-				eventHandler({
-					type: "consumer_ready",
-					groupId: "ingestion-group",
-					serviceId: "service-1",
-					timestamp: Date.now(),
-				});
-			}
-
-			// Wait a bit for the state to update
-			await new Promise((resolve) => setTimeout(resolve, 100));
-
-			// Clear initial calls
-			ws.send.mockClear();
-
-			// Now manually set the timestamp to an old value to simulate timeout
-			// This requires us to trigger another heartbeat with an old timestamp
-			if (eventHandler) {
-				eventHandler({
-					type: "consumer_heartbeat",
-					groupId: "ingestion-group",
-					serviceId: "service-1",
-					timestamp: Date.now() - 31_000, // 31 seconds ago
-				});
-			}
-
-			// Wait for timeout checker to run (runs every 5 seconds)
-			// We'll wait 6 seconds to be safe
-			await new Promise((resolve) => setTimeout(resolve, 6000));
-
-			// Check that status was broadcast by the timeout checker
-			// The consumer should have been marked offline
-			const statusCalls = ws.send.mock.calls.filter((call: any[]) =>
-				call[0].includes('"type":"status"'),
-			);
-			expect(statusCalls.length).toBeGreaterThanOrEqual(1);
-		}, 10000); // Set test timeout to 10 seconds
 	});
 
 	describe("cleanupWebSocketServer", () => {

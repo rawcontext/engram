@@ -15,8 +15,6 @@ const consumerStatusSubscriber = createNatsPubSubSubscriber();
 const SESSIONS_SUBJECT = "observatory.sessions.updates";
 
 export async function handleSessionConnection(ws: WebSocket, sessionId: string) {
-	console.log(`[WS] Client connected to session ${sessionId}`);
-
 	// Subscribe to NATS subject for real-time updates
 	const unsubscribe = await natsSubscriber.subscribe(sessionId, (update: SessionUpdate) => {
 		if (ws.readyState !== WebSocket.OPEN) return;
@@ -41,12 +39,11 @@ export async function handleSessionConnection(ws: WebSocket, sessionId: string) 
 		if (timelineData.timeline.length > 0) {
 			ws.send(JSON.stringify({ type: "replay", data: timelineData }));
 		}
-	} catch (error) {
-		console.error("[WS] Initial fetch error:", error);
+	} catch {
+		// Initial fetch failed - client will retry via refresh
 	}
 
 	ws.on("close", async () => {
-		console.log(`[WS] Client disconnected from session ${sessionId}`);
 		await unsubscribe();
 	});
 
@@ -61,15 +58,13 @@ export async function handleSessionConnection(ws: WebSocket, sessionId: string) 
 				const timelineData = await getSessionTimeline(sessionId);
 				ws.send(JSON.stringify({ type: "replay", data: timelineData }));
 			}
-		} catch (e) {
-			console.error("[WS] Invalid message", e);
+		} catch {
+			// Invalid message - ignore
 		}
 	});
 }
 
 export async function handleSessionsConnection(ws: WebSocket) {
-	console.log("[WS] Client connected to sessions list");
-
 	// Subscribe to global sessions subject for real-time updates
 	const unsubscribe = await natsSubscriber.subscribe(SESSIONS_SUBJECT, (update: SessionUpdate) => {
 		if (ws.readyState !== WebSocket.OPEN) return;
@@ -86,13 +81,11 @@ export async function handleSessionsConnection(ws: WebSocket) {
 	try {
 		const sessionsData = await getSessionsForWebSocket();
 		ws.send(JSON.stringify({ type: "sessions", data: sessionsData }));
-	} catch (error) {
-		console.error("[WS] Initial sessions fetch error:", error);
+	} catch {
 		ws.send(JSON.stringify({ type: "error", message: "Failed to fetch sessions" }));
 	}
 
 	ws.on("close", async () => {
-		console.log("[WS] Client disconnected from sessions list");
 		await unsubscribe();
 	});
 
@@ -104,8 +97,8 @@ export async function handleSessionsConnection(ws: WebSocket) {
 				const sessionsData = await getSessionsForWebSocket();
 				ws.send(JSON.stringify({ type: "sessions", data: sessionsData }));
 			}
-		} catch (e) {
-			console.error("[WS] Invalid message", e);
+		} catch {
+			// Invalid message - ignore
 		}
 	});
 }
@@ -218,8 +211,6 @@ function broadcastConsumerStatus() {
 function handleConsumerStatusEvent(event: ConsumerStatusUpdate) {
 	const { type, groupId, serviceId, timestamp } = event;
 
-	console.log(`[WS Consumer] NATS event: ${type} from ${groupId}/${serviceId}`);
-
 	if (type === "consumer_ready" || type === "consumer_heartbeat") {
 		consumerStates.set(groupId, {
 			groupId,
@@ -243,9 +234,7 @@ async function initConsumerStatusSubscription() {
 
 	try {
 		await consumerStatusSubscriber.subscribeToConsumerStatus(handleConsumerStatusEvent);
-		console.log("[WS Consumer] Subscribed to NATS consumer status subject");
-	} catch (error) {
-		console.error("[WS Consumer] Failed to subscribe to NATS:", error);
+	} catch {
 		consumerStatusSubscriptionInitialized = false;
 	}
 }
@@ -264,11 +253,10 @@ function startTimeoutChecker() {
 		const now = Date.now();
 		let changed = false;
 
-		for (const [groupId, state] of consumerStates) {
+		for (const [, state] of consumerStates) {
 			if (now - state.lastHeartbeat >= HEARTBEAT_TIMEOUT_MS && state.isReady) {
 				state.isReady = false;
 				changed = true;
-				console.log(`[WS Consumer] ${groupId} timed out (no heartbeat)`);
 			}
 		}
 
@@ -297,8 +285,6 @@ export function cleanupWebSocketServer(): void {
  * Uses NATS pub/sub for true event-driven updates (no polling).
  */
 export async function handleConsumerStatusConnection(ws: WebSocket) {
-	console.log("[WS] Client connected to consumer status");
-
 	// Track this client
 	connectedConsumerClients.add(ws);
 
@@ -309,12 +295,11 @@ export async function handleConsumerStatusConnection(ws: WebSocket) {
 
 	// Start NATS subscription in background (non-blocking)
 	// Don't await - let it connect asynchronously
-	initConsumerStatusSubscription().catch((err) => {
-		console.error("[WS Consumer] Background NATS subscription failed:", err);
+	initConsumerStatusSubscription().catch(() => {
+		// Background subscription failed - status updates won't be real-time
 	});
 
 	ws.on("close", () => {
-		console.log("[WS] Client disconnected from consumer status");
 		connectedConsumerClients.delete(ws);
 	});
 
@@ -326,8 +311,8 @@ export async function handleConsumerStatusConnection(ws: WebSocket) {
 				const currentStatus = buildConsumerStatusResponse();
 				ws.send(JSON.stringify({ type: "status", data: currentStatus }));
 			}
-		} catch (e) {
-			console.error("[WS Consumer] Invalid message", e);
+		} catch {
+			// Invalid message - ignore
 		}
 	});
 }

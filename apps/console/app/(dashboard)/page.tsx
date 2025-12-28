@@ -1,6 +1,5 @@
 "use client";
 
-import { AreaChart, Badge, Text, Title } from "@tremor/react";
 import {
 	Activity,
 	AlertTriangle,
@@ -19,9 +18,17 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { Area, AreaChart } from "recharts";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer } from "@/components/ui/chart";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MetricsGrid } from "@/components/dashboard/metrics-grid";
+import { ServiceHealthGrid } from "@/components/dashboard/service-health-grid";
 import { type ServiceHealth, useApiClient } from "@/lib/api-client";
-import { MetricsGrid } from "../components/MetricsGrid";
-import { ServiceHealthGrid } from "../components/ServiceHealthGrid";
 
 // ============================================
 // Types
@@ -63,29 +70,29 @@ function formatTimeAgo(timestamp: number): string {
 	return `${Math.floor(diff / 86400000)}d ago`;
 }
 
-function getSeverityColor(severity: "critical" | "warning" | "info"): string {
+function getSeverityVariant(severity: "critical" | "warning" | "info") {
 	switch (severity) {
 		case "critical":
-			return "--console-red";
+			return "destructive";
 		case "warning":
-			return "--console-amber";
+			return "secondary";
 		case "info":
-			return "--console-cyan";
+			return "default";
 	}
 }
 
-function getDeploymentStatusColor(status: string): string {
+function getDeploymentStatusVariant(status: string) {
 	switch (status) {
 		case "success":
-			return "--console-green";
+			return "default";
 		case "failed":
-			return "--console-red";
+			return "destructive";
 		case "in_progress":
-			return "--console-cyan";
+			return "secondary";
 		case "pending":
-			return "--console-amber";
+			return "outline";
 		default:
-			return "--text-muted";
+			return "outline";
 	}
 }
 
@@ -99,41 +106,41 @@ function AlertBanner({ alerts, isLoading }: { alerts: AlertHistoryItem[]; isLoad
 
 	if (isLoading) {
 		return (
-			<div className="panel p-4 animate-pulse">
-				<div className="flex items-center gap-3">
-					<div className="w-5 h-5 rounded-full bg-[rgb(var(--console-surface))]" />
-					<div className="h-4 w-32 rounded bg-[rgb(var(--console-surface))]" />
-				</div>
-			</div>
+			<Card>
+				<CardContent className="p-4">
+					<div className="flex items-center gap-3">
+						<Skeleton className="h-5 w-5 rounded-full" />
+						<Skeleton className="h-4 w-32" />
+					</div>
+				</CardContent>
+			</Card>
 		);
 	}
 
 	if (firingAlerts.length === 0) {
 		return (
-			<div className="panel p-4 border-[rgba(var(--console-green),0.2)]">
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-3">
-						<div className="w-8 h-8 rounded-lg bg-[rgba(var(--console-green),0.15)] flex items-center justify-center">
-							<Bell className="w-4 h-4 text-[rgb(var(--console-green))]" />
+			<Card className="border-green-500/20">
+				<CardContent className="p-4">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-3">
+							<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/15">
+								<Bell className="h-4 w-4 text-green-500" />
+							</div>
+							<div>
+								<span className="font-mono text-sm text-green-500">No active alerts</span>
+								<span className="text-xs text-muted-foreground ml-2">All systems nominal</span>
+							</div>
 						</div>
-						<div>
-							<span className="font-mono text-sm text-[rgb(var(--console-green))]">
-								No active alerts
-							</span>
-							<span className="text-xs text-[rgb(var(--text-muted))] ml-2">
-								All systems nominal
-							</span>
-						</div>
+						<Link
+							href="/alerts"
+							className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+						>
+							View history
+							<ExternalLink className="h-3 w-3" />
+						</Link>
 					</div>
-					<Link
-						href="/alerts"
-						className="text-xs font-mono text-[rgb(var(--text-muted))] hover:text-[rgb(var(--console-cyan))] transition-colors flex items-center gap-1"
-					>
-						View history
-						<ExternalLink className="w-3 h-3" />
-					</Link>
-				</div>
-			</div>
+				</CardContent>
+			</Card>
 		);
 	}
 
@@ -141,112 +148,103 @@ function AlertBanner({ alerts, isLoading }: { alerts: AlertHistoryItem[]; isLoad
 	const warningCount = firingAlerts.filter((a) => a.severity === "warning").length;
 
 	return (
-		<div
-			className={`panel overflow-hidden transition-all ${
+		<Card
+			className={`overflow-hidden ${
 				criticalCount > 0
-					? "ring-1 ring-[rgb(var(--console-red))] border-[rgba(var(--console-red),0.3)]"
-					: "ring-1 ring-[rgb(var(--console-amber))] border-[rgba(var(--console-amber),0.3)]"
+					? "ring-1 ring-destructive border-destructive/30"
+					: "ring-1 ring-amber-500 border-amber-500/30"
 			}`}
 		>
-			{/* Header */}
-			<button
-				type="button"
-				onClick={() => setIsExpanded(!isExpanded)}
-				className="w-full p-4 flex items-center justify-between hover:bg-[rgba(var(--console-surface),0.3)] transition-colors"
-			>
-				<div className="flex items-center gap-3">
-					<div
-						className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-							criticalCount > 0
-								? "bg-[rgba(var(--console-red),0.2)]"
-								: "bg-[rgba(var(--console-amber),0.2)]"
-						}`}
+			<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+				<CollapsibleTrigger asChild>
+					<button
+						type="button"
+						className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
 					>
-						<AlertTriangle
-							className={`w-4 h-4 ${
-								criticalCount > 0
-									? "text-[rgb(var(--console-red))] animate-pulse"
-									: "text-[rgb(var(--console-amber))]"
-							}`}
-						/>
-					</div>
-					<div className="flex items-center gap-3">
-						<span
-							className={`font-mono text-sm font-medium ${
-								criticalCount > 0
-									? "text-[rgb(var(--console-red))]"
-									: "text-[rgb(var(--console-amber))]"
-							}`}
-						>
-							{firingAlerts.length} Active Alert{firingAlerts.length !== 1 ? "s" : ""}
-						</span>
-						<div className="flex items-center gap-2">
-							{criticalCount > 0 && (
-								<span className="px-2 py-0.5 rounded text-xs font-mono bg-[rgba(var(--console-red),0.2)] text-[rgb(var(--console-red))]">
-									{criticalCount} critical
+						<div className="flex items-center gap-3">
+							<div
+								className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+									criticalCount > 0 ? "bg-destructive/20" : "bg-amber-500/20"
+								}`}
+							>
+								<AlertTriangle
+									className={`h-4 w-4 ${
+										criticalCount > 0 ? "text-destructive animate-pulse" : "text-amber-500"
+									}`}
+								/>
+							</div>
+							<div className="flex items-center gap-3">
+								<span
+									className={`font-mono text-sm font-medium ${
+										criticalCount > 0 ? "text-destructive" : "text-amber-500"
+									}`}
+								>
+									{firingAlerts.length} Active Alert{firingAlerts.length !== 1 ? "s" : ""}
 								</span>
-							)}
-							{warningCount > 0 && (
-								<span className="px-2 py-0.5 rounded text-xs font-mono bg-[rgba(var(--console-amber),0.2)] text-[rgb(var(--console-amber))]">
-									{warningCount} warning
-								</span>
-							)}
+								<div className="flex items-center gap-2">
+									{criticalCount > 0 && (
+										<Badge variant="destructive" className="font-mono text-xs">
+											{criticalCount} critical
+										</Badge>
+									)}
+									{warningCount > 0 && (
+										<Badge
+											variant="secondary"
+											className="font-mono text-xs bg-amber-500/10 text-amber-500"
+										>
+											{warningCount} warning
+										</Badge>
+									)}
+								</div>
+							</div>
 						</div>
-					</div>
-				</div>
-				<div className="flex items-center gap-3">
-					<Link
-						href="/alerts"
-						onClick={(e) => e.stopPropagation()}
-						className="text-xs font-mono text-[rgb(var(--text-muted))] hover:text-[rgb(var(--console-cyan))] transition-colors flex items-center gap-1"
-					>
-						Manage alerts
-						<ExternalLink className="w-3 h-3" />
-					</Link>
-					<ChevronDown
-						className={`w-5 h-5 text-[rgb(var(--text-muted))] transition-transform ${
-							isExpanded ? "rotate-180" : ""
-						}`}
-					/>
-				</div>
-			</button>
-
-			{/* Expanded Alert List */}
-			{isExpanded && (
-				<div className="border-t border-[rgba(var(--console-cyan),0.1)]">
-					{firingAlerts.slice(0, 5).map((alert) => {
-						const severityColor = getSeverityColor(alert.severity);
-						return (
+						<div className="flex items-center gap-3">
+							<Link
+								href="/alerts"
+								onClick={(e) => e.stopPropagation()}
+								className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+							>
+								Manage alerts
+								<ExternalLink className="h-3 w-3" />
+							</Link>
+							<ChevronDown
+								className={`h-5 w-5 text-muted-foreground transition-transform ${
+									isExpanded ? "rotate-180" : ""
+								}`}
+							/>
+						</div>
+					</button>
+				</CollapsibleTrigger>
+				<CollapsibleContent>
+					<div className="border-t">
+						{firingAlerts.slice(0, 5).map((alert) => (
 							<Link
 								key={alert.id}
 								href="/alerts"
-								className="flex items-center gap-4 px-4 py-3 border-b border-[rgba(var(--console-cyan),0.05)] last:border-b-0 hover:bg-[rgba(var(--console-cyan),0.02)] transition-colors"
+								className="flex items-center gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
 							>
 								<div
-									className="w-2 h-2 rounded-full animate-pulse"
-									style={{ background: `rgb(var(${severityColor}))` }}
+									className={`h-2 w-2 rounded-full animate-pulse ${
+										alert.severity === "critical"
+											? "bg-destructive"
+											: alert.severity === "warning"
+												? "bg-amber-500"
+												: "bg-primary"
+									}`}
 								/>
-								<span
-									className="px-2 py-0.5 rounded text-xs font-mono uppercase"
-									style={{
-										background: `rgba(var(${severityColor}), 0.15)`,
-										color: `rgb(var(${severityColor}))`,
-									}}
-								>
+								<Badge variant={getSeverityVariant(alert.severity)} className="font-mono text-xs">
 									{alert.severity}
-								</span>
-								<span className="flex-1 font-mono text-sm text-[rgb(var(--text-primary))] truncate">
-									{alert.ruleName}
-								</span>
-								<span className="text-xs font-mono text-[rgb(var(--text-muted))]">
+								</Badge>
+								<span className="flex-1 font-mono text-sm truncate">{alert.ruleName}</span>
+								<span className="text-xs font-mono text-muted-foreground">
 									{formatTimeAgo(alert.triggeredAt)}
 								</span>
 							</Link>
-						);
-					})}
-				</div>
-			)}
-		</div>
+						))}
+					</div>
+				</CollapsibleContent>
+			</Collapsible>
+		</Card>
 	);
 }
 
@@ -255,34 +253,10 @@ function AlertBanner({ alerts, isLoading }: { alerts: AlertHistoryItem[]; isLoad
 // ============================================
 
 const QUICK_ACTIONS = [
-	{
-		id: "logs",
-		label: "View Logs",
-		icon: ScrollText,
-		href: "/logs",
-		color: "--console-cyan",
-	},
-	{
-		id: "deploy",
-		label: "Deployments",
-		icon: Rocket,
-		href: "/deployments",
-		color: "--console-purple",
-	},
-	{
-		id: "alerts",
-		label: "Add Alert",
-		icon: Plus,
-		href: "/alerts?action=create",
-		color: "--console-amber",
-	},
-	{
-		id: "tools",
-		label: "Clear Caches",
-		icon: Trash2,
-		href: "/tools",
-		color: "--console-red",
-	},
+	{ id: "logs", label: "View Logs", icon: ScrollText, href: "/logs" },
+	{ id: "deploy", label: "Deployments", icon: Rocket, href: "/deployments" },
+	{ id: "alerts", label: "Add Alert", icon: Plus, href: "/alerts?action=create" },
+	{ id: "tools", label: "Clear Caches", icon: Trash2, href: "/tools" },
 ];
 
 function QuickActions() {
@@ -291,19 +265,12 @@ function QuickActions() {
 			{QUICK_ACTIONS.map((action) => {
 				const Icon = action.icon;
 				return (
-					<Link
-						key={action.id}
-						href={action.href}
-						className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.1)] hover:border-[rgba(var(--console-cyan),0.3)] hover:bg-[rgba(var(--console-cyan),0.05)] transition-all group"
-					>
-						<Icon
-							className="w-4 h-4 transition-colors"
-							style={{ color: `rgb(var(${action.color}))` }}
-						/>
-						<span className="font-mono text-xs text-[rgb(var(--text-secondary))] group-hover:text-[rgb(var(--text-primary))] transition-colors">
-							{action.label}
-						</span>
-					</Link>
+					<Button key={action.id} variant="outline" size="sm" asChild className="gap-2">
+						<Link href={action.href}>
+							<Icon className="h-4 w-4" />
+							<span className="font-mono text-xs">{action.label}</span>
+						</Link>
+					</Button>
 				);
 			})}
 		</div>
@@ -323,7 +290,6 @@ function ActivityFeed({
 	deployments: Deployment[];
 	isLoading: boolean;
 }) {
-	// Combine and sort activities by time
 	const activities = [
 		...alerts.slice(0, 3).map((a) => ({
 			type: "alert" as const,
@@ -347,70 +313,70 @@ function ActivityFeed({
 
 	if (isLoading) {
 		return (
-			<div className="panel p-5">
-				<div className="flex items-center gap-2 mb-4">
-					<div className="h-4 w-24 rounded bg-[rgb(var(--console-surface))] animate-pulse" />
-				</div>
-				<div className="space-y-3">
+			<Card>
+				<CardHeader>
+					<Skeleton className="h-4 w-24" />
+				</CardHeader>
+				<CardContent className="space-y-3">
 					{[1, 2, 3].map((i) => (
-						<div key={i} className="flex items-center gap-3 animate-pulse">
-							<div className="w-8 h-8 rounded-lg bg-[rgb(var(--console-surface))]" />
+						<div key={i} className="flex items-center gap-3">
+							<Skeleton className="h-8 w-8 rounded-lg" />
 							<div className="flex-1">
-								<div className="h-4 w-32 rounded bg-[rgb(var(--console-surface))] mb-1" />
-								<div className="h-3 w-20 rounded bg-[rgb(var(--console-surface))]" />
+								<Skeleton className="h-4 w-32 mb-1" />
+								<Skeleton className="h-3 w-20" />
 							</div>
 						</div>
 					))}
-				</div>
-			</div>
+				</CardContent>
+			</Card>
 		);
 	}
 
 	return (
-		<div className="panel p-5">
-			<div className="flex items-center justify-between mb-4">
-				<Title className="!text-[rgb(var(--text-primary))] !font-display flex items-center gap-2">
-					<Zap className="w-4 h-4 text-[rgb(var(--console-amber))]" />
+		<Card>
+			<CardHeader className="pb-3">
+				<CardTitle className="text-base flex items-center gap-2">
+					<Zap className="h-4 w-4 text-amber-500" />
 					Activity
-				</Title>
-			</div>
-
-			<div className="space-y-3">
+				</CardTitle>
+			</CardHeader>
+			<CardContent className="space-y-3">
 				{activities.slice(0, 5).map((activity) => {
 					if (activity.type === "alert") {
-						const severityColor = getSeverityColor(activity.severity);
 						const isResolved = activity.state === "resolved";
 						return (
 							<Link
 								key={activity.id}
 								href={activity.href}
-								className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-[rgb(var(--console-surface))] transition-colors group"
+								className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors group"
 							>
 								<div
-									className="w-8 h-8 rounded-lg flex items-center justify-center"
-									style={{ background: `rgba(var(${severityColor}), 0.15)` }}
+									className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+										activity.severity === "critical"
+											? "bg-destructive/15"
+											: activity.severity === "warning"
+												? "bg-amber-500/15"
+												: "bg-primary/15"
+									}`}
 								>
 									<AlertTriangle
-										className="w-4 h-4"
-										style={{ color: `rgb(var(${severityColor}))` }}
+										className={`h-4 w-4 ${
+											activity.severity === "critical"
+												? "text-destructive"
+												: activity.severity === "warning"
+													? "text-amber-500"
+													: "text-primary"
+										}`}
 									/>
 								</div>
 								<div className="flex-1 min-w-0">
-									<div className="font-mono text-sm text-[rgb(var(--text-primary))] truncate">
-										{activity.title}
-									</div>
-									<div className="flex items-center gap-2">
-										<span
-											className={`text-xs font-mono ${
-												isResolved
-													? "text-[rgb(var(--console-green))]"
-													: `text-[rgb(var(${severityColor}))]`
-											}`}
-										>
+									<div className="font-mono text-sm truncate">{activity.title}</div>
+									<div className="flex items-center gap-2 text-xs">
+										<span className={isResolved ? "text-green-500" : "text-muted-foreground"}>
 											{isResolved ? "Resolved" : "Firing"}
 										</span>
-										<span className="text-xs text-[rgb(var(--text-dim))]">•</span>
-										<span className="text-xs text-[rgb(var(--text-muted))]">
+										<span className="text-muted-foreground">•</span>
+										<span className="text-muted-foreground">
 											{formatTimeAgo(activity.timestamp)}
 										</span>
 									</div>
@@ -419,35 +385,27 @@ function ActivityFeed({
 						);
 					}
 
-					const statusColor = getDeploymentStatusColor(activity.status);
 					return (
 						<Link
 							key={activity.id}
 							href={activity.href}
-							className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-[rgb(var(--console-surface))] transition-colors group"
+							className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors group"
 						>
-							<div className="w-8 h-8 rounded-lg bg-[rgba(var(--console-purple),0.15)] flex items-center justify-center">
-								<Rocket className="w-4 h-4 text-[rgb(var(--console-purple))]" />
+							<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgb(var(--console-purple))]/15">
+								<Rocket className="h-4 w-4 text-[rgb(var(--console-purple))]" />
 							</div>
 							<div className="flex-1 min-w-0">
-								<div className="font-mono text-sm text-[rgb(var(--text-primary))] truncate">
-									{activity.title}
-								</div>
-								<div className="flex items-center gap-2">
-									<span
-										className="text-xs font-mono capitalize"
-										style={{ color: `rgb(var(${statusColor}))` }}
+								<div className="font-mono text-sm truncate">{activity.title}</div>
+								<div className="flex items-center gap-2 text-xs">
+									<Badge
+										variant={getDeploymentStatusVariant(activity.status)}
+										className="font-mono text-[10px] h-4"
 									>
 										{activity.status.replace("_", " ")}
-									</span>
-									<span className="text-xs text-[rgb(var(--text-dim))]">•</span>
-									<span className="text-xs text-[rgb(var(--text-muted))]">
-										{activity.environment}
-									</span>
-									<span className="text-xs text-[rgb(var(--text-dim))]">•</span>
-									<span className="text-xs text-[rgb(var(--text-muted))]">
-										{formatTimeAgo(activity.timestamp)}
-									</span>
+									</Badge>
+									<span className="text-muted-foreground">{activity.environment}</span>
+									<span className="text-muted-foreground">•</span>
+									<span className="text-muted-foreground">{formatTimeAgo(activity.timestamp)}</span>
 								</div>
 							</div>
 						</Link>
@@ -456,11 +414,11 @@ function ActivityFeed({
 
 				{activities.length === 0 && (
 					<div className="text-center py-4">
-						<Text className="!text-[rgb(var(--text-muted))]">No recent activity</Text>
+						<p className="text-sm text-muted-foreground">No recent activity</p>
 					</div>
 				)}
-			</div>
-		</div>
+			</CardContent>
+		</Card>
 	);
 }
 
@@ -478,6 +436,10 @@ const sparklineData = [
 	{ time: "24:00", value: 48 },
 ];
 
+const chartConfig = {
+	value: { label: "Requests", color: "var(--chart-1)" },
+};
+
 // ============================================
 // Main Page Component
 // ============================================
@@ -489,7 +451,6 @@ export default function OverviewPage() {
 	const [deployments, setDeployments] = useState<Deployment[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 
-	// Fetch alerts and deployments
 	const fetchActivityData = useCallback(async () => {
 		try {
 			const [alertsData, deploymentsData] = await Promise.all([
@@ -500,7 +461,6 @@ export default function OverviewPage() {
 			setDeployments(deploymentsData);
 		} catch (err) {
 			console.error("Failed to fetch activity data:", err);
-			// Keep empty state - no mock data
 		} finally {
 			setIsLoading(false);
 		}
@@ -510,7 +470,6 @@ export default function OverviewPage() {
 		fetchActivityData();
 	}, [fetchActivityData]);
 
-	// Poll for updates
 	useEffect(() => {
 		const interval = setInterval(fetchActivityData, 30000);
 		return () => clearInterval(interval);
@@ -523,24 +482,25 @@ export default function OverviewPage() {
 	const firingAlerts = alerts.filter((a) => a.state === "firing");
 
 	return (
-		<div className="space-y-6 animate-fade-in">
-			{/* Alert Banner - Always at top */}
+		<div className="space-y-6">
+			{/* Alert Banner */}
 			<AlertBanner alerts={alerts} isLoading={isLoading} />
 
 			{/* Page Header with Quick Actions */}
 			<div className="flex items-center justify-between flex-wrap gap-4">
 				<div>
-					<h1 className="font-display text-2xl text-[rgb(var(--text-primary))]">System Overview</h1>
-					<p className="text-sm text-[rgb(var(--text-muted))] mt-1">
-						Real-time infrastructure monitoring
-					</p>
+					<h1 className="text-2xl font-semibold">System Overview</h1>
+					<p className="text-sm text-muted-foreground mt-1">Real-time infrastructure monitoring</p>
 				</div>
 				<div className="flex items-center gap-4">
 					<QuickActions />
 					<Badge
-						color={firingAlerts.length > 0 ? "amber" : "emerald"}
-						size="lg"
-						className="font-mono"
+						variant={firingAlerts.length > 0 ? "secondary" : "default"}
+						className={`font-mono ${
+							firingAlerts.length > 0
+								? "bg-amber-500/10 text-amber-500"
+								: "bg-green-500/10 text-green-500"
+						}`}
 					>
 						{firingAlerts.length > 0
 							? `${firingAlerts.length} Alerts Active`
@@ -549,98 +509,109 @@ export default function OverviewPage() {
 				</div>
 			</div>
 
-			{/* Key Metrics - Live Data */}
+			{/* Key Metrics */}
 			<MetricsGrid pollInterval={10000} />
 
-			{/* Charts, Resources, and Activity Feed */}
+			{/* Charts and Activity Feed */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				{/* Request Volume Chart */}
-				<div className="lg:col-span-2 panel p-5">
-					<div className="flex items-center justify-between mb-4">
-						<div>
-							<Title className="!text-[rgb(var(--text-primary))] !font-display">
-								Request Volume
-							</Title>
-							<Text className="!text-[rgb(var(--text-muted))]">Last 24 hours</Text>
+				<Card className="lg:col-span-2">
+					<CardHeader>
+						<div className="flex items-center justify-between">
+							<div>
+								<CardTitle className="text-base">Request Volume</CardTitle>
+								<CardDescription>Last 24 hours</CardDescription>
+							</div>
+							<Badge variant="secondary" className="font-mono">
+								Live
+							</Badge>
 						</div>
-						<Badge color="blue" className="font-mono">
-							Live
-						</Badge>
-					</div>
-					<AreaChart
-						className="h-48"
-						data={sparklineData}
-						index="time"
-						categories={["value"]}
-						colors={["cyan"]}
-						showLegend={false}
-						showGridLines={false}
-						showXAxis={true}
-						showYAxis={false}
-						curveType="natural"
-					/>
-				</div>
+					</CardHeader>
+					<CardContent>
+						<ChartContainer config={chartConfig} className="h-48 w-full">
+							<AreaChart data={sparklineData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+								<defs>
+									<linearGradient id="gradient-value" x1="0" y1="0" x2="0" y2="1">
+										<stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.3} />
+										<stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
+									</linearGradient>
+								</defs>
+								<Area
+									type="natural"
+									dataKey="value"
+									stroke="var(--chart-1)"
+									strokeWidth={2}
+									fill="url(#gradient-value)"
+								/>
+							</AreaChart>
+						</ChartContainer>
+					</CardContent>
+				</Card>
 
-				{/* Activity Feed - Right column */}
+				{/* Activity Feed */}
 				<ActivityFeed alerts={alerts} deployments={deployments} isLoading={isLoading} />
 			</div>
 
 			{/* Resources Quick Stats */}
-			<div className="panel p-5">
-				<Title className="!text-[rgb(var(--text-primary))] !font-display mb-4">Resources</Title>
-				<div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-3">
-							<Cpu className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
-							<span className="text-sm text-[rgb(var(--text-secondary))]">CPU</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<div className="w-24 h-2 rounded-full bg-[rgb(var(--console-surface))]">
-								<div className="w-[34%] h-full rounded-full bg-gradient-to-r from-[rgb(var(--console-cyan))] to-[rgb(var(--console-blue))]" />
+			<Card>
+				<CardHeader>
+					<CardTitle className="text-base">Resources</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-3">
+								<Cpu className="h-4 w-4 text-primary" />
+								<span className="text-sm text-muted-foreground">CPU</span>
 							</div>
-							<span className="font-mono text-xs text-[rgb(var(--text-muted))]">34%</span>
+							<div className="flex items-center gap-2">
+								<div className="w-24 h-2 rounded-full bg-muted">
+									<div className="w-[34%] h-full rounded-full bg-gradient-to-r from-primary to-blue-500" />
+								</div>
+								<span className="font-mono text-xs text-muted-foreground">34%</span>
+							</div>
+						</div>
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-3">
+								<Database className="h-4 w-4 text-[rgb(var(--console-purple))]" />
+								<span className="text-sm text-muted-foreground">Memory</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<div className="w-24 h-2 rounded-full bg-muted">
+									<div className="w-[67%] h-full rounded-full bg-gradient-to-r from-[rgb(var(--console-purple))] to-blue-500" />
+								</div>
+								<span className="font-mono text-xs text-muted-foreground">67%</span>
+							</div>
+						</div>
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-3">
+								<Server className="h-4 w-4 text-green-500" />
+								<span className="text-sm text-muted-foreground">Disk</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<div className="w-24 h-2 rounded-full bg-muted">
+									<div className="w-[45%] h-full rounded-full bg-gradient-to-r from-green-500 to-primary" />
+								</div>
+								<span className="font-mono text-xs text-muted-foreground">45%</span>
+							</div>
+						</div>
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-3">
+								<Activity className="h-4 w-4 text-amber-500" />
+								<span className="text-sm text-muted-foreground">Network</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<div className="w-24 h-2 rounded-full bg-muted">
+									<div className="w-[23%] h-full rounded-full bg-gradient-to-r from-amber-500 to-green-500" />
+								</div>
+								<span className="font-mono text-xs text-muted-foreground">23%</span>
+							</div>
 						</div>
 					</div>
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-3">
-							<Database className="w-4 h-4 text-[rgb(var(--console-purple))]" />
-							<span className="text-sm text-[rgb(var(--text-secondary))]">Memory</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<div className="w-24 h-2 rounded-full bg-[rgb(var(--console-surface))]">
-								<div className="w-[67%] h-full rounded-full bg-gradient-to-r from-[rgb(var(--console-purple))] to-[rgb(var(--console-blue))]" />
-							</div>
-							<span className="font-mono text-xs text-[rgb(var(--text-muted))]">67%</span>
-						</div>
-					</div>
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-3">
-							<Server className="w-4 h-4 text-[rgb(var(--console-green))]" />
-							<span className="text-sm text-[rgb(var(--text-secondary))]">Disk</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<div className="w-24 h-2 rounded-full bg-[rgb(var(--console-surface))]">
-								<div className="w-[45%] h-full rounded-full bg-gradient-to-r from-[rgb(var(--console-green))] to-[rgb(var(--console-cyan))]" />
-							</div>
-							<span className="font-mono text-xs text-[rgb(var(--text-muted))]">45%</span>
-						</div>
-					</div>
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-3">
-							<Activity className="w-4 h-4 text-[rgb(var(--console-amber))]" />
-							<span className="text-sm text-[rgb(var(--text-secondary))]">Network</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<div className="w-24 h-2 rounded-full bg-[rgb(var(--console-surface))]">
-								<div className="w-[23%] h-full rounded-full bg-gradient-to-r from-[rgb(var(--console-amber))] to-[rgb(var(--console-green))]" />
-							</div>
-							<span className="font-mono text-xs text-[rgb(var(--text-muted))]">23%</span>
-						</div>
-					</div>
-				</div>
-			</div>
+				</CardContent>
+			</Card>
 
-			{/* Service Health Grid - Live Data */}
+			{/* Service Health Grid */}
 			<ServiceHealthGrid onServiceClick={handleServiceClick} pollInterval={5000} />
 		</div>
 	);

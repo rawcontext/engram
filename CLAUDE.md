@@ -11,7 +11,7 @@ bun run infra:up         # Start NATS, FalkorDB, Qdrant, Postgres
 bun run infra:down       # Stop infrastructure
 bun run dev              # Start all apps in dev mode
 bun run build            # Build all apps/packages
-bun run test             # Run vitest (NOT `bun test` - that uses Bun's native runner)
+bun run test             # Run Bun's native test runner
 bun run typecheck        # TypeScript validation
 bun run lint             # Biome linting
 bun run format           # Biome formatting
@@ -33,7 +33,7 @@ cd apps/tuner && uv run tuner  # Start tuner service
 - **Formatter/Linter**: Biome (tabs, double quotes, 100 char line width)
 - **Package Manager**: bun only (never npm/yarn/pnpm)
 - **TypeScript**: Version 7 (tsgo), strict mode, ESNext target, bundler module resolution
-- **Testing**: Vitest with globals enabled
+- **Testing**: Bun's native test runner with globals enabled
 
 #### TypeScript 7 Notes
 - Uses `tsgo` - native Go implementation with ~10x faster builds
@@ -198,7 +198,7 @@ cd apps/search && uv run pytest --cov=src --cov-report=html
 cd apps/tuner && uv run pytest
 ```
 
-See `vitest.config.ts` for project-specific configurations.
+See `bunfig.toml` for test configuration (timeouts, coverage, preloads).
 
 ## Infrastructure
 
@@ -288,7 +288,7 @@ YOU MUST NOT:
 |---------|----------|
 | Biome config | `/biome.json` |
 | Turbo tasks | `/turbo.json` |
-| Vitest config | `/vitest.config.ts` |
+| Bun test config | `/bunfig.toml` |
 | Event schemas | `/packages/events/src/schemas.ts` |
 | Graph models | `/packages/graph/src/models/` |
 | Search config (Py) | `/apps/search/src/search/config.py` |
