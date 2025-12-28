@@ -27,3 +27,7 @@ api.statient.com {
 observatory.statient.com {
 	reverse_proxy observatory:3000
 }
+
+console.statient.com {
+	reverse_proxy console:3000
+}

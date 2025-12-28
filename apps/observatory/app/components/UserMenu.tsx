@@ -178,7 +178,7 @@ export function UserMenu() {
 					<div className="dropdown-divider" />
 					<a
 						className="dropdown-item"
-						href="http://localhost:6185"
+						href={process.env.NEXT_PUBLIC_CONSOLE_URL || "http://localhost:6185"}
 						target="_blank"
 						rel="noopener noreferrer"
 					>
