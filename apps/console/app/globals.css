@@ -1,6 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
-
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
 /* ============================================
    ENGRAM CONSOLE - Mission Control Aesthetic
@@ -72,7 +71,7 @@ html {
 }
 
 body {
-	font-family: 'IBM Plex Sans', system-ui, sans-serif;
+	font-family: "IBM Plex Sans", system-ui, sans-serif;
 	background: rgb(var(--console-void));
 	color: rgb(var(--text-primary));
 	min-height: 100vh;
@@ -81,7 +80,7 @@ body {
 
 /* Subtle grid background - mission control feel */
 body::before {
-	content: '';
+	content: "";
 	position: fixed;
 	inset: 0;
 	background-image:
@@ -94,7 +93,7 @@ body::before {
 
 /* Scanline overlay for CRT feel */
 body::after {
-	content: '';
+	content: "";
 	position: fixed;
 	inset: 0;
 	background: repeating-linear-gradient(
@@ -113,11 +112,11 @@ body::after {
    ============================================ */
 
 .font-mono {
-	font-family: 'IBM Plex Mono', monospace;
+	font-family: "IBM Plex Mono", monospace;
 }
 
 .font-display {
-	font-family: 'IBM Plex Sans', system-ui, sans-serif;
+	font-family: "IBM Plex Sans", system-ui, sans-serif;
 	font-weight: 600;
 	letter-spacing: -0.02em;
 }
@@ -135,18 +134,13 @@ body::after {
 }
 
 .panel::before {
-	content: '';
+	content: "";
 	position: absolute;
 	top: 0;
 	left: 0;
 	right: 0;
 	height: 1px;
-	background: linear-gradient(
-		90deg,
-		transparent,
-		rgba(var(--console-cyan), 0.3),
-		transparent
-	);
+	background: linear-gradient(90deg, transparent, rgba(var(--console-cyan), 0.3), transparent);
 }
 
 .panel-elevated {
@@ -169,7 +163,7 @@ body::after {
 }
 
 .status-dot::after {
-	content: '';
+	content: "";
 	position: absolute;
 	inset: -2px;
 	border-radius: 50%;
@@ -213,7 +207,8 @@ body::after {
 }
 
 @keyframes status-pulse {
-	0%, 100% {
+	0%,
+	100% {
 		transform: scale(1);
 		opacity: 1;
 	}
@@ -224,7 +219,8 @@ body::after {
 }
 
 @keyframes status-blink {
-	0%, 100% {
+	0%,
+	100% {
 		opacity: 1;
 	}
 	50% {
@@ -237,22 +233,18 @@ body::after {
    ============================================ */
 
 .metric-value {
-	font-family: 'IBM Plex Mono', monospace;
+	font-family: "IBM Plex Mono", monospace;
 	font-weight: 600;
 	font-size: 2rem;
 	letter-spacing: -0.02em;
-	background: linear-gradient(
-		180deg,
-		rgb(var(--text-primary)) 0%,
-		rgb(var(--text-secondary)) 100%
-	);
+	background: linear-gradient(180deg, rgb(var(--text-primary)) 0%, rgb(var(--text-secondary)) 100%);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
 }
 
 .metric-label {
-	font-family: 'IBM Plex Mono', monospace;
+	font-family: "IBM Plex Mono", monospace;
 	font-size: 0.75rem;
 	font-weight: 500;
 	text-transform: uppercase;
@@ -296,7 +288,7 @@ body::after {
 }
 
 .nav-item.active::before {
-	content: '';
+	content: "";
 	position: absolute;
 	left: 0;
 	top: 50%;
@@ -369,14 +361,30 @@ body::after {
 	animation: fade-in 0.4s ease-out forwards;
 }
 
-.stagger > *:nth-child(1) { animation-delay: 0.05s; }
-.stagger > *:nth-child(2) { animation-delay: 0.1s; }
-.stagger > *:nth-child(3) { animation-delay: 0.15s; }
-.stagger > *:nth-child(4) { animation-delay: 0.2s; }
-.stagger > *:nth-child(5) { animation-delay: 0.25s; }
-.stagger > *:nth-child(6) { animation-delay: 0.3s; }
-.stagger > *:nth-child(7) { animation-delay: 0.35s; }
-.stagger > *:nth-child(8) { animation-delay: 0.4s; }
+.stagger > *:nth-child(1) {
+	animation-delay: 0.05s;
+}
+.stagger > *:nth-child(2) {
+	animation-delay: 0.1s;
+}
+.stagger > *:nth-child(3) {
+	animation-delay: 0.15s;
+}
+.stagger > *:nth-child(4) {
+	animation-delay: 0.2s;
+}
+.stagger > *:nth-child(5) {
+	animation-delay: 0.25s;
+}
+.stagger > *:nth-child(6) {
+	animation-delay: 0.3s;
+}
+.stagger > *:nth-child(7) {
+	animation-delay: 0.35s;
+}
+.stagger > *:nth-child(8) {
+	animation-delay: 0.4s;
+}
 
 /* ============================================
    Tremor Overrides
@@ -390,18 +398,18 @@ body::after {
 }
 
 [data-tremor-metric] {
-	font-family: 'IBM Plex Mono', monospace !important;
+	font-family: "IBM Plex Mono", monospace !important;
 	color: rgb(var(--text-primary)) !important;
 }
 
 [data-tremor-title] {
-	font-family: 'IBM Plex Sans', system-ui, sans-serif !important;
+	font-family: "IBM Plex Sans", system-ui, sans-serif !important;
 	color: rgb(var(--text-secondary)) !important;
 }
 
 /* Badge overrides */
 [data-tremor-badge] {
-	font-family: 'IBM Plex Mono', monospace !important;
+	font-family: "IBM Plex Mono", monospace !important;
 	font-size: 0.75rem !important;
 }
 
@@ -423,7 +431,9 @@ body::after {
 }
 
 .hover-lift {
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .hover-lift:hover {
