@@ -187,54 +187,75 @@ class BenchmarkPipeline:
         # Create semaphore for concurrency control
         semaphore = asyncio.Semaphore(self.config.concurrency)
 
-        async def process_instance(instance: ParsedInstance) -> PipelineResult:
+        async def process_instance(instance: ParsedInstance) -> PipelineResult | None:
             import time
 
             async with semaphore:
-                # Track retrieval latency
-                retrieval_start = time.perf_counter()
-                retrieval = await self.retriever.retrieve(
-                    instance,
-                    top_k=self.config.top_k,
-                )
-                retrieval_latency_ms = (time.perf_counter() - retrieval_start) * 1000
+                try:
+                    # Track retrieval latency
+                    retrieval_start = time.perf_counter()
+                    retrieval = await self.retriever.retrieve(
+                        instance,
+                        top_k=self.config.top_k,
+                    )
+                    retrieval_latency_ms = (time.perf_counter() - retrieval_start) * 1000
 
-                # Format contexts for reader
-                contexts = [ctx.content for ctx in retrieval.contexts]
+                    # Format contexts for reader
+                    contexts = [ctx.content for ctx in retrieval.contexts]
 
-                # Track reader latency
-                reader_start = time.perf_counter()
-                reader_output = await self.reader.generate_answer(
-                    instance=instance,
-                    contexts=contexts,
-                )
-                reader_latency_ms = (time.perf_counter() - reader_start) * 1000
+                    # Track reader latency
+                    reader_start = time.perf_counter()
+                    reader_output = await self.reader.generate_answer(
+                        instance=instance,
+                        contexts=contexts,
+                    )
+                    reader_latency_ms = (time.perf_counter() - reader_start) * 1000
 
-                tracker.complete_instance(success=True)
+                    tracker.complete_instance(success=True)
 
-                return PipelineResult(
-                    question_id=instance.question_id,
-                    retrieval=retrieval,
-                    reader_output=reader_output,
-                    ground_truth=instance.answer,
-                    retrieval_latency_ms=retrieval_latency_ms,
-                    reader_latency_ms=reader_latency_ms,
-                )
+                    return PipelineResult(
+                        question_id=instance.question_id,
+                        retrieval=retrieval,
+                        reader_output=reader_output,
+                        ground_truth=instance.answer,
+                        retrieval_latency_ms=retrieval_latency_ms,
+                        reader_latency_ms=reader_latency_ms,
+                    )
+                except Exception as e:
+                    # Log error but continue with other instances
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        f"Failed to process instance {instance.question_id}: {e}"
+                    )
+                    tracker.complete_instance(success=False)
+                    return None
 
         with tracker.start(), tracker.stage("Retrieving and generating answers", total=total):
             # Run all instances concurrently with semaphore
             tasks = [process_instance(instance) for instance in self.parsed_instances]
-            results = await asyncio.gather(*tasks)
+            all_results = await asyncio.gather(*tasks)
+
+        # Filter out failed instances (None values)
+        results = [r for r in all_results if r is not None]
+        failed_count = len(all_results) - len(results)
+        if failed_count > 0:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Completed with {failed_count} failed instances out of {len(all_results)}"
+            )
 
         return results
 
     async def _evaluate(self) -> BenchmarkReport:
         """Evaluate results and generate report."""
-        # Extract data for evaluation
+        # Build a lookup from question_id to parsed instance
+        instance_lookup = {inst.question_id: inst for inst in self.parsed_instances}
+
+        # Extract data for evaluation - only for successful results
         predictions = [r.reader_output.answer for r in self.results]
         ground_truth = [r.ground_truth for r in self.results]
-        question_types = [inst.memory_ability for inst in self.parsed_instances]
-        question_ids = [inst.question_id for inst in self.parsed_instances]
+        question_ids = [r.question_id for r in self.results]
+        question_types = [instance_lookup[qid].memory_ability for qid in question_ids]
 
         # Compute QA metrics
         qa_metrics = await evaluate_qa(
@@ -250,8 +271,8 @@ class BenchmarkPipeline:
         retrieval_results = [r.retrieval for r in self.results]
         retrieval_metrics = compute_retrieval_metrics(retrieval_results)
 
-        # Compute abstention metrics (if applicable)
-        abstention_ground_truth = [inst.is_abstention for inst in self.parsed_instances]
+        # Compute abstention metrics (if applicable) - only for successful results
+        abstention_ground_truth = [instance_lookup[qid].is_abstention for qid in question_ids]
         abstention_predictions = [r.reader_output.is_abstention for r in self.results]
 
         abstention_metrics = None

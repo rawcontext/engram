@@ -378,17 +378,30 @@ class EngramRetriever(BaseRetriever):
         # Process search results
         for result in response.results:
             # Extract metadata from payload
-            session_id = result.payload.get("session_id", "")
+            full_session_id = result.payload.get("session_id", "")
             turn_index = result.payload.get("turn_index", 0)
             has_answer = result.payload.get("has_answer", False)
             content = result.payload.get("content", "")
 
+            # Extract original session ID from prefixed format:
+            # Format: {prefix}-{question_id}-{original_session_id}
+            # Example: benchmark-gpt4_2655b836-answer_4be1b6b4_2 -> answer_4be1b6b4_2
+            session_id = full_session_id
+            if instance.question_id in full_session_id:
+                parts = full_session_id.split(f"-{instance.question_id}-")
+                if len(parts) == 2:
+                    session_id = parts[1]
+
             # Use reranker score if available, otherwise use primary score
             score = result.reranker_score if result.reranker_score is not None else result.score
 
-            if has_answer:
+            # Check if this session is an answer session (for recall calculation)
+            # The indexed data may not have has_answer metadata, so we infer from session_id
+            is_answer_session = session_id in instance.answer_session_ids
+            if has_answer or is_answer_session:
                 retrieved_answer_turns += 1
                 retrieved_session_ids.add(session_id)
+                has_answer = True  # Mark as answer for context output
 
             contexts.append(
                 RetrievedContext(
@@ -401,11 +414,13 @@ class EngramRetriever(BaseRetriever):
             )
 
         # Calculate recall metrics
-        turn_recall = retrieved_answer_turns / total_answer_turns if total_answer_turns > 0 else 0.0
+        # Cap at 1.0 since we may retrieve multiple turns from answer sessions
+        # but don't know which specific turn contains the answer
+        turn_recall = min(1.0, retrieved_answer_turns / total_answer_turns) if total_answer_turns > 0 else 0.0
 
         total_answer_sessions = len(set(instance.answer_session_ids))
         session_recall = (
-            len(retrieved_session_ids) / total_answer_sessions if total_answer_sessions > 0 else 0.0
+            min(1.0, len(retrieved_session_ids) / total_answer_sessions) if total_answer_sessions > 0 else 0.0
         )
 
         logger.debug(

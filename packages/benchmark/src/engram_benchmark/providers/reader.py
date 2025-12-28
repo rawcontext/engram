@@ -28,9 +28,15 @@ class ReaderOutput(BaseModel):
 class ContextNote(BaseModel):
     """Note about a single retrieved context."""
 
-    context_index: int = Field(description="Index of the context in the input list")
+    context_index: int = Field(
+        description="Index of the context in the input list",
+        alias="index",  # Accept both 'context_index' and 'index'
+    )
     is_relevant: bool = Field(description="Whether this context is relevant to the question")
     note: str = Field(description="Explanation of relevance/irrelevance")
+
+    class Config:
+        populate_by_name = True  # Allow using field name or alias
 
 
 class ChainOfNoteOutput(BaseModel):
@@ -105,21 +111,25 @@ class ChainOfNoteReader:
         """
         prompt = self._format_chain_of_note_prompt(question, contexts)
 
-        # Use structured output to ensure proper JSON format
-        # Chain-of-Note needs more tokens for verbose notes per context
-        result = await self.llm.generate_structured(
-            prompt=prompt,
-            schema=ChainOfNoteOutput,
-            system_prompt="You are a helpful assistant that answers questions based on provided contexts. "
-            "First, you assess the relevance of each context, then generate an accurate answer.",
-            max_tokens=2048,
-        )
+        try:
+            # Use structured output to ensure proper JSON format
+            # Chain-of-Note needs more tokens for verbose notes per context (20 contexts = ~4000 tokens)
+            result = await self.llm.generate_structured(
+                prompt=prompt,
+                schema=ChainOfNoteOutput,
+                system_prompt="You are a helpful assistant that answers questions based on provided contexts. "
+                "First, you assess the relevance of each context, then generate an accurate answer.",
+                max_tokens=4096,
+            )
 
-        return ReaderOutput(
-            answer=result.answer,
-            reasoning=result.reasoning,
-            confidence=None,  # Could compute based on note relevance
-        )
+            return ReaderOutput(
+                answer=result.answer,
+                reasoning=result.reasoning,
+                confidence=None,  # Could compute based on note relevance
+            )
+        except ValueError:
+            # If structured output fails, fall back to simple generation
+            return await self._generate_simple(question, contexts)
 
     async def _generate_simple(
         self,

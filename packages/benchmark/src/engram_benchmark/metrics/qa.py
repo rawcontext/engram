@@ -65,28 +65,56 @@ async def evaluate_qa(
 
     # Evaluate each prediction
     results: list[EvaluatedResult] = []
-    for pred, truth, qtype, qid in zip(
-        predictions, ground_truth, question_types, question_ids, strict=True
-    ):
-        if use_llm_eval:
-            correct = await _llm_evaluate(pred, truth, llm_model)
-        else:
+
+    if use_llm_eval:
+        import asyncio
+
+        # Use semaphore to limit concurrent LLM calls (avoid rate limits)
+        semaphore = asyncio.Semaphore(3)
+
+        async def evaluate_one(
+            pred: str, truth: str, qtype: MemoryAbility, qid: str
+        ) -> EvaluatedResult:
+            async with semaphore:
+                correct = await _llm_evaluate(pred, truth, llm_model)
+                qtype_enum = _memory_ability_to_question_type(qtype)
+                return EvaluatedResult(
+                    question_id=qid,
+                    hypothesis=pred,
+                    answer=truth,
+                    question_type=qtype_enum,
+                    memory_ability=qtype,
+                    correct=correct,
+                    reasoning=None,
+                )
+
+        tasks = [
+            evaluate_one(pred, truth, qtype, qid)
+            for pred, truth, qtype, qid in zip(
+                predictions, ground_truth, question_types, question_ids, strict=True
+            )
+        ]
+        results = await asyncio.gather(*tasks)
+    else:
+        for pred, truth, qtype, qid in zip(
+            predictions, ground_truth, question_types, question_ids, strict=True
+        ):
             correct = _exact_match(pred, truth)
 
-        # Map MemoryAbility to QuestionType
-        qtype_enum = _memory_ability_to_question_type(qtype)
+            # Map MemoryAbility to QuestionType
+            qtype_enum = _memory_ability_to_question_type(qtype)
 
-        results.append(
-            EvaluatedResult(
-                question_id=qid,
-                hypothesis=pred,
-                answer=truth,
-                question_type=qtype_enum,
-                memory_ability=qtype,
-                correct=correct,
-                reasoning=None,
+            results.append(
+                EvaluatedResult(
+                    question_id=qid,
+                    hypothesis=pred,
+                    answer=truth,
+                    question_type=qtype_enum,
+                    memory_ability=qtype,
+                    correct=correct,
+                    reasoning=None,
+                )
             )
-        )
 
     # Aggregate by ability
     return _aggregate_metrics(results)
@@ -138,6 +166,8 @@ async def _llm_evaluate(prediction: str, ground_truth: str, model: str) -> bool:
     - Multi-part answers
     - Complex reasoning
     """
+    import asyncio
+
     prompt = f"""You are evaluating a question-answering system.
 
 Ground truth answer: {ground_truth}
@@ -150,19 +180,33 @@ Is the prediction correct? Consider:
 
 Respond with ONLY "yes" or "no"."""
 
-    response = await acompletion(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=10,
-        temperature=0.0,
-    )
+    max_retries = 5
+    base_delay = 1.0
 
-    content = response.choices[0].message.content
-    if content is None:
-        return False
-    answer: str = str(content).strip().lower()
-    result: bool = answer == "yes"
-    return result
+    for attempt in range(max_retries):
+        try:
+            response = await acompletion(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=10,
+                temperature=0.0,
+            )
+
+            content = response.choices[0].message.content
+            if content is None:
+                return False
+            answer: str = str(content).strip().lower()
+            result: bool = answer == "yes"
+            return result
+        except Exception as e:
+            if "429" in str(e) or "rate" in str(e).lower() or "quota" in str(e).lower():
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    await asyncio.sleep(delay)
+                    continue
+            raise
+
+    return False  # Fallback if all retries fail
 
 
 def _aggregate_metrics(results: list[EvaluatedResult]) -> dict[str, AbilityMetrics]:

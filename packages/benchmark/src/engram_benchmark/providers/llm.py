@@ -133,8 +133,11 @@ class LiteLLMProvider:
         """
         Generate structured output conforming to a Pydantic schema.
 
+        Uses native structured output (response_format with JSON schema) for models
+        that support it (Gemini, GPT-4, etc.), ensuring the model returns valid JSON.
+
         Args:
-            prompt: User prompt (should instruct model to return JSON)
+            prompt: User prompt
             schema: Pydantic model class to parse response into
             system_prompt: Optional system prompt
             **kwargs: Additional arguments passed to LiteLLM
@@ -146,29 +149,35 @@ class LiteLLMProvider:
             ValueError: If response cannot be parsed as JSON or doesn't match schema
             APIError: On API errors after retries exhausted
         """
-        # Add JSON instruction to prompt if not already present
-        if "json" not in prompt.lower():
-            enhanced_prompt = f"{prompt}\n\nRespond with valid JSON matching this schema:\n{schema.model_json_schema()}"
-        else:
-            enhanced_prompt = prompt
+        messages: list[dict[str, str]] = []
 
-        response = await self.generate(enhanced_prompt, system_prompt, **kwargs)
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
 
-        # Extract JSON from response (handles markdown code blocks)
-        content = response.content.strip()
+        messages.append({"role": "user", "content": prompt})
 
-        # Remove markdown code fences if present
+        # Use native structured output via response_format with JSON schema
+        response_schema = schema.model_json_schema()
+        response = await self._call_with_retry(
+            messages,
+            response_format={
+                "type": "json_object",
+                "response_schema": response_schema,
+            },
+            **kwargs,
+        )
+
+        # Extract content from response
+        content = response.choices[0].message.content.strip()
+
+        # Remove markdown code fences if present (some models still add them)
         if content.startswith("```"):
-            # Find first newline after opening fence
             first_newline = content.find("\n")
             if first_newline != -1:
-                # Find closing fence (must be after the opening fence line)
                 last_fence = content.rfind("```")
                 if last_fence > first_newline:
-                    # Normal case: both fences present
                     content = content[first_newline + 1 : last_fence].strip()
                 else:
-                    # Truncated response: no closing fence, just strip opening line
                     content = content[first_newline + 1 :].strip()
 
         # Parse JSON and validate against schema

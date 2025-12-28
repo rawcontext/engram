@@ -60,3 +60,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Data files (large benchmark datasets)
+data/

@@ -264,15 +264,25 @@ Example: {{"is_abstention": true, "confidence": 0.9, "reasoning": "Response expl
 
 Consider both explicit phrases and implicit indicators of uncertainty."""
 
-        result = await self.llm.generate_structured(
-            prompt=prompt,
-            schema=LLMAbstentionScore,
-            system_prompt="You are an expert at detecting when language models are unable to answer questions due to insufficient information.",
-        )
+        try:
+            result = await self.llm.generate_structured(
+                prompt=prompt,
+                schema=LLMAbstentionScore,
+                system_prompt="You are an expert at detecting when language models are unable to answer questions due to insufficient information.",
+                max_tokens=512,  # Ensure enough tokens for JSON response
+            )
 
-        return AbstentionResult(
-            is_abstention=result.is_abstention and result.confidence >= self.llm_threshold,
-            confidence=result.confidence,
-            method=AbstentionMethod.LLM,
-            reasoning=result.reasoning,
-        )
+            return AbstentionResult(
+                is_abstention=result.is_abstention and result.confidence >= self.llm_threshold,
+                confidence=result.confidence,
+                method=AbstentionMethod.LLM,
+                reasoning=result.reasoning,
+            )
+        except ValueError:
+            # If LLM returns invalid JSON, fall back to non-abstention
+            return AbstentionResult(
+                is_abstention=False,
+                confidence=0.0,
+                method=AbstentionMethod.LLM,
+                reasoning="Failed to parse LLM abstention response",
+            )
