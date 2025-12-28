@@ -3,7 +3,7 @@
 import { Terminal } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { signIn } from "../../lib/auth-client";
+import { signIn } from "../../../lib/auth-client";
 
 function LoginContent() {
 	const searchParams = useSearchParams();

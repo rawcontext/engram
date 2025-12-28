@@ -20,8 +20,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { type ServiceHealth, useApiClient } from "@/lib/api-client";
-import { MetricsGrid } from "./components/MetricsGrid";
-import { ServiceHealthGrid } from "./components/ServiceHealthGrid";
+import { MetricsGrid } from "../components/MetricsGrid";
+import { ServiceHealthGrid } from "../components/ServiceHealthGrid";
 
 // ============================================
 // Types

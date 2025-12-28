@@ -15,8 +15,8 @@ import {
 	Search,
 	Server,
 } from "lucide-react";
-import { DatabaseStatusPanels } from "../components/DatabaseStatusPanels";
-import { VersionMatrix } from "../components/VersionMatrix";
+import { DatabaseStatusPanels } from "../../components/DatabaseStatusPanels";
+import { VersionMatrix } from "../../components/VersionMatrix";
 
 interface ResourceGauge {
 	label: string;
