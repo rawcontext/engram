@@ -56,6 +56,7 @@ IMPORTANT: Run `uv run ruff check` and `uv run pytest` before committing.
 ```
 apps/
 ├── api/         # Cloud REST API (Hono) - memory operations, API key auth, rate limiting (port 6174)
+├── console/     # Infrastructure Console - Next.js 16 management dashboard (port 6185)
 ├── ingestion/   # Event parsing pipeline, 8+ provider parsers, PII redaction (port 6175)
 ├── mcp/         # Engram MCP server - remember/recall/query/context tools (stdio + HTTP ingest)
 ├── memory/      # Graph persistence, turn aggregation, real-time pub/sub (NATS consumer)

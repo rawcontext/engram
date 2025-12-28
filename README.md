@@ -43,6 +43,7 @@ CLI Agents → Ingestion (6175) → NATS → Memory → FalkorDB
 | [mcp](apps/mcp) | stdio | MCP server - remember/recall/query/context tools |
 | [memory](apps/memory) | - | Graph persistence, turn aggregation, NATS consumer |
 | [observatory](apps/observatory) | 6178 | Next.js 16 real-time session visualization |
+| [console](apps/console) | 6185 | Next.js 16 infrastructure management console |
 | [search](apps/search) | 6176 | Python/FastAPI hybrid search, multi-tier reranking |
 | [tuner](apps/tuner) | 6177 | Python/FastAPI Optuna hyperparameter optimization |
 
