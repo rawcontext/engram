@@ -1,8 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { EnvironmentProvider } from "../lib/environment";
 import { ThemeProvider } from "../lib/theme";
-import type { ReactNode } from "react";
 
 export function Providers({ children }: { children: ReactNode }) {
 	return (

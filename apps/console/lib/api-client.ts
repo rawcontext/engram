@@ -94,28 +94,6 @@ export class ApiClient {
 		return json as T;
 	}
 
-	/**
-	 * Make a direct request to external services (not through proxy)
-	 * Used for health checks and non-Engram API calls
-	 */
-	private async fetchDirect<T>(url: string, options: RequestInit = {}): Promise<T> {
-		const response = await fetch(url, {
-			...options,
-			headers: {
-				"Content-Type": "application/json",
-				...options.headers,
-			},
-		});
-
-		if (!response.ok) {
-			const error = new Error(`API error: ${response.statusText}`) as ApiError;
-			error.status = response.status;
-			throw error;
-		}
-
-		return response.json();
-	}
-
 	// Health checks
 	async checkHealth(): Promise<{ status: string; timestamp: string }> {
 		return this.fetch("/v1/health");

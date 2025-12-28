@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Providers } from "./providers";
-import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
+import { Sidebar } from "./components/Sidebar";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
 	title: "Console | Engram",

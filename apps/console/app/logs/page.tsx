@@ -240,7 +240,7 @@ export default function LogsPage() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [isStreaming, setIsStreaming] = useState(true);
 	const [autoScroll, setAutoScroll] = useState(true);
-	const [newLogIds, setNewLogIds] = useState<Set<string>>(new Set());
+	const [newLogIds, _setNewLogIds] = useState<Set<string>>(new Set());
 
 	const [filters, setFilters] = useState<LogFilters>({
 		services: [],

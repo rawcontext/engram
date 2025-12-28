@@ -6,7 +6,6 @@ import {
 	AlertTriangle,
 	Bell,
 	ChevronDown,
-	Clock,
 	Cpu,
 	Database,
 	ExternalLink,
