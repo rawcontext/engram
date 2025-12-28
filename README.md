@@ -139,6 +139,7 @@ All services use Kaprekar's constant (6174) as the base port.
 | NATS Monitor | 6182 | Dev Tool |
 | PostgreSQL | 6183 | Database |
 | Optuna Dashboard | 6184 | Dev Tool |
+| Console | 6185 | Service |
 
 ## Tech Stack
 

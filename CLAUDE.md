@@ -213,7 +213,7 @@ bun run preview     # Preview changes
 bun run up          # Deploy
 ```
 
-**Services**: API (6174), Ingestion (6175), Search (6176), Tuner (6177), Observatory (6178), FalkorDB (6179), Qdrant (6180), NATS (6181), Console (6182), PostgreSQL (6183)
+**Services**: API (6174), Ingestion (6175), Search (6176), Tuner (6177), Observatory (6178), FalkorDB (6179), Qdrant (6180), NATS (6181), NATS Monitor (6182), PostgreSQL (6183), Optuna Dashboard (6184), Console (6185)
 
 ## External Tools
 
