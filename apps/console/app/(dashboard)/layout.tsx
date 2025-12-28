@@ -1,14 +1,15 @@
-import { Header } from "../components/Header";
-import { Sidebar } from "../components/Sidebar";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { SiteHeader } from "@/components/layout/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<>
-			<Sidebar />
-			<Header />
-			<main className="ml-[var(--sidebar-width)] pt-[var(--header-height)] min-h-screen relative z-10">
-				<div className="p-6">{children}</div>
-			</main>
-		</>
+		<SidebarProvider>
+			<AppSidebar />
+			<SidebarInset>
+				<SiteHeader />
+				<main className="flex-1 p-6">{children}</main>
+			</SidebarInset>
+		</SidebarProvider>
 	);
 }

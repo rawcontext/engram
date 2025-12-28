@@ -1,57 +1,143 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
 
 /* ============================================
    ENGRAM CONSOLE - Mission Control Aesthetic
+   Shadcn/UI Compatible CSS Variables
    ============================================ */
 
 :root {
-	/* Core palette - aerospace inspired */
+	/* Shadcn semantic tokens - Mission Control Dark Theme */
+	--background: oklch(0.08 0.005 250);
+	--foreground: oklch(0.97 0.005 250);
+	--card: oklch(0.11 0.008 250);
+	--card-foreground: oklch(0.97 0.005 250);
+	--popover: oklch(0.11 0.008 250);
+	--popover-foreground: oklch(0.97 0.005 250);
+	--primary: oklch(0.78 0.15 195);
+	--primary-foreground: oklch(0.12 0.02 195);
+	--secondary: oklch(0.18 0.01 250);
+	--secondary-foreground: oklch(0.92 0.005 250);
+	--muted: oklch(0.18 0.01 250);
+	--muted-foreground: oklch(0.6 0.01 250);
+	--accent: oklch(0.18 0.01 250);
+	--accent-foreground: oklch(0.92 0.005 250);
+	--destructive: oklch(0.65 0.2 25);
+	--destructive-foreground: oklch(0.98 0.01 25);
+	--border: oklch(0.25 0.015 250);
+	--input: oklch(0.25 0.015 250);
+	--ring: oklch(0.78 0.15 195);
+	--radius: 0.5rem;
+
+	/* Chart colors - operational palette */
+	--chart-1: oklch(0.78 0.15 195);
+	--chart-2: oklch(0.75 0.18 145);
+	--chart-3: oklch(0.8 0.15 85);
+	--chart-4: oklch(0.65 0.2 25);
+	--chart-5: oklch(0.7 0.15 290);
+
+	/* Sidebar tokens */
+	--sidebar: oklch(0.09 0.006 250);
+	--sidebar-foreground: oklch(0.92 0.005 250);
+	--sidebar-primary: oklch(0.78 0.15 195);
+	--sidebar-primary-foreground: oklch(0.12 0.02 195);
+	--sidebar-accent: oklch(0.15 0.01 250);
+	--sidebar-accent-foreground: oklch(0.92 0.005 250);
+	--sidebar-border: oklch(0.2 0.01 250);
+	--sidebar-ring: oklch(0.78 0.15 195);
+
+	/* Legacy console variables for backwards compatibility */
 	--console-void: 12 14 18;
 	--console-panel: 18 21 27;
 	--console-surface: 24 28 36;
 	--console-elevated: 32 38 48;
-
-	/* Accent colors - radar/operational */
 	--console-cyan: 34 211 238;
 	--console-green: 74 222 128;
 	--console-amber: 251 191 36;
 	--console-red: 248 113 113;
 	--console-blue: 96 165 250;
 	--console-purple: 167 139 250;
-
-	/* Text hierarchy */
 	--text-primary: 248 250 252;
 	--text-secondary: 148 163 184;
 	--text-muted: 100 116 139;
 	--text-dim: 71 85 105;
-
-	/* Operational states */
 	--status-online: var(--console-green);
 	--status-warning: var(--console-amber);
 	--status-error: var(--console-red);
 	--status-offline: var(--text-muted);
-
-	/* Sizing */
 	--sidebar-width: 240px;
 	--header-height: 64px;
 }
 
-/* Dark theme is default, light theme override */
-@media (prefers-color-scheme: light) {
-	:root {
-		--console-void: 248 250 252;
-		--console-panel: 241 245 249;
-		--console-surface: 226 232 240;
-		--console-elevated: 203 213 225;
-		--text-primary: 15 23 42;
-		--text-secondary: 71 85 105;
-		--text-muted: 100 116 139;
-		--text-dim: 148 163 184;
-	}
+.dark {
+	--background: oklch(0.08 0.005 250);
+	--foreground: oklch(0.97 0.005 250);
+	--card: oklch(0.11 0.008 250);
+	--card-foreground: oklch(0.97 0.005 250);
+	--popover: oklch(0.11 0.008 250);
+	--popover-foreground: oklch(0.97 0.005 250);
+	--primary: oklch(0.78 0.15 195);
+	--primary-foreground: oklch(0.12 0.02 195);
+	--secondary: oklch(0.18 0.01 250);
+	--secondary-foreground: oklch(0.92 0.005 250);
+	--muted: oklch(0.18 0.01 250);
+	--muted-foreground: oklch(0.6 0.01 250);
+	--accent: oklch(0.18 0.01 250);
+	--accent-foreground: oklch(0.92 0.005 250);
+	--destructive: oklch(0.5 0.18 25);
+	--destructive-foreground: oklch(0.7 0.22 25);
+	--border: oklch(0.25 0.015 250);
+	--input: oklch(0.25 0.015 250);
+	--ring: oklch(0.5 0.1 195);
+	--chart-1: oklch(0.65 0.2 265);
+	--chart-2: oklch(0.7 0.15 165);
+	--chart-3: oklch(0.77 0.17 70);
+	--chart-4: oklch(0.65 0.23 305);
+	--chart-5: oklch(0.65 0.22 20);
+	--sidebar: oklch(0.12 0.008 250);
+	--sidebar-foreground: oklch(0.97 0.005 250);
+	--sidebar-primary: oklch(0.65 0.2 265);
+	--sidebar-primary-foreground: oklch(0.97 0.005 250);
+	--sidebar-accent: oklch(0.18 0.01 250);
+	--sidebar-accent-foreground: oklch(0.97 0.005 250);
+	--sidebar-border: oklch(0.25 0.015 250);
+	--sidebar-ring: oklch(0.5 0.1 195);
 }
 
+.light,
 [data-theme="light"] {
+	--background: oklch(0.98 0.002 250);
+	--foreground: oklch(0.15 0.01 250);
+	--card: oklch(0.96 0.003 250);
+	--card-foreground: oklch(0.15 0.01 250);
+	--popover: oklch(1 0 0);
+	--popover-foreground: oklch(0.15 0.01 250);
+	--primary: oklch(0.55 0.18 195);
+	--primary-foreground: oklch(0.98 0.005 195);
+	--secondary: oklch(0.92 0.005 250);
+	--secondary-foreground: oklch(0.2 0.01 250);
+	--muted: oklch(0.92 0.005 250);
+	--muted-foreground: oklch(0.45 0.01 250);
+	--accent: oklch(0.92 0.005 250);
+	--accent-foreground: oklch(0.2 0.01 250);
+	--destructive: oklch(0.55 0.22 25);
+	--destructive-foreground: oklch(0.98 0.01 25);
+	--border: oklch(0.88 0.005 250);
+	--input: oklch(0.88 0.005 250);
+	--ring: oklch(0.55 0.18 195);
+	--sidebar: oklch(0.96 0.003 250);
+	--sidebar-foreground: oklch(0.15 0.01 250);
+	--sidebar-primary: oklch(0.55 0.18 195);
+	--sidebar-primary-foreground: oklch(0.98 0.005 195);
+	--sidebar-accent: oklch(0.92 0.005 250);
+	--sidebar-accent-foreground: oklch(0.2 0.01 250);
+	--sidebar-border: oklch(0.88 0.005 250);
+	--sidebar-ring: oklch(0.55 0.18 195);
+
+	/* Light mode legacy variables */
 	--console-void: 248 250 252;
 	--console-panel: 241 245 249;
 	--console-surface: 226 232 240;
@@ -61,6 +147,59 @@
 	--text-muted: 100 116 139;
 	--text-dim: 148 163 184;
 }
+
+/* Tailwind v4 theme mapping */
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
 
 * {
 	box-sizing: border-box;
@@ -72,8 +211,6 @@ html {
 
 body {
 	font-family: "IBM Plex Sans", system-ui, sans-serif;
-	background: rgb(var(--console-void));
-	color: rgb(var(--text-primary));
 	min-height: 100vh;
 	overflow-x: hidden;
 }
@@ -122,7 +259,7 @@ body::after {
 }
 
 /* ============================================
-   Control Panel Cards
+   Control Panel Cards (Legacy)
    ============================================ */
 
 .panel {
@@ -261,7 +398,7 @@ body::after {
 }
 
 /* ============================================
-   Navigation
+   Navigation (Legacy)
    ============================================ */
 
 .nav-item {
@@ -387,10 +524,9 @@ body::after {
 }
 
 /* ============================================
-   Tremor Overrides
+   Tremor Overrides (Legacy - to be removed)
    ============================================ */
 
-/* Override Tremor's default card styling */
 [data-tremor-card] {
 	background: rgb(var(--console-panel)) !important;
 	border: 1px solid rgba(var(--console-cyan), 0.1) !important;
@@ -407,7 +543,6 @@ body::after {
 	color: rgb(var(--text-secondary)) !important;
 }
 
-/* Badge overrides */
 [data-tremor-badge] {
 	font-family: "IBM Plex Mono", monospace !important;
 	font-size: 0.75rem !important;
