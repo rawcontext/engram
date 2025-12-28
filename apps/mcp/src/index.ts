@@ -14,7 +14,7 @@ async function main() {
 	if (mode === "cloud") {
 		const hasCredentials = hasValidCredentials(logger);
 		logger.debug(
-			{ hasCredentials, cachePath: tokenCache?.["cachePath"] },
+			{ hasCredentials, cachePath: tokenCache?.getPath() },
 			"Checking OAuth credentials",
 		);
 

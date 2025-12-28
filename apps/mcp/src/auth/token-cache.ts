@@ -41,6 +41,13 @@ export class TokenCache {
 	}
 
 	/**
+	 * Get the cache file path
+	 */
+	getPath(): string {
+		return this.cachePath;
+	}
+
+	/**
 	 * Load tokens from cache file
 	 */
 	load(): CachedTokens | null {
