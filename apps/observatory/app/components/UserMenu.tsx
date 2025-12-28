@@ -178,7 +178,7 @@ export function UserMenu() {
 					<div className="dropdown-divider" />
 					<a
 						className="dropdown-item"
-						href="http://localhost:3001"
+						href="http://localhost:6182"
 						target="_blank"
 						rel="noopener noreferrer"
 					>

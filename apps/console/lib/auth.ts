@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 
 // During build, allow placeholder URL for page collection
-const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3001";
+const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:6182";
 
 // Use a build-time placeholder secret when env var is not set (during next build)
 const secret = process.env.BETTER_AUTH_SECRET || "build-time-placeholder-not-for-production";
@@ -39,7 +39,7 @@ export const auth = betterAuth({
 		},
 	},
 	trustedOrigins: [
-		"http://localhost:3001",
+		"http://localhost:6182",
 		"http://localhost:6178", // Observatory
 		...(process.env.TRUSTED_ORIGINS?.split(",").map((o) => o.trim()) ?? []),
 	],
