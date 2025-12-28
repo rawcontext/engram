@@ -71,15 +71,20 @@ export class ApiClient {
 			error.status = response.status;
 			try {
 				const body = await response.json();
-				error.message = body.message || error.message;
-				error.code = body.code;
+				error.message = body.error?.message || body.message || error.message;
+				error.code = body.error?.code || body.code;
 			} catch {
 				// Ignore JSON parse errors
 			}
 			throw error;
 		}
 
-		return response.json();
+		const json = await response.json();
+		// Unwrap { success: true, data: T } responses from API
+		if (json && typeof json === "object" && "success" in json && "data" in json) {
+			return json.data as T;
+		}
+		return json as T;
 	}
 
 	// Health checks
@@ -214,95 +219,52 @@ export class ApiClient {
 			}));
 		};
 
-		try {
-			// Try to fetch real metrics from API
-			const metrics = await this.fetch<{
-				requests?: { total: number; change: number };
-				errors?: { rate: number; change: number };
-				latency?: { avg: number; change: number };
-				sessions?: { active: number; change: number };
-			}>("/v1/metrics");
+		// Fetch real metrics from API
+		const metrics = await this.fetch<{
+			requests?: { total: number; change: number };
+			errors?: { rate: number; change: number };
+			latency?: { avg: number; change: number };
+			sessions?: { active: number; change: number };
+		}>("/v1/metrics");
 
-			return [
-				{
-					id: "requests",
-					title: "Total Requests",
-					value: metrics.requests?.total ?? 0,
-					change: metrics.requests?.change ?? 0,
-					trend: (metrics.requests?.change ?? 0) >= 0 ? "up" : "down",
-					sparkline: generateSparkline(metrics.requests?.total ?? 1000, 200),
-				},
-				{
-					id: "errors",
-					title: "Error Rate",
-					value: metrics.errors?.rate ?? 0,
-					unit: "%",
-					change: metrics.errors?.change ?? 0,
-					changeUnit: "%",
-					trend: (metrics.errors?.change ?? 0) <= 0 ? "up" : "down",
-					sparkline: generateSparkline(metrics.errors?.rate ?? 0.1, 0.05),
-				},
-				{
-					id: "latency",
-					title: "Avg Latency",
-					value: metrics.latency?.avg ?? 0,
-					unit: "ms",
-					change: metrics.latency?.change ?? 0,
-					changeUnit: "ms",
-					trend: (metrics.latency?.change ?? 0) <= 0 ? "up" : "down",
-					sparkline: generateSparkline(metrics.latency?.avg ?? 25, 10),
-				},
-				{
-					id: "sessions",
-					title: "Active Sessions",
-					value: metrics.sessions?.active ?? 0,
-					change: metrics.sessions?.change ?? 0,
-					trend: (metrics.sessions?.change ?? 0) >= 0 ? "up" : "down",
-					sparkline: generateSparkline(metrics.sessions?.active ?? 100, 30),
-				},
-			];
-		} catch {
-			// Return simulated metrics if API endpoint doesn't exist yet
-			return [
-				{
-					id: "requests",
-					title: "Total Requests",
-					value: 1234567,
-					change: 12.3,
-					changeUnit: "%",
-					trend: "up",
-					sparkline: generateSparkline(1200, 300),
-				},
-				{
-					id: "errors",
-					title: "Error Rate",
-					value: 0.12,
-					unit: "%",
-					change: -0.08,
-					changeUnit: "%",
-					trend: "up",
-					sparkline: generateSparkline(0.15, 0.05),
-				},
-				{
-					id: "latency",
-					title: "Avg Latency",
-					value: 23,
-					unit: "ms",
-					change: -5,
-					changeUnit: "ms",
-					trend: "up",
-					sparkline: generateSparkline(28, 8),
-				},
-				{
-					id: "sessions",
-					title: "Active Sessions",
-					value: 847,
-					change: 23,
-					trend: "up",
-					sparkline: generateSparkline(820, 50),
-				},
-			];
-		}
+		return [
+			{
+				id: "requests",
+				title: "Total Requests",
+				value: metrics.requests?.total ?? 0,
+				change: metrics.requests?.change ?? 0,
+				trend: (metrics.requests?.change ?? 0) >= 0 ? "up" : "down",
+				sparkline: generateSparkline(metrics.requests?.total ?? 1000, 200),
+			},
+			{
+				id: "errors",
+				title: "Error Rate",
+				value: metrics.errors?.rate ?? 0,
+				unit: "%",
+				change: metrics.errors?.change ?? 0,
+				changeUnit: "%",
+				trend: (metrics.errors?.change ?? 0) <= 0 ? "up" : "down",
+				sparkline: generateSparkline(metrics.errors?.rate ?? 0.1, 0.05),
+			},
+			{
+				id: "latency",
+				title: "Avg Latency",
+				value: metrics.latency?.avg ?? 0,
+				unit: "ms",
+				change: metrics.latency?.change ?? 0,
+				changeUnit: "ms",
+				trend: (metrics.latency?.change ?? 0) <= 0 ? "up" : "down",
+				sparkline: generateSparkline(metrics.latency?.avg ?? 25, 10),
+			},
+			{
+				id: "sessions",
+				title: "Active Sessions",
+				value: metrics.sessions?.active ?? 0,
+				change: metrics.sessions?.change ?? 0,
+				trend: (metrics.sessions?.change ?? 0) >= 0 ? "up" : "down",
+				sparkline: generateSparkline(metrics.sessions?.active ?? 100, 30),
+			},
+		];
 	}
 
 	// Log entries

@@ -11,8 +11,12 @@ import { StateRepository } from "./db/state";
 import { UsageRepository } from "./db/usage";
 import { auth } from "./middleware/auth";
 import { rateLimiter } from "./middleware/rate-limit";
+import { createAdminRoutes } from "./routes/admin";
+import { createAlertsRoutes } from "./routes/alerts";
+import { createDeploymentsRoutes } from "./routes/deployments";
 import { createHealthRoutes } from "./routes/health";
 import { createMemoryRoutes } from "./routes/memory";
+import { createMetricsRoutes } from "./routes/metrics";
 import { createStateRoutes } from "./routes/state";
 import { createUsageRoutes } from "./routes/usage";
 import { MemoryService } from "./services/memory";
@@ -71,6 +75,18 @@ async function main() {
 
 	// Usage routes - any authenticated token can view usage
 	protectedRoutes.route("/usage", createUsageRoutes({ usageRepo, logger }));
+
+	// Metrics routes - infrastructure monitoring
+	protectedRoutes.route("/metrics", createMetricsRoutes({ graphClient, logger }));
+
+	// Admin routes - cache management, NATS streams
+	protectedRoutes.route("/admin", createAdminRoutes({ logger, redisUrl: config.redisUrl }));
+
+	// Alerts routes - alert rules, notification channels, history
+	protectedRoutes.route("/alerts", createAlertsRoutes({ postgresClient, logger }));
+
+	// Deployments routes - deployment history
+	protectedRoutes.route("/deployments", createDeploymentsRoutes({ logger }));
 
 	// OpenTofu state routes - uses Basic Auth (password = OAuth token with state:write scope)
 	app.route("/v1/tofu", createStateRoutes({ stateRepo, oauthTokenRepo, logger }));
