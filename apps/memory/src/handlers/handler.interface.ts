@@ -18,6 +18,8 @@ export interface TurnFinalizedPayload {
 	input_tokens: number;
 	output_tokens: number;
 	timestamp: number;
+	/** Valid time start - when the turn began (Unix ms) */
+	vt_start: number;
 }
 
 /**

@@ -202,7 +202,7 @@ export class TurnAggregator {
 
 		// User content starts a new turn
 		if (role === "user" && content) {
-			await this.startNewTurn(sessionId, content);
+			await this.startNewTurn(sessionId, content, normalizedEvent.vt_start);
 			return;
 		}
 
@@ -215,7 +215,11 @@ export class TurnAggregator {
 			!turn &&
 			(normalizedEvent.content || normalizedEvent.thought || normalizedEvent.tool_call)
 		) {
-			turn = await this.startNewTurn(sessionId, "[No user message captured]");
+			turn = await this.startNewTurn(
+				sessionId,
+				"[No user message captured]",
+				normalizedEvent.vt_start,
+			);
 		}
 
 		if (!turn) {
@@ -270,8 +274,13 @@ export class TurnAggregator {
 
 	/**
 	 * Start a new turn for a session
+	 * @param vtStart - Optional vt_start from event (for benchmark data with historical dates)
 	 */
-	private async startNewTurn(sessionId: string, userContent: string): Promise<TurnState> {
+	private async startNewTurn(
+		sessionId: string,
+		userContent: string,
+		vtStart?: number,
+	): Promise<TurnState> {
 		// Finalize any existing turn for this session
 		const existingTurn = this.activeTurns.get(sessionId);
 		if (existingTurn && !existingTurn.isFinalized) {
@@ -297,7 +306,7 @@ export class TurnAggregator {
 			inputTokens: 0,
 			outputTokens: 0,
 			sequenceIndex: nextSeq,
-			createdAt: Date.now(),
+			createdAt: vtStart ?? Date.now(),
 			isFinalized: false,
 		};
 
@@ -318,7 +327,7 @@ export class TurnAggregator {
 	 * Create the Turn node in FalkorDB
 	 */
 	private async createTurnNode(turn: TurnState): Promise<void> {
-		const now = Date.now();
+		const ttNow = Date.now();
 		const userContentHash = sha256(turn.userContent);
 
 		const query = `
@@ -331,8 +340,8 @@ export class TurnAggregator {
 				sequence_index: $sequenceIndex,
 				files_touched: $filesTouched,
 				tool_calls_count: $toolCallsCount,
-				vt_start: $now,
-				tt_start: $now
+				vt_start: $vtStart,
+				tt_start: $ttStart
 			})
 			MERGE (s)-[:HAS_TURN]->(t)
 			WITH t
@@ -354,7 +363,8 @@ export class TurnAggregator {
 			filesTouched: JSON.stringify([...turn.filesTouched.keys()]),
 			toolCallsCount: turn.toolCallsCount,
 			prevSeqIndex: turn.sequenceIndex - 1,
-			now,
+			vtStart: turn.createdAt,
+			ttStart: ttNow,
 		});
 
 		// Emit node created event for real-time WebSocket updates
@@ -404,6 +414,34 @@ export class TurnAggregator {
 				inputTokens: turn.inputTokens,
 				outputTokens: turn.outputTokens,
 			});
+
+			// Publish turn_finalized event for search service indexing
+			if (this.onTurnFinalized) {
+				try {
+					await this.onTurnFinalized({
+						id: turn.turnId,
+						session_id: turn.sessionId,
+						sequence_index: turn.sequenceIndex,
+						user_content: turn.userContent,
+						assistant_content: turn.assistantContent,
+						reasoning_preview: turn.reasoningBlocks
+							.map((r) => r.content)
+							.join("\n")
+							.slice(0, 500),
+						tool_calls: turn.toolCalls.map((tc) => tc.toolName),
+						files_touched: [...turn.filesTouched.keys()],
+						input_tokens: turn.inputTokens,
+						output_tokens: turn.outputTokens,
+						timestamp: Date.now(),
+						vt_start: turn.createdAt,
+					});
+				} catch (e) {
+					this.logger.error(
+						{ err: e, turnId: turn.turnId },
+						"Failed to publish turn_finalized event",
+					);
+				}
+			}
 
 			this.logger.info(
 				{

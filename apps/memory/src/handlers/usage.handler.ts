@@ -48,7 +48,9 @@ export class UsageEventHandler implements EventHandler {
 				t.files_touched = $filesTouched,
 				t.tool_calls_count = $toolCallsCount,
 				t.input_tokens = $inputTokens,
-				t.output_tokens = $outputTokens
+				t.output_tokens = $outputTokens,
+				t.vt_end = $now,
+				t.tt_end = $now
 		`;
 
 		await context.graphClient.query(query, {
@@ -58,6 +60,7 @@ export class UsageEventHandler implements EventHandler {
 			toolCallsCount: turn.toolCallsCount,
 			inputTokens: turn.inputTokens,
 			outputTokens: turn.outputTokens,
+			now: Date.now(),
 		});
 
 		turn.isFinalized = true;
@@ -80,6 +83,7 @@ export class UsageEventHandler implements EventHandler {
 					input_tokens: turn.inputTokens,
 					output_tokens: turn.outputTokens,
 					timestamp: Date.now(),
+					vt_start: turn.createdAt,
 				});
 			} catch (e) {
 				context.logger.error(

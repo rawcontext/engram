@@ -307,6 +307,8 @@ export async function handlePersistenceMessage({ message }: { message: any }) {
                      ON CREATE SET
                         s.started_at = $now,
                         s.last_event_at = $now,
+                        s.vt_start = $now,
+                        s.tt_start = $now,
                         s.user_id = $userId,
                         s.working_dir = $workingDir,
                         s.git_remote = $gitRemote,
