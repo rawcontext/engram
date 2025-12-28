@@ -128,7 +128,9 @@ jobs:
           TF_HTTP_USERNAME: tofu
           TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
         run: |
-          tofu init
+          tofu init \
+            -backend-config="username=tofu" \
+            -backend-config="password=$TF_HTTP_PASSWORD"
 
       - name: OpenTofu Validate
         working-directory: packages/infra
