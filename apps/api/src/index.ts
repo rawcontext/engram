@@ -2,6 +2,7 @@ import { createNodeLogger } from "@engram/logger";
 import { FalkorClient, PostgresClient } from "@engram/storage";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { cors } from "hono/cors";
 import { logger as honoLogger } from "hono/logger";
 import { loadConfig } from "./config";
@@ -95,6 +96,11 @@ async function main() {
 
 	// Global error handler
 	app.onError((err, c) => {
+		// Handle HTTPException (from basicAuth, etc.) - return proper status
+		if (err instanceof HTTPException) {
+			return err.getResponse();
+		}
+
 		logger.error({ error: err }, "Unhandled error");
 		return c.json(
 			{
