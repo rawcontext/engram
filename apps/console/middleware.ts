@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
+import { type NextRequest, NextResponse } from "next/server";
 
 // Routes that don't require authentication
 const PUBLIC_ROUTES = ["/api/auth", "/login", "/error"];
@@ -11,8 +12,8 @@ export async function middleware(request: NextRequest) {
 		return NextResponse.next();
 	}
 
-	// Check for session cookie
-	const sessionCookie = request.cookies.get("better-auth.session_token");
+	// Check for session cookie using better-auth helper
+	const sessionCookie = getSessionCookie(request);
 
 	if (!sessionCookie) {
 		// Redirect to login
