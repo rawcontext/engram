@@ -1,7 +1,7 @@
+import os from "node:os";
 import type { Logger } from "@engram/logger";
 import type { FalkorClient } from "@engram/storage";
 import { Hono } from "hono";
-import os from "node:os";
 
 export interface MetricsRoutesOptions {
 	graphClient: FalkorClient;
