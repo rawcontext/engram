@@ -122,6 +122,14 @@ jobs:
         with:
           tofu_version: 1.8.0
 
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.TF_HTTP_PASSWORD }}" ]; then
+            echo "::error::TF_HTTP_PASSWORD secret is not set!"
+            exit 1
+          fi
+          echo "TF_HTTP_PASSWORD is set (length: $(echo -n '${{ secrets.TF_HTTP_PASSWORD }}' | wc -c))"
+
       - name: OpenTofu Init
         working-directory: packages/infra
         run: |
