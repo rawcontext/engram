@@ -77,10 +77,6 @@ On first run, authenticate via browser.
 | `/engram:session-recap` | Summarize a past session |
 | `/engram:decision-history` | Investigate past decisions on a topic |
 
-## Self-Hosting
-
-See the [monorepo](https://github.com/rawcontext/engram) for self-hosting instructions.
-
 ## License
 
 AGPL-3.0
