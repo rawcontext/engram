@@ -59,7 +59,7 @@ export async function GET() {
 		],
 		code_challenge_methods_supported: ["S256"],
 		token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post", "none"],
-		service_documentation: "https://docs.engram.dev/auth",
+		service_documentation: "https://github.com/rawcontext/engram",
 	};
 
 	return NextResponse.json(metadata, {

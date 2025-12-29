@@ -49,7 +49,7 @@ export async function GET() {
 		authorization_servers: [authServerUrl],
 		scopes_supported: [...OAuthConfig.DEFAULT_SCOPES, "mcp:tools", "mcp:resources", "mcp:prompts"],
 		bearer_methods_supported: ["header"],
-		resource_documentation: "https://docs.engram.dev/mcp",
+		resource_documentation: "https://github.com/rawcontext/engram/tree/main/apps/mcp",
 		resource_name: "Engram MCP Server",
 	};
 

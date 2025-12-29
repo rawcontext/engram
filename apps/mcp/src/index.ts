@@ -111,7 +111,7 @@ async function main() {
 				serverUrl: config.mcpServerUrl,
 				authServerUrl: config.authServerUrl,
 				resourceName: "Engram MCP Server",
-				documentationUrl: "https://docs.engram.dev/mcp",
+				documentationUrl: "https://github.com/rawcontext/engram/tree/main/apps/mcp",
 				logger,
 			});
 		}

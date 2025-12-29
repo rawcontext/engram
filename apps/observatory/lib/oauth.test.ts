@@ -159,7 +159,9 @@ describe("OAuth Protected Resource Metadata Endpoint", () => {
 		const metadata = response.body as Record<string, unknown>;
 
 		expect(metadata.resource_name).toBe("Engram MCP Server");
-		expect(metadata.resource_documentation).toBe("https://docs.engram.dev/mcp");
+		expect(metadata.resource_documentation).toBe(
+			"https://github.com/rawcontext/engram/tree/main/apps/mcp",
+		);
 	});
 
 	it("should set correct Content-Type and Cache-Control headers", async () => {
