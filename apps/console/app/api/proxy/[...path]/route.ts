@@ -12,7 +12,7 @@ import { auth } from "@/lib/auth";
 
 // Get the Engram API URL from environment
 const ENGRAM_API_URL = process.env.ENGRAM_API_URL || "http://localhost:6174";
-const ENGRAM_API_TOKEN = process.env.ENGRAM_API_TOKEN || "engram_dev_console";
+const ENGRAM_API_KEY = process.env.ENGRAM_API_KEY || "engram_dev_console";
 
 interface ProxyParams {
 	params: Promise<{ path: string[] }>;
@@ -48,7 +48,7 @@ async function proxyRequest(request: NextRequest, { params }: ProxyParams) {
 	// Prepare headers
 	const proxyHeaders: HeadersInit = {
 		"Content-Type": "application/json",
-		Authorization: `Bearer ${ENGRAM_API_TOKEN}`,
+		Authorization: `Bearer ${ENGRAM_API_KEY}`,
 	};
 
 	// Forward the request
