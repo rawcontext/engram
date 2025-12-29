@@ -111,14 +111,14 @@ const PERCENTILE_ICONS: Record<string, typeof Timer> = {
 };
 
 const PERCENTILE_COLORS: Record<string, string> = {
-	p50: "--console-green",
-	p95: "--console-amber",
-	p99: "--console-red",
+	p50: "--success",
+	p95: "--warning",
+	p99: "--destructive",
 };
 
 function PercentileCard({ data, isLoading }: { data: PercentileData; isLoading: boolean }) {
 	const Icon = PERCENTILE_ICONS[data.id] || Timer;
-	const colorVar = PERCENTILE_COLORS[data.id] || "--console-cyan";
+	const colorVar = PERCENTILE_COLORS[data.id] || "--primary";
 	const isPositive = data.change <= 0; // Lower latency is better
 	const isAboveThreshold = data.threshold && data.value > data.threshold;
 
@@ -145,18 +145,15 @@ function PercentileCard({ data, isLoading }: { data: PercentileData; isLoading: 
 			<div
 				className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
 				style={{
-					background: `radial-gradient(ellipse at bottom right, rgba(var(${colorVar}), 0.06) 0%, transparent 70%)`,
+					background: `radial-gradient(ellipse at bottom right, color-mix(in oklch, var(${colorVar}) 6%, transparent) 0%, transparent 70%)`,
 				}}
 			/>
 
 			{/* Threshold warning indicator */}
 			{isAboveThreshold && (
 				<div className="absolute top-0 right-0 w-12 h-12 overflow-hidden">
-					<div
-						className="absolute rotate-45 translate-x-4 -translate-y-2 w-16 h-6 flex items-center justify-center"
-						style={{ background: `rgb(var(--console-amber))` }}
-					>
-						<span className="text-[8px] font-bold text-[rgb(var(--console-void))]">SLO</span>
+					<div className="absolute rotate-45 translate-x-4 -translate-y-2 w-16 h-6 flex items-center justify-center bg-warning">
+						<span className="text-[8px] font-bold text-background">SLO</span>
 					</div>
 				</div>
 			)}
@@ -165,15 +162,13 @@ function PercentileCard({ data, isLoading }: { data: PercentileData; isLoading: 
 			<div className="flex items-start justify-between mb-4 relative">
 				<div
 					className="w-11 h-11 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105"
-					style={{ background: `rgba(var(${colorVar}), 0.12)` }}
+					style={{ background: `color-mix(in oklch, var(${colorVar}) 12%, transparent)` }}
 				>
-					<Icon className="w-5 h-5" style={{ color: `rgb(var(${colorVar}))` }} />
+					<Icon className="w-5 h-5" style={{ color: `hsl(var(${colorVar}))` }} />
 				</div>
 
 				<div
-					className={`flex items-center gap-1 text-sm font-mono ${
-						isPositive ? "text-[rgb(var(--console-green))]" : "text-[rgb(var(--console-red))]"
-					}`}
+					className={`flex items-center gap-1 text-sm font-mono ${isPositive ? "text-success" : "text-destructive"}`}
 				>
 					{isPositive ? (
 						<ArrowDownRight className="w-4 h-4" />
@@ -187,12 +182,12 @@ function PercentileCard({ data, isLoading }: { data: PercentileData; isLoading: 
 			{/* Value */}
 			<div className="relative mb-1">
 				{isLoading ? (
-					<div className="h-10 w-28 rounded bg-[rgb(var(--console-surface))] animate-pulse" />
+					<div className="h-10 w-28 rounded bg-secondary animate-pulse" />
 				) : (
 					<span
 						className="font-mono text-4xl font-semibold tracking-tight"
 						style={{
-							background: `linear-gradient(180deg, rgb(var(--text-primary)) 0%, rgb(var(--text-secondary)) 100%)`,
+							background: `linear-gradient(180deg, hsl(var(--foreground)) 0%, hsl(var(--secondary-foreground)) 100%)`,
 							WebkitBackgroundClip: "text",
 							WebkitTextFillColor: "transparent",
 							backgroundClip: "text",
@@ -251,26 +246,26 @@ function LatencyHistogram({ data, isLoading }: { data: LatencyBucket[]; isLoadin
 				className="absolute top-0 left-0 w-24 h-24 pointer-events-none"
 				style={{
 					background:
-						"radial-gradient(circle at top left, rgba(var(--console-purple), 0.08) 0%, transparent 70%)",
+						"radial-gradient(circle at top left, color-mix(in oklch, var(--violet) 8%, transparent) 0%, transparent 70%)",
 				}}
 			/>
 
 			{/* Header */}
 			<div className="flex items-center justify-between mb-6 relative">
 				<div>
-					<h3 className="font-display text-lg text-[rgb(var(--text-primary))] flex items-center gap-2">
-						<div className="w-2 h-2 rounded-full bg-[rgb(var(--console-purple))]" />
+					<h3 className="font-display text-lg text-foreground flex items-center gap-2">
+						<div className="w-2 h-2 rounded-full bg-violet" />
 						Latency Distribution
 					</h3>
-					<p className="text-sm text-[rgb(var(--text-muted))] mt-1 font-mono">
+					<p className="text-sm text-muted-foreground mt-1 font-mono">
 						Response time histogram by bucket
 					</p>
 				</div>
 
 				{/* Legend */}
-				<div className="flex items-center gap-4 text-xs font-mono text-[rgb(var(--text-muted))]">
+				<div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
 					<div className="flex items-center gap-2">
-						<div className="w-3 h-3 rounded-sm bg-[rgb(var(--console-purple))]" />
+						<div className="w-3 h-3 rounded-sm bg-violet" />
 						<span>Request Count</span>
 					</div>
 				</div>
@@ -282,7 +277,7 @@ function LatencyHistogram({ data, isLoading }: { data: LatencyBucket[]; isLoadin
 					{["b1", "b2", "b3", "b4", "b5", "b6", "b7"].map((key, i) => (
 						<div
 							key={key}
-							className="flex-1 bg-[rgb(var(--console-surface))] animate-pulse rounded-t"
+							className="flex-1 bg-secondary animate-pulse rounded-t"
 							style={{ height: `${30 + ((i * 17) % 60)}%` }}
 						/>
 					))}
@@ -310,20 +305,20 @@ function LatencyHistogram({ data, isLoading }: { data: LatencyBucket[]; isLoadin
 			)}
 
 			{/* Bottom stats */}
-			<div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-[rgba(var(--console-cyan),0.1)]">
+			<div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-primary/10">
 				<div>
 					<div className="metric-label mb-1">Fastest Bucket</div>
-					<div className="font-mono text-sm text-[rgb(var(--console-green))]">0-10ms</div>
+					<div className="font-mono text-sm text-success">0-10ms</div>
 				</div>
 				<div>
 					<div className="metric-label mb-1">Mode</div>
-					<div className="font-mono text-sm text-[rgb(var(--text-primary))]">
+					<div className="font-mono text-sm text-foreground">
 						{data.length > 0 ? data.reduce((a, b) => (a.count > b.count ? a : b)).range : "-"}
 					</div>
 				</div>
 				<div>
 					<div className="metric-label mb-1">Total Requests</div>
-					<div className="font-mono text-sm text-[rgb(var(--text-primary))]">
+					<div className="font-mono text-sm text-foreground">
 						{data.reduce((sum, b) => sum + b.count, 0).toLocaleString()}
 					</div>
 				</div>
@@ -372,18 +367,18 @@ function StrategyComparisonChart({
 				className="absolute top-0 right-0 w-32 h-32 pointer-events-none"
 				style={{
 					background:
-						"radial-gradient(circle at top right, rgba(var(--console-cyan), 0.06) 0%, transparent 70%)",
+						"radial-gradient(circle at top right, color-mix(in oklch, var(--primary) 6%, transparent) 0%, transparent 70%)",
 				}}
 			/>
 
 			{/* Header */}
 			<div className="flex items-center justify-between mb-6 relative">
 				<div>
-					<h3 className="font-display text-lg text-[rgb(var(--text-primary))] flex items-center gap-2">
-						<Search className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
+					<h3 className="font-display text-lg text-foreground flex items-center gap-2">
+						<Search className="w-4 h-4 text-primary" />
 						Search Strategy Performance
 					</h3>
-					<p className="text-sm text-[rgb(var(--text-muted))] mt-1 font-mono">
+					<p className="text-sm text-muted-foreground mt-1 font-mono">
 						Avg latency by retrieval strategy over time
 					</p>
 				</div>
@@ -391,21 +386,19 @@ function StrategyComparisonChart({
 				{/* Strategy legend with badges */}
 				<div className="flex items-center gap-3">
 					{[
-						{ name: "Dense", color: "--console-cyan", desc: "Vector" },
-						{ name: "Sparse", color: "--console-amber", desc: "BM25" },
-						{ name: "Hybrid", color: "--console-purple", desc: "RRF" },
+						{ name: "Dense", color: "--primary", desc: "Vector" },
+						{ name: "Sparse", color: "--warning", desc: "BM25" },
+						{ name: "Hybrid", color: "--violet", desc: "RRF" },
 					].map((strategy) => (
 						<div
 							key={strategy.name}
-							className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.1)]"
+							className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary border border-primary/10"
 						>
 							<div
 								className="w-2 h-2 rounded-full"
-								style={{ background: `rgb(var(${strategy.color}))` }}
+								style={{ background: `hsl(var(${strategy.color}))` }}
 							/>
-							<span className="text-xs font-mono text-[rgb(var(--text-secondary))]">
-								{strategy.name}
-							</span>
+							<span className="text-xs font-mono text-secondary-foreground">{strategy.name}</span>
 						</div>
 					))}
 				</div>
@@ -414,7 +407,7 @@ function StrategyComparisonChart({
 			{/* Chart */}
 			{isLoading ? (
 				<div className="h-72 flex items-center justify-center">
-					<div className="w-full h-48 bg-[rgb(var(--console-surface))] animate-pulse rounded" />
+					<div className="w-full h-48 bg-secondary animate-pulse rounded" />
 				</div>
 			) : (
 				<div className="h-72">
@@ -478,21 +471,21 @@ function StrategyComparisonChart({
 			)}
 
 			{/* Bottom comparison stats */}
-			<div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-[rgba(var(--console-cyan),0.1)]">
+			<div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-primary/10">
 				{[
 					{
 						name: "Dense",
-						color: "--console-cyan",
+						color: "--primary",
 						value: data.length ? data.reduce((s, d) => s + d.dense, 0) / data.length : 0,
 					},
 					{
 						name: "Sparse",
-						color: "--console-amber",
+						color: "--warning",
 						value: data.length ? data.reduce((s, d) => s + d.sparse, 0) / data.length : 0,
 					},
 					{
 						name: "Hybrid",
-						color: "--console-purple",
+						color: "--violet",
 						value: data.length ? data.reduce((s, d) => s + d.hybrid, 0) / data.length : 0,
 					},
 				].map((strategy) => (
@@ -500,7 +493,7 @@ function StrategyComparisonChart({
 						<div className="metric-label mb-1">{strategy.name} Avg</div>
 						<div
 							className="font-mono text-lg font-medium"
-							style={{ color: `rgb(var(${strategy.color}))` }}
+							style={{ color: `hsl(var(${strategy.color}))` }}
 						>
 							{strategy.value.toFixed(1)}ms
 						</div>
@@ -519,11 +512,11 @@ function PercentileSkeleton() {
 	return (
 		<div className="panel p-5 animate-pulse">
 			<div className="flex items-start justify-between mb-4">
-				<div className="w-11 h-11 rounded-lg bg-[rgb(var(--console-surface))]" />
-				<div className="h-5 w-16 rounded bg-[rgb(var(--console-surface))]" />
+				<div className="w-11 h-11 rounded-lg bg-secondary" />
+				<div className="h-5 w-16 rounded bg-secondary" />
 			</div>
-			<div className="h-10 w-28 rounded bg-[rgb(var(--console-surface))] mb-2" />
-			<div className="h-4 w-20 rounded bg-[rgb(var(--console-surface))]" />
+			<div className="h-10 w-28 rounded bg-secondary mb-2" />
+			<div className="h-4 w-20 rounded bg-secondary" />
 		</div>
 	);
 }
@@ -577,13 +570,13 @@ export default function PerformancePage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="font-display text-2xl text-[rgb(var(--text-primary))] flex items-center gap-3">
-						<div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[rgb(var(--console-cyan))] to-[rgb(var(--console-purple))] flex items-center justify-center">
-							<Gauge className="w-4 h-4 text-[rgb(var(--console-void))]" />
+					<h1 className="font-display text-2xl text-foreground flex items-center gap-3">
+						<div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-violet flex items-center justify-center">
+							<Gauge className="w-4 h-4 text-background" />
 						</div>
 						Performance Analytics
 					</h1>
-					<p className="text-sm text-[rgb(var(--text-muted))] mt-1 ml-11">
+					<p className="text-sm text-muted-foreground mt-1 ml-11">
 						Latency metrics, percentiles, and search strategy performance
 					</p>
 				</div>
@@ -591,8 +584,8 @@ export default function PerformancePage() {
 				<div className="flex items-center gap-4">
 					{/* Refresh indicator */}
 					{isRefreshing && (
-						<div className="flex items-center gap-2 text-xs font-mono text-[rgb(var(--text-muted))]">
-							<div className="w-2 h-2 rounded-full bg-[rgb(var(--console-cyan))] animate-pulse" />
+						<div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+							<div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
 							Updating...
 						</div>
 					)}
@@ -604,9 +597,9 @@ export default function PerformancePage() {
 			{/* Percentile Cards */}
 			<section>
 				<div className="flex items-center gap-2 mb-4">
-					<div className="h-px flex-1 bg-gradient-to-r from-[rgba(var(--console-cyan),0.3)] to-transparent" />
+					<div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
 					<span className="metric-label px-2">Latency Percentiles</span>
-					<div className="h-px flex-1 bg-gradient-to-l from-[rgba(var(--console-cyan),0.3)] to-transparent" />
+					<div className="h-px flex-1 bg-gradient-to-l from-primary/30 to-transparent" />
 				</div>
 
 				{isLoading ? (

@@ -92,18 +92,18 @@ export function EnvironmentSwitcher() {
 				type="button"
 				ref={triggerRef}
 				onClick={() => setIsOpen(!isOpen)}
-				className="panel flex items-center gap-3 px-4 py-2 hover:border-[rgba(var(--console-cyan),0.3)] transition-all group"
+				className="panel flex items-center gap-3 px-4 py-2 hover:border-primary/30 transition-all group"
 				aria-expanded={isOpen}
 				aria-haspopup="listbox"
 			>
 				{/* Status indicator */}
 				<div className="relative">
-					<Globe className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
+					<Globe className="w-4 h-4 text-primary" />
 					<span
-						className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[rgb(var(--console-panel))] ${
+						className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card ${
 							isConnected
-								? "bg-[rgb(var(--console-green))] shadow-[0_0_6px_rgba(var(--console-green),0.5)]"
-								: "bg-[rgb(var(--console-red))] shadow-[0_0_6px_rgba(var(--console-red),0.5)]"
+								? "bg-success shadow-[0_0_6px_hsl(var(--success)/0.5)]"
+								: "bg-destructive shadow-[0_0_6px_hsl(var(--destructive)/0.5)]"
 						}`}
 						style={{
 							animation: isConnected ? "none" : "pulse-status 2s ease-in-out infinite",
@@ -112,14 +112,12 @@ export function EnvironmentSwitcher() {
 				</div>
 
 				<div className="flex flex-col items-start">
-					<span className="font-mono text-xs text-[rgb(var(--text-primary))]">
-						{environment.name}
-					</span>
-					<span className="font-mono text-[10px] text-[rgb(var(--text-muted))]">{displayHost}</span>
+					<span className="font-mono text-xs text-foreground">{environment.name}</span>
+					<span className="font-mono text-[10px] text-muted-foreground">{displayHost}</span>
 				</div>
 
 				<ChevronDown
-					className={`w-4 h-4 text-[rgb(var(--text-muted))] group-hover:text-[rgb(var(--text-secondary))] transition-transform duration-200 ${
+					className={`w-4 h-4 text-muted-foreground group-hover:text-secondary-foreground transition-transform duration-200 ${
 						isOpen ? "rotate-180" : ""
 					}`}
 				/>
@@ -134,12 +132,12 @@ export function EnvironmentSwitcher() {
 					}}
 				>
 					{/* Header */}
-					<div className="px-3 py-2 border-b border-[rgba(var(--console-cyan),0.1)]">
+					<div className="px-3 py-2 border-b border-primary/10">
 						<div className="flex items-center justify-between">
-							<span className="font-mono text-[10px] text-[rgb(var(--text-muted))] uppercase tracking-wider">
+							<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
 								Environments
 							</span>
-							<span className="font-mono text-[10px] text-[rgb(var(--text-dim))]">⌘E</span>
+							<span className="font-mono text-[10px] text-muted-foreground">⌘E</span>
 						</div>
 					</div>
 
@@ -153,9 +151,7 @@ export function EnvironmentSwitcher() {
 								<div
 									key={env.id}
 									className={`group flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all ${
-										isSelected
-											? "bg-[rgba(var(--console-cyan),0.1)]"
-											: "hover:bg-[rgba(var(--console-cyan),0.05)]"
+										isSelected ? "bg-primary/10" : "hover:bg-primary/5"
 									}`}
 									onClick={() => handleSelect(env.id)}
 									onKeyDown={(e) => e.key === "Enter" && handleSelect(env.id)}
@@ -166,17 +162,11 @@ export function EnvironmentSwitcher() {
 									{/* Icon */}
 									<div
 										className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
-											isSelected
-												? "bg-[rgba(var(--console-cyan),0.15)]"
-												: "bg-[rgb(var(--console-surface))]"
+											isSelected ? "bg-primary/15" : "bg-secondary"
 										}`}
 									>
 										<Server
-											className={`w-4 h-4 ${
-												isSelected
-													? "text-[rgb(var(--console-cyan))]"
-													: "text-[rgb(var(--text-muted))]"
-											}`}
+											className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`}
 										/>
 									</div>
 
@@ -185,27 +175,25 @@ export function EnvironmentSwitcher() {
 										<div className="flex items-center gap-2">
 											<span
 												className={`font-mono text-xs ${
-													isSelected
-														? "text-[rgb(var(--console-cyan))]"
-														: "text-[rgb(var(--text-primary))]"
+													isSelected ? "text-primary" : "text-foreground"
 												}`}
 											>
 												{env.name}
 											</span>
 											{env.isCustom && (
-												<span className="px-1.5 py-0.5 rounded text-[8px] font-mono uppercase bg-[rgba(var(--console-purple),0.15)] text-[rgb(var(--console-purple))]">
+												<span className="px-1.5 py-0.5 rounded text-[8px] font-mono uppercase bg-violet/15 text-violet">
 													Custom
 												</span>
 											)}
 										</div>
-										<span className="font-mono text-[10px] text-[rgb(var(--text-dim))] truncate block">
+										<span className="font-mono text-[10px] text-muted-foreground truncate block">
 											{host}
 										</span>
 									</div>
 
 									{/* Selection indicator / Delete button */}
 									{isSelected ? (
-										<div className="w-2 h-2 rounded-full bg-[rgb(var(--console-cyan))] shadow-[0_0_8px_rgba(var(--console-cyan),0.5)]" />
+										<div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.5)]" />
 									) : env.isCustom ? (
 										<button
 											type="button"
@@ -213,10 +201,10 @@ export function EnvironmentSwitcher() {
 												e.stopPropagation();
 												removeCustomEnvironment(env.id);
 											}}
-											className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[rgba(var(--console-red),0.1)] transition-all"
+											className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 transition-all"
 											aria-label="Remove environment"
 										>
-											<Trash2 className="w-3 h-3 text-[rgb(var(--console-red))]" />
+											<Trash2 className="w-3 h-3 text-destructive" />
 										</button>
 									) : null}
 								</div>
@@ -225,12 +213,12 @@ export function EnvironmentSwitcher() {
 					</div>
 
 					{/* Add Custom Environment */}
-					<div className="border-t border-[rgba(var(--console-cyan),0.1)]">
+					<div className="border-t border-primary/10">
 						{!showAddForm ? (
 							<button
 								type="button"
 								onClick={() => setShowAddForm(true)}
-								className="w-full flex items-center gap-2 px-3 py-2.5 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-primary))] hover:bg-[rgba(var(--console-cyan),0.05)] transition-all"
+								className="w-full flex items-center gap-2 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-all"
 							>
 								<Plus className="w-4 h-4" />
 								<span className="font-mono text-xs">Add custom environment</span>
@@ -238,15 +226,15 @@ export function EnvironmentSwitcher() {
 						) : (
 							<form onSubmit={handleAddEnvironment} className="p-3 space-y-3">
 								<div className="flex items-center justify-between mb-2">
-									<span className="font-mono text-[10px] text-[rgb(var(--text-muted))] uppercase tracking-wider">
+									<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
 										New Environment
 									</span>
 									<button
 										type="button"
 										onClick={() => setShowAddForm(false)}
-										className="p-1 rounded hover:bg-[rgba(var(--console-cyan),0.1)] transition-colors"
+										className="p-1 rounded hover:bg-primary/10 transition-colors"
 									>
-										<X className="w-3 h-3 text-[rgb(var(--text-muted))]" />
+										<X className="w-3 h-3 text-muted-foreground" />
 									</button>
 								</div>
 
@@ -255,7 +243,7 @@ export function EnvironmentSwitcher() {
 									value={newName}
 									onChange={(e) => setNewName(e.target.value)}
 									placeholder="Environment name"
-									className="w-full px-3 py-2 bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.1)] rounded-md font-mono text-xs text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))] focus:outline-none focus:border-[rgba(var(--console-cyan),0.3)] transition-colors"
+									className="w-full px-3 py-2 bg-secondary border border-primary/10 rounded-md font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/30 transition-colors"
 								/>
 
 								<input
@@ -263,13 +251,13 @@ export function EnvironmentSwitcher() {
 									value={newUrl}
 									onChange={(e) => setNewUrl(e.target.value)}
 									placeholder="API URL (e.g., api.example.com)"
-									className="w-full px-3 py-2 bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.1)] rounded-md font-mono text-xs text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))] focus:outline-none focus:border-[rgba(var(--console-cyan),0.3)] transition-colors"
+									className="w-full px-3 py-2 bg-secondary border border-primary/10 rounded-md font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/30 transition-colors"
 								/>
 
 								<button
 									type="submit"
 									disabled={!newName.trim() || !newUrl.trim()}
-									className="w-full py-2 rounded-md font-mono text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[rgba(var(--console-cyan),0.1)] text-[rgb(var(--console-cyan))] hover:bg-[rgba(var(--console-cyan),0.2)] border border-[rgba(var(--console-cyan),0.2)]"
+									className="w-full py-2 rounded-md font-mono text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
 								>
 									Add Environment
 								</button>

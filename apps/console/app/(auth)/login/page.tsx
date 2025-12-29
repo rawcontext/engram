@@ -54,7 +54,7 @@ function LoginContent() {
 			<Card className="w-full max-w-md">
 				<CardHeader className="text-center">
 					<div className="mx-auto mb-4 flex items-center justify-center gap-3">
-						<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[rgb(var(--console-purple))] shadow-lg shadow-primary/30">
+						<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet shadow-lg shadow-primary/30">
 							<Terminal className="h-6 w-6 text-primary-foreground" />
 						</div>
 						<div className="text-left">

@@ -105,22 +105,22 @@ function StatusBadge({ status }: { status: VersionInfo["status"] }) {
 		case "current":
 			return (
 				<div className="flex items-center gap-1.5">
-					<CheckCircle2 className="w-3.5 h-3.5 text-[rgb(var(--console-green))]" />
-					<span className="text-xs font-mono text-[rgb(var(--console-green))]">Current</span>
+					<CheckCircle2 className="w-3.5 h-3.5 text-success" />
+					<span className="text-xs font-mono text-success">Current</span>
 				</div>
 			);
 		case "update":
 			return (
 				<div className="flex items-center gap-1.5">
-					<ArrowUp className="w-3.5 h-3.5 text-[rgb(var(--console-amber))]" />
-					<span className="text-xs font-mono text-[rgb(var(--console-amber))]">Update</span>
+					<ArrowUp className="w-3.5 h-3.5 text-warning" />
+					<span className="text-xs font-mono text-warning">Update</span>
 				</div>
 			);
 		case "outdated":
 			return (
 				<div className="flex items-center gap-1.5">
-					<AlertTriangle className="w-3.5 h-3.5 text-[rgb(var(--console-red))]" />
-					<span className="text-xs font-mono text-[rgb(var(--console-red))]">Outdated</span>
+					<AlertTriangle className="w-3.5 h-3.5 text-destructive" />
+					<span className="text-xs font-mono text-destructive">Outdated</span>
 				</div>
 			);
 	}
@@ -133,27 +133,25 @@ function VersionRow({ info }: { info: VersionInfo }) {
 	return (
 		<Link
 			href={`/services/${info.service.toLowerCase()}`}
-			className="grid grid-cols-[1fr_100px_100px_90px] items-center py-2.5 px-3 -mx-3 rounded-md hover:bg-[rgb(var(--console-surface))] transition-colors group"
+			className="grid grid-cols-[1fr_100px_100px_90px] items-center py-2.5 px-3 -mx-3 rounded-md hover:bg-secondary transition-colors group"
 		>
 			{/* Service Name */}
 			<div className="flex items-center gap-2.5">
-				<Icon className="w-4 h-4 text-[rgb(var(--text-dim))] group-hover:text-[rgb(var(--console-cyan))] transition-colors" />
-				<span className="text-sm text-[rgb(var(--text-primary))] group-hover:text-[rgb(var(--console-cyan))] transition-colors">
+				<Icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+				<span className="text-sm text-foreground group-hover:text-primary transition-colors">
 					{info.service}
 				</span>
-				<span className="text-[10px] uppercase tracking-wider text-[rgb(var(--text-dim))]">
+				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">
 					{info.type}
 				</span>
 			</div>
 
 			{/* Current Version */}
-			<div className="font-mono text-xs text-[rgb(var(--text-secondary))] tabular-nums">
-				{info.current}
-			</div>
+			<div className="font-mono text-xs text-secondary-foreground tabular-nums">{info.current}</div>
 
 			{/* Latest Version */}
 			<div
-				className={`font-mono text-xs tabular-nums ${needsUpdate ? "text-[rgb(var(--console-cyan))]" : "text-[rgb(var(--text-dim))]"}`}
+				className={`font-mono text-xs tabular-nums ${needsUpdate ? "text-primary" : "text-muted-foreground"}`}
 			>
 				{info.latest}
 			</div>
@@ -187,37 +185,29 @@ export function VersionMatrix({ showHeader = true, filterType = "all" }: Version
 		<div className="panel p-5">
 			{showHeader && (
 				<div className="flex items-center justify-between mb-4">
-					<h3 className="font-display text-lg text-[rgb(var(--text-primary))]">Version Matrix</h3>
+					<h3 className="font-display text-lg text-foreground">Version Matrix</h3>
 					<div className="flex items-center gap-4 text-xs font-mono">
-						<span className="text-[rgb(var(--console-green))]">{stats.current} current</span>
-						{stats.update > 0 && (
-							<span className="text-[rgb(var(--console-amber))]">{stats.update} updates</span>
-						)}
+						<span className="text-success">{stats.current} current</span>
+						{stats.update > 0 && <span className="text-warning">{stats.update} updates</span>}
 						{stats.outdated > 0 && (
-							<span className="text-[rgb(var(--console-red))]">{stats.outdated} outdated</span>
+							<span className="text-destructive">{stats.outdated} outdated</span>
 						)}
 					</div>
 				</div>
 			)}
 
 			{/* Table Header */}
-			<div className="grid grid-cols-[1fr_100px_100px_90px] items-center py-2 px-3 -mx-3 border-b border-[rgb(var(--console-surface))] mb-1">
-				<span className="text-[10px] uppercase tracking-wider text-[rgb(var(--text-dim))]">
-					Service
-				</span>
-				<span className="text-[10px] uppercase tracking-wider text-[rgb(var(--text-dim))]">
-					Current
-				</span>
-				<span className="text-[10px] uppercase tracking-wider text-[rgb(var(--text-dim))]">
-					Latest
-				</span>
-				<span className="text-[10px] uppercase tracking-wider text-[rgb(var(--text-dim))] text-right">
+			<div className="grid grid-cols-[1fr_100px_100px_90px] items-center py-2 px-3 -mx-3 border-b border-secondary mb-1">
+				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">Service</span>
+				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
+				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">Latest</span>
+				<span className="text-[10px] uppercase tracking-wider text-muted-foreground text-right">
 					Status
 				</span>
 			</div>
 
 			{/* Table Body */}
-			<div className="divide-y divide-[rgba(var(--console-surface),0.5)]">
+			<div className="divide-y divide-secondary/50">
 				{filteredData.map((info) => (
 					<VersionRow key={info.service} info={info} />
 				))}

@@ -58,28 +58,6 @@
 	--sidebar-accent-foreground: oklch(0.92 0.005 250);
 	--sidebar-border: oklch(0.2 0.01 250);
 	--sidebar-ring: oklch(0.78 0.15 195);
-
-	/* Legacy console variables for backwards compatibility */
-	--console-void: 12 14 18;
-	--console-panel: 18 21 27;
-	--console-surface: 24 28 36;
-	--console-elevated: 32 38 48;
-	--console-cyan: 34 211 238;
-	--console-green: 74 222 128;
-	--console-amber: 251 191 36;
-	--console-red: 248 113 113;
-	--console-blue: 96 165 250;
-	--console-purple: 167 139 250;
-	--text-primary: 248 250 252;
-	--text-secondary: 148 163 184;
-	--text-muted: 100 116 139;
-	--text-dim: 71 85 105;
-	--status-online: var(--console-green);
-	--status-warning: var(--console-amber);
-	--status-error: var(--console-red);
-	--status-offline: var(--text-muted);
-	--sidebar-width: 240px;
-	--header-height: 64px;
 }
 
 .dark {
@@ -245,8 +223,8 @@ body::before {
 	position: fixed;
 	inset: 0;
 	background-image:
-		linear-gradient(rgba(var(--console-cyan), 0.02) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(var(--console-cyan), 0.02) 1px, transparent 1px);
+		linear-gradient(color-mix(in oklch, var(--primary) 2%, transparent) 1px, transparent 1px),
+		linear-gradient(90deg, color-mix(in oklch, var(--primary) 2%, transparent) 1px, transparent 1px);
 	background-size: 40px 40px;
 	pointer-events: none;
 	z-index: 0;
@@ -283,15 +261,11 @@ body::after {
 }
 
 /* ============================================
-   Control Panel Cards (Legacy)
+   Control Panel Cards
    ============================================ */
 
 .panel {
-	background: rgb(var(--console-panel));
-	border: 1px solid rgba(var(--console-cyan), 0.1);
-	border-radius: 8px;
-	position: relative;
-	overflow: hidden;
+	@apply bg-card border border-primary/10 rounded-lg relative overflow-hidden;
 }
 
 .panel::before {
@@ -301,15 +275,16 @@ body::after {
 	left: 0;
 	right: 0;
 	height: 1px;
-	background: linear-gradient(90deg, transparent, rgba(var(--console-cyan), 0.3), transparent);
+	background: linear-gradient(
+		90deg,
+		transparent,
+		color-mix(in oklch, var(--primary) 30%, transparent),
+		transparent
+	);
 }
 
 .panel-elevated {
-	background: rgb(var(--console-surface));
-	box-shadow:
-		0 4px 6px -1px rgba(0, 0, 0, 0.2),
-		0 2px 4px -2px rgba(0, 0, 0, 0.1),
-		inset 0 1px 0 rgba(255, 255, 255, 0.03);
+	@apply bg-secondary shadow-lg;
 }
 
 /* ============================================
@@ -332,35 +307,35 @@ body::after {
 }
 
 .status-online {
-	background: rgb(var(--status-online));
-	box-shadow: 0 0 8px rgba(var(--status-online), 0.5);
+	@apply bg-success;
+	box-shadow: 0 0 8px color-mix(in oklch, var(--success) 50%, transparent);
 }
 
 .status-online::after {
-	background: rgba(var(--status-online), 0.3);
+	background: color-mix(in oklch, var(--success) 30%, transparent);
 }
 
 .status-warning {
-	background: rgb(var(--status-warning));
-	box-shadow: 0 0 8px rgba(var(--status-warning), 0.5);
+	@apply bg-warning;
+	box-shadow: 0 0 8px color-mix(in oklch, var(--warning) 50%, transparent);
 }
 
 .status-warning::after {
-	background: rgba(var(--status-warning), 0.3);
+	background: color-mix(in oklch, var(--warning) 30%, transparent);
 }
 
 .status-error {
-	background: rgb(var(--status-error));
-	box-shadow: 0 0 8px rgba(var(--status-error), 0.5);
+	@apply bg-destructive;
+	box-shadow: 0 0 8px color-mix(in oklch, var(--destructive) 50%, transparent);
 	animation: status-blink 1s ease-in-out infinite;
 }
 
 .status-error::after {
-	background: rgba(var(--status-error), 0.3);
+	background: color-mix(in oklch, var(--destructive) 30%, transparent);
 }
 
 .status-offline {
-	background: rgb(var(--status-offline));
+	@apply bg-muted-foreground;
 }
 
 .status-offline::after {
@@ -398,7 +373,7 @@ body::after {
 	font-weight: 600;
 	font-size: 2rem;
 	letter-spacing: -0.02em;
-	background: linear-gradient(180deg, rgb(var(--text-primary)) 0%, rgb(var(--text-secondary)) 100%);
+	background: linear-gradient(180deg, var(--foreground) 0%, var(--muted-foreground) 100%);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
@@ -410,19 +385,19 @@ body::after {
 	font-weight: 500;
 	text-transform: uppercase;
 	letter-spacing: 0.1em;
-	color: rgb(var(--text-muted));
+	color: var(--muted-foreground);
 }
 
 .metric-trend-up {
-	color: rgb(var(--console-green));
+	color: var(--success);
 }
 
 .metric-trend-down {
-	color: rgb(var(--console-red));
+	color: var(--destructive);
 }
 
 /* ============================================
-   Navigation (Legacy)
+   Navigation
    ============================================ */
 
 .nav-item {
@@ -431,7 +406,7 @@ body::after {
 	gap: 12px;
 	padding: 10px 16px;
 	border-radius: 6px;
-	color: rgb(var(--text-secondary));
+	color: var(--muted-foreground);
 	font-size: 0.875rem;
 	font-weight: 500;
 	transition: all 0.15s ease;
@@ -439,13 +414,13 @@ body::after {
 }
 
 .nav-item:hover {
-	background: rgba(var(--console-cyan), 0.05);
-	color: rgb(var(--text-primary));
+	background: color-mix(in oklch, var(--primary) 5%, transparent);
+	color: var(--foreground);
 }
 
 .nav-item.active {
-	background: rgba(var(--console-cyan), 0.1);
-	color: rgb(var(--console-cyan));
+	background: color-mix(in oklch, var(--primary) 10%, transparent);
+	color: var(--primary);
 }
 
 .nav-item.active::before {
@@ -456,7 +431,7 @@ body::after {
 	transform: translateY(-50%);
 	width: 3px;
 	height: 24px;
-	background: rgb(var(--console-cyan));
+	background: var(--primary);
 	border-radius: 0 2px 2px 0;
 }
 
@@ -470,16 +445,16 @@ body::after {
 }
 
 ::-webkit-scrollbar-track {
-	background: rgb(var(--console-panel));
+	background: var(--card);
 }
 
 ::-webkit-scrollbar-thumb {
-	background: rgba(var(--console-cyan), 0.2);
+	background: color-mix(in oklch, var(--primary) 20%, transparent);
 	border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	background: rgba(var(--console-cyan), 0.3);
+	background: color-mix(in oklch, var(--primary) 30%, transparent);
 }
 
 /* ============================================
@@ -548,36 +523,11 @@ body::after {
 }
 
 /* ============================================
-   Tremor Overrides (Legacy - to be removed)
-   ============================================ */
-
-[data-tremor-card] {
-	background: rgb(var(--console-panel)) !important;
-	border: 1px solid rgba(var(--console-cyan), 0.1) !important;
-	border-radius: 8px !important;
-}
-
-[data-tremor-metric] {
-	font-family: "IBM Plex Mono", monospace !important;
-	color: rgb(var(--text-primary)) !important;
-}
-
-[data-tremor-title] {
-	font-family: "IBM Plex Sans", system-ui, sans-serif !important;
-	color: rgb(var(--text-secondary)) !important;
-}
-
-[data-tremor-badge] {
-	font-family: "IBM Plex Mono", monospace !important;
-	font-size: 0.75rem !important;
-}
-
-/* ============================================
    Utility Classes
    ============================================ */
 
 .text-gradient {
-	background: linear-gradient(135deg, rgb(var(--console-cyan)), rgb(var(--console-purple)));
+	background: linear-gradient(135deg, var(--primary), var(--violet));
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
@@ -585,8 +535,8 @@ body::after {
 
 .border-glow {
 	box-shadow:
-		0 0 0 1px rgba(var(--console-cyan), 0.2),
-		0 0 20px rgba(var(--console-cyan), 0.1);
+		0 0 0 1px color-mix(in oklch, var(--primary) 20%, transparent),
+		0 0 20px color-mix(in oklch, var(--primary) 10%, transparent);
 }
 
 .hover-lift {
@@ -615,8 +565,8 @@ body::after {
 
 /* Live status - subtle heartbeat pulse */
 .streaming-dot-live {
-	background: rgb(var(--console-green));
-	box-shadow: 0 0 6px rgba(var(--console-green), 0.6);
+	background: var(--success);
+	box-shadow: 0 0 6px color-mix(in oklch, var(--success) 60%, transparent);
 	animation: streaming-heartbeat 2s ease-in-out infinite;
 }
 
@@ -625,14 +575,14 @@ body::after {
 	position: absolute;
 	inset: -3px;
 	border-radius: 50%;
-	background: rgba(var(--console-green), 0.3);
+	background: color-mix(in oklch, var(--success) 30%, transparent);
 	animation: streaming-pulse-ring 2s ease-out infinite;
 }
 
 /* Degraded status - slower pulse, amber */
 .streaming-dot-degraded {
-	background: rgb(var(--console-amber));
-	box-shadow: 0 0 4px rgba(var(--console-amber), 0.5);
+	background: var(--warning);
+	box-shadow: 0 0 4px color-mix(in oklch, var(--warning) 50%, transparent);
 	animation: streaming-heartbeat 3s ease-in-out infinite;
 }
 
@@ -641,25 +591,25 @@ body::after {
 	position: absolute;
 	inset: -2px;
 	border-radius: 50%;
-	background: rgba(var(--console-amber), 0.2);
+	background: color-mix(in oklch, var(--warning) 20%, transparent);
 	animation: streaming-pulse-ring 3s ease-out infinite;
 }
 
 /* Stale status - dim, no animation */
 .streaming-dot-stale {
-	background: rgb(var(--console-amber));
+	background: var(--warning);
 	opacity: 0.5;
 }
 
 /* Connecting status - fast pulse */
 .streaming-dot-connecting {
-	background: rgb(var(--console-cyan));
+	background: var(--primary);
 	animation: streaming-connecting 1s ease-in-out infinite;
 }
 
 /* Offline status - dim red, no animation */
 .streaming-dot-offline {
-	background: rgb(var(--console-red));
+	background: var(--destructive);
 	opacity: 0.4;
 }
 
@@ -719,16 +669,16 @@ body::after {
    Data Freshness Animations
    ============================================ */
 
-/* Flash on data update - cyan */
+/* Flash on data update - primary */
 .data-flash-cyan {
-	animation: data-flash-cyan 0.6s ease-out;
+	animation: data-flash-primary 0.6s ease-out;
 }
 
-@keyframes data-flash-cyan {
+@keyframes data-flash-primary {
 	0% {
 		box-shadow:
-			inset 0 0 0 1px rgba(var(--console-cyan), 0.5),
-			0 0 12px rgba(var(--console-cyan), 0.3);
+			inset 0 0 0 1px color-mix(in oklch, var(--primary) 50%, transparent),
+			0 0 12px color-mix(in oklch, var(--primary) 30%, transparent);
 	}
 	100% {
 		box-shadow:
@@ -739,14 +689,14 @@ body::after {
 
 /* Flash on data update - green */
 .data-flash-green {
-	animation: data-flash-green 0.6s ease-out;
+	animation: data-flash-success 0.6s ease-out;
 }
 
-@keyframes data-flash-green {
+@keyframes data-flash-success {
 	0% {
 		box-shadow:
-			inset 0 0 0 1px rgba(var(--console-green), 0.5),
-			0 0 12px rgba(var(--console-green), 0.3);
+			inset 0 0 0 1px color-mix(in oklch, var(--success) 50%, transparent),
+			0 0 12px color-mix(in oklch, var(--success) 30%, transparent);
 	}
 	100% {
 		box-shadow:
@@ -757,14 +707,14 @@ body::after {
 
 /* Flash on data update - amber */
 .data-flash-amber {
-	animation: data-flash-amber 0.6s ease-out;
+	animation: data-flash-warning 0.6s ease-out;
 }
 
-@keyframes data-flash-amber {
+@keyframes data-flash-warning {
 	0% {
 		box-shadow:
-			inset 0 0 0 1px rgba(var(--console-amber), 0.5),
-			0 0 12px rgba(var(--console-amber), 0.3);
+			inset 0 0 0 1px color-mix(in oklch, var(--warning) 50%, transparent),
+			0 0 12px color-mix(in oklch, var(--warning) 30%, transparent);
 	}
 	100% {
 		box-shadow:
@@ -791,35 +741,35 @@ body::after {
 }
 
 .live-value-up {
-	color: rgb(var(--console-green));
+	color: var(--success);
 }
 
 .live-value-down {
-	color: rgb(var(--console-red));
+	color: var(--destructive);
 }
 
 /* Pulse ring animations */
 .pulse-ring-cyan {
 	background: transparent;
-	border: 1px solid rgba(var(--console-cyan), 0.5);
+	border: 1px solid color-mix(in oklch, var(--primary) 50%, transparent);
 	animation: pulse-ring-expand 2s ease-out infinite;
 }
 
 .pulse-ring-green {
 	background: transparent;
-	border: 1px solid rgba(var(--console-green), 0.5);
+	border: 1px solid color-mix(in oklch, var(--success) 50%, transparent);
 	animation: pulse-ring-expand 2s ease-out infinite;
 }
 
 .pulse-ring-amber {
 	background: transparent;
-	border: 1px solid rgba(var(--console-amber), 0.5);
+	border: 1px solid color-mix(in oklch, var(--warning) 50%, transparent);
 	animation: pulse-ring-expand 2s ease-out infinite;
 }
 
 .pulse-ring-red {
 	background: transparent;
-	border: 1px solid rgba(var(--console-red), 0.5);
+	border: 1px solid color-mix(in oklch, var(--destructive) 50%, transparent);
 	animation: pulse-ring-expand 2s ease-out infinite;
 }
 

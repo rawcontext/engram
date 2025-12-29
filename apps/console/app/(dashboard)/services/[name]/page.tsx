@@ -39,7 +39,7 @@ const SERVICE_CONFIG: Record<string, ServiceConfig> = {
 	api: {
 		name: "API",
 		icon: Server,
-		colorVar: "--console-cyan",
+		colorVar: "--primary",
 		description: "REST API Gateway",
 		port: 6174,
 		type: "app",
@@ -48,7 +48,7 @@ const SERVICE_CONFIG: Record<string, ServiceConfig> = {
 	ingestion: {
 		name: "Ingestion",
 		icon: Workflow,
-		colorVar: "--console-green",
+		colorVar: "--success",
 		description: "Event Parsing Pipeline",
 		port: 6175,
 		type: "app",
@@ -57,7 +57,7 @@ const SERVICE_CONFIG: Record<string, ServiceConfig> = {
 	search: {
 		name: "Search",
 		icon: Search,
-		colorVar: "--console-purple",
+		colorVar: "--violet",
 		description: "Vector Search Service",
 		port: 6176,
 		type: "app",
@@ -66,7 +66,7 @@ const SERVICE_CONFIG: Record<string, ServiceConfig> = {
 	tuner: {
 		name: "Tuner",
 		icon: Gauge,
-		colorVar: "--console-amber",
+		colorVar: "--warning",
 		description: "Hyperparameter Optimization",
 		port: 6177,
 		type: "app",
@@ -75,7 +75,7 @@ const SERVICE_CONFIG: Record<string, ServiceConfig> = {
 	observatory: {
 		name: "Observatory",
 		icon: Radio,
-		colorVar: "--console-blue",
+		colorVar: "--primary",
 		description: "Real-time Visualization",
 		port: 6178,
 		type: "app",
@@ -84,7 +84,7 @@ const SERVICE_CONFIG: Record<string, ServiceConfig> = {
 	falkordb: {
 		name: "FalkorDB",
 		icon: Network,
-		colorVar: "--console-cyan",
+		colorVar: "--primary",
 		description: "Graph Database",
 		port: 6179,
 		type: "infra",
@@ -93,7 +93,7 @@ const SERVICE_CONFIG: Record<string, ServiceConfig> = {
 	qdrant: {
 		name: "Qdrant",
 		icon: Layers,
-		colorVar: "--console-purple",
+		colorVar: "--violet",
 		description: "Vector Database",
 		port: 6180,
 		type: "infra",
@@ -102,7 +102,7 @@ const SERVICE_CONFIG: Record<string, ServiceConfig> = {
 	nats: {
 		name: "NATS",
 		icon: Radio,
-		colorVar: "--console-green",
+		colorVar: "--success",
 		description: "Message Queue",
 		port: 6181,
 		type: "infra",
@@ -111,7 +111,7 @@ const SERVICE_CONFIG: Record<string, ServiceConfig> = {
 	postgresql: {
 		name: "PostgreSQL",
 		icon: Database,
-		colorVar: "--console-blue",
+		colorVar: "--primary",
 		description: "Relational Database",
 		port: 6183,
 		type: "infra",
@@ -203,20 +203,18 @@ function StatusBadge({ status }: { status: string }) {
 
 function GaugeBar({ value, label, colorVar }: { value: number; label: string; colorVar: string }) {
 	const getColor = (val: number) => {
-		if (val > 80) return "--console-red";
-		if (val > 60) return "--console-amber";
+		if (val > 80) return "--destructive";
+		if (val > 60) return "--warning";
 		return colorVar;
 	};
 
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center justify-between">
-				<span className="text-xs uppercase tracking-wider text-[rgb(var(--text-dim))]">
-					{label}
-				</span>
-				<span className="font-mono text-sm text-[rgb(var(--text-primary))]">{value}%</span>
+				<span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+				<span className="font-mono text-sm text-foreground">{value}%</span>
 			</div>
-			<div className="h-2 rounded-full bg-[rgb(var(--console-surface))] overflow-hidden">
+			<div className="h-2 rounded-full bg-secondary overflow-hidden">
 				<div
 					className="h-full rounded-full transition-all duration-500"
 					style={{
@@ -231,19 +229,19 @@ function GaugeBar({ value, label, colorVar }: { value: number; label: string; co
 
 function LogLine({ entry }: { entry: LogEntry }) {
 	const levelColors = {
-		info: "text-[rgb(var(--console-cyan))]",
-		warn: "text-[rgb(var(--console-amber))]",
-		error: "text-[rgb(var(--console-red))]",
-		debug: "text-[rgb(var(--text-dim))]",
+		info: "text-primary",
+		warn: "text-warning",
+		error: "text-destructive",
+		debug: "text-muted-foreground",
 	};
 
 	return (
-		<div className="flex items-start gap-3 py-1.5 font-mono text-xs border-b border-[rgb(var(--console-surface))] last:border-0">
-			<span className="text-[rgb(var(--text-dim))] shrink-0 tabular-nums">
+		<div className="flex items-start gap-3 py-1.5 font-mono text-xs border-b border-secondary last:border-0">
+			<span className="text-muted-foreground shrink-0 tabular-nums">
 				{entry.timestamp.toLocaleTimeString()}
 			</span>
 			<span className={`shrink-0 uppercase w-12 ${levelColors[entry.level]}`}>{entry.level}</span>
-			<span className="text-[rgb(var(--text-secondary))]">{entry.message}</span>
+			<span className="text-secondary-foreground">{entry.message}</span>
 		</div>
 	);
 }
@@ -255,15 +253,15 @@ function DependencyChip({ name, status }: { name: string; status: string }) {
 	return (
 		<Link
 			href={`/services/${name.toLowerCase()}`}
-			className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[rgb(var(--console-surface))] hover:bg-[rgba(var(--console-cyan),0.1)] transition-colors group"
+			className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary hover:bg-primary/10 transition-colors group"
 		>
-			<Icon className="w-3.5 h-3.5 text-[rgb(var(--text-muted))] group-hover:text-[rgb(var(--console-cyan))]" />
-			<span className="text-xs font-medium text-[rgb(var(--text-secondary))] group-hover:text-[rgb(var(--text-primary))]">
+			<Icon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary" />
+			<span className="text-xs font-medium text-secondary-foreground group-hover:text-foreground">
 				{name}
 			</span>
 			<span
 				className={`w-1.5 h-1.5 rounded-full ${
-					status === "online" ? "bg-[rgb(var(--console-green))]" : "bg-[rgb(var(--console-red))]"
+					status === "online" ? "bg-success" : "bg-destructive"
 				}`}
 			/>
 		</Link>
@@ -274,8 +272,8 @@ function SkeletonPage() {
 	return (
 		<div className="space-y-6 animate-pulse">
 			<div className="flex items-center gap-4">
-				<div className="w-8 h-8 rounded bg-[rgb(var(--console-surface))]" />
-				<div className="h-8 w-32 rounded bg-[rgb(var(--console-surface))]" />
+				<div className="w-8 h-8 rounded bg-secondary" />
+				<div className="h-8 w-32 rounded bg-secondary" />
 			</div>
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<div className="panel p-6 h-48" />
@@ -361,16 +359,12 @@ export default function ServiceDetailPage() {
 	if (!config) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-				<XCircle className="w-16 h-16 text-[rgb(var(--console-red))] mb-4" />
-				<h2 className="text-[rgb(var(--text-primary))] font-display text-xl mb-2">
-					Service Not Found
-				</h2>
-				<p className="text-[rgb(var(--text-muted))] mb-6">
-					The service "{params.name}" does not exist.
-				</p>
+				<XCircle className="w-16 h-16 text-destructive mb-4" />
+				<h2 className="text-foreground font-display text-xl mb-2">Service Not Found</h2>
+				<p className="text-muted-foreground mb-6">The service "{params.name}" does not exist.</p>
 				<Link
 					href="/"
-					className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[rgb(var(--console-surface))] hover:bg-[rgba(var(--console-cyan),0.1)] transition-colors"
+					className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-secondary hover:bg-primary/10 transition-colors"
 				>
 					<ArrowLeft className="w-4 h-4" />
 					<span>Back to Dashboard</span>
@@ -393,24 +387,22 @@ export default function ServiceDetailPage() {
 				<div className="flex items-center gap-4">
 					<Link
 						href="/"
-						className="w-10 h-10 rounded-lg bg-[rgb(var(--console-surface))] flex items-center justify-center hover:bg-[rgba(var(--console-cyan),0.1)] transition-colors"
+						className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-primary/10 transition-colors"
 					>
-						<ArrowLeft className="w-5 h-5 text-[rgb(var(--text-muted))]" />
+						<ArrowLeft className="w-5 h-5 text-muted-foreground" />
 					</Link>
 					<div
 						className="w-12 h-12 rounded-lg flex items-center justify-center"
-						style={{ background: `rgba(var(${config.colorVar}), 0.1)` }}
+						style={{ background: `color-mix(in oklch, var(${config.colorVar}) 10%, transparent)` }}
 					>
 						<Icon className="w-6 h-6" style={{ color: `rgb(var(${config.colorVar}))` }} />
 					</div>
 					<div>
 						<div className="flex items-center gap-3">
-							<h1 className="font-display text-2xl text-[rgb(var(--text-primary))]">
-								{config.name}
-							</h1>
+							<h1 className="font-display text-2xl text-foreground">{config.name}</h1>
 							<StatusBadge status={health?.status || "offline"} />
 						</div>
-						<p className="text-sm text-[rgb(var(--text-muted))] mt-0.5">
+						<p className="text-sm text-muted-foreground mt-0.5">
 							{config.description} • Port {config.port}
 						</p>
 					</div>
@@ -421,22 +413,20 @@ export default function ServiceDetailPage() {
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 				<div className="panel p-5 hover-lift">
 					<div className="flex items-center gap-3 mb-3">
-						<div className="w-8 h-8 rounded-md bg-[rgba(var(--console-cyan),0.1)] flex items-center justify-center">
-							<Clock className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
+						<div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
+							<Clock className="w-4 h-4 text-primary" />
 						</div>
-						<span className="text-xs uppercase tracking-wider text-[rgb(var(--text-dim))]">
-							Latency
-						</span>
+						<span className="text-xs uppercase tracking-wider text-muted-foreground">Latency</span>
 					</div>
 					<div className="metric-value">{health?.latency ?? "—"}ms</div>
 				</div>
 
 				<div className="panel p-5 hover-lift">
 					<div className="flex items-center gap-3 mb-3">
-						<div className="w-8 h-8 rounded-md bg-[rgba(var(--console-green),0.1)] flex items-center justify-center">
-							<Zap className="w-4 h-4 text-[rgb(var(--console-green))]" />
+						<div className="w-8 h-8 rounded-md bg-success/10 flex items-center justify-center">
+							<Zap className="w-4 h-4 text-success" />
 						</div>
-						<span className="text-xs uppercase tracking-wider text-[rgb(var(--text-dim))]">
+						<span className="text-xs uppercase tracking-wider text-muted-foreground">
 							Requests/min
 						</span>
 					</div>
@@ -445,10 +435,10 @@ export default function ServiceDetailPage() {
 
 				<div className="panel p-5 hover-lift">
 					<div className="flex items-center gap-3 mb-3">
-						<div className="w-8 h-8 rounded-md bg-[rgba(var(--console-amber),0.1)] flex items-center justify-center">
-							<AlertCircle className="w-4 h-4 text-[rgb(var(--console-amber))]" />
+						<div className="w-8 h-8 rounded-md bg-warning/10 flex items-center justify-center">
+							<AlertCircle className="w-4 h-4 text-warning" />
 						</div>
-						<span className="text-xs uppercase tracking-wider text-[rgb(var(--text-dim))]">
+						<span className="text-xs uppercase tracking-wider text-muted-foreground">
 							Error Rate
 						</span>
 					</div>
@@ -457,10 +447,10 @@ export default function ServiceDetailPage() {
 
 				<div className="panel p-5 hover-lift">
 					<div className="flex items-center gap-3 mb-3">
-						<div className="w-8 h-8 rounded-md bg-[rgba(var(--console-purple),0.1)] flex items-center justify-center">
-							<Clock className="w-4 h-4 text-[rgb(var(--console-purple))]" />
+						<div className="w-8 h-8 rounded-md bg-violet/10 flex items-center justify-center">
+							<Clock className="w-4 h-4 text-violet" />
 						</div>
-						<span className="text-xs uppercase tracking-wider text-[rgb(var(--text-dim))]">
+						<span className="text-xs uppercase tracking-wider text-muted-foreground">
 							Avg Response
 						</span>
 					</div>
@@ -473,10 +463,8 @@ export default function ServiceDetailPage() {
 				{/* Resource Usage */}
 				<div className="panel p-5">
 					<div className="flex items-center gap-2 mb-5">
-						<Cpu className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
-						<h3 className="text-[rgb(var(--text-primary))] font-display text-base">
-							Resource Usage
-						</h3>
+						<Cpu className="w-4 h-4 text-primary" />
+						<h3 className="text-foreground font-display text-base">Resource Usage</h3>
 					</div>
 					<div className="space-y-5">
 						<GaugeBar value={metrics?.cpu ?? 0} label="CPU" colorVar={config.colorVar} />
@@ -488,8 +476,8 @@ export default function ServiceDetailPage() {
 				{/* Dependencies */}
 				<div className="panel p-5">
 					<div className="flex items-center gap-2 mb-5">
-						<Network className="w-4 h-4 text-[rgb(var(--console-purple))]" />
-						<h3 className="text-[rgb(var(--text-primary))] font-display text-base">Dependencies</h3>
+						<Network className="w-4 h-4 text-violet" />
+						<h3 className="text-foreground font-display text-base">Dependencies</h3>
 					</div>
 					{config.dependencies.length > 0 ? (
 						<div className="flex flex-wrap gap-2">
@@ -498,7 +486,7 @@ export default function ServiceDetailPage() {
 							))}
 						</div>
 					) : (
-						<p className="text-sm text-[rgb(var(--text-muted))]">No dependencies</p>
+						<p className="text-sm text-muted-foreground">No dependencies</p>
 					)}
 				</div>
 
@@ -508,20 +496,20 @@ export default function ServiceDetailPage() {
 						className="absolute inset-0 opacity-10"
 						style={{
 							background: isOnline
-								? `radial-gradient(ellipse at center, rgb(var(--console-green)), transparent 70%)`
-								: `radial-gradient(ellipse at center, rgb(var(--console-red)), transparent 70%)`,
+								? `radial-gradient(ellipse at center, rgb(var(--success)), transparent 70%)`
+								: `radial-gradient(ellipse at center, rgb(var(--destructive)), transparent 70%)`,
 						}}
 					/>
 					<div className="relative flex flex-col items-center justify-center h-full py-4">
 						{isOnline ? (
-							<CheckCircle2 className="w-16 h-16 text-[rgb(var(--console-green))] mb-3" />
+							<CheckCircle2 className="w-16 h-16 text-success mb-3" />
 						) : (
-							<XCircle className="w-16 h-16 text-[rgb(var(--console-red))] mb-3" />
+							<XCircle className="w-16 h-16 text-destructive mb-3" />
 						)}
-						<span className="font-display text-xl text-[rgb(var(--text-primary))]">
+						<span className="font-display text-xl text-foreground">
 							{isOnline ? "Healthy" : "Unreachable"}
 						</span>
-						<span className="text-xs text-[rgb(var(--text-muted))] mt-1">
+						<span className="text-xs text-muted-foreground mt-1">
 							Last check: {new Date().toLocaleTimeString()}
 						</span>
 					</div>
@@ -532,8 +520,8 @@ export default function ServiceDetailPage() {
 			<div className="panel p-5">
 				<div className="flex items-center justify-between mb-4">
 					<div className="flex items-center gap-2">
-						<Terminal className="w-4 h-4 text-[rgb(var(--console-green))]" />
-						<h3 className="text-[rgb(var(--text-primary))] font-display text-base">Recent Logs</h3>
+						<Terminal className="w-4 h-4 text-success" />
+						<h3 className="text-foreground font-display text-base">Recent Logs</h3>
 					</div>
 					<Badge
 						variant="default"
@@ -542,7 +530,7 @@ export default function ServiceDetailPage() {
 						Live
 					</Badge>
 				</div>
-				<div className="bg-[rgb(var(--console-surface))] rounded-lg p-3">
+				<div className="bg-secondary rounded-lg p-3">
 					{logs.map((entry, idx) => (
 						<LogLine key={`${entry.timestamp.getTime()}-${idx}`} entry={entry} />
 					))}

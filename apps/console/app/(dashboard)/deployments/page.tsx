@@ -48,17 +48,17 @@ const STATUS_CONFIG: Record<
 	DeploymentStatus,
 	{ color: string; icon: typeof CheckCircle2; label: string; animate?: boolean }
 > = {
-	success: { color: "--console-green", icon: CheckCircle2, label: "Success" },
-	failed: { color: "--console-red", icon: XCircle, label: "Failed" },
-	in_progress: { color: "--console-cyan", icon: Loader2, label: "Deploying", animate: true },
-	pending: { color: "--console-amber", icon: Clock, label: "Pending" },
-	cancelled: { color: "--text-muted", icon: AlertCircle, label: "Cancelled" },
+	success: { color: "--success", icon: CheckCircle2, label: "Success" },
+	failed: { color: "--destructive", icon: XCircle, label: "Failed" },
+	in_progress: { color: "--primary", icon: Loader2, label: "Deploying", animate: true },
+	pending: { color: "--warning", icon: Clock, label: "Pending" },
+	cancelled: { color: "--muted-foreground", icon: AlertCircle, label: "Cancelled" },
 };
 
 const ENV_CONFIG: Record<Environment, { color: string; label: string }> = {
-	production: { color: "--console-red", label: "PROD" },
-	staging: { color: "--console-amber", label: "STG" },
-	development: { color: "--console-cyan", label: "DEV" },
+	production: { color: "--destructive", label: "PROD" },
+	staging: { color: "--warning", label: "STG" },
+	development: { color: "--primary", label: "DEV" },
 };
 
 // ============================================
@@ -101,8 +101,8 @@ function StatusBadge({ status }: { status: DeploymentStatus }) {
 		<span
 			className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium"
 			style={{
-				background: `rgba(var(${config.color}), 0.15)`,
-				color: `rgb(var(${config.color}))`,
+				background: `color-mix(in oklch, var(${config.color}) 15%, transparent)`,
+				color: `hsl(var(${config.color}))`,
 			}}
 		>
 			<Icon className={`w-3.5 h-3.5 ${config.animate ? "animate-spin" : ""}`} />
@@ -122,8 +122,8 @@ function EnvBadge({ env }: { env: Environment }) {
 		<span
 			className="inline-flex px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border"
 			style={{
-				borderColor: `rgba(var(${config.color}), 0.3)`,
-				color: `rgb(var(${config.color}))`,
+				borderColor: `color-mix(in oklch, var(${config.color}) 30%, transparent)`,
+				color: `hsl(var(${config.color}))`,
 			}}
 		>
 			{config.label}
@@ -152,7 +152,7 @@ function ActiveDeploymentCard({ deployment }: { deployment: Deployment }) {
 				<div
 					className="absolute inset-0 rounded-lg animate-pulse"
 					style={{
-						background: `linear-gradient(90deg, transparent, rgba(var(--console-cyan), 0.1), transparent)`,
+						background: `linear-gradient(90deg, transparent, color-mix(in oklch, var(--primary) 10%, transparent), transparent)`,
 						animation: "shimmer 2s linear infinite",
 					}}
 				/>
@@ -160,17 +160,15 @@ function ActiveDeploymentCard({ deployment }: { deployment: Deployment }) {
 
 			<div className="relative flex items-center justify-between">
 				<div className="flex items-center gap-4">
-					<div className="w-12 h-12 rounded-lg bg-[rgba(var(--console-cyan),0.15)] flex items-center justify-center">
-						<Loader2 className="w-6 h-6 text-[rgb(var(--console-cyan))] animate-spin" />
+					<div className="w-12 h-12 rounded-lg bg-primary/15 flex items-center justify-center">
+						<Loader2 className="w-6 h-6 text-primary animate-spin" />
 					</div>
 					<div>
 						<div className="flex items-center gap-2 mb-1">
-							<span className="font-display text-lg text-[rgb(var(--text-primary))]">
-								Deployment in Progress
-							</span>
+							<span className="font-display text-lg text-foreground">Deployment in Progress</span>
 							<EnvBadge env={deployment.environment} />
 						</div>
-						<div className="flex items-center gap-3 text-sm text-[rgb(var(--text-muted))]">
+						<div className="flex items-center gap-3 text-sm text-muted-foreground">
 							<span className="font-mono">{deployment.commitHash.slice(0, 7)}</span>
 							<span>•</span>
 							<span>{deployment.commitMessage.slice(0, 50)}...</span>
@@ -181,13 +179,11 @@ function ActiveDeploymentCard({ deployment }: { deployment: Deployment }) {
 				<div className="flex items-center gap-6">
 					<div className="text-right">
 						<div className="metric-label mb-1">Elapsed</div>
-						<div className="font-mono text-lg text-[rgb(var(--console-cyan))]">
-							{formatDuration(elapsed)}
-						</div>
+						<div className="font-mono text-lg text-primary">{formatDuration(elapsed)}</div>
 					</div>
 					<button
 						type="button"
-						className="px-4 py-2 rounded-lg bg-[rgba(var(--console-red),0.15)] text-[rgb(var(--console-red))] text-sm font-medium hover:bg-[rgba(var(--console-red),0.25)] transition-colors"
+						className="px-4 py-2 rounded-lg bg-destructive/15 text-destructive text-sm font-medium hover:bg-destructive/25 transition-colors"
 					>
 						Cancel
 					</button>
@@ -195,12 +191,12 @@ function ActiveDeploymentCard({ deployment }: { deployment: Deployment }) {
 			</div>
 
 			{/* Progress bar */}
-			<div className="mt-4 h-1 bg-[rgb(var(--console-surface))] rounded-full overflow-hidden">
+			<div className="mt-4 h-1 bg-secondary rounded-full overflow-hidden">
 				<div
-					className="h-full bg-[rgb(var(--console-cyan))] rounded-full transition-all duration-1000"
+					className="h-full bg-primary rounded-full transition-all duration-1000"
 					style={{
 						width: `${Math.min((elapsed / 120000) * 100, 95)}%`,
-						boxShadow: "0 0 10px rgba(var(--console-cyan), 0.5)",
+						boxShadow: "0 0 10px color-mix(in oklch, var(--primary) 50%, transparent)",
 					}}
 				/>
 			</div>
@@ -222,7 +218,7 @@ function DeploymentRow({
 	const [showMenu, setShowMenu] = useState(false);
 
 	return (
-		<tr className="group hover:bg-[rgba(var(--console-cyan),0.03)] transition-colors">
+		<tr className="group hover:bg-primary/[0.03] transition-colors">
 			{/* Status */}
 			<td className="px-4 py-3">
 				<StatusBadge status={deployment.status} />
@@ -231,12 +227,10 @@ function DeploymentRow({
 			{/* Commit */}
 			<td className="px-4 py-3">
 				<div className="flex items-center gap-2">
-					<GitCommit className="w-4 h-4 text-[rgb(var(--text-dim))]" />
-					<span className="font-mono text-sm text-[rgb(var(--console-purple))]">
-						{deployment.commitHash.slice(0, 7)}
-					</span>
+					<GitCommit className="w-4 h-4 text-muted-foreground" />
+					<span className="font-mono text-sm text-violet">{deployment.commitHash.slice(0, 7)}</span>
 				</div>
-				<p className="mt-0.5 text-sm text-[rgb(var(--text-secondary))] truncate max-w-[300px]">
+				<p className="mt-0.5 text-sm text-secondary-foreground truncate max-w-[300px]">
 					{deployment.commitMessage}
 				</p>
 			</td>
@@ -244,10 +238,8 @@ function DeploymentRow({
 			{/* Branch */}
 			<td className="px-4 py-3">
 				<div className="flex items-center gap-1.5">
-					<GitBranch className="w-3.5 h-3.5 text-[rgb(var(--text-dim))]" />
-					<span className="font-mono text-sm text-[rgb(var(--text-secondary))]">
-						{deployment.branch}
-					</span>
+					<GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
+					<span className="font-mono text-sm text-secondary-foreground">{deployment.branch}</span>
 				</div>
 			</td>
 
@@ -258,7 +250,7 @@ function DeploymentRow({
 
 			{/* Duration */}
 			<td className="px-4 py-3">
-				<div className="flex items-center gap-1.5 text-sm text-[rgb(var(--text-muted))]">
+				<div className="flex items-center gap-1.5 text-sm text-muted-foreground">
 					<Timer className="w-3.5 h-3.5" />
 					<span className="font-mono">{formatDuration(deployment.duration)}</span>
 				</div>
@@ -266,7 +258,7 @@ function DeploymentRow({
 
 			{/* Deployed At */}
 			<td className="px-4 py-3">
-				<span className="text-sm text-[rgb(var(--text-muted))]">
+				<span className="text-sm text-muted-foreground">
 					{formatRelativeTime(deployment.deployedAt)}
 				</span>
 			</td>
@@ -278,7 +270,7 @@ function DeploymentRow({
 						<button
 							type="button"
 							onClick={() => onRollback(deployment.id)}
-							className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-[rgb(var(--console-surface))] text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--console-amber))] hover:bg-[rgba(var(--console-amber),0.1)] transition-colors"
+							className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:text-warning hover:bg-warning/10 transition-colors"
 						>
 							<RotateCcw className="w-3.5 h-3.5" />
 							Rollback
@@ -288,25 +280,25 @@ function DeploymentRow({
 						<button
 							type="button"
 							onClick={() => setShowMenu(!showMenu)}
-							className="p-1.5 rounded-md hover:bg-[rgb(var(--console-surface))] transition-colors"
+							className="p-1.5 rounded-md hover:bg-secondary transition-colors"
 						>
-							<MoreVertical className="w-4 h-4 text-[rgb(var(--text-muted))]" />
+							<MoreVertical className="w-4 h-4 text-muted-foreground" />
 						</button>
 						{showMenu && (
 							<>
 								{/* biome-ignore lint/a11y/useKeyWithClickEvents: menu overlay */}
 								<div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-								<div className="absolute right-0 top-full mt-1 z-20 w-40 py-1 rounded-lg bg-[rgb(var(--console-panel))] border border-[rgba(var(--console-cyan),0.2)] shadow-xl">
+								<div className="absolute right-0 top-full mt-1 z-20 w-40 py-1 rounded-lg bg-card border border-primary/20 shadow-xl">
 									<button
 										type="button"
-										className="w-full px-3 py-2 text-left text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--console-surface))] transition-colors flex items-center gap-2"
+										className="w-full px-3 py-2 text-left text-sm text-secondary-foreground hover:bg-secondary transition-colors flex items-center gap-2"
 									>
 										<ArrowUpRight className="w-3.5 h-3.5" />
 										View logs
 									</button>
 									<button
 										type="button"
-										className="w-full px-3 py-2 text-left text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--console-surface))] transition-colors flex items-center gap-2"
+										className="w-full px-3 py-2 text-left text-sm text-secondary-foreground hover:bg-secondary transition-colors flex items-center gap-2"
 									>
 										<GitCommit className="w-3.5 h-3.5" />
 										View commit
@@ -377,38 +369,32 @@ export default function DeploymentsPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[rgb(var(--console-purple))] to-[rgb(var(--console-cyan))] flex items-center justify-center shadow-lg shadow-[rgba(var(--console-purple),0.2)]">
-						<Rocket className="w-5 h-5 text-[rgb(var(--console-void))]" />
+					<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet to-primary flex items-center justify-center shadow-lg shadow-violet/20">
+						<Rocket className="w-5 h-5 text-background" />
 					</div>
 					<div>
-						<h1 className="font-display text-2xl text-[rgb(var(--text-primary))]">Deployments</h1>
-						<p className="text-sm text-[rgb(var(--text-muted))]">
-							CI/CD pipeline and deployment history
-						</p>
+						<h1 className="font-display text-2xl text-foreground">Deployments</h1>
+						<p className="text-sm text-muted-foreground">CI/CD pipeline and deployment history</p>
 					</div>
 				</div>
 
 				<div className="flex items-center gap-3">
 					{/* Stats */}
-					<div className="flex items-center gap-4 px-4 py-2 rounded-lg bg-[rgb(var(--console-surface))]">
+					<div className="flex items-center gap-4 px-4 py-2 rounded-lg bg-secondary">
 						<div className="flex items-center gap-2">
-							<CheckCircle2 className="w-4 h-4 text-[rgb(var(--console-green))]" />
-							<span className="font-mono text-sm text-[rgb(var(--text-secondary))]">
-								{stats.success}
-							</span>
+							<CheckCircle2 className="w-4 h-4 text-success" />
+							<span className="font-mono text-sm text-secondary-foreground">{stats.success}</span>
 						</div>
-						<div className="w-px h-4 bg-[rgba(var(--console-cyan),0.2)]" />
+						<div className="w-px h-4 bg-primary/20" />
 						<div className="flex items-center gap-2">
-							<XCircle className="w-4 h-4 text-[rgb(var(--console-red))]" />
-							<span className="font-mono text-sm text-[rgb(var(--text-secondary))]">
-								{stats.failed}
-							</span>
+							<XCircle className="w-4 h-4 text-destructive" />
+							<span className="font-mono text-sm text-secondary-foreground">{stats.failed}</span>
 						</div>
 					</div>
 
 					<button
 						type="button"
-						className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--console-cyan))] text-[rgb(var(--console-void))] font-medium text-sm hover:opacity-90 transition-opacity"
+						className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-background font-medium text-sm hover:opacity-90 transition-opacity"
 					>
 						<Rocket className="w-4 h-4" />
 						Deploy
@@ -420,14 +406,14 @@ export default function DeploymentsPage() {
 			{activeDeployment && <ActiveDeploymentCard deployment={activeDeployment} />}
 
 			{/* Environment Tabs */}
-			<div className="flex items-center gap-1 p-1 rounded-lg bg-[rgb(var(--console-surface))] w-fit">
+			<div className="flex items-center gap-1 p-1 rounded-lg bg-secondary w-fit">
 				<button
 					type="button"
 					onClick={() => setSelectedEnv("all")}
 					className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
 						selectedEnv === "all"
-							? "bg-[rgb(var(--console-panel))] text-[rgb(var(--text-primary))] shadow-sm"
-							: "text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]"
+							? "bg-card text-foreground shadow-sm"
+							: "text-muted-foreground hover:text-secondary-foreground"
 					}`}
 				>
 					All
@@ -442,11 +428,11 @@ export default function DeploymentsPage() {
 							onClick={() => setSelectedEnv(env)}
 							className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
 								selectedEnv === env
-									? "bg-[rgb(var(--console-panel))] shadow-sm"
-									: "text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]"
+									? "bg-card shadow-sm"
+									: "text-muted-foreground hover:text-secondary-foreground"
 							}`}
 							style={{
-								color: selectedEnv === env ? `rgb(var(${config.color}))` : undefined,
+								color: selectedEnv === env ? `hsl(var(${config.color}))` : undefined,
 							}}
 						>
 							<span className="capitalize">{env}</span>
@@ -454,7 +440,9 @@ export default function DeploymentsPage() {
 								className="px-1.5 py-0.5 rounded text-xs font-mono"
 								style={{
 									background:
-										selectedEnv === env ? `rgba(var(${config.color}), 0.15)` : "transparent",
+										selectedEnv === env
+											? `color-mix(in oklch, var(${config.color}) 15%, transparent)`
+											: "transparent",
 								}}
 							>
 								{count}
@@ -468,52 +456,52 @@ export default function DeploymentsPage() {
 			<div className="panel overflow-hidden">
 				<table className="w-full">
 					<thead>
-						<tr className="border-b border-[rgba(var(--console-cyan),0.1)] bg-[rgb(var(--console-surface))]">
-							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-[rgb(var(--text-muted))] uppercase tracking-wider">
+						<tr className="border-b border-primary/10 bg-secondary">
+							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">
 								Status
 							</th>
-							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-[rgb(var(--text-muted))] uppercase tracking-wider">
+							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">
 								Commit
 							</th>
-							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-[rgb(var(--text-muted))] uppercase tracking-wider">
+							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">
 								Branch
 							</th>
-							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-[rgb(var(--text-muted))] uppercase tracking-wider">
+							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">
 								Env
 							</th>
-							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-[rgb(var(--text-muted))] uppercase tracking-wider">
+							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">
 								Duration
 							</th>
-							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-[rgb(var(--text-muted))] uppercase tracking-wider">
+							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">
 								Deployed
 							</th>
-							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-[rgb(var(--text-muted))] uppercase tracking-wider">
+							<th className="px-4 py-3 text-left text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">
 								Actions
 							</th>
 						</tr>
 					</thead>
-					<tbody className="divide-y divide-[rgba(var(--console-cyan),0.05)]">
+					<tbody className="divide-y divide-primary/[0.05]">
 						{isLoading ? (
 							Array.from({ length: 5 }).map((_, i) => (
 								// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
 								<tr key={`skeleton-${i}`}>
 									<td className="px-4 py-3">
-										<div className="h-6 w-20 rounded-full bg-[rgb(var(--console-surface))] animate-pulse" />
+										<div className="h-6 w-20 rounded-full bg-secondary animate-pulse" />
 									</td>
 									<td className="px-4 py-3">
-										<div className="h-4 w-48 rounded bg-[rgb(var(--console-surface))] animate-pulse" />
+										<div className="h-4 w-48 rounded bg-secondary animate-pulse" />
 									</td>
 									<td className="px-4 py-3">
-										<div className="h-4 w-24 rounded bg-[rgb(var(--console-surface))] animate-pulse" />
+										<div className="h-4 w-24 rounded bg-secondary animate-pulse" />
 									</td>
 									<td className="px-4 py-3">
-										<div className="h-5 w-12 rounded bg-[rgb(var(--console-surface))] animate-pulse" />
+										<div className="h-5 w-12 rounded bg-secondary animate-pulse" />
 									</td>
 									<td className="px-4 py-3">
-										<div className="h-4 w-16 rounded bg-[rgb(var(--console-surface))] animate-pulse" />
+										<div className="h-4 w-16 rounded bg-secondary animate-pulse" />
 									</td>
 									<td className="px-4 py-3">
-										<div className="h-4 w-16 rounded bg-[rgb(var(--console-surface))] animate-pulse" />
+										<div className="h-4 w-16 rounded bg-secondary animate-pulse" />
 									</td>
 									<td className="px-4 py-3" />
 								</tr>
@@ -521,7 +509,7 @@ export default function DeploymentsPage() {
 						) : filteredDeployments.length === 0 ? (
 							<tr>
 								<td colSpan={7} className="px-4 py-12 text-center">
-									<div className="flex flex-col items-center gap-3 text-[rgb(var(--text-muted))]">
+									<div className="flex flex-col items-center gap-3 text-muted-foreground">
 										<Rocket className="w-12 h-12 opacity-30" />
 										<span className="font-mono text-sm">No deployments found</span>
 									</div>
@@ -543,8 +531,8 @@ export default function DeploymentsPage() {
 			{/* Pipeline Visual */}
 			<div className="panel p-4">
 				<div className="flex items-center gap-2 mb-4">
-					<ChevronRight className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
-					<span className="font-mono text-xs text-[rgb(var(--text-muted))] uppercase tracking-wider">
+					<ChevronRight className="w-4 h-4 text-primary" />
+					<span className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
 						Pipeline Overview
 					</span>
 				</div>
@@ -553,24 +541,20 @@ export default function DeploymentsPage() {
 						<div key={stage} className="flex items-center flex-1">
 							<div className="flex-1 flex flex-col items-center">
 								<div
-									className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
-										i < 3
-											? "bg-[rgba(var(--console-green),0.15)]"
-											: "bg-[rgba(var(--console-cyan),0.15)]"
-									}`}
+									className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${i < 3 ? "bg-success/15" : "bg-primary/15"}`}
 								>
 									{i < 3 ? (
-										<CheckCircle2 className="w-5 h-5 text-[rgb(var(--console-green))]" />
+										<CheckCircle2 className="w-5 h-5 text-success" />
 									) : (
-										<Loader2 className="w-5 h-5 text-[rgb(var(--console-cyan))] animate-spin" />
+										<Loader2 className="w-5 h-5 text-primary animate-spin" />
 									)}
 								</div>
-								<span className="text-xs font-mono text-[rgb(var(--text-secondary))]">{stage}</span>
-								<span className="text-[10px] text-[rgb(var(--text-dim))] mt-0.5">
+								<span className="text-xs font-mono text-secondary-foreground">{stage}</span>
+								<span className="text-[10px] text-muted-foreground mt-0.5">
 									{i < 3 ? "2m 34s" : "In progress..."}
 								</span>
 							</div>
-							{i < 3 && <div className="flex-1 h-0.5 bg-[rgba(var(--console-green),0.3)] mx-2" />}
+							{i < 3 && <div className="flex-1 h-0.5 bg-success/30 mx-2" />}
 						</div>
 					))}
 				</div>
