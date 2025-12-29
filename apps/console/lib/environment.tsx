@@ -62,7 +62,6 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
 	const [environments, setEnvironments] = useState<EnvironmentConfig[]>(DEFAULT_ENVIRONMENTS);
 	const [currentId, setCurrentId] = useState<string>("local");
 	const [isConnected, setIsConnected] = useState(false);
-	const [isHydrated, setIsHydrated] = useState(false);
 
 	// Hydrate from localStorage on mount
 	useEffect(() => {
@@ -81,8 +80,6 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
 		if (storedId) {
 			setCurrentId(storedId);
 		}
-
-		setIsHydrated(true);
 	}, []);
 
 	const environment = useMemo(() => {

@@ -1,32 +1,19 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { AppSidebar } from "@/components/layout/app-sidebar";
-import { SiteHeader } from "@/components/layout/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { StreamingProvider } from "@/lib/streaming-context";
+import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
+
+// Dynamically import the dashboard shell with SSR disabled
+// This completely avoids hydration mismatches for the complex dashboard UI
+const DashboardShell = dynamic(() => import("@/components/layout/dashboard-shell"), {
+	ssr: false,
+	loading: () => (
+		<div className="min-h-screen bg-background flex items-center justify-center">
+			<div className="text-muted-foreground">Loading dashboard...</div>
+		</div>
+	),
+});
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-	const [mounted, setMounted] = useState(false);
-
-	useEffect(() => {
-		setMounted(true);
-	}, []);
-
-	// Return empty div during SSR - simplest possible hydration safe pattern
-	if (!mounted) {
-		return <div />;
-	}
-
-	return (
-		<StreamingProvider>
-			<SidebarProvider>
-				<AppSidebar />
-				<SidebarInset>
-					<SiteHeader />
-					<main className="flex-1 p-6">{children}</main>
-				</SidebarInset>
-			</SidebarProvider>
-		</StreamingProvider>
-	);
+	return <DashboardShell>{children}</DashboardShell>;
 }
