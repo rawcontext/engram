@@ -2,6 +2,7 @@
 
 import { ChevronsUpDown, LogOut, User } from "lucide-react";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -18,11 +19,35 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { signOut, useSession } from "@/lib/auth-client";
 
 export function NavUser() {
 	const { isMobile } = useSidebar();
-	const { data: session } = useSession();
+	const { data: session, isPending } = useSession();
+	const [isHydrated, setIsHydrated] = useState(false);
+
+	// Wait for hydration to avoid server/client mismatch
+	useEffect(() => {
+		setIsHydrated(true);
+	}, []);
+
+	// Show skeleton during SSR and initial hydration
+	if (!isHydrated || isPending) {
+		return (
+			<SidebarMenu>
+				<SidebarMenuItem>
+					<SidebarMenuButton size="lg" className="cursor-default">
+						<Skeleton className="h-8 w-8 rounded-lg" />
+						<div className="grid flex-1 gap-1">
+							<Skeleton className="h-4 w-20" />
+							<Skeleton className="h-3 w-28" />
+						</div>
+					</SidebarMenuButton>
+				</SidebarMenuItem>
+			</SidebarMenu>
+		);
+	}
 
 	const handleSignOut = async () => {
 		await signOut({ fetchOptions: { onSuccess: () => window.location.assign("/login") } });
