@@ -1,6 +1,9 @@
 # Data volumes
 data/
 
+# Large packages not needed in Docker builds
+packages/benchmark/
+
 # Git
 .git/
 .gitignore
