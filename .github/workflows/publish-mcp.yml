@@ -2,19 +2,33 @@ name: Publish MCP Package
 
 on:
   push:
-    tags:
-      - "mcp@*" # Trigger on tags like mcp@0.1.0
+    branches: [main]
+    paths:
+      - "apps/mcp/**"
+      - "packages/common/**"
+      - "packages/graph/**"
+      - "packages/logger/**"
+      - "packages/storage/**"
+  workflow_dispatch: # Allow manual trigger
 
 permissions:
-  contents: read
+  contents: write
   id-token: write # For npm provenance
 
 jobs:
+  # Wait for CI to pass
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
   publish:
+    needs: [ci]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # Full history for versioning
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -30,23 +44,49 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Check if version changed
+        id: version-check
+        run: |
+          CURRENT_VERSION=$(jq -r .version apps/mcp/package.json)
+          NPM_VERSION=$(npm view @rawcontext/engram-mcp version 2>/dev/null || echo "0.0.0")
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "npm=$NPM_VERSION" >> $GITHUB_OUTPUT
+          if [ "$CURRENT_VERSION" != "$NPM_VERSION" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build MCP package
-        run: bun run build --filter=@engram/mcp
+        if: steps.version-check.outputs.changed == 'true'
+        run: bun run build --filter=@rawcontext/engram-mcp
 
       - name: Publish to npm
-        run: npm publish --workspace=@engram/mcp --access public
+        if: steps.version-check.outputs.changed == 'true'
+        run: |
+          cd apps/mcp
+          npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Create Git Tag
+        if: steps.version-check.outputs.changed == 'true'
+        run: |
+          VERSION=${{ steps.version-check.outputs.current }}
+          git tag "mcp@${VERSION}"
+          git push origin "mcp@${VERSION}"
+
       - name: Create GitHub Release
+        if: steps.version-check.outputs.changed == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: mcp@${{ steps.version-check.outputs.current }}
           generate_release_notes: true
           body: |
             ## Install
 
             ```bash
-            npx -y @engram/mcp
+            npx -y @rawcontext/engram-mcp
             ```
 
             ## Claude Desktop Configuration
@@ -56,11 +96,16 @@ jobs:
               "mcpServers": {
                 "engram": {
                   "command": "npx",
-                  "args": ["-y", "@engram/mcp"],
+                  "args": ["-y", "@rawcontext/engram-mcp"],
                   "env": {
-                    "ENGRAM_API_KEY": "your_api_key"
+                    "ENGRAM_API_URL": "http://localhost:6174"
                   }
                 }
               }
             }
             ```
+
+      - name: Skip publish (no version change)
+        if: steps.version-check.outputs.changed != 'true'
+        run: |
+          echo "Version ${{ steps.version-check.outputs.current }} already published. Bump version in apps/mcp/package.json to publish."

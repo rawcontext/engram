@@ -150,6 +150,52 @@ export class EngramCloudClient implements IEngramClient {
 					return retryJson.data as T;
 				}
 			}
+
+			// Both access token and refresh failed - clear cache and trigger new device flow
+			this.logger.warn("Token refresh failed, triggering new device flow authentication");
+			this.tokenCache?.clear();
+
+			const deviceResult = await this.deviceFlowClient.startDeviceFlow({
+				openBrowser: true,
+				onDisplayCode: (code, url, urlComplete) => {
+					// Use stderr for prompts (stdout reserved for MCP protocol)
+					console.error("\n┌─────────────────────────────────────────────────────┐");
+					console.error("│  SESSION EXPIRED - RE-AUTHENTICATION REQUIRED       │");
+					console.error("│                                                     │");
+					console.error(`│  Visit: ${url.padEnd(41)}│`);
+					console.error(`│  Enter code: ${code.padEnd(37)}│`);
+					console.error("│                                                     │");
+					console.error(`│  Or open: ${urlComplete.slice(0, 39).padEnd(39)}│`);
+					console.error("└─────────────────────────────────────────────────────┘\n");
+				},
+				onPolling: () => {
+					console.error("Waiting for re-authorization...");
+				},
+				onSuccess: (email) => {
+					console.error(`\n✓ Re-authenticated as ${email}\n`);
+				},
+			});
+
+			if (deviceResult.success) {
+				// Retry the original request with new credentials
+				const newToken = await this.getAccessToken();
+				const finalHeaders: Record<string, string> = {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${newToken}`,
+				};
+				const finalResponse = await fetch(url, {
+					method,
+					headers: finalHeaders,
+					body: body ? JSON.stringify(body) : undefined,
+				});
+				const finalJson = (await finalResponse.json()) as ApiResponse<T>;
+				if (finalResponse.ok && finalJson.success) {
+					this.logger.info("API request successful after re-authentication");
+					return finalJson.data as T;
+				}
+			}
+
+			throw new Error("Authentication failed. Please restart the MCP server and try again.");
 		}
 
 		if (!response.ok || !json.success) {
