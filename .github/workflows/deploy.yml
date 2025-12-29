@@ -358,15 +358,33 @@ jobs:
           ENGRAM_API_TOKEN=${{ secrets.ENGRAM_API_TOKEN }}
           ENVEOF"
 
-      - name: Run auth database migrations
+      - name: Fix postgres permissions and run migrations
         run: |
           ssh engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
+
+            # Ensure postgres data directory has correct permissions (UID 70 for alpine)
+            echo "Fixing postgres permissions..."
+            sudo mkdir -p /var/lib/engram/postgres
+            sudo chown -R 70:70 /var/lib/engram/postgres
+
+            # Restart postgres if it's unhealthy due to permission issues
+            if ! docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U ${POSTGRES_USER:-engram} 2>/dev/null; then
+              echo "Postgres not ready, restarting..."
+              docker compose -f docker-compose.prod.yml up -d postgres
+              sleep 5
+            fi
+
             # Wait for postgres to be ready
-            until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U ${POSTGRES_USER:-engram}; do
-              echo "Waiting for postgres..."
+            for i in {1..30}; do
+              if docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U ${POSTGRES_USER:-engram} 2>/dev/null; then
+                echo "Postgres is ready"
+                break
+              fi
+              echo "Waiting for postgres... ($i/30)"
               sleep 2
             done
+
             # Run auth migrations on the engram database
             cat /opt/engram/scripts/migrate-auth.sql | docker compose -f docker-compose.prod.yml exec -T postgres psql -U ${POSTGRES_USER:-engram} -d engram || echo "Migration may have already been applied"
           EOF
@@ -617,9 +635,9 @@ jobs:
             # Create data directories at /var/lib/engram (outside Docker build context)
             echo "Creating data directories at /var/lib/engram..."
             sudo mkdir -p /var/lib/engram/{qdrant,falkordb,postgres,nats,caddy/data,caddy/config}
-            # Set ownership - postgres needs 999:999, others can use engram
+            # Set ownership - postgres:17-alpine uses UID 70, others can use engram
             sudo chown -R engram:engram /var/lib/engram/qdrant /var/lib/engram/falkordb /var/lib/engram/nats /var/lib/engram/caddy
-            sudo chown -R 999:999 /var/lib/engram/postgres
+            sudo chown -R 70:70 /var/lib/engram/postgres
 
             # Migrate existing data if present (one-time migration)
             if [ -d "/opt/engram/data" ] && [ "$(ls -A /opt/engram/data 2>/dev/null)" ]; then
