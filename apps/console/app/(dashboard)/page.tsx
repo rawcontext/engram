@@ -444,6 +444,7 @@ const chartConfig = {
 // ============================================
 
 export default function OverviewPage() {
+	const [mounted, setMounted] = useState(false);
 	const router = useRouter();
 	const apiClient = useApiClient();
 	const [alerts, setAlerts] = useState<AlertHistoryItem[]>([]);
@@ -466,13 +467,25 @@ export default function OverviewPage() {
 	}, [apiClient]);
 
 	useEffect(() => {
-		fetchActivityData();
-	}, [fetchActivityData]);
+		setMounted(true);
+	}, []);
 
 	useEffect(() => {
+		if (mounted) {
+			fetchActivityData();
+		}
+	}, [mounted, fetchActivityData]);
+
+	useEffect(() => {
+		if (!mounted) return;
 		const interval = setInterval(fetchActivityData, 30000);
 		return () => clearInterval(interval);
-	}, [fetchActivityData]);
+	}, [mounted, fetchActivityData]);
+
+	// Return null during SSR to prevent hydration mismatch
+	if (!mounted) {
+		return null;
+	}
 
 	function handleServiceClick(service: ServiceHealth) {
 		router.push(`/services/${service.name.toLowerCase()}`);

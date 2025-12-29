@@ -88,11 +88,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 		[theme, resolvedTheme, setTheme, toggle],
 	);
 
-	// Prevent flash by not rendering until hydrated
-	if (!isHydrated) {
-		return null;
-	}
-
 	return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 

@@ -148,11 +148,6 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
 		],
 	);
 
-	// Prevent hydration mismatch by not rendering until hydrated
-	if (!isHydrated) {
-		return null;
-	}
-
 	return <EnvironmentContext.Provider value={value}>{children}</EnvironmentContext.Provider>;
 }
 
