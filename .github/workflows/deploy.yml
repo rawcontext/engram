@@ -106,10 +106,15 @@ jobs:
           fi
 
   # Infrastructure deployment with OpenTofu
+  # Runs after deploy-api because it uses the API as the Terraform state backend
   infrastructure:
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.infra == 'true' || inputs.force_infra == true
+    needs: [changes, sync, deploy-api]
+    if: |
+      always() &&
+      needs.sync.result == 'success' &&
+      (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped') &&
+      (needs.changes.outputs.infra == 'true' || inputs.force_infra == true)
     environment: production
     permissions:
       contents: read
