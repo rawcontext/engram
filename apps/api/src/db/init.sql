@@ -159,6 +159,55 @@ CREATE TRIGGER oauth_tokens_updated_at
     EXECUTE FUNCTION update_oauth_tokens_updated_at();
 
 -- =============================================================================
+-- OAUTH CLIENT REGISTRATION (RFC 7591)
+-- =============================================================================
+-- Dynamic Client Registration for MCP OAuth 2.1
+
+-- OAuth Clients Table
+-- Stores dynamically registered clients (RFC 7591)
+CREATE TABLE IF NOT EXISTS oauth_clients (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id TEXT NOT NULL UNIQUE,
+    client_secret_hash TEXT,  -- NULL for public clients
+    client_id_issued_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    client_secret_expires_at TIMESTAMP WITH TIME ZONE,  -- NULL = never expires
+    client_name TEXT NOT NULL,
+    redirect_uris TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    grant_types TEXT[] NOT NULL DEFAULT ARRAY['authorization_code']::TEXT[],
+    response_types TEXT[] NOT NULL DEFAULT ARRAY['code']::TEXT[],
+    token_endpoint_auth_method TEXT NOT NULL DEFAULT 'none'
+        CHECK (token_endpoint_auth_method IN ('none', 'client_secret_basic', 'client_secret_post')),
+    scope TEXT NOT NULL DEFAULT 'mcp:tools mcp:resources mcp:prompts',
+    contacts TEXT[],
+    logo_uri TEXT,
+    client_uri TEXT,
+    policy_uri TEXT,
+    tos_uri TEXT,
+    software_id TEXT,
+    software_version TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_oauth_clients_client_id ON oauth_clients(client_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_clients_software_id ON oauth_clients(software_id)
+    WHERE software_id IS NOT NULL;
+
+-- Updated timestamp trigger for oauth_clients
+CREATE OR REPLACE FUNCTION update_oauth_clients_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS oauth_clients_updated_at ON oauth_clients;
+CREATE TRIGGER oauth_clients_updated_at
+    BEFORE UPDATE ON oauth_clients
+    FOR EACH ROW
+    EXECUTE FUNCTION update_oauth_clients_updated_at();
+
+-- =============================================================================
 -- CLEANUP FUNCTIONS
 -- =============================================================================
 

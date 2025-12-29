@@ -229,6 +229,110 @@ export interface OAuthTokenRecord {
 }
 
 // =============================================================================
+// Dynamic Client Registration Types (RFC 7591)
+// =============================================================================
+
+/**
+ * Client registration request (RFC 7591 Section 2).
+ */
+export interface ClientRegistrationRequest {
+	/** Array of redirect URIs for authorization code flow */
+	redirect_uris: string[];
+	/** Human-readable client name */
+	client_name?: string;
+	/** Token endpoint authentication method */
+	token_endpoint_auth_method?: "none" | "client_secret_basic" | "client_secret_post";
+	/** Grant types the client will use */
+	grant_types?: string[];
+	/** Response types the client will use */
+	response_types?: string[];
+	/** Space-separated list of scopes */
+	scope?: string;
+	/** Array of contact email addresses */
+	contacts?: string[];
+	/** URL of client logo */
+	logo_uri?: string;
+	/** URL of client homepage */
+	client_uri?: string;
+	/** URL of privacy policy */
+	policy_uri?: string;
+	/** URL of terms of service */
+	tos_uri?: string;
+	/** Identifier for client software */
+	software_id?: string;
+	/** Version of client software */
+	software_version?: string;
+}
+
+/**
+ * Successful client registration response (RFC 7591 Section 3.2.1).
+ */
+export interface ClientRegistrationResponse {
+	/** Unique client identifier */
+	client_id: string;
+	/** Client secret (only for confidential clients) */
+	client_secret?: string;
+	/** When client_id was issued (Unix timestamp) */
+	client_id_issued_at: number;
+	/** When client_secret expires (Unix timestamp, 0 = never) */
+	client_secret_expires_at: number;
+	/** All registered metadata echoed back */
+	redirect_uris: string[];
+	client_name: string;
+	token_endpoint_auth_method: string;
+	grant_types: string[];
+	response_types: string[];
+	scope: string;
+	contacts?: string[];
+	logo_uri?: string;
+	client_uri?: string;
+	policy_uri?: string;
+	tos_uri?: string;
+	software_id?: string;
+	software_version?: string;
+}
+
+/**
+ * Client registration error response (RFC 7591 Section 3.2.2).
+ */
+export interface ClientRegistrationError {
+	/** Error code */
+	error:
+		| "invalid_redirect_uri"
+		| "invalid_client_metadata"
+		| "invalid_software_statement"
+		| "unapproved_software_statement";
+	/** Human-readable error description */
+	error_description?: string;
+}
+
+/**
+ * OAuth client database record.
+ */
+export interface OAuthClientRecord {
+	id: string;
+	client_id: string;
+	client_secret_hash: string | null;
+	client_id_issued_at: Date;
+	client_secret_expires_at: Date | null;
+	client_name: string;
+	redirect_uris: string[];
+	grant_types: string[];
+	response_types: string[];
+	token_endpoint_auth_method: string;
+	scope: string;
+	contacts: string[] | null;
+	logo_uri: string | null;
+	client_uri: string | null;
+	policy_uri: string | null;
+	tos_uri: string | null;
+	software_id: string | null;
+	software_version: string | null;
+	created_at: Date;
+	updated_at: Date;
+}
+
+// =============================================================================
 // Token Cache Types (for MCP server)
 // =============================================================================
 

@@ -1,6 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
-import { createTestLogger } from "@engram/common/testing";
-import type { Config } from "../config";
+import { describe, expect, it } from "bun:test";
 import { isHttpTransport, isStdioTransport } from "./index";
 
 // Mock MCP server

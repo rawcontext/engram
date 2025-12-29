@@ -8,11 +8,16 @@ export type {
 	AuthContext,
 	// Cache types
 	CachedTokens,
+	// Dynamic Client Registration types
+	ClientRegistrationError,
+	ClientRegistrationRequest,
+	ClientRegistrationResponse,
 	// Database types
 	DeviceCodeRecord,
 	// Device flow types
 	DeviceCodeRequest,
 	DeviceCodeResponse,
+	OAuthClientRecord,
 	OAuthTokenContext,
 	OAuthTokenRecord,
 	TokenErrorResponse,

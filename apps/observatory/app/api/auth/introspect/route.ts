@@ -8,6 +8,7 @@
  * @see docs/plans/mcp-oauth-implementation.md
  */
 
+import { validateClientCredentials } from "@lib/client-registration";
 import { hashToken } from "@lib/device-auth";
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
@@ -88,26 +89,30 @@ export async function POST(request: Request) {
 			return NextResponse.json({ active: false }, { status: 200 });
 		}
 
-		// Validate client credentials (Basic auth)
+		// Validate client credentials (Basic auth or POST body)
 		// In production, verify the client is authorized to introspect
 		const authHeader = request.headers.get("authorization");
 		if (authHeader?.startsWith("Basic ")) {
 			const credentials = Buffer.from(authHeader.slice(6), "base64").toString();
 			const [clientId, clientSecret] = credentials.split(":");
 
-			// Verify client credentials
-			// For now, accept the MCP server's credentials
+			// First check hardcoded MCP server credentials (for backwards compatibility)
 			const expectedClientId = process.env.ENGRAM_MCP_CLIENT_ID ?? "mcp-server";
 			const expectedClientSecret = process.env.ENGRAM_MCP_CLIENT_SECRET;
 
-			if (
-				expectedClientSecret &&
-				(clientId !== expectedClientId || clientSecret !== expectedClientSecret)
-			) {
-				return NextResponse.json(
-					{ error: "invalid_client", error_description: "Invalid client credentials" },
-					{ status: 401, headers: { "WWW-Authenticate": 'Basic realm="introspection"' } },
-				);
+			const isHardcodedClient =
+				clientId === expectedClientId &&
+				(!expectedClientSecret || clientSecret === expectedClientSecret);
+
+			if (!isHardcodedClient) {
+				// Try to validate against dynamically registered clients
+				const validation = await validateClientCredentials(clientId, clientSecret);
+				if (!validation.valid) {
+					return NextResponse.json(
+						{ error: "invalid_client", error_description: validation.error },
+						{ status: 401, headers: { "WWW-Authenticate": 'Basic realm="introspection"' } },
+					);
+				}
 			}
 		}
 

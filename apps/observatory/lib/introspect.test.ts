@@ -23,6 +23,14 @@ mock.module("@lib/device-auth", () => ({
 	hashToken: (token: string) => `hashed_${token}`,
 }));
 
+// Mock client registration validation
+mock.module("@lib/client-registration", () => ({
+	validateClientCredentials: async (clientId: string, clientSecret?: string) => {
+		// Return invalid for any client that isn't the expected MCP server
+		return { valid: false, error: "Client not found" };
+	},
+}));
+
 // Mock NextResponse
 mock.module("next/server", () => ({
 	NextResponse: {
