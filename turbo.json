@@ -47,6 +47,11 @@
 			"inputs": ["src/**/*.py", "tests/**/*.py", "pyproject.toml"],
 			"outputs": ["coverage/**", ".coverage", "htmlcov/**"],
 			"outputLogs": "new-only"
+		},
+		"test": {
+			"inputs": ["src/**/*.py", "tests/**/*.py", "pyproject.toml"],
+			"outputs": ["coverage/**", ".coverage", "htmlcov/**"],
+			"outputLogs": "new-only"
 		}
 	}
 }
