@@ -139,13 +139,16 @@ export function useRegisterStreamingSource(
 	// Store latest values in refs to avoid effect dependencies
 	const latestRef = useRef({ id, name, status, lastUpdate });
 	const registeredRef = useRef<string | null>(null);
+	const contextRef = useRef(context);
 
 	// Update refs synchronously (no effect needed)
 	latestRef.current = { id, name, status, lastUpdate };
+	contextRef.current = context;
 
 	// Register on mount, update periodically, unregister on unmount
 	useEffect(() => {
-		if (!context) return;
+		const ctx = contextRef.current;
+		if (!ctx) return;
 
 		const sync = () => {
 			const {
@@ -154,7 +157,7 @@ export function useRegisterStreamingSource(
 				status: currentStatus,
 				lastUpdate: currentLastUpdate,
 			} = latestRef.current;
-			context.registerSource(currentId, currentName, currentStatus, currentLastUpdate);
+			ctx.registerSource(currentId, currentName, currentStatus, currentLastUpdate);
 			registeredRef.current = currentId;
 		};
 
@@ -166,11 +169,9 @@ export function useRegisterStreamingSource(
 
 		return () => {
 			clearInterval(interval);
-			if (registeredRef.current) {
-				context.unregisterSource(registeredRef.current);
+			if (registeredRef.current && contextRef.current) {
+				contextRef.current.unregisterSource(registeredRef.current);
 			}
 		};
-		// Only run on mount/unmount - refs handle value changes
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 }
