@@ -61,13 +61,11 @@ jobs:
         if: steps.version-check.outputs.changed == 'true'
         run: bun run build --filter=@rawcontext/engram-mcp
 
-      - name: Publish to npm
+      - name: Publish to npm (Trusted Publishing via OIDC)
         if: steps.version-check.outputs.changed == 'true'
         run: |
           cd apps/mcp
           npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create Git Tag
         if: steps.version-check.outputs.changed == 'true'
