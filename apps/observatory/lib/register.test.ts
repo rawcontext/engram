@@ -31,6 +31,10 @@ mock.module("next/server", () => ({
 	},
 }));
 
+// Import the route module ONCE after mocks are set up
+// This avoids issues with dynamic imports in each test
+const routeModule = import("../app/api/auth/register/route");
+
 // Mock Request
 function createMockRequest(body: unknown): Request {
 	return {
@@ -39,15 +43,17 @@ function createMockRequest(body: unknown): Request {
 }
 
 describe("Client Registration Endpoint", () => {
-	beforeEach(() => {
+	let POST: (req: Request) => Promise<Response>;
+
+	beforeEach(async () => {
 		mockQuery.mockReset();
+		const mod = await routeModule;
+		POST = mod.POST;
 	});
 
 	describe("POST /api/auth/register", () => {
 		it("should return 201 with client credentials for valid registration", async () => {
 			mockQuery.mockResolvedValueOnce({ rows: [] });
-
-			const { POST } = await import("../app/api/auth/register/route");
 
 			const request = createMockRequest({
 				redirect_uris: ["https://example.com/callback"],
@@ -64,8 +70,6 @@ describe("Client Registration Endpoint", () => {
 		it("should return client_secret for confidential clients", async () => {
 			mockQuery.mockResolvedValueOnce({ rows: [] });
 
-			const { POST } = await import("../app/api/auth/register/route");
-
 			const request = createMockRequest({
 				redirect_uris: ["https://example.com/callback"],
 				client_name: "Confidential App",
@@ -81,8 +85,6 @@ describe("Client Registration Endpoint", () => {
 		it("should not return client_secret for public clients", async () => {
 			mockQuery.mockResolvedValueOnce({ rows: [] });
 
-			const { POST } = await import("../app/api/auth/register/route");
-
 			const request = createMockRequest({
 				redirect_uris: ["https://example.com/callback"],
 				token_endpoint_auth_method: "none",
@@ -95,8 +97,6 @@ describe("Client Registration Endpoint", () => {
 		});
 
 		it("should return 400 for missing redirect_uris", async () => {
-			const { POST } = await import("../app/api/auth/register/route");
-
 			const request = createMockRequest({
 				client_name: "Test App",
 			});
@@ -108,8 +108,6 @@ describe("Client Registration Endpoint", () => {
 		});
 
 		it("should return 400 for invalid redirect URI", async () => {
-			const { POST } = await import("../app/api/auth/register/route");
-
 			const request = createMockRequest({
 				redirect_uris: ["http://example.com/callback"], // HTTP not allowed
 			});
@@ -121,8 +119,6 @@ describe("Client Registration Endpoint", () => {
 		});
 
 		it("should return 400 for invalid grant types", async () => {
-			const { POST } = await import("../app/api/auth/register/route");
-
 			const request = createMockRequest({
 				redirect_uris: ["https://example.com/callback"],
 				grant_types: ["implicit"],
@@ -135,8 +131,6 @@ describe("Client Registration Endpoint", () => {
 		});
 
 		it("should return 400 for invalid JSON", async () => {
-			const { POST } = await import("../app/api/auth/register/route");
-
 			const request = {
 				json: async () => {
 					throw new Error("Invalid JSON");
@@ -151,8 +145,6 @@ describe("Client Registration Endpoint", () => {
 
 		it("should echo back optional metadata", async () => {
 			mockQuery.mockResolvedValueOnce({ rows: [] });
-
-			const { POST } = await import("../app/api/auth/register/route");
 
 			const request = createMockRequest({
 				redirect_uris: ["https://example.com/callback"],
@@ -182,8 +174,6 @@ describe("Client Registration Endpoint", () => {
 		it("should set Cache-Control: no-store header", async () => {
 			mockQuery.mockResolvedValueOnce({ rows: [] });
 
-			const { POST } = await import("../app/api/auth/register/route");
-
 			const request = createMockRequest({
 				redirect_uris: ["https://example.com/callback"],
 			});
@@ -195,8 +185,6 @@ describe("Client Registration Endpoint", () => {
 
 		it("should return client_id_issued_at as Unix timestamp", async () => {
 			mockQuery.mockResolvedValueOnce({ rows: [] });
-
-			const { POST } = await import("../app/api/auth/register/route");
 
 			const before = Math.floor(Date.now() / 1000);
 
@@ -216,8 +204,6 @@ describe("Client Registration Endpoint", () => {
 		it("should return client_secret_expires_at as 0 (never)", async () => {
 			mockQuery.mockResolvedValueOnce({ rows: [] });
 
-			const { POST } = await import("../app/api/auth/register/route");
-
 			const request = createMockRequest({
 				redirect_uris: ["https://example.com/callback"],
 			});
@@ -230,8 +216,6 @@ describe("Client Registration Endpoint", () => {
 
 		it("should normalize grant types and add refresh_token", async () => {
 			mockQuery.mockResolvedValueOnce({ rows: [] });
-
-			const { POST } = await import("../app/api/auth/register/route");
 
 			const request = createMockRequest({
 				redirect_uris: ["https://example.com/callback"],
@@ -247,8 +231,6 @@ describe("Client Registration Endpoint", () => {
 
 		it("should accept device code grant type", async () => {
 			mockQuery.mockResolvedValueOnce({ rows: [] });
-
-			const { POST } = await import("../app/api/auth/register/route");
 
 			const request = createMockRequest({
 				redirect_uris: ["https://example.com/callback"],
