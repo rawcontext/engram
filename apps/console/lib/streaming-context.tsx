@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
+import {
+	createContext,
+	type ReactNode,
+	useCallback,
+	useContext,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import type { StreamingStatus } from "@/hooks/useStreamingData";
 
 interface StreamingSource {
@@ -116,6 +124,9 @@ export function useStreamingContext(): StreamingContextValue {
 /**
  * Hook for components to register themselves as streaming sources.
  * Automatically unregisters when the component unmounts.
+ *
+ * Uses refs to track previous values and only updates when values actually change,
+ * preventing infinite update loops from polling-driven status/lastUpdate changes.
  */
 export function useRegisterStreamingSource(
 	id: string,
@@ -124,12 +135,32 @@ export function useRegisterStreamingSource(
 	lastUpdate: Date | null,
 ) {
 	const context = useContext(StreamingContext);
+	const prevValuesRef = useRef<{
+		id: string;
+		name: string;
+		status: StreamingStatus;
+		lastUpdate: Date | null;
+	} | null>(null);
 
 	useEffect(() => {
-		if (context) {
+		if (!context) return;
+
+		const prev = prevValuesRef.current;
+		const lastUpdateTime = lastUpdate?.getTime() ?? null;
+		const prevLastUpdateTime = prev?.lastUpdate?.getTime() ?? null;
+
+		// Only update if values actually changed
+		if (
+			!prev ||
+			prev.id !== id ||
+			prev.name !== name ||
+			prev.status !== status ||
+			lastUpdateTime !== prevLastUpdateTime
+		) {
+			prevValuesRef.current = { id, name, status, lastUpdate };
 			context.registerSource(id, name, status, lastUpdate);
 		}
-	}, [context, id, name, status, lastUpdate]);
+	});
 
 	useEffect(() => {
 		return () => {
