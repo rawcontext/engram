@@ -125,8 +125,8 @@ export function useStreamingContext(): StreamingContextValue {
  * Hook for components to register themselves as streaming sources.
  * Automatically unregisters when the component unmounts.
  *
- * Uses refs to track previous values and only updates when values actually change,
- * preventing infinite update loops from polling-driven status/lastUpdate changes.
+ * Uses refs to store the latest values and syncs to context on mount and
+ * via a debounced interval to prevent infinite update loops.
  */
 export function useRegisterStreamingSource(
 	id: string,
@@ -135,38 +135,42 @@ export function useRegisterStreamingSource(
 	lastUpdate: Date | null,
 ) {
 	const context = useContext(StreamingContext);
-	const prevValuesRef = useRef<{
-		id: string;
-		name: string;
-		status: StreamingStatus;
-		lastUpdate: Date | null;
-	} | null>(null);
 
+	// Store latest values in refs to avoid effect dependencies
+	const latestRef = useRef({ id, name, status, lastUpdate });
+	const registeredRef = useRef<string | null>(null);
+
+	// Update refs synchronously (no effect needed)
+	latestRef.current = { id, name, status, lastUpdate };
+
+	// Register on mount, update periodically, unregister on unmount
 	useEffect(() => {
 		if (!context) return;
 
-		const prev = prevValuesRef.current;
-		const lastUpdateTime = lastUpdate?.getTime() ?? null;
-		const prevLastUpdateTime = prev?.lastUpdate?.getTime() ?? null;
+		const sync = () => {
+			const {
+				id: currentId,
+				name: currentName,
+				status: currentStatus,
+				lastUpdate: currentLastUpdate,
+			} = latestRef.current;
+			context.registerSource(currentId, currentName, currentStatus, currentLastUpdate);
+			registeredRef.current = currentId;
+		};
 
-		// Only update if values actually changed
-		if (
-			!prev ||
-			prev.id !== id ||
-			prev.name !== name ||
-			prev.status !== status ||
-			lastUpdateTime !== prevLastUpdateTime
-		) {
-			prevValuesRef.current = { id, name, status, lastUpdate };
-			context.registerSource(id, name, status, lastUpdate);
-		}
-	});
+		// Initial registration
+		sync();
 
-	useEffect(() => {
+		// Periodic sync every 2 seconds to catch status changes without causing loops
+		const interval = setInterval(sync, 2000);
+
 		return () => {
-			if (context) {
-				context.unregisterSource(id);
+			clearInterval(interval);
+			if (registeredRef.current) {
+				context.unregisterSource(registeredRef.current);
 			}
 		};
-	}, [context, id]);
+		// Only run on mount/unmount - refs handle value changes
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 }
