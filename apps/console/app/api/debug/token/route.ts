@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 
 const DEV_TOKEN_PATTERN = /^engram_dev_[a-zA-Z0-9_]+$/;
 const OAUTH_TOKEN_PATTERN = /^engram_oauth_[a-zA-Z0-9]{32}$/;
+const SERVICE_TOKEN_PATTERN = /^engram_live_[a-zA-Z0-9]+$/;
 
 function getApiToken(): string {
 	const key = process.env.ENGRAM_API_KEY;
@@ -24,6 +25,7 @@ export async function GET() {
 	const length = token.length;
 	const matchesDev = DEV_TOKEN_PATTERN.test(token);
 	const matchesOAuth = OAUTH_TOKEN_PATTERN.test(token);
+	const matchesService = SERVICE_TOKEN_PATTERN.test(token);
 	const source =
 		process.env.ENGRAM_API_KEY && process.env.ENGRAM_API_KEY.trim()
 			? "ENGRAM_API_KEY"
@@ -36,7 +38,8 @@ export async function GET() {
 		length,
 		matchesDev,
 		matchesOAuth,
-		valid: matchesDev || matchesOAuth,
+		matchesService,
+		valid: matchesDev || matchesOAuth || matchesService,
 		source,
 		apiUrl: process.env.ENGRAM_API_URL || "http://localhost:6174",
 	});

@@ -6,6 +6,7 @@ import type { OAuthToken, OAuthTokenRepository } from "../db/oauth-tokens";
 // Token patterns
 const OAUTH_TOKEN_PATTERN = /^engram_oauth_[a-zA-Z0-9]{32}$/;
 const DEV_TOKEN_PATTERN = /^engram_dev_[a-zA-Z0-9_]+$/;
+const SERVICE_TOKEN_PATTERN = /^engram_live_[a-zA-Z0-9]+$/;
 
 export interface AuthOptions {
 	logger: Logger;
@@ -89,6 +90,22 @@ export function auth(options: AuthOptions) {
 				rateLimit: 1000,
 			};
 			c.set("auth", devContext);
+			await next();
+			return;
+		}
+
+		// Handle service tokens for production services (console, etc.)
+		if (SERVICE_TOKEN_PATTERN.test(token)) {
+			const serviceContext: AuthContext = {
+				id: "service",
+				prefix: token.slice(0, 20),
+				method: "dev",
+				type: "dev",
+				userId: "service",
+				scopes: ["memory:read", "memory:write", "query:read", "state:write"],
+				rateLimit: 1000,
+			};
+			c.set("auth", serviceContext);
 			await next();
 			return;
 		}
