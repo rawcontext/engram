@@ -72,6 +72,34 @@ code --add-mcp '{"name":"engram","command":"npx","args":["-y","@rawcontext/engra
 </details>
 
 <details>
+<summary>JetBrains (WebStorm, IntelliJ, etc.)</summary>
+
+Go to **Settings → Tools → AI Assistant → Model Context Protocol (MCP)** and add:
+
+```json
+{
+  "servers": {
+    "engram": {
+      "command": "npx",
+      "args": ["-y", "@rawcontext/engram-mcp"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>Visual Studio</summary>
+
+Go to **Tools → Options → GitHub Copilot → MCP Servers** and add a new server:
+- Name: `engram`
+- Command: `npx`
+- Args: `-y @rawcontext/engram-mcp`
+
+</details>
+
+<details>
 <summary>Manual Configuration</summary>
 
 Add to your MCP config file:
