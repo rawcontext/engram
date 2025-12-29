@@ -1,30 +1,24 @@
 "use client";
 
 import {
-	Activity,
 	AlertTriangle,
 	Bell,
 	ChevronDown,
-	Cpu,
-	Database,
 	ExternalLink,
 	Plus,
 	Rocket,
 	ScrollText,
-	Server,
 	Trash2,
 	Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Area, AreaChart } from "recharts";
 import { MetricsGrid } from "@/components/dashboard/metrics-grid";
 import { ServiceHealthGrid } from "@/components/dashboard/service-health-grid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer } from "@/components/ui/chart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type ServiceHealth, useApiClient } from "@/lib/api-client";
@@ -422,24 +416,6 @@ function ActivityFeed({
 }
 
 // ============================================
-// Sparkline Data
-// ============================================
-
-const sparklineData = [
-	{ time: "00:00", value: 45 },
-	{ time: "04:00", value: 52 },
-	{ time: "08:00", value: 78 },
-	{ time: "12:00", value: 95 },
-	{ time: "16:00", value: 88 },
-	{ time: "20:00", value: 62 },
-	{ time: "24:00", value: 48 },
-];
-
-const chartConfig = {
-	value: { label: "Requests", color: "var(--chart-1)" },
-};
-
-// ============================================
 // Main Page Component
 // ============================================
 
@@ -524,104 +500,8 @@ export default function OverviewPage() {
 			{/* Key Metrics */}
 			<MetricsGrid pollInterval={10000} />
 
-			{/* Charts and Activity Feed */}
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				{/* Request Volume Chart */}
-				<Card className="lg:col-span-2">
-					<CardHeader>
-						<div className="flex items-center justify-between">
-							<div>
-								<CardTitle className="text-base">Request Volume</CardTitle>
-								<CardDescription>Last 24 hours</CardDescription>
-							</div>
-							<Badge variant="secondary" className="font-mono">
-								Live
-							</Badge>
-						</div>
-					</CardHeader>
-					<CardContent>
-						<ChartContainer config={chartConfig} className="h-48 w-full">
-							<AreaChart data={sparklineData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-								<defs>
-									<linearGradient id="gradient-value" x1="0" y1="0" x2="0" y2="1">
-										<stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.3} />
-										<stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
-									</linearGradient>
-								</defs>
-								<Area
-									type="natural"
-									dataKey="value"
-									stroke="var(--chart-1)"
-									strokeWidth={2}
-									fill="url(#gradient-value)"
-								/>
-							</AreaChart>
-						</ChartContainer>
-					</CardContent>
-				</Card>
-
-				{/* Activity Feed */}
-				<ActivityFeed alerts={alerts} deployments={deployments} isLoading={isLoading} />
-			</div>
-
-			{/* Resources Quick Stats */}
-			<Card>
-				<CardHeader>
-					<CardTitle className="text-base">Resources</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-						<div className="flex items-center justify-between">
-							<div className="flex items-center gap-3">
-								<Cpu className="h-4 w-4 text-primary" />
-								<span className="text-sm text-muted-foreground">CPU</span>
-							</div>
-							<div className="flex items-center gap-2">
-								<div className="w-24 h-2 rounded-full bg-muted">
-									<div className="w-[34%] h-full rounded-full bg-gradient-to-r from-primary to-blue-500" />
-								</div>
-								<span className="font-mono text-xs text-muted-foreground">34%</span>
-							</div>
-						</div>
-						<div className="flex items-center justify-between">
-							<div className="flex items-center gap-3">
-								<Database className="h-4 w-4 text-[rgb(var(--console-purple))]" />
-								<span className="text-sm text-muted-foreground">Memory</span>
-							</div>
-							<div className="flex items-center gap-2">
-								<div className="w-24 h-2 rounded-full bg-muted">
-									<div className="w-[67%] h-full rounded-full bg-gradient-to-r from-[rgb(var(--console-purple))] to-blue-500" />
-								</div>
-								<span className="font-mono text-xs text-muted-foreground">67%</span>
-							</div>
-						</div>
-						<div className="flex items-center justify-between">
-							<div className="flex items-center gap-3">
-								<Server className="h-4 w-4 text-green-500" />
-								<span className="text-sm text-muted-foreground">Disk</span>
-							</div>
-							<div className="flex items-center gap-2">
-								<div className="w-24 h-2 rounded-full bg-muted">
-									<div className="w-[45%] h-full rounded-full bg-gradient-to-r from-green-500 to-primary" />
-								</div>
-								<span className="font-mono text-xs text-muted-foreground">45%</span>
-							</div>
-						</div>
-						<div className="flex items-center justify-between">
-							<div className="flex items-center gap-3">
-								<Activity className="h-4 w-4 text-amber-500" />
-								<span className="text-sm text-muted-foreground">Network</span>
-							</div>
-							<div className="flex items-center gap-2">
-								<div className="w-24 h-2 rounded-full bg-muted">
-									<div className="w-[23%] h-full rounded-full bg-gradient-to-r from-amber-500 to-green-500" />
-								</div>
-								<span className="font-mono text-xs text-muted-foreground">23%</span>
-							</div>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
+			{/* Activity Feed */}
+			<ActivityFeed alerts={alerts} deployments={deployments} isLoading={isLoading} />
 
 			{/* Service Health Grid */}
 			<ServiceHealthGrid onServiceClick={handleServiceClick} pollInterval={5000} />
