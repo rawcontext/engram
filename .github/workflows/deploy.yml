@@ -22,6 +22,7 @@ concurrency:
 
 env:
   DOMAIN: engram.rawcontext.com
+  ROOT_DOMAIN: rawcontext.com  # For Vercel DNS (must be root domain)
 
 jobs:
   # Wait for CI to pass
@@ -169,7 +170,7 @@ jobs:
           TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
           TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
-          TF_VAR_domain: ${{ env.DOMAIN }}
+          TF_VAR_domain: ${{ env.ROOT_DOMAIN }}
           TF_VAR_ssh_public_key: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
@@ -229,6 +230,14 @@ jobs:
           echo "=== Importing Vercel DNS records ==="
           DOMAIN="rawcontext.com"
 
+          # Clear any corrupted DNS record states (domain mismatch bug)
+          for record in apex api observatory console; do
+            if tofu state list 2>/dev/null | grep -q "vercel_dns_record.$record"; then
+              echo "Removing potentially corrupted state for vercel_dns_record.$record..."
+              tofu state rm -lock=false "vercel_dns_record.$record" 2>/dev/null || true
+            fi
+          done
+
           # Fetch all DNS records from Vercel
           DNS_RECORDS=$(curl -s -H "Authorization: Bearer $VERCEL_API_TOKEN" \
             "https://api.vercel.com/v4/domains/$DOMAIN/records" | jq -r '.records // []')
@@ -279,7 +288,7 @@ jobs:
           TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
           TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
-          TF_VAR_domain: ${{ env.DOMAIN }}
+          TF_VAR_domain: ${{ env.ROOT_DOMAIN }}
           TF_VAR_ssh_public_key: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
         run: |
           # Disable state locking - workflow concurrency already prevents parallel runs
@@ -292,7 +301,7 @@ jobs:
           TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
           TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
-          TF_VAR_domain: ${{ env.DOMAIN }}
+          TF_VAR_domain: ${{ env.ROOT_DOMAIN }}
           TF_VAR_ssh_public_key: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
         run: |
           tofu apply -auto-approve -lock=false tfplan
