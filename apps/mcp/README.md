@@ -16,10 +16,6 @@ npx -y @rawcontext/engram-mcp
 
 Add to your MCP client configuration:
 
-### Claude Desktop
-
-`~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
-
 ```json
 {
   "mcpServers": {
@@ -31,20 +27,9 @@ Add to your MCP client configuration:
 }
 ```
 
-### Claude Code / VS Code / Cursor
-
-`.mcp.json` in your project or home directory:
-
-```json
-{
-  "mcpServers": {
-    "engram": {
-      "command": "npx",
-      "args": ["-y", "@rawcontext/engram-mcp"]
-    }
-  }
-}
-```
+**Config file locations:**
+- **Claude Desktop**: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
+- **Claude Code / VS Code / Cursor**: `.mcp.json` in your project or home directory
 
 On first run, authenticate via browser.
 
