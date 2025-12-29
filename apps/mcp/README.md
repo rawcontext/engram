@@ -8,43 +8,62 @@ Engram gives AI agents persistent memory across sessions. Store decisions, prefe
 
 ## Installation
 
-### Claude Code
+<details>
+<summary>Claude Code</summary>
 
 ```bash
 claude mcp add engram npx @rawcontext/engram-mcp
 ```
 
-### Cursor
+</details>
+
+<details>
+<summary>Cursor</summary>
 
 ```bash
 cursor mcp add engram npx @rawcontext/engram-mcp
 ```
 
-### Windsurf
+</details>
+
+<details>
+<summary>Windsurf</summary>
 
 ```bash
 windsurf mcp add engram npx @rawcontext/engram-mcp
 ```
 
-### VS Code / Copilot
+</details>
+
+<details>
+<summary>VS Code / GitHub Copilot</summary>
 
 ```bash
 code --add-mcp '{"name":"engram","command":"npx","args":["-y","@rawcontext/engram-mcp"]}'
 ```
 
-### Copilot CLI
+</details>
 
-Run `/mcp add`, then enter:
-- Server name: `engram`
-- Command: `npx -y @rawcontext/engram-mcp`
-
-### Gemini CLI
+<details>
+<summary>Gemini CLI</summary>
 
 ```bash
 gemini mcp add engram npx @rawcontext/engram-mcp
 ```
 
-### Manual Configuration
+</details>
+
+<details>
+<summary>Aider</summary>
+
+```bash
+aider --mcp-server "npx -y @rawcontext/engram-mcp"
+```
+
+</details>
+
+<details>
+<summary>Manual Configuration</summary>
 
 Add to your MCP config file:
 
@@ -58,6 +77,8 @@ Add to your MCP config file:
   }
 }
 ```
+
+</details>
 
 On first run, authenticate via browser.
 
