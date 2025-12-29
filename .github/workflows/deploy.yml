@@ -248,17 +248,14 @@ jobs:
           ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
 
       - name: Cleanup conflicting paths
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             # Remove conflicting paths and fix permissions
             sudo rm -rf /opt/engram/configs/Caddyfile 2>/dev/null || true
             # Ensure configs directory exists with correct ownership
             sudo mkdir -p /opt/engram/configs
             sudo chown -R engram:engram /opt/engram/configs
+          EOF
 
       - name: Sync files to server
         run: |
@@ -277,30 +274,21 @@ jobs:
             . engram@${{ env.DOMAIN }}:/opt/engram/
 
       - name: Create .env file on server
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          script: |
-            cat > /opt/engram/.env << 'EOF'
-            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-            HF_API_TOKEN=${{ secrets.HF_API_TOKEN }}
-            BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            ENGRAM_API_TOKEN=${{ secrets.ENGRAM_API_TOKEN }}
-            EOF
+        run: |
+          ssh engram@${{ env.DOMAIN }} "cat > /opt/engram/.env << 'ENVEOF'
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          HF_API_TOKEN=${{ secrets.HF_API_TOKEN }}
+          BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          ENGRAM_API_TOKEN=${{ secrets.ENGRAM_API_TOKEN }}
+          ENVEOF"
 
       - name: Run auth database migrations
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             # Wait for postgres to be ready
             until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U ${POSTGRES_USER:-engram}; do
@@ -309,6 +297,7 @@ jobs:
             done
             # Run auth migrations on the engram database
             cat /opt/engram/scripts/migrate-auth.sql | docker compose -f docker-compose.prod.yml exec -T postgres psql -U ${POSTGRES_USER:-engram} -d engram || echo "Migration may have already been applied"
+          EOF
 
   # Deploy API service
   deploy-api:
@@ -320,14 +309,16 @@ jobs:
       (needs.changes.outputs.api == 'true' || inputs.force_deploy_all == true)
     environment: production
     steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
+
       - name: Deploy API
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          command_timeout: 10m
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying API..."
             docker compose -f docker-compose.prod.yml build api
@@ -335,6 +326,7 @@ jobs:
             echo "Waiting for API health check..."
             sleep 5
             docker compose -f docker-compose.prod.yml ps api
+          EOF
 
   # Deploy Search service
   deploy-search:
@@ -346,14 +338,16 @@ jobs:
       (needs.changes.outputs.search == 'true' || inputs.force_deploy_all == true)
     environment: production
     steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
+
       - name: Deploy Search
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          command_timeout: 10m
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Search..."
             docker compose -f docker-compose.prod.yml build --no-cache search
@@ -361,6 +355,7 @@ jobs:
             echo "Waiting for Search health check..."
             sleep 5
             docker compose -f docker-compose.prod.yml ps search
+          EOF
 
   # Deploy Tuner service
   deploy-tuner:
@@ -372,14 +367,16 @@ jobs:
       (needs.changes.outputs.tuner == 'true' || inputs.force_deploy_all == true)
     environment: production
     steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
+
       - name: Deploy Tuner
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          command_timeout: 10m
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Tuner..."
             docker compose -f docker-compose.prod.yml build --no-cache tuner
@@ -387,6 +384,7 @@ jobs:
             echo "Waiting for Tuner health check..."
             sleep 5
             docker compose -f docker-compose.prod.yml ps tuner
+          EOF
 
   # Deploy Observatory service
   deploy-observatory:
@@ -398,14 +396,16 @@ jobs:
       (needs.changes.outputs.observatory == 'true' || inputs.force_deploy_all == true)
     environment: production
     steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
+
       - name: Deploy Observatory
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          command_timeout: 10m
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Observatory..."
             docker compose -f docker-compose.prod.yml build observatory
@@ -413,6 +413,7 @@ jobs:
             echo "Waiting for Observatory health check..."
             sleep 5
             docker compose -f docker-compose.prod.yml ps observatory
+          EOF
 
   # Deploy Console service
   deploy-console:
@@ -424,14 +425,16 @@ jobs:
       (needs.changes.outputs.console == 'true' || inputs.force_deploy_all == true)
     environment: production
     steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
+
       - name: Deploy Console
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          command_timeout: 10m
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Console..."
             docker compose -f docker-compose.prod.yml build console
@@ -439,6 +442,7 @@ jobs:
             echo "Waiting for Console health check..."
             sleep 5
             docker compose -f docker-compose.prod.yml ps console
+          EOF
 
   # Deploy Ingestion service
   deploy-ingestion:
@@ -450,14 +454,16 @@ jobs:
       (needs.changes.outputs.ingestion == 'true' || inputs.force_deploy_all == true)
     environment: production
     steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
+
       - name: Deploy Ingestion
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          command_timeout: 10m
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Ingestion..."
             docker compose -f docker-compose.prod.yml build ingestion
@@ -465,6 +471,7 @@ jobs:
             echo "Waiting for Ingestion health check..."
             sleep 5
             docker compose -f docker-compose.prod.yml ps ingestion
+          EOF
 
   # Deploy Memory service
   deploy-memory:
@@ -476,14 +483,16 @@ jobs:
       (needs.changes.outputs.memory == 'true' || inputs.force_deploy_all == true)
     environment: production
     steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
+
       - name: Deploy Memory
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          command_timeout: 10m
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Memory..."
             docker compose -f docker-compose.prod.yml build memory
@@ -491,6 +500,7 @@ jobs:
             echo "Waiting for Memory startup..."
             sleep 5
             docker compose -f docker-compose.prod.yml ps memory
+          EOF
 
   # Deploy databases/infrastructure services if docker-compose changed
   deploy-infrastructure-services:
@@ -502,14 +512,16 @@ jobs:
       (needs.changes.outputs.docker_compose == 'true' || inputs.force_deploy_all == true)
     environment: production
     steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
+
       - name: Deploy Infrastructure Services
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          command_timeout: 10m
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
 
             # Create data directories at /var/lib/engram (outside Docker build context)
@@ -543,6 +555,7 @@ jobs:
             echo "Waiting for services to be healthy..."
             sleep 15
             docker compose -f docker-compose.prod.yml ps
+          EOF
 
   # Start/reload Caddy reverse proxy (only full restart if Caddyfile changed)
   deploy-caddy:
@@ -565,22 +578,23 @@ jobs:
       (needs.deploy-console.result == 'success' || needs.deploy-console.result == 'skipped')
     environment: production
     steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
+
       - name: Reload or Start Caddy
-        uses: appleboy/ssh-action@v1
         env:
           CADDY_CHANGED: ${{ needs.changes.outputs.caddy }}
           DOCKER_COMPOSE_CHANGED: ${{ needs.changes.outputs.docker_compose }}
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          command_timeout: 5m
-          envs: CADDY_CHANGED,DOCKER_COMPOSE_CHANGED
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << EOF
             cd /opt/engram
 
             # Check if Caddy is already running
-            CADDY_RUNNING=$(docker compose -f docker-compose.prod.yml ps caddy --format json 2>/dev/null | grep -c '"running"' || echo "0")
+            CADDY_RUNNING=\$(docker compose -f docker-compose.prod.yml ps caddy --format json 2>/dev/null | grep -c '"running"' || echo "0")
 
             if [[ "$CADDY_CHANGED" == "true" ]] || [[ "$DOCKER_COMPOSE_CHANGED" == "true" ]]; then
               echo "Caddyfile or docker-compose changed - full Caddy restart..."
@@ -590,7 +604,7 @@ jobs:
 
               echo "Waiting for Caddy to be ready..."
               sleep 10
-            elif [[ "$CADDY_RUNNING" == "0" ]]; then
+            elif [[ "\$CADDY_RUNNING" == "0" ]]; then
               echo "Caddy not running - starting it..."
               docker compose -f docker-compose.prod.yml up -d caddy
 
@@ -601,6 +615,7 @@ jobs:
             fi
 
             docker compose -f docker-compose.prod.yml ps
+          EOF
 
   # Cleanup old Docker images
   cleanup:
@@ -611,14 +626,16 @@ jobs:
       needs.deploy-caddy.result == 'success'
     environment: production
     steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.DOMAIN }} >> ~/.ssh/known_hosts
+
       - name: Prune old Docker images
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.DOMAIN }}
-          username: engram
-          key: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          command_timeout: 5m
-          script: |
+        run: |
+          ssh engram@${{ env.DOMAIN }} << 'EOF'
             echo "Pruning unused Docker images..."
             docker image prune -af
             echo ""
@@ -634,6 +651,7 @@ jobs:
             echo "Disk usage after cleanup:"
             docker system df
             df -h /
+          EOF
 
   # Summary job
   summary:
