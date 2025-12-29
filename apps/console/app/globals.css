@@ -575,3 +575,237 @@ body::after {
 	transform: translateY(-2px);
 	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
+
+/* ============================================
+   Streaming Indicators - Live Data Feedback
+   ============================================ */
+
+/* Streaming dot base styles */
+.streaming-dot-live,
+.streaming-dot-degraded,
+.streaming-dot-stale,
+.streaming-dot-connecting,
+.streaming-dot-offline {
+	position: relative;
+}
+
+/* Live status - subtle heartbeat pulse */
+.streaming-dot-live {
+	background: rgb(var(--console-green));
+	box-shadow: 0 0 6px rgba(var(--console-green), 0.6);
+	animation: streaming-heartbeat 2s ease-in-out infinite;
+}
+
+.streaming-dot-live::after {
+	content: "";
+	position: absolute;
+	inset: -3px;
+	border-radius: 50%;
+	background: rgba(var(--console-green), 0.3);
+	animation: streaming-pulse-ring 2s ease-out infinite;
+}
+
+/* Degraded status - slower pulse, amber */
+.streaming-dot-degraded {
+	background: rgb(var(--console-amber));
+	box-shadow: 0 0 4px rgba(var(--console-amber), 0.5);
+	animation: streaming-heartbeat 3s ease-in-out infinite;
+}
+
+.streaming-dot-degraded::after {
+	content: "";
+	position: absolute;
+	inset: -2px;
+	border-radius: 50%;
+	background: rgba(var(--console-amber), 0.2);
+	animation: streaming-pulse-ring 3s ease-out infinite;
+}
+
+/* Stale status - dim, no animation */
+.streaming-dot-stale {
+	background: rgb(var(--console-amber));
+	opacity: 0.5;
+}
+
+/* Connecting status - fast pulse */
+.streaming-dot-connecting {
+	background: rgb(var(--console-cyan));
+	animation: streaming-connecting 1s ease-in-out infinite;
+}
+
+/* Offline status - dim red, no animation */
+.streaming-dot-offline {
+	background: rgb(var(--console-red));
+	opacity: 0.4;
+}
+
+/* Heartbeat animation - mimics a heartbeat rhythm */
+@keyframes streaming-heartbeat {
+	0%,
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	14% {
+		transform: scale(1.15);
+		opacity: 1;
+	}
+	28% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	42% {
+		transform: scale(1.1);
+		opacity: 1;
+	}
+	70% {
+		transform: scale(1);
+		opacity: 0.85;
+	}
+}
+
+/* Expanding pulse ring */
+@keyframes streaming-pulse-ring {
+	0% {
+		transform: scale(1);
+		opacity: 0.6;
+	}
+	50% {
+		transform: scale(1.8);
+		opacity: 0;
+	}
+	100% {
+		transform: scale(1);
+		opacity: 0;
+	}
+}
+
+/* Connecting animation - faster blink */
+@keyframes streaming-connecting {
+	0%,
+	100% {
+		opacity: 0.3;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
+/* ============================================
+   Data Freshness Animations
+   ============================================ */
+
+/* Flash on data update - cyan */
+.data-flash-cyan {
+	animation: data-flash-cyan 0.6s ease-out;
+}
+
+@keyframes data-flash-cyan {
+	0% {
+		box-shadow:
+			inset 0 0 0 1px rgba(var(--console-cyan), 0.5),
+			0 0 12px rgba(var(--console-cyan), 0.3);
+	}
+	100% {
+		box-shadow:
+			inset 0 0 0 1px transparent,
+			0 0 0 transparent;
+	}
+}
+
+/* Flash on data update - green */
+.data-flash-green {
+	animation: data-flash-green 0.6s ease-out;
+}
+
+@keyframes data-flash-green {
+	0% {
+		box-shadow:
+			inset 0 0 0 1px rgba(var(--console-green), 0.5),
+			0 0 12px rgba(var(--console-green), 0.3);
+	}
+	100% {
+		box-shadow:
+			inset 0 0 0 1px transparent,
+			0 0 0 transparent;
+	}
+}
+
+/* Flash on data update - amber */
+.data-flash-amber {
+	animation: data-flash-amber 0.6s ease-out;
+}
+
+@keyframes data-flash-amber {
+	0% {
+		box-shadow:
+			inset 0 0 0 1px rgba(var(--console-amber), 0.5),
+			0 0 12px rgba(var(--console-amber), 0.3);
+	}
+	100% {
+		box-shadow:
+			inset 0 0 0 1px transparent,
+			0 0 0 transparent;
+	}
+}
+
+/* Stale data overlay */
+.data-stale {
+	opacity: 0.6;
+	filter: saturate(0.7);
+}
+
+/* Degraded data - slightly muted */
+.data-degraded {
+	opacity: 0.85;
+}
+
+/* Live value change animations */
+.live-value-changing {
+	opacity: 0.7;
+	transform: translateY(-1px);
+}
+
+.live-value-up {
+	color: rgb(var(--console-green));
+}
+
+.live-value-down {
+	color: rgb(var(--console-red));
+}
+
+/* Pulse ring animations */
+.pulse-ring-cyan {
+	background: transparent;
+	border: 1px solid rgba(var(--console-cyan), 0.5);
+	animation: pulse-ring-expand 2s ease-out infinite;
+}
+
+.pulse-ring-green {
+	background: transparent;
+	border: 1px solid rgba(var(--console-green), 0.5);
+	animation: pulse-ring-expand 2s ease-out infinite;
+}
+
+.pulse-ring-amber {
+	background: transparent;
+	border: 1px solid rgba(var(--console-amber), 0.5);
+	animation: pulse-ring-expand 2s ease-out infinite;
+}
+
+.pulse-ring-red {
+	background: transparent;
+	border: 1px solid rgba(var(--console-red), 0.5);
+	animation: pulse-ring-expand 2s ease-out infinite;
+}
+
+@keyframes pulse-ring-expand {
+	0% {
+		transform: scale(0.5);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(2);
+		opacity: 0;
+	}
+}

@@ -1,14 +1,17 @@
 "use client";
 
 import { Activity, AlertCircle, ArrowDownRight, ArrowUpRight, Clock, Zap } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Area, AreaChart } from "recharts";
 
+import { DataFreshness, StreamingDot } from "@/components/streaming";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePollingData } from "@/hooks/useStreamingData";
 import { type MetricData, useApiClient } from "@/lib/api-client";
+import { useRegisterStreamingSource } from "@/lib/streaming-context";
 
 const METRIC_ICONS: Record<string, typeof Zap> = {
 	requests: Zap,
@@ -55,12 +58,16 @@ function formatChange(change: number, unit?: string): string {
 interface MetricCardProps {
 	metric: MetricData;
 	isLoading: boolean;
+	previousValue?: number;
 }
 
-function MetricCard({ metric, isLoading }: MetricCardProps) {
+function MetricCard({ metric, isLoading, previousValue }: MetricCardProps) {
 	const Icon = METRIC_ICONS[metric.id] || Zap;
 	const chartColor = METRIC_CHART_COLORS[metric.id] || "var(--chart-1)";
 	const isPositive = isPositiveChange(metric.id, metric.change);
+
+	// Detect if value just changed
+	const valueChanged = previousValue !== undefined && previousValue !== metric.value;
 
 	const chartData = metric.sparkline.map((point, idx) => ({
 		index: idx,
@@ -96,7 +103,11 @@ function MetricCard({ metric, isLoading }: MetricCardProps) {
 				</Badge>
 			</CardHeader>
 			<CardContent>
-				<div className="text-2xl font-bold font-mono tabular-nums">
+				<div
+					className={`text-2xl font-bold font-mono tabular-nums transition-all duration-300 ${
+						valueChanged ? "text-primary" : ""
+					}`}
+				>
 					{isLoading ? <Skeleton className="h-8 w-24" /> : formatValue(metric.value, metric.unit)}
 				</div>
 				<div className="absolute bottom-2 right-2 h-10 w-24 opacity-50 transition-opacity group-hover:opacity-80">
@@ -146,40 +157,33 @@ export interface MetricsGridProps {
 
 export function MetricsGrid({ pollInterval = 10000 }: MetricsGridProps) {
 	const apiClient = useApiClient();
-	const [metrics, setMetrics] = useState<MetricData[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [isRefreshing, setIsRefreshing] = useState(false);
+	const prevMetricsRef = useRef<Map<string, number>>(new Map());
 
-	const fetchMetrics = useCallback(
-		async (isInitial = false) => {
-			if (isInitial) {
-				setIsLoading(true);
-			} else {
-				setIsRefreshing(true);
-			}
+	// Use streaming data hook for automatic status tracking
+	const {
+		data: metrics,
+		status,
+		lastUpdate,
+	} = usePollingData<MetricData[]>(() => apiClient.getSystemMetrics(), {
+		pollInterval,
+		staleThreshold: 30,
+	});
 
-			try {
-				const data = await apiClient.getSystemMetrics();
-				setMetrics(data);
-			} catch (err) {
-				console.error("Failed to fetch metrics:", err);
-			} finally {
-				setIsLoading(false);
-				setIsRefreshing(false);
-			}
-		},
-		[apiClient],
-	);
+	// Register this component as a streaming source
+	useRegisterStreamingSource("metrics-grid", "System Metrics", status, lastUpdate);
 
+	// Track previous values for change detection
 	useEffect(() => {
-		fetchMetrics(true);
-	}, [fetchMetrics]);
+		if (metrics) {
+			const newMap = new Map<string, number>();
+			for (const m of metrics) {
+				newMap.set(m.id, m.value);
+			}
+			prevMetricsRef.current = newMap;
+		}
+	}, [metrics]);
 
-	useEffect(() => {
-		if (pollInterval <= 0) return;
-		const interval = setInterval(() => fetchMetrics(false), pollInterval);
-		return () => clearInterval(interval);
-	}, [fetchMetrics, pollInterval]);
+	const isLoading = !metrics && status === "connecting";
 
 	if (isLoading) {
 		return (
@@ -193,10 +197,29 @@ export function MetricsGrid({ pollInterval = 10000 }: MetricsGridProps) {
 	}
 
 	return (
-		<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-			{metrics.map((metric) => (
-				<MetricCard key={metric.id} metric={metric} isLoading={isRefreshing} />
-			))}
-		</div>
+		<DataFreshness
+			status={status}
+			lastUpdate={lastUpdate}
+			flashColor="cyan"
+			showStaleOverlay={true}
+		>
+			<div className="relative">
+				{/* Streaming indicator in corner */}
+				<div className="absolute -top-1 -right-1 z-10">
+					<StreamingDot status={status} size="sm" />
+				</div>
+
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+					{(metrics || []).map((metric) => (
+						<MetricCard
+							key={metric.id}
+							metric={metric}
+							isLoading={false}
+							previousValue={prevMetricsRef.current.get(metric.id)}
+						/>
+					))}
+				</div>
+			</div>
+		</DataFreshness>
 	);
 }

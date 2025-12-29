@@ -14,13 +14,16 @@ import {
 	Workflow,
 	XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
+import { DataFreshness, StreamingDot } from "@/components/streaming";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePollingData } from "@/hooks/useStreamingData";
 import { type ServiceHealth, useApiClient } from "@/lib/api-client";
+import { useRegisterStreamingSource } from "@/lib/streaming-context";
 
 const SERVICE_ICONS: Record<string, typeof Server> = {
 	API: Server,
@@ -165,56 +168,39 @@ export interface ServiceHealthGridProps {
 	showSectionHeaders?: boolean;
 }
 
+interface HealthData {
+	appServices: ServiceHealth[];
+	infraServices: ServiceHealth[];
+}
+
 export function ServiceHealthGrid({
 	pollInterval = 5000,
 	onServiceClick,
 	showSectionHeaders = true,
 }: ServiceHealthGridProps) {
 	const apiClient = useApiClient();
-	const [appServices, setAppServices] = useState<ServiceHealth[]>([]);
-	const [infraServices, setInfraServices] = useState<ServiceHealth[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [isRefreshing, setIsRefreshing] = useState(false);
-	const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
-	const fetchHealth = useCallback(
-		async (isInitial = false) => {
-			if (isInitial) {
-				setIsLoading(true);
-			} else {
-				setIsRefreshing(true);
-			}
+	// Use streaming data hook for automatic status tracking
+	const { data, status, lastUpdate, refresh } = usePollingData<HealthData>(
+		async () => {
 			setError(null);
-
 			try {
-				const [apps, infra] = await Promise.all([
+				const [appServices, infraServices] = await Promise.all([
 					apiClient.getAllServicesHealth(),
 					apiClient.getInfraHealth(),
 				]);
-
-				setAppServices(apps);
-				setInfraServices(infra);
-				setLastUpdated(new Date());
+				return { appServices, infraServices };
 			} catch (err) {
 				setError(err instanceof Error ? err.message : "Failed to fetch health status");
-			} finally {
-				setIsLoading(false);
-				setIsRefreshing(false);
+				throw err;
 			}
 		},
-		[apiClient],
+		{ pollInterval, staleThreshold: 15 },
 	);
 
-	useEffect(() => {
-		fetchHealth(true);
-	}, [fetchHealth]);
-
-	useEffect(() => {
-		if (pollInterval <= 0) return;
-		const interval = setInterval(() => fetchHealth(false), pollInterval);
-		return () => clearInterval(interval);
-	}, [fetchHealth, pollInterval]);
+	// Register this component as a streaming source
+	useRegisterStreamingSource("service-health", "Service Health", status, lastUpdate);
 
 	const handleServiceClick = (service: ServiceHealth) => {
 		if (onServiceClick) {
@@ -222,9 +208,13 @@ export function ServiceHealthGrid({
 		}
 	};
 
+	const appServices = data?.appServices || [];
+	const infraServices = data?.infraServices || [];
 	const allServices = [...appServices, ...infraServices];
 	const onlineCount = allServices.filter((s) => s.status === "online").length;
 	const totalCount = allServices.length;
+	const isLoading = !data && status === "connecting";
+	const isRefreshing = status === "degraded";
 
 	if (error && isLoading) {
 		return (
@@ -237,7 +227,7 @@ export function ServiceHealthGrid({
 						<XCircle className="h-12 w-12 text-destructive mb-4" />
 						<CardDescription className="mb-2">Failed to load service health</CardDescription>
 						<p className="text-xs text-muted-foreground mb-4">{error}</p>
-						<Button variant="outline" size="sm" onClick={() => fetchHealth(true)}>
+						<Button variant="outline" size="sm" onClick={() => refresh()}>
 							Retry
 						</Button>
 					</div>
@@ -271,83 +261,93 @@ export function ServiceHealthGrid({
 	}
 
 	return (
-		<Card>
-			<CardHeader>
-				<div className="flex items-center justify-between">
-					<CardTitle>Service Health</CardTitle>
-					<div className="flex items-center gap-3">
-						{isRefreshing && <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />}
-						{lastUpdated && (
-							<span className="text-[10px] text-muted-foreground font-mono">
-								{lastUpdated.toLocaleTimeString()}
+		<DataFreshness
+			status={status}
+			lastUpdate={lastUpdate}
+			flashColor="green"
+			showStaleOverlay={true}
+		>
+			<Card>
+				<CardHeader>
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-2">
+							<CardTitle>Service Health</CardTitle>
+							<StreamingDot status={status} size="sm" />
+						</div>
+						<div className="flex items-center gap-3">
+							{isRefreshing && <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />}
+							{lastUpdate && (
+								<span className="text-[10px] text-muted-foreground font-mono">
+									{lastUpdate.toLocaleTimeString()}
+								</span>
+							)}
+							<Badge
+								variant={
+									onlineCount === totalCount
+										? "default"
+										: onlineCount > 0
+											? "secondary"
+											: "destructive"
+								}
+								className="font-mono"
+							>
+								{onlineCount}/{totalCount} Online
+							</Badge>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					{/* Applications Section */}
+					{showSectionHeaders && appServices.length > 0 && (
+						<div className="flex items-center gap-2">
+							<Server className="h-3.5 w-3.5 text-primary" />
+							<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Applications
 							</span>
-						)}
-						<Badge
-							variant={
-								onlineCount === totalCount
-									? "default"
-									: onlineCount > 0
-										? "secondary"
-										: "destructive"
-							}
-							className="font-mono"
-						>
-							{onlineCount}/{totalCount} Online
-						</Badge>
+							<div className="flex-1 h-px bg-border" />
+						</div>
+					)}
+					<div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+						{appServices.map((service) => (
+							<ServiceCard
+								key={service.name}
+								service={service}
+								onClick={() => handleServiceClick(service)}
+								isLoading={isRefreshing}
+							/>
+						))}
 					</div>
-				</div>
-			</CardHeader>
-			<CardContent className="space-y-4">
-				{/* Applications Section */}
-				{showSectionHeaders && appServices.length > 0 && (
-					<div className="flex items-center gap-2">
-						<Server className="h-3.5 w-3.5 text-primary" />
-						<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-							Applications
-						</span>
-						<div className="flex-1 h-px bg-border" />
-					</div>
-				)}
-				<div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-					{appServices.map((service) => (
-						<ServiceCard
-							key={service.name}
-							service={service}
-							onClick={() => handleServiceClick(service)}
-							isLoading={isRefreshing}
-						/>
-					))}
-				</div>
 
-				{/* Infrastructure Section */}
-				{showSectionHeaders && infraServices.length > 0 && (
-					<div className="flex items-center gap-2 mt-4">
-						<Database className="h-3.5 w-3.5 text-[rgb(var(--console-purple))]" />
-						<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-							Infrastructure
-						</span>
-						<div className="flex-1 h-px bg-border" />
+					{/* Infrastructure Section */}
+					{showSectionHeaders && infraServices.length > 0 && (
+						<div className="flex items-center gap-2 mt-4">
+							<Database className="h-3.5 w-3.5 text-[rgb(var(--console-purple))]" />
+							<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+								Infrastructure
+							</span>
+							<div className="flex-1 h-px bg-border" />
+						</div>
+					)}
+					<div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+						{infraServices.map((service) => (
+							<ServiceCard
+								key={service.name}
+								service={service}
+								onClick={() => handleServiceClick(service)}
+								isLoading={isRefreshing}
+							/>
+						))}
 					</div>
-				)}
-				<div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-					{infraServices.map((service) => (
-						<ServiceCard
-							key={service.name}
-							service={service}
-							onClick={() => handleServiceClick(service)}
-							isLoading={isRefreshing}
-						/>
-					))}
-				</div>
 
-				{/* Error banner (non-blocking) */}
-				{error && !isLoading && (
-					<div className="mt-4 flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-destructive">
-						<AlertCircle className="h-4 w-4" />
-						<span className="text-sm">{error}</span>
-					</div>
-				)}
-			</CardContent>
-		</Card>
+					{/* Error banner (non-blocking) */}
+					{error && !isLoading && (
+						<div className="mt-4 flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-destructive">
+							<AlertCircle className="h-4 w-4" />
+							<span className="text-sm">{error}</span>
+						</div>
+					)}
+				</CardContent>
+			</Card>
+		</DataFreshness>
 	);
 }
