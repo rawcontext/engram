@@ -1,6 +1,6 @@
 """Tests for OAuth authentication middleware."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import httpx
 import pytest
@@ -112,7 +112,7 @@ class TestAuthHandler:
             client_id="test-client",
         )
 
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "active": True,
@@ -144,7 +144,7 @@ class TestAuthHandler:
             client_id="test-client",
         )
 
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "active": True,
@@ -172,7 +172,7 @@ class TestAuthHandler:
             client_id="test-client",
         )
 
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"active": False}
 
