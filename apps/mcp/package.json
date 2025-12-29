@@ -1,6 +1,6 @@
 {
 	"name": "@rawcontext/engram-mcp",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Engram MCP server - intelligent memory for AI agents",
 	"type": "module",
 	"bin": {
@@ -16,6 +16,7 @@
 		"dist",
 		"README.md"
 	],
+	"homepage": "https://github.com/rawcontext/engram/tree/main/apps/mcp#readme",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/rawcontext/engram.git",
