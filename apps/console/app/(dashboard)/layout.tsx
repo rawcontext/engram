@@ -8,8 +8,16 @@ import type { ReactNode } from "react";
 const DashboardShell = dynamic(() => import("@/components/layout/dashboard-shell"), {
 	ssr: false,
 	loading: () => (
-		<div className="min-h-screen bg-background flex items-center justify-center">
-			<div className="text-muted-foreground">Loading dashboard...</div>
+		<div
+			style={{
+				minHeight: "100vh",
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				backgroundColor: "#0a0a0a",
+			}}
+		>
+			<div style={{ color: "#71717a" }}>Loading dashboard...</div>
 		</div>
 	),
 });
