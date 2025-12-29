@@ -130,6 +130,20 @@ jobs:
           fi
           echo "TF_HTTP_PASSWORD is set (length: $(echo -n '${{ secrets.TF_HTTP_PASSWORD }}' | wc -c))"
 
+      - name: Wait for API State Backend
+        run: |
+          echo "Waiting for API state backend to be available..."
+          for i in {1..30}; do
+            if curl -sf "https://api.engram.rawcontext.com/v1/health" > /dev/null 2>&1; then
+              echo "API is healthy, proceeding with OpenTofu init"
+              exit 0
+            fi
+            echo "Attempt $i/30: API not ready, waiting 10s..."
+            sleep 10
+          done
+          echo "::error::API state backend not available after 5 minutes"
+          exit 1
+
       - name: OpenTofu Init
         working-directory: packages/infra
         run: |
