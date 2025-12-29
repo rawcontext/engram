@@ -102,7 +102,16 @@ export function auth(options: AuthOptions) {
 				method: "dev",
 				type: "dev",
 				userId: "service",
-				scopes: ["memory:read", "memory:write", "query:read", "state:write"],
+				scopes: [
+					"memory:read",
+					"memory:write",
+					"query:read",
+					"state:write",
+					"alerts:read",
+					"alerts:write",
+					"deployments:read",
+					"admin:read",
+				],
 				rateLimit: 1000,
 			};
 			c.set("auth", serviceContext);
