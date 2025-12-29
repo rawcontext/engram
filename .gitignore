@@ -25,7 +25,7 @@ configs/
 !configs/Caddyfile
 
 # Symlinks to local configs
-.env
+.env*
 .beads
 docs/
 apps/*/.env
