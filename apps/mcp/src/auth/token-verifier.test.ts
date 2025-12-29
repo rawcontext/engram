@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { createTestLogger } from "@engram/common/testing";
 import { createTokenVerifier, IntrospectionTokenVerifier } from "./token-verifier";
 
