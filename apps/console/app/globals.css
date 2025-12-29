@@ -1,148 +1,79 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
-/* ============================================
-   ENGRAM CONSOLE - Mission Control Aesthetic
-   Shadcn/UI Compatible CSS Variables
-   ============================================ */
-
 :root {
-	/* Shadcn semantic tokens - Mission Control Dark Theme */
-	--background: oklch(0.08 0.005 250);
-	--foreground: oklch(0.97 0.005 250);
-	--card: oklch(0.11 0.008 250);
-	--card-foreground: oklch(0.97 0.005 250);
-	--popover: oklch(0.11 0.008 250);
-	--popover-foreground: oklch(0.97 0.005 250);
-	--primary: oklch(0.78 0.15 195);
-	--primary-foreground: oklch(0.12 0.02 195);
-	--secondary: oklch(0.18 0.01 250);
-	--secondary-foreground: oklch(0.92 0.005 250);
-	--muted: oklch(0.18 0.01 250);
-	--muted-foreground: oklch(0.6 0.01 250);
-	--accent: oklch(0.18 0.01 250);
-	--accent-foreground: oklch(0.92 0.005 250);
-	--destructive: oklch(0.65 0.2 25);
-	--destructive-foreground: oklch(0.98 0.01 25);
-	--border: oklch(0.25 0.015 250);
-	--input: oklch(0.25 0.015 250);
-	--ring: oklch(0.78 0.15 195);
-	--radius: 0.5rem;
-
-	/* Status semantic tokens */
-	--success: oklch(0.72 0.19 145);
-	--success-foreground: oklch(0.12 0.03 145);
-	--warning: oklch(0.8 0.18 85);
-	--warning-foreground: oklch(0.15 0.03 85);
-	--info: oklch(0.78 0.15 195);
-	--info-foreground: oklch(0.12 0.02 195);
-	--violet: oklch(0.7 0.15 290);
-	--violet-foreground: oklch(0.98 0.01 290);
-
-	/* Chart colors - operational palette */
-	--chart-1: oklch(0.78 0.15 195);
-	--chart-2: oklch(0.75 0.18 145);
-	--chart-3: oklch(0.8 0.15 85);
-	--chart-4: oklch(0.65 0.2 25);
-	--chart-5: oklch(0.7 0.15 290);
-
-	/* Sidebar tokens */
-	--sidebar: oklch(0.09 0.006 250);
-	--sidebar-foreground: oklch(0.92 0.005 250);
-	--sidebar-primary: oklch(0.78 0.15 195);
-	--sidebar-primary-foreground: oklch(0.12 0.02 195);
-	--sidebar-accent: oklch(0.15 0.01 250);
-	--sidebar-accent-foreground: oklch(0.92 0.005 250);
-	--sidebar-border: oklch(0.2 0.01 250);
-	--sidebar-ring: oklch(0.78 0.15 195);
+	--radius: 0.625rem;
+	--background: oklch(1 0 0);
+	--foreground: oklch(0.145 0 0);
+	--card: oklch(1 0 0);
+	--card-foreground: oklch(0.145 0 0);
+	--popover: oklch(1 0 0);
+	--popover-foreground: oklch(0.145 0 0);
+	--primary: oklch(0.205 0 0);
+	--primary-foreground: oklch(0.985 0 0);
+	--secondary: oklch(0.97 0 0);
+	--secondary-foreground: oklch(0.205 0 0);
+	--muted: oklch(0.97 0 0);
+	--muted-foreground: oklch(0.556 0 0);
+	--accent: oklch(0.97 0 0);
+	--accent-foreground: oklch(0.205 0 0);
+	--destructive: oklch(0.577 0.245 27.325);
+	--destructive-foreground: oklch(0.985 0 0);
+	--border: oklch(0.922 0 0);
+	--input: oklch(0.922 0 0);
+	--ring: oklch(0.708 0 0);
+	--chart-1: oklch(0.646 0.222 41.116);
+	--chart-2: oklch(0.6 0.118 184.704);
+	--chart-3: oklch(0.398 0.07 227.392);
+	--chart-4: oklch(0.828 0.189 84.429);
+	--chart-5: oklch(0.769 0.188 70.08);
+	--sidebar: oklch(0.985 0 0);
+	--sidebar-foreground: oklch(0.145 0 0);
+	--sidebar-primary: oklch(0.205 0 0);
+	--sidebar-primary-foreground: oklch(0.985 0 0);
+	--sidebar-accent: oklch(0.97 0 0);
+	--sidebar-accent-foreground: oklch(0.205 0 0);
+	--sidebar-border: oklch(0.922 0 0);
+	--sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
-	--background: oklch(0.08 0.005 250);
-	--foreground: oklch(0.97 0.005 250);
-	--card: oklch(0.11 0.008 250);
-	--card-foreground: oklch(0.97 0.005 250);
-	--popover: oklch(0.11 0.008 250);
-	--popover-foreground: oklch(0.97 0.005 250);
-	--primary: oklch(0.78 0.15 195);
-	--primary-foreground: oklch(0.12 0.02 195);
-	--secondary: oklch(0.18 0.01 250);
-	--secondary-foreground: oklch(0.92 0.005 250);
-	--muted: oklch(0.18 0.01 250);
-	--muted-foreground: oklch(0.6 0.01 250);
-	--accent: oklch(0.18 0.01 250);
-	--accent-foreground: oklch(0.92 0.005 250);
-	--destructive: oklch(0.5 0.18 25);
-	--destructive-foreground: oklch(0.7 0.22 25);
-	--border: oklch(0.25 0.015 250);
-	--input: oklch(0.25 0.015 250);
-	--ring: oklch(0.5 0.1 195);
-	--success: oklch(0.72 0.19 145);
-	--success-foreground: oklch(0.12 0.03 145);
-	--warning: oklch(0.8 0.18 85);
-	--warning-foreground: oklch(0.15 0.03 85);
-	--info: oklch(0.78 0.15 195);
-	--info-foreground: oklch(0.12 0.02 195);
-	--violet: oklch(0.7 0.15 290);
-	--violet-foreground: oklch(0.98 0.01 290);
-	--chart-1: oklch(0.65 0.2 265);
-	--chart-2: oklch(0.7 0.15 165);
-	--chart-3: oklch(0.77 0.17 70);
-	--chart-4: oklch(0.65 0.23 305);
-	--chart-5: oklch(0.65 0.22 20);
-	--sidebar: oklch(0.12 0.008 250);
-	--sidebar-foreground: oklch(0.97 0.005 250);
-	--sidebar-primary: oklch(0.65 0.2 265);
-	--sidebar-primary-foreground: oklch(0.97 0.005 250);
-	--sidebar-accent: oklch(0.18 0.01 250);
-	--sidebar-accent-foreground: oklch(0.97 0.005 250);
-	--sidebar-border: oklch(0.25 0.015 250);
-	--sidebar-ring: oklch(0.5 0.1 195);
+	--background: oklch(0.145 0 0);
+	--foreground: oklch(0.985 0 0);
+	--card: oklch(0.205 0 0);
+	--card-foreground: oklch(0.985 0 0);
+	--popover: oklch(0.269 0 0);
+	--popover-foreground: oklch(0.985 0 0);
+	--primary: oklch(0.922 0 0);
+	--primary-foreground: oklch(0.205 0 0);
+	--secondary: oklch(0.269 0 0);
+	--secondary-foreground: oklch(0.985 0 0);
+	--muted: oklch(0.269 0 0);
+	--muted-foreground: oklch(0.708 0 0);
+	--accent: oklch(0.371 0 0);
+	--accent-foreground: oklch(0.985 0 0);
+	--destructive: oklch(0.704 0.191 22.216);
+	--destructive-foreground: oklch(0.985 0 0);
+	--border: oklch(1 0 0 / 10%);
+	--input: oklch(1 0 0 / 15%);
+	--ring: oklch(0.556 0 0);
+	--chart-1: oklch(0.488 0.243 264.376);
+	--chart-2: oklch(0.696 0.17 162.48);
+	--chart-3: oklch(0.769 0.188 70.08);
+	--chart-4: oklch(0.627 0.265 303.9);
+	--chart-5: oklch(0.645 0.246 16.439);
+	--sidebar: oklch(0.205 0 0);
+	--sidebar-foreground: oklch(0.985 0 0);
+	--sidebar-primary: oklch(0.488 0.243 264.376);
+	--sidebar-primary-foreground: oklch(0.985 0 0);
+	--sidebar-accent: oklch(0.269 0 0);
+	--sidebar-accent-foreground: oklch(0.985 0 0);
+	--sidebar-border: oklch(1 0 0 / 10%);
+	--sidebar-ring: oklch(0.439 0 0);
 }
 
-.light,
-[data-theme="light"] {
-	--background: oklch(0.98 0.002 250);
-	--foreground: oklch(0.15 0.01 250);
-	--card: oklch(0.96 0.003 250);
-	--card-foreground: oklch(0.15 0.01 250);
-	--popover: oklch(1 0 0);
-	--popover-foreground: oklch(0.15 0.01 250);
-	--primary: oklch(0.55 0.18 195);
-	--primary-foreground: oklch(0.98 0.005 195);
-	--secondary: oklch(0.92 0.005 250);
-	--secondary-foreground: oklch(0.2 0.01 250);
-	--muted: oklch(0.92 0.005 250);
-	--muted-foreground: oklch(0.45 0.01 250);
-	--accent: oklch(0.92 0.005 250);
-	--accent-foreground: oklch(0.2 0.01 250);
-	--destructive: oklch(0.55 0.22 25);
-	--destructive-foreground: oklch(0.98 0.01 25);
-	--border: oklch(0.88 0.005 250);
-	--input: oklch(0.88 0.005 250);
-	--ring: oklch(0.55 0.18 195);
-	--success: oklch(0.55 0.2 145);
-	--success-foreground: oklch(0.98 0.01 145);
-	--warning: oklch(0.7 0.18 85);
-	--warning-foreground: oklch(0.15 0.03 85);
-	--info: oklch(0.55 0.18 195);
-	--info-foreground: oklch(0.98 0.005 195);
-	--violet: oklch(0.55 0.18 290);
-	--violet-foreground: oklch(0.98 0.01 290);
-	--sidebar: oklch(0.96 0.003 250);
-	--sidebar-foreground: oklch(0.15 0.01 250);
-	--sidebar-primary: oklch(0.55 0.18 195);
-	--sidebar-primary-foreground: oklch(0.98 0.005 195);
-	--sidebar-accent: oklch(0.92 0.005 250);
-	--sidebar-accent-foreground: oklch(0.2 0.01 250);
-	--sidebar-border: oklch(0.88 0.005 250);
-	--sidebar-ring: oklch(0.55 0.18 195);
-}
-
-/* Tailwind v4 theme mapping */
 @theme inline {
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
@@ -160,14 +91,6 @@
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
 	--color-destructive-foreground: var(--destructive-foreground);
-	--color-success: var(--success);
-	--color-success-foreground: var(--success-foreground);
-	--color-warning: var(--warning);
-	--color-warning-foreground: var(--warning-foreground);
-	--color-info: var(--info);
-	--color-info-foreground: var(--info-foreground);
-	--color-violet: var(--violet);
-	--color-violet-foreground: var(--violet-foreground);
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
@@ -196,590 +119,5 @@
 	}
 	body {
 		@apply bg-background text-foreground;
-	}
-}
-
-/* ============================================
-   Base Styles
-   ============================================ */
-
-* {
-	box-sizing: border-box;
-}
-
-html {
-	scroll-behavior: smooth;
-}
-
-body {
-	font-family: "IBM Plex Sans", system-ui, sans-serif;
-	min-height: 100vh;
-	overflow-x: hidden;
-}
-
-/* Subtle grid background - mission control feel */
-body::before {
-	content: "";
-	position: fixed;
-	inset: 0;
-	background-image:
-		linear-gradient(color-mix(in oklch, var(--primary) 2%, transparent) 1px, transparent 1px),
-		linear-gradient(90deg, color-mix(in oklch, var(--primary) 2%, transparent) 1px, transparent 1px);
-	background-size: 40px 40px;
-	pointer-events: none;
-	z-index: 0;
-}
-
-/* Scanline overlay for CRT feel */
-body::after {
-	content: "";
-	position: fixed;
-	inset: 0;
-	background: repeating-linear-gradient(
-		0deg,
-		transparent,
-		transparent 2px,
-		rgba(0, 0, 0, 0.03) 2px,
-		rgba(0, 0, 0, 0.03) 4px
-	);
-	pointer-events: none;
-	z-index: 1;
-}
-
-/* ============================================
-   Typography
-   ============================================ */
-
-.font-mono {
-	font-family: "IBM Plex Mono", monospace;
-}
-
-.font-display {
-	font-family: "IBM Plex Sans", system-ui, sans-serif;
-	font-weight: 600;
-	letter-spacing: -0.02em;
-}
-
-/* ============================================
-   Control Panel Cards
-   ============================================ */
-
-.panel {
-	@apply bg-card border border-primary/10 rounded-lg relative overflow-hidden;
-}
-
-.panel::before {
-	content: "";
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	height: 1px;
-	background: linear-gradient(
-		90deg,
-		transparent,
-		color-mix(in oklch, var(--primary) 30%, transparent),
-		transparent
-	);
-}
-
-.panel-elevated {
-	@apply bg-secondary shadow-lg;
-}
-
-/* ============================================
-   Status Indicators
-   ============================================ */
-
-.status-dot {
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	position: relative;
-}
-
-.status-dot::after {
-	content: "";
-	position: absolute;
-	inset: -2px;
-	border-radius: 50%;
-	animation: status-pulse 2s ease-in-out infinite;
-}
-
-.status-online {
-	@apply bg-success;
-	box-shadow: 0 0 8px color-mix(in oklch, var(--success) 50%, transparent);
-}
-
-.status-online::after {
-	background: color-mix(in oklch, var(--success) 30%, transparent);
-}
-
-.status-warning {
-	@apply bg-warning;
-	box-shadow: 0 0 8px color-mix(in oklch, var(--warning) 50%, transparent);
-}
-
-.status-warning::after {
-	background: color-mix(in oklch, var(--warning) 30%, transparent);
-}
-
-.status-error {
-	@apply bg-destructive;
-	box-shadow: 0 0 8px color-mix(in oklch, var(--destructive) 50%, transparent);
-	animation: status-blink 1s ease-in-out infinite;
-}
-
-.status-error::after {
-	background: color-mix(in oklch, var(--destructive) 30%, transparent);
-}
-
-.status-offline {
-	@apply bg-muted-foreground;
-}
-
-.status-offline::after {
-	display: none;
-}
-
-@keyframes status-pulse {
-	0%,
-	100% {
-		transform: scale(1);
-		opacity: 1;
-	}
-	50% {
-		transform: scale(1.5);
-		opacity: 0;
-	}
-}
-
-@keyframes status-blink {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.5;
-	}
-}
-
-/* ============================================
-   Metric Display - Flight Instrument Style
-   ============================================ */
-
-.metric-value {
-	font-family: "IBM Plex Mono", monospace;
-	font-weight: 600;
-	font-size: 2rem;
-	letter-spacing: -0.02em;
-	background: linear-gradient(180deg, var(--foreground) 0%, var(--muted-foreground) 100%);
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
-}
-
-.metric-label {
-	font-family: "IBM Plex Mono", monospace;
-	font-size: 0.75rem;
-	font-weight: 500;
-	text-transform: uppercase;
-	letter-spacing: 0.1em;
-	color: var(--muted-foreground);
-}
-
-.metric-trend-up {
-	color: var(--success);
-}
-
-.metric-trend-down {
-	color: var(--destructive);
-}
-
-/* ============================================
-   Navigation
-   ============================================ */
-
-.nav-item {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 10px 16px;
-	border-radius: 6px;
-	color: var(--muted-foreground);
-	font-size: 0.875rem;
-	font-weight: 500;
-	transition: all 0.15s ease;
-	position: relative;
-}
-
-.nav-item:hover {
-	background: color-mix(in oklch, var(--primary) 5%, transparent);
-	color: var(--foreground);
-}
-
-.nav-item.active {
-	background: color-mix(in oklch, var(--primary) 10%, transparent);
-	color: var(--primary);
-}
-
-.nav-item.active::before {
-	content: "";
-	position: absolute;
-	left: 0;
-	top: 50%;
-	transform: translateY(-50%);
-	width: 3px;
-	height: 24px;
-	background: var(--primary);
-	border-radius: 0 2px 2px 0;
-}
-
-/* ============================================
-   Scrollbar
-   ============================================ */
-
-::-webkit-scrollbar {
-	width: 6px;
-	height: 6px;
-}
-
-::-webkit-scrollbar-track {
-	background: var(--card);
-}
-
-::-webkit-scrollbar-thumb {
-	background: color-mix(in oklch, var(--primary) 20%, transparent);
-	border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-	background: color-mix(in oklch, var(--primary) 30%, transparent);
-}
-
-/* ============================================
-   Animations
-   ============================================ */
-
-@keyframes fade-in {
-	from {
-		opacity: 0;
-		transform: translateY(8px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
-@keyframes slide-in-left {
-	from {
-		opacity: 0;
-		transform: translateX(-16px);
-	}
-	to {
-		opacity: 1;
-		transform: translateX(0);
-	}
-}
-
-.animate-fade-in {
-	animation: fade-in 0.4s ease-out forwards;
-}
-
-.animate-slide-in {
-	animation: slide-in-left 0.3s ease-out forwards;
-}
-
-/* Staggered children */
-.stagger > * {
-	opacity: 0;
-	animation: fade-in 0.4s ease-out forwards;
-}
-
-.stagger > *:nth-child(1) {
-	animation-delay: 0.05s;
-}
-.stagger > *:nth-child(2) {
-	animation-delay: 0.1s;
-}
-.stagger > *:nth-child(3) {
-	animation-delay: 0.15s;
-}
-.stagger > *:nth-child(4) {
-	animation-delay: 0.2s;
-}
-.stagger > *:nth-child(5) {
-	animation-delay: 0.25s;
-}
-.stagger > *:nth-child(6) {
-	animation-delay: 0.3s;
-}
-.stagger > *:nth-child(7) {
-	animation-delay: 0.35s;
-}
-.stagger > *:nth-child(8) {
-	animation-delay: 0.4s;
-}
-
-/* ============================================
-   Utility Classes
-   ============================================ */
-
-.text-gradient {
-	background: linear-gradient(135deg, var(--primary), var(--violet));
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
-}
-
-.border-glow {
-	box-shadow:
-		0 0 0 1px color-mix(in oklch, var(--primary) 20%, transparent),
-		0 0 20px color-mix(in oklch, var(--primary) 10%, transparent);
-}
-
-.hover-lift {
-	transition:
-		transform 0.2s ease,
-		box-shadow 0.2s ease;
-}
-
-.hover-lift:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-}
-
-/* ============================================
-   Streaming Indicators - Live Data Feedback
-   ============================================ */
-
-/* Streaming dot base styles */
-.streaming-dot-live,
-.streaming-dot-degraded,
-.streaming-dot-stale,
-.streaming-dot-connecting,
-.streaming-dot-offline {
-	position: relative;
-}
-
-/* Live status - subtle heartbeat pulse */
-.streaming-dot-live {
-	background: var(--success);
-	box-shadow: 0 0 6px color-mix(in oklch, var(--success) 60%, transparent);
-	animation: streaming-heartbeat 2s ease-in-out infinite;
-}
-
-.streaming-dot-live::after {
-	content: "";
-	position: absolute;
-	inset: -3px;
-	border-radius: 50%;
-	background: color-mix(in oklch, var(--success) 30%, transparent);
-	animation: streaming-pulse-ring 2s ease-out infinite;
-}
-
-/* Degraded status - slower pulse, amber */
-.streaming-dot-degraded {
-	background: var(--warning);
-	box-shadow: 0 0 4px color-mix(in oklch, var(--warning) 50%, transparent);
-	animation: streaming-heartbeat 3s ease-in-out infinite;
-}
-
-.streaming-dot-degraded::after {
-	content: "";
-	position: absolute;
-	inset: -2px;
-	border-radius: 50%;
-	background: color-mix(in oklch, var(--warning) 20%, transparent);
-	animation: streaming-pulse-ring 3s ease-out infinite;
-}
-
-/* Stale status - dim, no animation */
-.streaming-dot-stale {
-	background: var(--warning);
-	opacity: 0.5;
-}
-
-/* Connecting status - fast pulse */
-.streaming-dot-connecting {
-	background: var(--primary);
-	animation: streaming-connecting 1s ease-in-out infinite;
-}
-
-/* Offline status - dim red, no animation */
-.streaming-dot-offline {
-	background: var(--destructive);
-	opacity: 0.4;
-}
-
-/* Heartbeat animation - mimics a heartbeat rhythm */
-@keyframes streaming-heartbeat {
-	0%,
-	100% {
-		transform: scale(1);
-		opacity: 1;
-	}
-	14% {
-		transform: scale(1.15);
-		opacity: 1;
-	}
-	28% {
-		transform: scale(1);
-		opacity: 1;
-	}
-	42% {
-		transform: scale(1.1);
-		opacity: 1;
-	}
-	70% {
-		transform: scale(1);
-		opacity: 0.85;
-	}
-}
-
-/* Expanding pulse ring */
-@keyframes streaming-pulse-ring {
-	0% {
-		transform: scale(1);
-		opacity: 0.6;
-	}
-	50% {
-		transform: scale(1.8);
-		opacity: 0;
-	}
-	100% {
-		transform: scale(1);
-		opacity: 0;
-	}
-}
-
-/* Connecting animation - faster blink */
-@keyframes streaming-connecting {
-	0%,
-	100% {
-		opacity: 0.3;
-	}
-	50% {
-		opacity: 1;
-	}
-}
-
-/* ============================================
-   Data Freshness Animations
-   ============================================ */
-
-/* Flash on data update - primary */
-.data-flash-cyan {
-	animation: data-flash-primary 0.6s ease-out;
-}
-
-@keyframes data-flash-primary {
-	0% {
-		box-shadow:
-			inset 0 0 0 1px color-mix(in oklch, var(--primary) 50%, transparent),
-			0 0 12px color-mix(in oklch, var(--primary) 30%, transparent);
-	}
-	100% {
-		box-shadow:
-			inset 0 0 0 1px transparent,
-			0 0 0 transparent;
-	}
-}
-
-/* Flash on data update - green */
-.data-flash-green {
-	animation: data-flash-success 0.6s ease-out;
-}
-
-@keyframes data-flash-success {
-	0% {
-		box-shadow:
-			inset 0 0 0 1px color-mix(in oklch, var(--success) 50%, transparent),
-			0 0 12px color-mix(in oklch, var(--success) 30%, transparent);
-	}
-	100% {
-		box-shadow:
-			inset 0 0 0 1px transparent,
-			0 0 0 transparent;
-	}
-}
-
-/* Flash on data update - amber */
-.data-flash-amber {
-	animation: data-flash-warning 0.6s ease-out;
-}
-
-@keyframes data-flash-warning {
-	0% {
-		box-shadow:
-			inset 0 0 0 1px color-mix(in oklch, var(--warning) 50%, transparent),
-			0 0 12px color-mix(in oklch, var(--warning) 30%, transparent);
-	}
-	100% {
-		box-shadow:
-			inset 0 0 0 1px transparent,
-			0 0 0 transparent;
-	}
-}
-
-/* Stale data overlay */
-.data-stale {
-	opacity: 0.6;
-	filter: saturate(0.7);
-}
-
-/* Degraded data - slightly muted */
-.data-degraded {
-	opacity: 0.85;
-}
-
-/* Live value change animations */
-.live-value-changing {
-	opacity: 0.7;
-	transform: translateY(-1px);
-}
-
-.live-value-up {
-	color: var(--success);
-}
-
-.live-value-down {
-	color: var(--destructive);
-}
-
-/* Pulse ring animations */
-.pulse-ring-cyan {
-	background: transparent;
-	border: 1px solid color-mix(in oklch, var(--primary) 50%, transparent);
-	animation: pulse-ring-expand 2s ease-out infinite;
-}
-
-.pulse-ring-green {
-	background: transparent;
-	border: 1px solid color-mix(in oklch, var(--success) 50%, transparent);
-	animation: pulse-ring-expand 2s ease-out infinite;
-}
-
-.pulse-ring-amber {
-	background: transparent;
-	border: 1px solid color-mix(in oklch, var(--warning) 50%, transparent);
-	animation: pulse-ring-expand 2s ease-out infinite;
-}
-
-.pulse-ring-red {
-	background: transparent;
-	border: 1px solid color-mix(in oklch, var(--destructive) 50%, transparent);
-	animation: pulse-ring-expand 2s ease-out infinite;
-}
-
-@keyframes pulse-ring-expand {
-	0% {
-		transform: scale(0.5);
-		opacity: 1;
-	}
-	100% {
-		transform: scale(2);
-		opacity: 0;
 	}
 }

@@ -18,27 +18,27 @@ interface StreamingIndicatorProps {
 const STATUS_CONFIG = {
 	connecting: {
 		label: "Connecting",
-		dotClass: "streaming-dot-connecting",
+		dotClass: "bg-primary animate-pulse",
 		textClass: "text-muted-foreground",
 	},
 	live: {
 		label: "Live",
-		dotClass: "streaming-dot-live",
+		dotClass: "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)] animate-pulse",
 		textClass: "text-green-500",
 	},
 	degraded: {
 		label: "Degraded",
-		dotClass: "streaming-dot-degraded",
+		dotClass: "bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.5)] animate-pulse",
 		textClass: "text-amber-500",
 	},
 	stale: {
 		label: "Stale",
-		dotClass: "streaming-dot-stale",
+		dotClass: "bg-amber-500 opacity-50",
 		textClass: "text-amber-600",
 	},
 	offline: {
 		label: "Offline",
-		dotClass: "streaming-dot-offline",
+		dotClass: "bg-destructive opacity-40",
 		textClass: "text-destructive",
 	},
 };

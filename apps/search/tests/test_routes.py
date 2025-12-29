@@ -7,17 +7,17 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from src.api.router import router
-from src.middleware.auth import ApiKeyContext
+from src.middleware.auth import AuthContext
 from src.retrieval.types import RerankerTier
 
-# Mock auth context for authenticated requests
-MOCK_API_KEY_CONTEXT = ApiKeyContext(
-    id="test-key-id",
-    prefix="engram_test_abc123...",
-    method="api_key",
-    type="test",
+# Mock auth context for authenticated requests (OAuth format)
+MOCK_AUTH_CONTEXT = AuthContext(
+    id="test-token-id",
+    prefix="egm_oauth_abc123...",
+    method="oauth",
+    type="oauth",
     user_id="test-user",
-    scopes=["memory:read", "memory:write", "search:read"],
+    scopes=["memory:read", "memory:write", "query:read"],
     rate_limit_rpm=1000,
 )
 
@@ -91,16 +91,16 @@ def app_with_mocks(
 @pytest.fixture
 async def client(app_with_mocks):
     """Create async test client with mocked authentication."""
-    # Mock the auth handler to return a valid context
+    # Mock the auth handler to return a valid OAuth context
     mock_handler = AsyncMock()
-    mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+    mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
 
     with patch("src.middleware.auth._auth_handler", mock_handler):
         transport = ASGITransport(app=app_with_mocks)
         async with AsyncClient(
             transport=transport,
             base_url="http://test",
-            headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
         ) as ac:
             yield ac
 
@@ -299,14 +299,14 @@ class TestSearchEndpoint:
 
         # Mock auth handler for this test
         mock_handler = AsyncMock()
-        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+        mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
 
         with patch("src.middleware.auth._auth_handler", mock_handler):
             transport = ASGITransport(app=app)
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
             ) as client:
                 response = await client.post(
                     "/v1/search/query",
@@ -371,14 +371,14 @@ class TestEmbedEndpoint:
 
         # Mock auth handler for this test
         mock_handler = AsyncMock()
-        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+        mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
 
         with patch("src.middleware.auth._auth_handler", mock_handler):
             transport = ASGITransport(app=app)
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
             ) as client:
                 response = await client.post(
                     "/v1/search/embed",
@@ -482,14 +482,14 @@ class TestMultiQuerySearchEndpoint:
 
         # Mock auth handler for this test
         mock_handler = AsyncMock()
-        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+        mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
 
         with patch("src.middleware.auth._auth_handler", mock_handler):
             transport = ASGITransport(app=app)
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
             ) as client:
                 response = await client.post(
                     "/v1/search/multi-query",
@@ -569,14 +569,14 @@ class TestSessionAwareSearchEndpoint:
 
         # Mock auth handler for this test
         mock_handler = AsyncMock()
-        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+        mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
 
         with patch("src.middleware.auth._auth_handler", mock_handler):
             transport = ASGITransport(app=app)
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
             ) as client:
                 response = await client.post(
                     "/v1/search/session-aware",
@@ -687,14 +687,14 @@ class TestMemoryIndexEndpoint:
         app.state.embedder_factory = MagicMock()
 
         mock_handler = AsyncMock()
-        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+        mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
 
         with patch("src.middleware.auth._auth_handler", mock_handler):
             transport = ASGITransport(app=app)
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
             ) as client:
                 response = await client.post(
                     "/v1/search/index-memory",
@@ -719,14 +719,14 @@ class TestMemoryIndexEndpoint:
         app.state.qdrant = MagicMock()
 
         mock_handler = AsyncMock()
-        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+        mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
 
         with patch("src.middleware.auth._auth_handler", mock_handler):
             transport = ASGITransport(app=app)
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
             ) as client:
                 response = await client.post(
                     "/v1/search/index-memory",
@@ -827,14 +827,14 @@ class TestRecreateCollectionEndpoint:
         app.include_router(router)
 
         mock_handler = AsyncMock()
-        mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+        mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
 
         with patch("src.middleware.auth._auth_handler", mock_handler):
             transport = ASGITransport(app=app)
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
             ) as client:
                 response = await client.post("/v1/search/admin/engram_memory/recreate")
 

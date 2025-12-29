@@ -53,18 +53,18 @@ export function DataFreshness({
 	const isDegraded = status === "degraded";
 
 	const flashClass = {
-		cyan: "data-flash-cyan",
-		green: "data-flash-green",
-		amber: "data-flash-amber",
+		cyan: "shadow-[inset_0_0_0_1px_rgba(var(--primary),0.5),0_0_12px_rgba(var(--primary),0.3)]",
+		green: "shadow-[inset_0_0_0_1px_rgba(34,197,94,0.5),0_0_12px_rgba(34,197,94,0.3)]",
+		amber: "shadow-[inset_0_0_0_1px_rgba(245,158,11,0.5),0_0_12px_rgba(245,158,11,0.3)]",
 	}[flashColor];
 
 	return (
 		<div
 			className={cn(
-				"relative transition-opacity duration-300",
+				"relative transition-all duration-300",
 				isFlashing && flashClass,
-				showStaleOverlay && isStale && "data-stale",
-				showStaleOverlay && isDegraded && "data-degraded",
+				showStaleOverlay && isStale && "opacity-60 saturate-[0.7]",
+				showStaleOverlay && isDegraded && "opacity-85",
 				className,
 			)}
 		>
@@ -132,9 +132,9 @@ export function LiveValue({
 		<span
 			className={cn(
 				"inline-flex items-center transition-all duration-300",
-				isChanging && "live-value-changing",
-				direction === "up" && "live-value-up",
-				direction === "down" && "live-value-down",
+				isChanging && "opacity-70 -translate-y-px",
+				direction === "up" && "text-green-500",
+				direction === "down" && "text-destructive",
 				className,
 			)}
 		>
@@ -177,15 +177,20 @@ export function PulseRing({ active, color = "cyan", size = "md", className }: Pu
 	};
 
 	const colorClasses = {
-		cyan: "pulse-ring-cyan",
-		green: "pulse-ring-green",
-		amber: "pulse-ring-amber",
-		red: "pulse-ring-red",
+		cyan: "border border-primary/50 animate-ping",
+		green: "border border-green-500/50 animate-ping",
+		amber: "border border-amber-500/50 animate-ping",
+		red: "border border-destructive/50 animate-ping",
 	};
 
 	return (
 		<span
-			className={cn("absolute rounded-full", sizeClasses[size], colorClasses[color], className)}
+			className={cn(
+				"absolute rounded-full bg-transparent",
+				sizeClasses[size],
+				colorClasses[color],
+				className,
+			)}
 		/>
 	);
 }

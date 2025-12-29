@@ -8,14 +8,14 @@ from httpx import ASGITransport, AsyncClient
 from src.main import create_app
 from src.middleware.auth import AuthContext
 
-# Mock auth context for authenticated requests
-MOCK_API_KEY_CONTEXT = AuthContext(
-    id="test-key-id",
-    prefix="engram_test_abc123...",
-    method="api_key",
-    type="test",
+# Mock auth context for authenticated requests (OAuth format)
+MOCK_AUTH_CONTEXT = AuthContext(
+    id="test-token-id",
+    prefix="egm_oauth_abc123...",
+    method="oauth",
+    type="oauth",
     user_id="test-user",
-    scopes=["memory:read", "memory:write", "search:read"],
+    scopes=["memory:read", "memory:write", "query:read"],
     rate_limit_rpm=1000,
 )
 
@@ -43,16 +43,16 @@ async def client(app):
     Yields:
         AsyncClient for making test requests.
     """
-    # Mock the auth handler to return a valid context
+    # Mock the auth handler to return a valid OAuth context
     mock_handler = AsyncMock()
-    mock_handler.validate = AsyncMock(return_value=MOCK_API_KEY_CONTEXT)
+    mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
 
     with patch("src.middleware.auth._auth_handler", mock_handler):
         transport = ASGITransport(app=app)
         async with AsyncClient(
             transport=transport,
             base_url="http://test",
-            headers={"Authorization": "Bearer engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
         ) as ac:
             yield ac
 

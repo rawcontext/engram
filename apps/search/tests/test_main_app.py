@@ -423,7 +423,7 @@ class TestLifespanWithConsumer:
         """Test lifespan with authentication enabled."""
         with (
             patch("src.main.get_settings") as mock_settings_fn,
-            patch("src.main.ApiKeyAuth") as mock_auth_cls,
+            patch("src.main.AuthHandler") as mock_auth_cls,
             patch("src.main.set_auth_handler") as mock_set_auth,
         ):
             settings = MagicMock()
@@ -470,7 +470,7 @@ class TestLifespanWithConsumer:
         """Test lifespan raises when auth connection fails."""
         with (
             patch("src.main.get_settings") as mock_settings_fn,
-            patch("src.main.ApiKeyAuth") as mock_auth_cls,
+            patch("src.main.AuthHandler") as mock_auth_cls,
         ):
             settings = MagicMock()
             settings.debug = False
@@ -494,7 +494,7 @@ class TestLifespanWithConsumer:
             app = FastAPI()
 
             # Should raise RuntimeError when auth fails
-            with pytest.raises(RuntimeError, match="Auth database connection failed"):
+            with pytest.raises(RuntimeError, match="OAuth introspection connection failed"):
                 async with lifespan(app):
                     pass
 
@@ -511,7 +511,7 @@ class TestLifespanWithConsumer:
         """Test lifespan handles auth disconnect error."""
         with (
             patch("src.main.get_settings") as mock_settings_fn,
-            patch("src.main.ApiKeyAuth") as mock_auth_cls,
+            patch("src.main.AuthHandler") as mock_auth_cls,
             patch("src.main.set_auth_handler"),
         ):
             settings = MagicMock()
