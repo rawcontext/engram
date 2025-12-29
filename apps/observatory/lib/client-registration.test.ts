@@ -10,9 +10,6 @@ mock.module("pg", () => ({
 	},
 }));
 
-// Import the module ONCE after mocks are set up
-const registrationModule = import("./client-registration");
-
 // Container object that holds the imported functions
 const lib: {
 	generateClientId: () => string;
@@ -41,8 +38,9 @@ const lib: {
 } = {} as typeof lib;
 
 describe("Client Registration Library", () => {
+	// Import inside beforeAll to ensure mocks are set up first
 	beforeAll(async () => {
-		const mod = await registrationModule;
+		const mod = await import("./client-registration");
 		lib.generateClientId = mod.generateClientId;
 		lib.generateClientSecret = mod.generateClientSecret;
 		lib.hashClientSecret = mod.hashClientSecret;

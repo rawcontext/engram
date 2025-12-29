@@ -31,9 +31,6 @@ mock.module("next/server", () => ({
 	},
 }));
 
-// Import the route module ONCE after mocks are set up
-const routeModule = import("../app/api/auth/register/route");
-
 // Container for route handler
 const route: {
 	POST: (req: Request) => Promise<Response>;
@@ -47,8 +44,9 @@ function createMockRequest(body: unknown): Request {
 }
 
 describe("Client Registration Endpoint", () => {
+	// Import inside beforeAll to ensure mocks are set up first
 	beforeAll(async () => {
-		const mod = await routeModule;
+		const mod = await import("../app/api/auth/register/route");
 		route.POST = mod.POST;
 	});
 
