@@ -652,12 +652,7 @@ jobs:
       - deploy-console
     if: |
       always() &&
-      needs.sync.result == 'success' &&
-      (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped') &&
-      (needs.deploy-search.result == 'success' || needs.deploy-search.result == 'skipped') &&
-      (needs.deploy-tuner.result == 'success' || needs.deploy-tuner.result == 'skipped') &&
-      (needs.deploy-observatory.result == 'success' || needs.deploy-observatory.result == 'skipped') &&
-      (needs.deploy-console.result == 'success' || needs.deploy-console.result == 'skipped')
+      needs.sync.result == 'success'
     environment: production
     steps:
       - name: Setup SSH
