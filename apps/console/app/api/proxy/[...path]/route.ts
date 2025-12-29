@@ -12,8 +12,20 @@ import { auth } from "@/lib/auth";
 
 // Get the Engram API URL from environment
 const ENGRAM_API_URL = process.env.ENGRAM_API_URL || "http://localhost:6174";
-const ENGRAM_API_KEY =
-	process.env.ENGRAM_API_KEY || process.env.ENGRAM_API_TOKEN || "engram_dev_console";
+
+// Token must match pattern: engram_dev_[alphanumeric_underscore]+ or engram_oauth_[32chars]
+// Use explicit checks to handle empty strings from env vars
+function getApiToken(): string {
+	const key = process.env.ENGRAM_API_KEY;
+	const token = process.env.ENGRAM_API_TOKEN;
+
+	if (key && key.trim()) return key.trim();
+	if (token && token.trim()) return token.trim();
+
+	return "engram_dev_console";
+}
+
+const ENGRAM_API_KEY = getApiToken();
 
 interface ProxyParams {
 	params: Promise<{ path: string[] }>;
@@ -73,6 +85,14 @@ async function proxyRequest(request: NextRequest, { params }: ProxyParams) {
 	try {
 		const response = await fetch(url.toString(), fetchOptions);
 		const data = await response.json();
+
+		// Log token prefix for debugging auth issues (never log full token)
+		if (response.status === 401) {
+			const tokenPrefix = ENGRAM_API_KEY.slice(0, 20);
+			console.error(
+				`[Console API Proxy] 401 from API - token prefix: ${tokenPrefix}..., url: ${url.pathname}`,
+			);
+		}
 
 		return NextResponse.json(data, {
 			status: response.status,
