@@ -18,10 +18,13 @@ export const config = {
 		/*
 		 * Match all paths except:
 		 * - /sign-in (auth page)
+		 * - /activate (device flow activation page)
 		 * - /api/auth/* (auth API routes)
+		 * - /api/well-known/* (OAuth metadata - rewrites from /.well-known/*)
+		 * - /.well-known/* (OAuth discovery endpoints)
 		 * - /_next/* (Next.js internals)
 		 * - /favicon.ico, /robots.txt (static files)
 		 */
-		"/((?!sign-in|api/auth|_next/static|_next/image|favicon.ico|robots.txt).*)",
+		"/((?!sign-in|activate|api/auth|api/well-known|\\.well-known|_next/static|_next/image|favicon.ico|robots.txt).*)",
 	],
 };
