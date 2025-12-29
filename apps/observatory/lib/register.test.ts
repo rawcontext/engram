@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 
 /**
  * Mock response structure
@@ -32,8 +32,12 @@ mock.module("next/server", () => ({
 }));
 
 // Import the route module ONCE after mocks are set up
-// This avoids issues with dynamic imports in each test
 const routeModule = import("../app/api/auth/register/route");
+
+// Container for route handler
+const route: {
+	POST: (req: Request) => Promise<Response>;
+} = {} as typeof route;
 
 // Mock Request
 function createMockRequest(body: unknown): Request {
@@ -43,12 +47,13 @@ function createMockRequest(body: unknown): Request {
 }
 
 describe("Client Registration Endpoint", () => {
-	let POST: (req: Request) => Promise<Response>;
-
-	beforeEach(async () => {
-		mockQuery.mockReset();
+	beforeAll(async () => {
 		const mod = await routeModule;
-		POST = mod.POST;
+		route.POST = mod.POST;
+	});
+
+	beforeEach(() => {
+		mockQuery.mockReset();
 	});
 
 	describe("POST /api/auth/register", () => {
@@ -60,7 +65,7 @@ describe("Client Registration Endpoint", () => {
 				client_name: "Test App",
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 
 			expect(response.init.status).toBe(201);
 			expect((response.body as Record<string, unknown>).client_id).toBeDefined();
@@ -76,7 +81,7 @@ describe("Client Registration Endpoint", () => {
 				token_endpoint_auth_method: "client_secret_basic",
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 
 			expect(response.init.status).toBe(201);
 			expect((response.body as Record<string, unknown>).client_secret).toBeDefined();
@@ -90,7 +95,7 @@ describe("Client Registration Endpoint", () => {
 				token_endpoint_auth_method: "none",
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 
 			expect(response.init.status).toBe(201);
 			expect((response.body as Record<string, unknown>).client_secret).toBeUndefined();
@@ -101,7 +106,7 @@ describe("Client Registration Endpoint", () => {
 				client_name: "Test App",
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 
 			expect(response.init.status).toBe(400);
 			expect((response.body as Record<string, unknown>).error).toBe("invalid_client_metadata");
@@ -112,7 +117,7 @@ describe("Client Registration Endpoint", () => {
 				redirect_uris: ["http://example.com/callback"], // HTTP not allowed
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 
 			expect(response.init.status).toBe(400);
 			expect((response.body as Record<string, unknown>).error).toBe("invalid_redirect_uri");
@@ -124,7 +129,7 @@ describe("Client Registration Endpoint", () => {
 				grant_types: ["implicit"],
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 
 			expect(response.init.status).toBe(400);
 			expect((response.body as Record<string, unknown>).error).toBe("invalid_client_metadata");
@@ -137,7 +142,7 @@ describe("Client Registration Endpoint", () => {
 				},
 			} as unknown as Request;
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 
 			expect(response.init.status).toBe(400);
 			expect((response.body as Record<string, unknown>).error).toBe("invalid_client_metadata");
@@ -158,7 +163,7 @@ describe("Client Registration Endpoint", () => {
 				software_version: "1.0.0",
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 
 			expect(response.init.status).toBe(201);
 			const body = response.body as Record<string, unknown>;
@@ -178,7 +183,7 @@ describe("Client Registration Endpoint", () => {
 				redirect_uris: ["https://example.com/callback"],
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 
 			expect(response.init.headers?.["Cache-Control"]).toBe("no-store");
 		});
@@ -192,7 +197,7 @@ describe("Client Registration Endpoint", () => {
 				redirect_uris: ["https://example.com/callback"],
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 			const body = response.body as Record<string, unknown>;
 
 			const after = Math.floor(Date.now() / 1000);
@@ -208,7 +213,7 @@ describe("Client Registration Endpoint", () => {
 				redirect_uris: ["https://example.com/callback"],
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 			const body = response.body as Record<string, unknown>;
 
 			expect(body.client_secret_expires_at).toBe(0);
@@ -222,7 +227,7 @@ describe("Client Registration Endpoint", () => {
 				grant_types: ["authorization_code"],
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 			const body = response.body as Record<string, unknown>;
 
 			expect(body.grant_types).toContain("authorization_code");
@@ -237,7 +242,7 @@ describe("Client Registration Endpoint", () => {
 				grant_types: ["urn:ietf:params:oauth:grant-type:device_code"],
 			});
 
-			const response = (await POST(request)) as unknown as MockedJsonResponse;
+			const response = (await route.POST(request)) as unknown as MockedJsonResponse;
 			const body = response.body as Record<string, unknown>;
 
 			expect(response.init.status).toBe(201);
