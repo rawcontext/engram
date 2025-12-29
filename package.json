@@ -12,7 +12,7 @@
 	"scripts": {
 		"build": "dotenv -- turbo run build",
 		"typecheck": "dotenv -- turbo run typecheck",
-		"dev": "dotenv -- turbo run dev",
+		"dev": "./scripts/kill-dev-ports.sh && dotenv -- turbo run dev",
 		"lint": "dotenv -- turbo run //#lint:run",
 		"lint:run": "biome check --write .",
 		"format": "dotenv -- turbo run //#format:run",
