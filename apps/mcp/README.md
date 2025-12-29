@@ -73,9 +73,9 @@ On first run, authenticate via browser.
 
 | Prompt | Description |
 |--------|-------------|
-| `/e prime` | Load context for a new task |
-| `/e recap` | Summarize a past session |
-| `/e why` | Investigate past decisions on a topic |
+| `/engram:session-prime` | Load context for a new task |
+| `/engram:session-recap` | Summarize a past session |
+| `/engram:decision-history` | Investigate past decisions on a topic |
 
 ## Self-Hosting
 
