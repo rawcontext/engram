@@ -18,33 +18,6 @@ claude mcp add engram npx @rawcontext/engram-mcp
 </details>
 
 <details>
-<summary>Cursor</summary>
-
-```bash
-cursor mcp add engram npx @rawcontext/engram-mcp
-```
-
-</details>
-
-<details>
-<summary>Windsurf</summary>
-
-```bash
-windsurf mcp add engram npx @rawcontext/engram-mcp
-```
-
-</details>
-
-<details>
-<summary>VS Code / GitHub Copilot</summary>
-
-```bash
-code --add-mcp '{"name":"engram","command":"npx","args":["-y","@rawcontext/engram-mcp"]}'
-```
-
-</details>
-
-<details>
 <summary>Gemini CLI</summary>
 
 ```bash
@@ -54,10 +27,46 @@ gemini mcp add engram npx @rawcontext/engram-mcp
 </details>
 
 <details>
-<summary>Aider</summary>
+<summary>Codex CLI</summary>
 
 ```bash
-aider --mcp-server "npx -y @rawcontext/engram-mcp"
+codex mcp add engram npx @rawcontext/engram-mcp
+```
+
+</details>
+
+<details>
+<summary>OpenCode</summary>
+
+```bash
+opencode mcp add engram npx @rawcontext/engram-mcp
+```
+
+</details>
+
+<details>
+<summary>Antigravity</summary>
+
+```bash
+antigravity mcp add engram npx @rawcontext/engram-mcp
+```
+
+</details>
+
+<details>
+<summary>Cursor</summary>
+
+```bash
+cursor mcp add engram npx @rawcontext/engram-mcp
+```
+
+</details>
+
+<details>
+<summary>VS Code</summary>
+
+```bash
+code --add-mcp '{"name":"engram","command":"npx","args":["-y","@rawcontext/engram-mcp"]}'
 ```
 
 </details>
