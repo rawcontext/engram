@@ -39,6 +39,16 @@ export const ConfigSchema = z.object({
 	authEnabled: z.boolean().default(true),
 	authPostgresUrl: z.string().optional(),
 
+	// OAuth server configuration (for HTTP transport inbound auth)
+	authServerUrl: z.string().url().optional(),
+	mcpServerUrl: z.string().url().optional(),
+	mcpClientId: z.string().optional(),
+	mcpClientSecret: z.string().optional(),
+
+	// Session configuration
+	sessionTtlSeconds: z.number().int().min(60).default(3600),
+	maxSessionsPerUser: z.number().int().min(1).default(10),
+
 	// Logging
 	logLevel: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
 });
@@ -79,6 +89,10 @@ export function detectMode(config: Config): "cloud" | "local" {
 export function loadConfig(): Config {
 	const apiUrl = process.env.ENGRAM_API_URL ?? DEFAULT_API_URL;
 	const isLocalhost = isLocalhostUrl(apiUrl);
+	const transport = process.env.MCP_TRANSPORT ?? "stdio";
+	const httpPort = process.env.MCP_HTTP_PORT
+		? Number.parseInt(process.env.MCP_HTTP_PORT, 10)
+		: 3010;
 
 	// Determine Observatory URL based on API URL
 	// When forcing OAuth locally (ENGRAM_FORCE_OAUTH=true), will use local Observatory by default
@@ -86,18 +100,42 @@ export function loadConfig(): Config {
 		process.env.ENGRAM_OBSERVATORY_URL ??
 		(isLocalhost ? DEFAULT_OBSERVATORY_URL : PRODUCTION_OBSERVATORY_URL);
 
-	// Auth defaults: enabled for cloud, disabled for local
+	// Auth defaults: enabled for cloud/HTTP, disabled for local/stdio
 	const authExplicitlySet = process.env.AUTH_ENABLED !== undefined;
-	const authEnabled = authExplicitlySet ? process.env.AUTH_ENABLED === "true" : !isLocalhost;
+	const authEnabled = authExplicitlySet
+		? process.env.AUTH_ENABLED === "true"
+		: transport === "http" && !isLocalhost;
+
+	// MCP server URL (for OAuth resource metadata)
+	const mcpServerUrl =
+		process.env.ENGRAM_MCP_SERVER_URL ??
+		(isLocalhost ? `http://localhost:${httpPort}` : "https://mcp.engram.rawcontext.com");
+
+	// Auth server URL (defaults to Observatory)
+	const authServerUrl =
+		process.env.ENGRAM_AUTH_SERVER_URL ??
+		(isLocalhost ? observatoryUrl : "https://auth.engram.rawcontext.com");
 
 	const rawConfig = {
 		engramApiUrl: apiUrl,
 		observatoryUrl,
-		transport: process.env.MCP_TRANSPORT ?? "stdio",
-		httpPort: process.env.MCP_HTTP_PORT ? Number.parseInt(process.env.MCP_HTTP_PORT, 10) : 3010,
+		transport,
+		httpPort,
 		authEnabled,
 		authPostgresUrl:
 			process.env.AUTH_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:6183/engram",
+		// OAuth server configuration
+		authServerUrl,
+		mcpServerUrl,
+		mcpClientId: process.env.ENGRAM_MCP_CLIENT_ID ?? "mcp-server",
+		mcpClientSecret: process.env.ENGRAM_MCP_CLIENT_SECRET,
+		// Session configuration
+		sessionTtlSeconds: process.env.SESSION_TTL_SECONDS
+			? Number.parseInt(process.env.SESSION_TTL_SECONDS, 10)
+			: 3600,
+		maxSessionsPerUser: process.env.MAX_SESSIONS_PER_USER
+			? Number.parseInt(process.env.MAX_SESSIONS_PER_USER, 10)
+			: 10,
 		logLevel: process.env.LOG_LEVEL ?? "info",
 	};
 

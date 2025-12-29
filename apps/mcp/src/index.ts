@@ -1,7 +1,27 @@
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { hasValidCredentials } from "./auth";
-import { detectMode, loadConfig } from "./config";
+/**
+ * Engram MCP Server Entry Point
+ *
+ * Supports two transport modes:
+ * - stdio: Default for CLI usage (no auth needed)
+ * - http: For remote access with OAuth 2.1 authentication
+ */
+
+import {
+	createSessionStore,
+	createTokenVerifier,
+	hasValidCredentials,
+	mountAuthRouter,
+	requireBearerAuth,
+	skipAuthForLocalhost,
+} from "./auth";
+import { detectMode, isLocalhostUrl, loadConfig } from "./config";
 import { createEngramMcpServer } from "./server";
+import {
+	createTransport,
+	type HttpTransportResult,
+	isHttpTransport,
+	isStdioTransport,
+} from "./transport";
 
 async function main() {
 	const config = loadConfig();
@@ -10,7 +30,7 @@ async function main() {
 	const engramServer = createEngramMcpServer({ config });
 	const { server, cloudClient, logger, deviceFlowClient, tokenCache } = engramServer;
 
-	// In cloud mode, authenticate via OAuth device flow
+	// In cloud mode, authenticate via OAuth device flow (for outbound API calls)
 	if (mode === "cloud") {
 		const hasCredentials = hasValidCredentials(logger);
 		logger.debug(
@@ -58,30 +78,115 @@ async function main() {
 		}
 	}
 
-	// Connect to API (both local and cloud modes use API client)
+	// Connect to Engram API (both local and cloud modes)
 	await cloudClient.connect();
 	logger.info({ mode }, "Connected to Engram API");
+
+	// Create session store for HTTP transport
+	const sessionStore =
+		config.transport === "http"
+			? createSessionStore({
+					logger,
+					sessionTtlMs: config.sessionTtlSeconds * 1000,
+					maxSessionsPerUser: config.maxSessionsPerUser,
+				})
+			: undefined;
+
+	// Create transport
+	const transport = await createTransport({
+		config,
+		mcpServer: server,
+		logger,
+		sessionStore,
+	});
+
+	// Configure HTTP transport with OAuth if enabled
+	if (isHttpTransport(transport)) {
+		const httpTransport = transport as HttpTransportResult;
+		const { app } = httpTransport;
+
+		// Mount OAuth metadata endpoints
+		if (config.authServerUrl && config.mcpServerUrl) {
+			await mountAuthRouter(app, {
+				serverUrl: config.mcpServerUrl,
+				authServerUrl: config.authServerUrl,
+				resourceName: "Engram MCP Server",
+				documentationUrl: "https://docs.engram.dev/mcp",
+				logger,
+			});
+		}
+
+		// Configure authentication middleware
+		if (config.authEnabled) {
+			if (!config.mcpClientSecret) {
+				logger.warn(
+					"Auth is enabled but ENGRAM_MCP_CLIENT_SECRET is not set. Token verification will fail.",
+				);
+			}
+
+			// Skip auth for localhost in development
+			if (isLocalhostUrl(config.mcpServerUrl ?? "")) {
+				app.use(skipAuthForLocalhost(logger));
+			}
+
+			// Create token verifier
+			const verifier = createTokenVerifier({
+				introspectionEndpoint: `${config.authServerUrl}/api/auth/introspect`,
+				clientId: config.mcpClientId ?? "mcp-server",
+				clientSecret: config.mcpClientSecret ?? "",
+				resourceServerUrl: config.mcpServerUrl ?? `http://localhost:${config.httpPort}`,
+				logger,
+				skipAudienceValidation: isLocalhostUrl(config.mcpServerUrl ?? ""),
+			});
+
+			// Apply auth middleware to MCP endpoints
+			app.use(
+				"/mcp",
+				requireBearerAuth({
+					verifier,
+					serverUrl: config.mcpServerUrl ?? `http://localhost:${config.httpPort}`,
+					requiredScopes: [], // All scopes are optional by default
+					logger,
+					skipPaths: [], // Auth required for all /mcp paths
+				}),
+			);
+
+			logger.info("OAuth authentication enabled for HTTP transport");
+		} else {
+			logger.info("OAuth authentication disabled for HTTP transport");
+		}
+	}
 
 	// Graceful shutdown
 	const shutdown = async (signal: string) => {
 		logger.info({ signal }, "Shutting down...");
+
 		try {
+			// Stop transport
+			await transport.stop();
+
+			// Shutdown session store
+			if (sessionStore) {
+				sessionStore.shutdown();
+			}
+
+			// Disconnect from API
 			await cloudClient.disconnect();
 			logger.info("Disconnected from Engram API");
 		} catch (error) {
 			logger.error({ error }, "Error during shutdown");
 		}
+
 		process.exit(0);
 	};
 
 	process.once("SIGTERM", () => shutdown("SIGTERM"));
 	process.once("SIGINT", () => shutdown("SIGINT"));
 
-	// Use stdio transport (default for MCP)
-	if (config.transport === "stdio") {
-		const transport = new StdioServerTransport();
+	// Start transport
+	await transport.start();
 
-		await server.connect(transport);
+	if (isStdioTransport(transport)) {
 		logger.info("Engram MCP server running on stdio");
 
 		// Update client capabilities after connection
@@ -94,9 +199,10 @@ async function main() {
 			logger.warn({ error }, "Failed to update client capabilities");
 		}
 	} else {
-		// HTTP transport - to be implemented in Phase 4
-		logger.error("HTTP transport not yet implemented");
-		process.exit(1);
+		logger.info(
+			{ port: config.httpPort, authEnabled: config.authEnabled },
+			"Engram MCP server running on HTTP",
+		);
 	}
 }
 
