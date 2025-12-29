@@ -73,7 +73,7 @@ bun run typecheck && bun run lint  # Type check and lint
 
 ## Configuration
 
-- `ENGRAM_API_URL` - API URL (default: `https://api.statient.com`, set to `http://localhost:6174` for local mode)
+- `ENGRAM_API_URL` - API URL (default: `https://api.engram.rawcontext.com`, set to `http://localhost:6174` for local mode)
 - `LOG_LEVEL` - Logging level (default: `info`)
 - `MCP_TRANSPORT` - Transport mode (default: `stdio`, or `http`)
 

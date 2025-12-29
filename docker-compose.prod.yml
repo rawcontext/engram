@@ -142,7 +142,7 @@ services:
       - EMBEDDER_TEXT_MODEL=BAAI/bge-small-en-v1.5
       - EMBEDDER_PRELOAD=false
       - SEARCH_DEFAULT_STRATEGY=dense
-      - CORS_ORIGINS=["https://observatory.statient.com"]
+      - CORS_ORIGINS=["https://observatory.engram.rawcontext.com"]
       - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram?sslmode=disable
     depends_on:
       qdrant:
@@ -196,7 +196,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/optuna?sslmode=disable
       - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram?sslmode=disable
-      - CORS_ORIGINS=["https://observatory.statient.com"]
+      - CORS_ORIGINS=["https://observatory.engram.rawcontext.com"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -222,9 +222,9 @@ services:
       - FALKORDB_URL=redis://falkordb:6379
       - NATS_URL=nats://nats:4222
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - BETTER_AUTH_URL=https://observatory.statient.com
-      - NEXT_PUBLIC_BETTER_AUTH_URL=https://observatory.statient.com
-      - NEXT_PUBLIC_CONSOLE_URL=https://console.statient.com
+      - BETTER_AUTH_URL=https://observatory.engram.rawcontext.com
+      - NEXT_PUBLIC_BETTER_AUTH_URL=https://observatory.engram.rawcontext.com
+      - NEXT_PUBLIC_CONSOLE_URL=https://console.engram.rawcontext.com
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram?sslmode=disable
@@ -255,12 +255,12 @@ services:
       - ENGRAM_API_URL=http://api:6174
       - ENGRAM_API_TOKEN=${ENGRAM_API_TOKEN}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - BETTER_AUTH_URL=https://console.statient.com
-      - NEXT_PUBLIC_BETTER_AUTH_URL=https://console.statient.com
+      - BETTER_AUTH_URL=https://console.engram.rawcontext.com
+      - NEXT_PUBLIC_BETTER_AUTH_URL=https://console.engram.rawcontext.com
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram?sslmode=disable
-      - TRUSTED_ORIGINS=https://console.statient.com,https://observatory.statient.com
+      - TRUSTED_ORIGINS=https://console.engram.rawcontext.com,https://observatory.engram.rawcontext.com
     depends_on:
       api:
         condition: service_healthy

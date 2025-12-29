@@ -10,7 +10,7 @@ export const LOCAL_DEV_API_KEY = "engram_dev_local_mcp";
  * Default API URL - production cloud mode.
  * Override with ENGRAM_API_URL=http://localhost:6174 for local development.
  */
-export const DEFAULT_API_URL = "https://api.statient.com";
+export const DEFAULT_API_URL = "https://api.engram.rawcontext.com";
 
 /**
  * Default Observatory URL (used for OAuth device flow)
@@ -20,7 +20,7 @@ export const DEFAULT_OBSERVATORY_URL = "http://localhost:6178";
 /**
  * Production Observatory URL
  */
-export const PRODUCTION_OBSERVATORY_URL = "https://observatory.statient.com";
+export const PRODUCTION_OBSERVATORY_URL = "https://observatory.engram.rawcontext.com";
 
 export const ConfigSchema = z.object({
 	// API URL - localhost = local mode, remote = cloud mode (OAuth required)

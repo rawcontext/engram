@@ -9,7 +9,7 @@
  *   bun run scripts/seed-tofu-token.ts
  *
  *   # Production (SSH to server first)
- *   ssh engram@statient.com
+ *   ssh engram@engram.rawcontext.com
  *   cd /opt/engram
  *   docker compose -f docker-compose.prod.yml exec api bun run scripts/seed-tofu-token.ts
  *

@@ -22,8 +22,8 @@ import { NextResponse } from "next/server";
  * {
  *   "device_code": "GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNh",
  *   "user_code": "WDJB-MJHT",
- *   "verification_uri": "https://observatory.statient.com/activate",
- *   "verification_uri_complete": "https://observatory.statient.com/activate?code=WDJB-MJHT",
+ *   "verification_uri": "https://observatory.engram.rawcontext.com/activate",
+ *   "verification_uri_complete": "https://observatory.engram.rawcontext.com/activate?code=WDJB-MJHT",
  *   "expires_in": 900,
  *   "interval": 5
  * }

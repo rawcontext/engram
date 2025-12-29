@@ -30,8 +30,8 @@ export const DEFAULT_ENVIRONMENTS: EnvironmentConfig[] = [
 	{
 		id: "production",
 		name: "Production",
-		apiUrl: "https://api.statient.com",
-		wsUrl: "wss://api.statient.com",
+		apiUrl: "https://api.engram.rawcontext.com",
+		wsUrl: "wss://api.engram.rawcontext.com",
 		description: "Production environment",
 	},
 ];

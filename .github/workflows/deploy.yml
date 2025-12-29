@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DOMAIN: statient.com
+  DOMAIN: engram.rawcontext.com
 
 jobs:
   # Wait for CI to pass
@@ -703,8 +703,8 @@ jobs:
           echo "| Caddy | ${{ needs.changes.outputs.caddy }} | ${{ needs.deploy-caddy.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Service URLs" >> $GITHUB_STEP_SUMMARY
-          echo "- API: https://api.statient.com/v1" >> $GITHUB_STEP_SUMMARY
-          echo "- Search: https://api.statient.com/v1/search" >> $GITHUB_STEP_SUMMARY
-          echo "- Tuner: https://api.statient.com/v1/tuner" >> $GITHUB_STEP_SUMMARY
-          echo "- Observatory: https://observatory.statient.com" >> $GITHUB_STEP_SUMMARY
-          echo "- Console: https://console.statient.com" >> $GITHUB_STEP_SUMMARY
+          echo "- API: https://api.engram.rawcontext.com/v1" >> $GITHUB_STEP_SUMMARY
+          echo "- Search: https://api.engram.rawcontext.com/v1/search" >> $GITHUB_STEP_SUMMARY
+          echo "- Tuner: https://api.engram.rawcontext.com/v1/tuner" >> $GITHUB_STEP_SUMMARY
+          echo "- Observatory: https://observatory.engram.rawcontext.com" >> $GITHUB_STEP_SUMMARY
+          echo "- Console: https://console.engram.rawcontext.com" >> $GITHUB_STEP_SUMMARY

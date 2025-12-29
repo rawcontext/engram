@@ -27,7 +27,7 @@ async def main() -> None:
     # Configuration
     dataset_path = Path("data/longmemeval_oracle.json")
     output_dir = Path(f"results/full-500-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
-    search_url = "https://api.statient.com"
+    search_url = "https://api.engram.rawcontext.com"
     model = "gemini/gemini-3-flash-preview"
     top_k = 10
     concurrency = 10  # Max concurrency for speed

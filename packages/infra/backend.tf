@@ -10,8 +10,8 @@
 
 terraform {
   backend "http" {
-    address        = "https://api.statient.com/v1/tofu"
-    lock_address   = "https://api.statient.com/v1/tofu/lock"
-    unlock_address = "https://api.statient.com/v1/tofu/lock"
+    address        = "https://api.engram.rawcontext.com/v1/tofu"
+    lock_address   = "https://api.engram.rawcontext.com/v1/tofu/lock"
+    unlock_address = "https://api.engram.rawcontext.com/v1/tofu/lock"
   }
 }

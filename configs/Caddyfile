@@ -1,4 +1,4 @@
-api.statient.com {
+api.engram.rawcontext.com {
 	# Search service endpoints
 	handle /v1/search/* {
 		reverse_proxy search:6176
@@ -24,10 +24,10 @@ api.statient.com {
 	}
 }
 
-observatory.statient.com {
+observatory.engram.rawcontext.com {
 	reverse_proxy observatory:3000
 }
 
-console.statient.com {
+console.engram.rawcontext.com {
 	reverse_proxy console:3000
 }
