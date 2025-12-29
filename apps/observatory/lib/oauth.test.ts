@@ -37,7 +37,7 @@ describe("OAuth Authorization Server Metadata Endpoint", () => {
 		delete process.env.BETTER_AUTH_URL;
 
 		// Dynamic import to get fresh module with mocked dependencies
-		const { GET } = await import("../app/.well-known/oauth-authorization-server/route");
+		const { GET } = await import("../app/api/well-known/oauth-authorization-server/route");
 
 		const response = (await GET()) as unknown as MockedJsonResponse;
 		const metadata = response.body as Record<string, unknown>;
@@ -52,7 +52,7 @@ describe("OAuth Authorization Server Metadata Endpoint", () => {
 	});
 
 	it("should include OAuth capabilities", async () => {
-		const { GET } = await import("../app/.well-known/oauth-authorization-server/route");
+		const { GET } = await import("../app/api/well-known/oauth-authorization-server/route");
 
 		const response = (await GET()) as unknown as MockedJsonResponse;
 		const metadata = response.body as Record<string, unknown>;
@@ -67,7 +67,7 @@ describe("OAuth Authorization Server Metadata Endpoint", () => {
 	});
 
 	it("should include MCP scopes", async () => {
-		const { GET } = await import("../app/.well-known/oauth-authorization-server/route");
+		const { GET } = await import("../app/api/well-known/oauth-authorization-server/route");
 
 		const response = (await GET()) as unknown as MockedJsonResponse;
 		const metadata = response.body as Record<string, unknown>;
@@ -79,7 +79,7 @@ describe("OAuth Authorization Server Metadata Endpoint", () => {
 	});
 
 	it("should include token endpoint auth methods", async () => {
-		const { GET } = await import("../app/.well-known/oauth-authorization-server/route");
+		const { GET } = await import("../app/api/well-known/oauth-authorization-server/route");
 
 		const response = (await GET()) as unknown as MockedJsonResponse;
 		const metadata = response.body as Record<string, unknown>;
@@ -91,7 +91,7 @@ describe("OAuth Authorization Server Metadata Endpoint", () => {
 	});
 
 	it("should set correct Content-Type and Cache-Control headers", async () => {
-		const { GET } = await import("../app/.well-known/oauth-authorization-server/route");
+		const { GET } = await import("../app/api/well-known/oauth-authorization-server/route");
 
 		const response = (await GET()) as unknown as MockedJsonResponse;
 
@@ -103,7 +103,7 @@ describe("OAuth Authorization Server Metadata Endpoint", () => {
 		process.env.BETTER_AUTH_URL = "https://auth.example.com/";
 
 		// Force reimport with new env
-		const importPath = "../app/.well-known/oauth-authorization-server/route";
+		const importPath = "../app/api/well-known/oauth-authorization-server/route";
 		delete require.cache[require.resolve(importPath)];
 
 		const { GET } = await import(importPath);
@@ -129,7 +129,7 @@ describe("OAuth Protected Resource Metadata Endpoint", () => {
 		delete process.env.BETTER_AUTH_URL;
 		delete process.env.ENGRAM_MCP_SERVER_URL;
 
-		const { GET } = await import("../app/.well-known/oauth-protected-resource/route");
+		const { GET } = await import("../app/api/well-known/oauth-protected-resource/route");
 
 		const response = (await GET()) as unknown as MockedJsonResponse;
 		const metadata = response.body as Record<string, unknown>;
@@ -141,7 +141,7 @@ describe("OAuth Protected Resource Metadata Endpoint", () => {
 	});
 
 	it("should include MCP scopes", async () => {
-		const { GET } = await import("../app/.well-known/oauth-protected-resource/route");
+		const { GET } = await import("../app/api/well-known/oauth-protected-resource/route");
 
 		const response = (await GET()) as unknown as MockedJsonResponse;
 		const metadata = response.body as Record<string, unknown>;
@@ -153,7 +153,7 @@ describe("OAuth Protected Resource Metadata Endpoint", () => {
 	});
 
 	it("should include resource name and documentation", async () => {
-		const { GET } = await import("../app/.well-known/oauth-protected-resource/route");
+		const { GET } = await import("../app/api/well-known/oauth-protected-resource/route");
 
 		const response = (await GET()) as unknown as MockedJsonResponse;
 		const metadata = response.body as Record<string, unknown>;
@@ -163,7 +163,7 @@ describe("OAuth Protected Resource Metadata Endpoint", () => {
 	});
 
 	it("should set correct Content-Type and Cache-Control headers", async () => {
-		const { GET } = await import("../app/.well-known/oauth-protected-resource/route");
+		const { GET } = await import("../app/api/well-known/oauth-protected-resource/route");
 
 		const response = (await GET()) as unknown as MockedJsonResponse;
 
