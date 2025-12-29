@@ -1,7 +1,7 @@
 FROM oven/bun:1.3.5 AS builder
 WORKDIR /app
 COPY . .
-RUN bun install --frozen-lockfile
+RUN bun install
 
 FROM oven/bun:1.3.5-alpine AS runner
 WORKDIR /app
