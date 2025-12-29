@@ -130,68 +130,65 @@ export class ApiClient {
 
 	/**
 	 * Get the health check URL for a service based on environment
+	 * Production routing is defined in configs/Caddyfile
 	 */
-	private getServiceHealthUrl(service: {
-		name: string;
-		port: number;
-		localPath: string;
-		prodUrl?: string;
-	}): string {
-		if (this.isProduction()) {
+	private getServiceHealthUrl(
+		name: string,
+		port: number,
+		localPath: string,
+	): { url: string; skip: boolean } {
+		const isProd = this.isProduction();
+
+		if (isProd) {
 			// In production, services are behind Caddy reverse proxy
-			// Some have dedicated subdomains, others are path-routed
-			return service.prodUrl || `${this.baseUrl}${service.localPath}`;
+			switch (name) {
+				case "API":
+					return { url: `${this.baseUrl}/v1/health`, skip: false };
+				case "Search":
+					return { url: `${this.baseUrl}/v1/search/health`, skip: false };
+				case "Tuner":
+					return { url: `${this.baseUrl}/v1/tuner/health`, skip: false };
+				case "Observatory":
+					// Observatory has its own subdomain
+					return {
+						url: this.baseUrl.replace("api.", "observatory.") + "/api/health",
+						skip: false,
+					};
+				case "Ingestion":
+					// Ingestion only exposes /ingest in production, no health check
+					return { url: "", skip: true };
+				default:
+					return { url: `${this.baseUrl}${localPath}`, skip: false };
+			}
 		}
+
 		// In local dev, each service runs on its own port
-		return `${this.baseUrl.replace(/:(\d+)/, `:${service.port}`)}${service.localPath}`;
+		const url = `${this.baseUrl.replace(/:(\d+)/, `:${port}`)}${localPath}`;
+		return { url, skip: false };
 	}
 
 	// Check multiple services health
 	// These are direct health checks to external services, not through proxy
 	async getAllServicesHealth(): Promise<ServiceHealth[]> {
-		// Service configuration with both local and production endpoints
-		// Production routing is defined in configs/Caddyfile
+		// Service configuration - only static data, no method calls
 		const services = [
-			{
-				name: "API",
-				port: 6174,
-				localPath: "/v1/health",
-				prodUrl: `${this.baseUrl}/v1/health`,
-			},
-			{
-				name: "Ingestion",
-				port: 6175,
-				localPath: "/health",
-				// Ingestion only exposes /ingest in production, no health check
-				prodUrl: undefined,
-			},
-			{
-				name: "Search",
-				port: 6176,
-				localPath: "/v1/search/health",
-				prodUrl: `${this.baseUrl}/v1/search/health`,
-			},
-			{
-				name: "Tuner",
-				port: 6177,
-				localPath: "/v1/tuner/health",
-				prodUrl: `${this.baseUrl}/v1/tuner/health`,
-			},
-			{
-				name: "Observatory",
-				port: 6178,
-				localPath: "/api/health",
-				// Observatory has its own subdomain in production
-				prodUrl: this.isProduction()
-					? this.baseUrl.replace("api.", "observatory.") + "/api/health"
-					: undefined,
-			},
+			{ name: "API", port: 6174, localPath: "/v1/health" },
+			{ name: "Ingestion", port: 6175, localPath: "/health" },
+			{ name: "Search", port: 6176, localPath: "/v1/search/health" },
+			{ name: "Tuner", port: 6177, localPath: "/v1/tuner/health" },
+			{ name: "Observatory", port: 6178, localPath: "/api/health" },
 		];
 
 		const results = await Promise.allSettled(
 			services.map(async (service) => {
+				const { url, skip } = this.getServiceHealthUrl(
+					service.name,
+					service.port,
+					service.localPath,
+				);
+
 				// Skip services without production health endpoints
-				if (this.isProduction() && !service.prodUrl) {
+				if (skip) {
 					return {
 						name: service.name,
 						port: service.port,
@@ -200,7 +197,6 @@ export class ApiClient {
 					};
 				}
 
-				const url = this.getServiceHealthUrl(service);
 				const start = performance.now();
 
 				try {
