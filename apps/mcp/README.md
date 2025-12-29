@@ -72,7 +72,9 @@ Click **Agent Session → ⋯ → MCP Servers → Manage MCP Servers → View ra
 <details>
 <summary>Cursor</summary>
 
-Add to `~/.cursor/mcp.json`:
+[<img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Install in Cursor" height="32">](https://cursor.com/install-mcp?name=engram&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkByYXdjb250ZXh0L2VuZ3JhbS1tY3AiXX0=)
+
+Or add to `~/.cursor/mcp.json`:
 
 ```json
 {
@@ -90,7 +92,9 @@ Add to `~/.cursor/mcp.json`:
 <details>
 <summary>VS Code</summary>
 
-Add to `.vscode/mcp.json` or `~/.vscode/mcp.json`:
+[<img src="https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white" alt="Install in VS Code" height="32">](https://vscode.dev/redirect/mcp/install?name=engram&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40rawcontext%2Fengram-mcp%22%5D%2C%22env%22%3A%7B%7D%7D)
+
+Or add to `.vscode/mcp.json`:
 
 ```json
 {
@@ -127,7 +131,9 @@ Go to **Settings → Tools → AI Assistant → Model Context Protocol (MCP)**, 
 <details>
 <summary>Visual Studio</summary>
 
-Open **GitHub Copilot Chat**, select **Agent** mode, click the tools icon, then **+** to add:
+[<img src="https://img.shields.io/badge/Visual_Studio-Install_Server-C16FDE?style=flat-square&logo=visualstudio&logoColor=white" alt="Install in Visual Studio" height="32">](https://vs-open.link/mcp-install?%7B%22name%22%3A%22engram%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40rawcontext%2Fengram-mcp%22%5D%7D)
+
+Or open **GitHub Copilot Chat**, select **Agent** mode, click the tools icon, then **+** to add:
 - Server ID: `engram`
 - Type: `stdio`
 - Command: `npx`
