@@ -12,7 +12,8 @@ import { auth } from "@/lib/auth";
 
 // Get the Engram API URL from environment
 const ENGRAM_API_URL = process.env.ENGRAM_API_URL || "http://localhost:6174";
-const ENGRAM_API_KEY = process.env.ENGRAM_API_KEY || "engram_dev_console";
+const ENGRAM_API_KEY =
+	process.env.ENGRAM_API_KEY || process.env.ENGRAM_API_TOKEN || "engram_dev_console";
 
 interface ProxyParams {
 	params: Promise<{ path: string[] }>;

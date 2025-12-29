@@ -119,25 +119,92 @@ export class ApiClient {
 		}
 	}
 
+	/**
+	 * Check if this is a production environment (no port in URL)
+	 */
+	private isProduction(): boolean {
+		// Production URLs don't have ports (e.g., https://api.engram.rawcontext.com)
+		// Local URLs have ports (e.g., http://localhost:6174)
+		return !/:(\d+)/.test(this.baseUrl);
+	}
+
+	/**
+	 * Get the health check URL for a service based on environment
+	 */
+	private getServiceHealthUrl(service: {
+		name: string;
+		port: number;
+		localPath: string;
+		prodUrl?: string;
+	}): string {
+		if (this.isProduction()) {
+			// In production, services are behind Caddy reverse proxy
+			// Some have dedicated subdomains, others are path-routed
+			return service.prodUrl || `${this.baseUrl}${service.localPath}`;
+		}
+		// In local dev, each service runs on its own port
+		return `${this.baseUrl.replace(/:(\d+)/, `:${service.port}`)}${service.localPath}`;
+	}
+
 	// Check multiple services health
 	// These are direct health checks to external services, not through proxy
 	async getAllServicesHealth(): Promise<ServiceHealth[]> {
+		// Service configuration with both local and production endpoints
+		// Production routing is defined in configs/Caddyfile
 		const services = [
-			{ name: "API", port: 6174, path: "/v1/health" },
-			{ name: "Ingestion", port: 6175, path: "/health" },
-			{ name: "Search", port: 6176, path: "/v1/search/health" },
-			{ name: "Tuner", port: 6177, path: "/v1/tuner/health" },
-			{ name: "Observatory", port: 6178, path: "/api/health" },
+			{
+				name: "API",
+				port: 6174,
+				localPath: "/v1/health",
+				prodUrl: `${this.baseUrl}/v1/health`,
+			},
+			{
+				name: "Ingestion",
+				port: 6175,
+				localPath: "/health",
+				// Ingestion only exposes /ingest in production, no health check
+				prodUrl: undefined,
+			},
+			{
+				name: "Search",
+				port: 6176,
+				localPath: "/v1/search/health",
+				prodUrl: `${this.baseUrl}/v1/search/health`,
+			},
+			{
+				name: "Tuner",
+				port: 6177,
+				localPath: "/v1/tuner/health",
+				prodUrl: `${this.baseUrl}/v1/tuner/health`,
+			},
+			{
+				name: "Observatory",
+				port: 6178,
+				localPath: "/api/health",
+				// Observatory has its own subdomain in production
+				prodUrl: this.isProduction()
+					? this.baseUrl.replace("api.", "observatory.") + "/api/health"
+					: undefined,
+			},
 		];
 
 		const results = await Promise.allSettled(
 			services.map(async (service) => {
-				// Direct health checks to services
-				const url = this.baseUrl.replace(/:(\d+)/, `:${service.port}`);
+				// Skip services without production health endpoints
+				if (this.isProduction() && !service.prodUrl) {
+					return {
+						name: service.name,
+						port: service.port,
+						status: "offline" as const,
+						message: "Not exposed",
+					};
+				}
+
+				const url = this.getServiceHealthUrl(service);
 				const start = performance.now();
 
 				try {
-					const response = await fetch(`${url}${service.path}`, {
+					const response = await fetch(url, {
 						method: "GET",
 						signal: AbortSignal.timeout(5000),
 					});
