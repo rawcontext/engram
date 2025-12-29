@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Mock pool query
 const mockQuery = mock();
@@ -10,25 +10,38 @@ mock.module("pg", () => ({
 	},
 }));
 
-// Import after mocking
-const {
-	generateClientId,
-	generateClientSecret,
-	hashClientSecret,
-	validateRedirectUris,
-	validateGrantTypes,
-	validateResponseTypes,
-	validateAuthMethod,
-	validateScopes,
-	registerClient,
-	findClientById,
-	validateClientCredentials,
-	validateClientRedirectUri,
-} = await import("./client-registration");
+// Import the module ONCE after mocks are set up
+const registrationModule = import("./client-registration");
 
 describe("Client Registration Library", () => {
-	beforeEach(() => {
+	let generateClientId: Awaited<typeof registrationModule>["generateClientId"];
+	let generateClientSecret: Awaited<typeof registrationModule>["generateClientSecret"];
+	let hashClientSecret: Awaited<typeof registrationModule>["hashClientSecret"];
+	let validateRedirectUris: Awaited<typeof registrationModule>["validateRedirectUris"];
+	let validateGrantTypes: Awaited<typeof registrationModule>["validateGrantTypes"];
+	let validateResponseTypes: Awaited<typeof registrationModule>["validateResponseTypes"];
+	let validateAuthMethod: Awaited<typeof registrationModule>["validateAuthMethod"];
+	let validateScopes: Awaited<typeof registrationModule>["validateScopes"];
+	let registerClient: Awaited<typeof registrationModule>["registerClient"];
+	let findClientById: Awaited<typeof registrationModule>["findClientById"];
+	let validateClientCredentials: Awaited<typeof registrationModule>["validateClientCredentials"];
+	let validateClientRedirectUri: Awaited<typeof registrationModule>["validateClientRedirectUri"];
+
+	beforeEach(async () => {
 		mockQuery.mockReset();
+		const mod = await registrationModule;
+		generateClientId = mod.generateClientId;
+		generateClientSecret = mod.generateClientSecret;
+		hashClientSecret = mod.hashClientSecret;
+		validateRedirectUris = mod.validateRedirectUris;
+		validateGrantTypes = mod.validateGrantTypes;
+		validateResponseTypes = mod.validateResponseTypes;
+		validateAuthMethod = mod.validateAuthMethod;
+		validateScopes = mod.validateScopes;
+		registerClient = mod.registerClient;
+		findClientById = mod.findClientById;
+		validateClientCredentials = mod.validateClientCredentials;
+		validateClientRedirectUri = mod.validateClientRedirectUri;
 	});
 
 	describe("generateClientId", () => {
