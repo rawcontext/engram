@@ -3,7 +3,8 @@
 # Mocks module-level singletons (FalkorDB, NATS, Logger) before tests import them
 preload = ["./test-preload.ts"]
 
-# Exclude non-Bun test files
+# Exclude non-Bun test files (note: Bun doesn't support ignore patterns for test files)
+# For CI, see scripts/test.sh which excludes mock.module tests
 ignore = [
   "**/*.spec.ts",
   "**/node_modules/**",

@@ -19,6 +19,7 @@
 		"format:run": "biome format --write .",
 		"test": "dotenv -- turbo run //#test:ts",
 		"test:ts": "bun test",
+		"test:ci": "bun test",
 		"test:watch": "bun test --watch",
 		"infra:up": "./scripts/infra-up.sh",
 		"infra:down": "./scripts/infra-down.sh",
