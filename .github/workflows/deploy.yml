@@ -307,7 +307,7 @@ jobs:
   # Sync files to server (runs if any service changed)
   sync:
     runs-on: ubuntu-latest
-    needs: [changes, infrastructure]
+    needs: [changes]
     if: |
       always() &&
       needs.changes.result == 'success' &&
