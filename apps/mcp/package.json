@@ -1,6 +1,6 @@
 {
 	"name": "@rawcontext/engram-mcp",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"description": "Engram MCP server - intelligent memory for AI agents",
 	"type": "module",
 	"bin": {
