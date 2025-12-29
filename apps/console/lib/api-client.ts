@@ -168,9 +168,49 @@ export class ApiClient {
 	}
 
 	// Check multiple services health
-	// These are direct health checks to external services, not through proxy
+	// In production, uses server-side proxy to avoid CORS issues
+	// In local dev, makes direct requests to each service
 	async getAllServicesHealth(): Promise<ServiceHealth[]> {
-		// Service configuration - only static data, no method calls
+		// In production, use the health-check proxy to avoid CORS
+		if (this.isProduction()) {
+			try {
+				const response = await fetch("/api/health-check", {
+					method: "GET",
+					signal: AbortSignal.timeout(10000),
+				});
+				if (response.ok) {
+					const results = (await response.json()) as Array<{
+						name: string;
+						status: "online" | "warning" | "offline";
+						latency?: number;
+						message?: string;
+					}>;
+					// Add port numbers for display
+					const portMap: Record<string, number> = {
+						API: 6174,
+						Ingestion: 6175,
+						Search: 6176,
+						Tuner: 6177,
+						Observatory: 6178,
+					};
+					return results.map((r) => ({
+						...r,
+						port: portMap[r.name],
+					}));
+				}
+			} catch {
+				// Fall through to return all offline
+			}
+			return [
+				{ name: "API", port: 6174, status: "offline", message: "Health check failed" },
+				{ name: "Ingestion", port: 6175, status: "offline", message: "Not exposed" },
+				{ name: "Search", port: 6176, status: "offline", message: "Health check failed" },
+				{ name: "Tuner", port: 6177, status: "offline", message: "Health check failed" },
+				{ name: "Observatory", port: 6178, status: "offline", message: "Health check failed" },
+			];
+		}
+
+		// In local dev, make direct requests to each service
 		const services = [
 			{ name: "API", port: 6174, localPath: "/v1/health" },
 			{ name: "Ingestion", port: 6175, localPath: "/health" },
