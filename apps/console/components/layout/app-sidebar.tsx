@@ -45,7 +45,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 					<SidebarMenuItem>
 						<SidebarMenuButton size="lg" asChild>
 							<a href="/" className="group">
-								<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-[rgb(var(--console-purple))] shadow-lg shadow-primary/20">
+								<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet shadow-lg shadow-primary/20">
 									<Terminal className="size-4 text-primary-foreground" />
 								</div>
 								<div className="grid flex-1 text-left text-sm leading-tight">

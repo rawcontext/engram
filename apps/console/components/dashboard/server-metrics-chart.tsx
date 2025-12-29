@@ -228,7 +228,7 @@ export function ServerMetricsChart({
 			<CardHeader>
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 to-[rgb(var(--console-purple))]/20">
+						<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 to-violet/20">
 							<Activity className="h-5 w-5 text-primary" />
 						</div>
 						<div>

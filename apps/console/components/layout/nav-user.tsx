@@ -76,7 +76,7 @@ export function NavUser() {
 										unoptimized
 									/>
 								) : (
-									<AvatarFallback className="rounded-lg bg-gradient-to-br from-[rgb(var(--console-blue))] to-[rgb(var(--console-purple))]">
+									<AvatarFallback className="rounded-lg bg-gradient-to-br from-primary to-violet">
 										{user?.name ? (
 											<span className="text-xs font-medium text-white">{initials}</span>
 										) : (
@@ -111,7 +111,7 @@ export function NavUser() {
 											unoptimized
 										/>
 									) : (
-										<AvatarFallback className="rounded-lg bg-gradient-to-br from-[rgb(var(--console-blue))] to-[rgb(var(--console-purple))]">
+										<AvatarFallback className="rounded-lg bg-gradient-to-br from-primary to-violet">
 											{user?.name ? (
 												<span className="text-xs font-medium text-white">{initials}</span>
 											) : (

@@ -32,6 +32,16 @@
 	--ring: oklch(0.78 0.15 195);
 	--radius: 0.5rem;
 
+	/* Status semantic tokens */
+	--success: oklch(0.72 0.19 145);
+	--success-foreground: oklch(0.12 0.03 145);
+	--warning: oklch(0.8 0.18 85);
+	--warning-foreground: oklch(0.15 0.03 85);
+	--info: oklch(0.78 0.15 195);
+	--info-foreground: oklch(0.12 0.02 195);
+	--violet: oklch(0.7 0.15 290);
+	--violet-foreground: oklch(0.98 0.01 290);
+
 	/* Chart colors - operational palette */
 	--chart-1: oklch(0.78 0.15 195);
 	--chart-2: oklch(0.75 0.18 145);
@@ -92,6 +102,14 @@
 	--border: oklch(0.25 0.015 250);
 	--input: oklch(0.25 0.015 250);
 	--ring: oklch(0.5 0.1 195);
+	--success: oklch(0.72 0.19 145);
+	--success-foreground: oklch(0.12 0.03 145);
+	--warning: oklch(0.8 0.18 85);
+	--warning-foreground: oklch(0.15 0.03 85);
+	--info: oklch(0.78 0.15 195);
+	--info-foreground: oklch(0.12 0.02 195);
+	--violet: oklch(0.7 0.15 290);
+	--violet-foreground: oklch(0.98 0.01 290);
 	--chart-1: oklch(0.65 0.2 265);
 	--chart-2: oklch(0.7 0.15 165);
 	--chart-3: oklch(0.77 0.17 70);
@@ -128,6 +146,14 @@
 	--border: oklch(0.88 0.005 250);
 	--input: oklch(0.88 0.005 250);
 	--ring: oklch(0.55 0.18 195);
+	--success: oklch(0.55 0.2 145);
+	--success-foreground: oklch(0.98 0.01 145);
+	--warning: oklch(0.7 0.18 85);
+	--warning-foreground: oklch(0.15 0.03 85);
+	--info: oklch(0.55 0.18 195);
+	--info-foreground: oklch(0.98 0.005 195);
+	--violet: oklch(0.55 0.18 290);
+	--violet-foreground: oklch(0.98 0.01 290);
 	--sidebar: oklch(0.96 0.003 250);
 	--sidebar-foreground: oklch(0.15 0.01 250);
 	--sidebar-primary: oklch(0.55 0.18 195);
@@ -136,16 +162,6 @@
 	--sidebar-accent-foreground: oklch(0.2 0.01 250);
 	--sidebar-border: oklch(0.88 0.005 250);
 	--sidebar-ring: oklch(0.55 0.18 195);
-
-	/* Light mode legacy variables */
-	--console-void: 248 250 252;
-	--console-panel: 241 245 249;
-	--console-surface: 226 232 240;
-	--console-elevated: 203 213 225;
-	--text-primary: 15 23 42;
-	--text-secondary: 71 85 105;
-	--text-muted: 100 116 139;
-	--text-dim: 148 163 184;
 }
 
 /* Tailwind v4 theme mapping */
@@ -166,6 +182,14 @@
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
 	--color-destructive-foreground: var(--destructive-foreground);
+	--color-success: var(--success);
+	--color-success-foreground: var(--success-foreground);
+	--color-warning: var(--warning);
+	--color-warning-foreground: var(--warning-foreground);
+	--color-info: var(--info);
+	--color-info-foreground: var(--info-foreground);
+	--color-violet: var(--violet);
+	--color-violet-foreground: var(--violet-foreground);
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);

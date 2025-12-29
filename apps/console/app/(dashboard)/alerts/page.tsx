@@ -88,9 +88,9 @@ const CONDITIONS: { value: Condition; label: string; symbol: string }[] = [
 ];
 
 const SEVERITIES: { value: Severity; label: string; color: string }[] = [
-	{ value: "critical", label: "Critical", color: "--console-red" },
-	{ value: "warning", label: "Warning", color: "--console-amber" },
-	{ value: "info", label: "Info", color: "--console-cyan" },
+	{ value: "critical", label: "Critical", color: "--destructive" },
+	{ value: "warning", label: "Warning", color: "--warning" },
+	{ value: "info", label: "Info", color: "--primary" },
 ];
 
 const CHANNEL_TYPES: { value: ChannelType; label: string; icon: typeof Mail }[] = [
@@ -128,11 +128,11 @@ function formatDuration(seconds: number): string {
 function getSeverityColor(severity: Severity): string {
 	switch (severity) {
 		case "critical":
-			return "--console-red";
+			return "--destructive";
 		case "warning":
-			return "--console-amber";
+			return "--warning";
 		case "info":
-			return "--console-cyan";
+			return "--primary";
 	}
 }
 
@@ -140,13 +140,13 @@ function getStatusColor(status: string): string {
 	switch (status) {
 		case "triggered":
 		case "firing":
-			return "--console-red";
+			return "--destructive";
 		case "resolved":
-			return "--console-green";
+			return "--success";
 		case "muted":
-			return "--text-muted";
+			return "--muted-foreground";
 		default:
-			return "--console-green";
+			return "--success";
 	}
 }
 
@@ -176,9 +176,9 @@ function Select<T extends string>({
 			<button
 				type="button"
 				onClick={() => setIsOpen(!isOpen)}
-				className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] hover:border-[rgba(var(--console-cyan),0.3)] transition-colors font-mono text-sm text-[rgb(var(--text-primary))]"
+				className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-lg bg-secondary border border-primary/15 hover:border-primary/30 transition-colors font-mono text-sm text-foreground"
 			>
-				<span className={selected ? "" : "text-[rgb(var(--text-muted))]"}>
+				<span className={selected ? "" : "text-muted-foreground"}>
 					{selected?.label || placeholder || "Select..."}
 				</span>
 				<ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -188,7 +188,7 @@ function Select<T extends string>({
 				<>
 					{/* biome-ignore lint/a11y/useKeyWithClickEvents: overlay dismissal */}
 					<div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-					<div className="absolute left-0 right-0 top-full mt-2 z-20 py-1 rounded-lg bg-[rgb(var(--console-panel))] border border-[rgba(var(--console-cyan),0.2)] shadow-xl shadow-black/30 max-h-48 overflow-auto">
+					<div className="absolute left-0 right-0 top-full mt-2 z-20 py-1 rounded-lg bg-card border border-primary/20 shadow-xl shadow-black/30 max-h-48 overflow-auto">
 						{options.map((option) => (
 							<button
 								type="button"
@@ -199,8 +199,8 @@ function Select<T extends string>({
 								}}
 								className={`w-full px-4 py-2 text-left text-sm font-mono transition-colors ${
 									option.value === value
-										? "text-[rgb(var(--console-cyan))] bg-[rgba(var(--console-cyan),0.1)]"
-										: "text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))] hover:bg-[rgb(var(--console-surface))]"
+										? "text-primary bg-primary/10"
+										: "text-muted-foreground hover:text-foreground hover:bg-secondary"
 								}`}
 							>
 								{option.label}
@@ -246,7 +246,7 @@ function MultiSelect({
 			<button
 				type="button"
 				onClick={() => setIsOpen(!isOpen)}
-				className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] hover:border-[rgba(var(--console-cyan),0.3)] transition-colors text-left"
+				className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-lg bg-secondary border border-primary/15 hover:border-primary/30 transition-colors text-left"
 			>
 				{values.length > 0 ? (
 					<div className="flex flex-wrap gap-1">
@@ -255,7 +255,7 @@ function MultiSelect({
 							return (
 								<span
 									key={v}
-									className="px-2 py-0.5 rounded text-xs font-mono bg-[rgba(var(--console-cyan),0.15)] text-[rgb(var(--console-cyan))]"
+									className="px-2 py-0.5 rounded text-xs font-mono bg-primary/15 text-primary"
 								>
 									{opt?.label || v}
 								</span>
@@ -263,9 +263,7 @@ function MultiSelect({
 						})}
 					</div>
 				) : (
-					<span className="text-sm text-[rgb(var(--text-muted))]">
-						{placeholder || "Select..."}
-					</span>
+					<span className="text-sm text-muted-foreground">{placeholder || "Select..."}</span>
 				)}
 				<ChevronDown
 					className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
@@ -276,23 +274,23 @@ function MultiSelect({
 				<>
 					{/* biome-ignore lint/a11y/useKeyWithClickEvents: overlay dismissal */}
 					<div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-					<div className="absolute left-0 right-0 top-full mt-2 z-20 py-1 rounded-lg bg-[rgb(var(--console-panel))] border border-[rgba(var(--console-cyan),0.2)] shadow-xl shadow-black/30 max-h-48 overflow-auto">
+					<div className="absolute left-0 right-0 top-full mt-2 z-20 py-1 rounded-lg bg-card border border-primary/20 shadow-xl shadow-black/30 max-h-48 overflow-auto">
 						{options.map((option) => (
 							<button
 								type="button"
 								key={option.value}
 								onClick={() => toggle(option.value)}
-								className="w-full px-4 py-2 text-left text-sm font-mono transition-colors flex items-center gap-3 text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))] hover:bg-[rgb(var(--console-surface))]"
+								className="w-full px-4 py-2 text-left text-sm font-mono transition-colors flex items-center gap-3 text-muted-foreground hover:text-foreground hover:bg-secondary"
 							>
 								<div
 									className={`w-4 h-4 rounded border flex items-center justify-center ${
 										values.includes(option.value)
-											? "border-[rgb(var(--console-cyan))] bg-[rgb(var(--console-cyan))]"
-											: "border-[rgb(var(--text-muted))]"
+											? "border-primary bg-primary"
+											: "border-muted-foreground"
 									}`}
 								>
 									{values.includes(option.value) && (
-										<Check className="w-3 h-3 text-[rgb(var(--console-void))]" />
+										<Check className="w-3 h-3 text-primary-foreground" />
 									)}
 								</div>
 								{option.label}
@@ -315,7 +313,7 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (enabled: b
 			type="button"
 			onClick={() => onChange(!enabled)}
 			className={`relative w-11 h-6 rounded-full transition-colors ${
-				enabled ? "bg-[rgb(var(--console-cyan))]" : "bg-[rgb(var(--console-surface))]"
+				enabled ? "bg-primary" : "bg-secondary"
 			}`}
 		>
 			<div
@@ -351,13 +349,13 @@ function Modal({
 			<div className="relative panel p-6 max-w-lg w-full max-h-[85vh] overflow-auto animate-fade-in">
 				{/* Header */}
 				<div className="flex items-center justify-between mb-6">
-					<h3 className="font-display text-lg text-[rgb(var(--text-primary))]">{title}</h3>
+					<h3 className="font-display text-lg text-foreground">{title}</h3>
 					<button
 						type="button"
 						onClick={onClose}
-						className="p-2 rounded-lg hover:bg-[rgb(var(--console-surface))] transition-colors"
+						className="p-2 rounded-lg hover:bg-secondary transition-colors"
 					>
-						<X className="w-5 h-5 text-[rgb(var(--text-muted))]" />
+						<X className="w-5 h-5 text-muted-foreground" />
 					</button>
 				</div>
 				{children}
@@ -391,7 +389,7 @@ function AlertRuleCard({
 	return (
 		<div
 			className={`panel p-4 hover-lift group transition-all ${
-				rule.status === "triggered" ? "ring-1 ring-[rgb(var(--console-red))]" : ""
+				rule.status === "triggered" ? "ring-1 ring-destructive" : ""
 			}`}
 		>
 			{/* Header row */}
@@ -402,23 +400,21 @@ function AlertRuleCard({
 						className={`w-2.5 h-2.5 rounded-full ${
 							rule.status === "triggered" ? "animate-pulse" : ""
 						}`}
-						style={{ background: `rgb(var(${statusColor}))` }}
+						style={{ background: `var(${statusColor})` }}
 					/>
 					<div>
-						<h4 className="font-mono text-sm font-medium text-[rgb(var(--text-primary))]">
-							{rule.name}
-						</h4>
+						<h4 className="font-mono text-sm font-medium text-foreground">{rule.name}</h4>
 						<div className="flex items-center gap-2 mt-1">
 							<span
 								className="px-2 py-0.5 rounded text-xs font-mono uppercase"
 								style={{
-									background: `rgba(var(${severityColor}), 0.15)`,
-									color: `rgb(var(${severityColor}))`,
+									background: `color-mix(in oklch, var(${severityColor}) 15%, transparent)`,
+									color: `var(${severityColor})`,
 								}}
 							>
 								{rule.severity}
 							</span>
-							<span className="text-xs text-[rgb(var(--text-muted))] font-mono uppercase">
+							<span className="text-xs text-muted-foreground font-mono uppercase">
 								{rule.status}
 							</span>
 						</div>
@@ -432,20 +428,20 @@ function AlertRuleCard({
 			</div>
 
 			{/* Condition display */}
-			<div className="p-3 rounded-lg bg-[rgb(var(--console-surface))] mb-3 font-mono text-sm">
-				<span className="text-[rgb(var(--console-cyan))]">{metric?.label}</span>
-				<span className="text-[rgb(var(--text-muted))] mx-2">{condition?.symbol}</span>
-				<span className="text-[rgb(var(--console-amber))]">
+			<div className="p-3 rounded-lg bg-secondary mb-3 font-mono text-sm">
+				<span className="text-primary">{metric?.label}</span>
+				<span className="text-muted-foreground mx-2">{condition?.symbol}</span>
+				<span className="text-warning">
 					{rule.threshold}
 					{metric?.unit}
 				</span>
-				<span className="text-[rgb(var(--text-muted))] mx-2">for</span>
-				<span className="text-[rgb(var(--console-purple))]">{formatDuration(rule.duration)}</span>
+				<span className="text-muted-foreground mx-2">for</span>
+				<span className="text-violet">{formatDuration(rule.duration)}</span>
 			</div>
 
 			{/* Channels */}
 			<div className="flex items-center gap-2 mb-3">
-				<span className="text-xs text-[rgb(var(--text-muted))]">Notify:</span>
+				<span className="text-xs text-muted-foreground">Notify:</span>
 				<div className="flex flex-wrap gap-1">
 					{rule.channels.map((channelId) => {
 						const channel = channels.find((c) => c.id === channelId);
@@ -453,7 +449,7 @@ function AlertRuleCard({
 						return (
 							<span
 								key={channelId}
-								className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-[rgb(var(--console-surface))] text-[rgb(var(--text-secondary))]"
+								className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-secondary text-muted-foreground"
 							>
 								<ChannelIcon className="w-3 h-3" />
 								{channel?.name || channelId}
@@ -464,8 +460,8 @@ function AlertRuleCard({
 			</div>
 
 			{/* Footer */}
-			<div className="flex items-center justify-between pt-3 border-t border-[rgba(var(--console-cyan),0.08)]">
-				<span className="text-xs text-[rgb(var(--text-muted))] font-mono">
+			<div className="flex items-center justify-between pt-3 border-t border-primary/10">
+				<span className="text-xs text-muted-foreground font-mono">
 					{rule.lastTriggered
 						? `Last triggered ${formatTimeAgo(rule.lastTriggered)}`
 						: "Never triggered"}
@@ -474,14 +470,14 @@ function AlertRuleCard({
 					<button
 						type="button"
 						onClick={onEdit}
-						className="p-2 rounded-lg hover:bg-[rgb(var(--console-surface))] text-[rgb(var(--text-muted))] hover:text-[rgb(var(--console-cyan))] transition-colors"
+						className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-primary transition-colors"
 					>
 						<Edit3 className="w-4 h-4" />
 					</button>
 					<button
 						type="button"
 						onClick={onDelete}
-						className="p-2 rounded-lg hover:bg-[rgb(var(--console-surface))] text-[rgb(var(--text-muted))] hover:text-[rgb(var(--console-red))] transition-colors"
+						className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-destructive transition-colors"
 					>
 						<Trash2 className="w-4 h-4" />
 					</button>
@@ -510,20 +506,18 @@ function ChannelCard({
 	const Icon = typeInfo?.icon || Bell;
 
 	return (
-		<div className="p-4 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.08)] hover:border-[rgba(var(--console-cyan),0.2)] transition-colors group">
+		<div className="p-4 rounded-lg bg-secondary border border-primary/10 hover:border-primary/20 transition-colors group">
 			<div className="flex items-start justify-between">
 				<div className="flex items-center gap-3">
-					<div className="w-9 h-9 rounded-lg bg-[rgba(var(--console-purple),0.1)] flex items-center justify-center">
-						<Icon className="w-4 h-4 text-[rgb(var(--console-purple))]" />
+					<div className="w-9 h-9 rounded-lg bg-violet/10 flex items-center justify-center">
+						<Icon className="w-4 h-4 text-violet" />
 					</div>
 					<div>
-						<div className="font-mono text-sm text-[rgb(var(--text-primary))]">{channel.name}</div>
+						<div className="font-mono text-sm text-foreground">{channel.name}</div>
 						<div className="flex items-center gap-2 mt-1">
-							<span className="text-xs text-[rgb(var(--text-muted))] uppercase">
-								{channel.type}
-							</span>
+							<span className="text-xs text-muted-foreground uppercase">{channel.type}</span>
 							{channel.verified && (
-								<span className="flex items-center gap-1 text-xs text-[rgb(var(--console-green))]">
+								<span className="flex items-center gap-1 text-xs text-success">
 									<CheckCircle2 className="w-3 h-3" />
 									Verified
 								</span>
@@ -537,7 +531,7 @@ function ChannelCard({
 						type="button"
 						onClick={onTest}
 						disabled={isTesting}
-						className="p-2 rounded-lg hover:bg-[rgb(var(--console-panel))] text-[rgb(var(--text-muted))] hover:text-[rgb(var(--console-cyan))] transition-colors disabled:opacity-50"
+						className="p-2 rounded-lg hover:bg-card text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
 					>
 						{isTesting ? (
 							<Loader2 className="w-4 h-4 animate-spin" />
@@ -548,7 +542,7 @@ function ChannelCard({
 					<button
 						type="button"
 						onClick={onDelete}
-						className="p-2 rounded-lg hover:bg-[rgb(var(--console-panel))] text-[rgb(var(--text-muted))] hover:text-[rgb(var(--console-red))] transition-colors"
+						className="p-2 rounded-lg hover:bg-card text-muted-foreground hover:text-destructive transition-colors"
 					>
 						<Trash2 className="w-4 h-4" />
 					</button>
@@ -556,7 +550,7 @@ function ChannelCard({
 			</div>
 
 			{/* Config preview */}
-			<div className="mt-3 text-xs font-mono text-[rgb(var(--text-muted))] truncate">
+			<div className="mt-3 text-xs font-mono text-muted-foreground truncate">
 				{channel.type === "email" && channel.config.emails}
 				{channel.type === "slack" && `#${channel.config.channel}`}
 				{channel.type === "webhook" && channel.config.url}
@@ -581,36 +575,34 @@ function AlertHistoryRow({
 	const stateColor = getStatusColor(alert.state);
 
 	return (
-		<div className="flex items-center gap-4 px-4 py-3 border-b border-[rgba(var(--console-cyan),0.05)] hover:bg-[rgba(var(--console-cyan),0.02)] transition-colors">
+		<div className="flex items-center gap-4 px-4 py-3 border-b border-primary/5 hover:bg-primary/5 transition-colors">
 			{/* State indicator */}
 			<div
 				className={`w-2 h-2 rounded-full flex-shrink-0 ${alert.state === "firing" ? "animate-pulse" : ""}`}
-				style={{ background: `rgb(var(${stateColor}))` }}
+				style={{ background: `var(${stateColor})` }}
 			/>
 
 			{/* Timestamp */}
 			<div className="w-28 flex-shrink-0">
-				<div className="font-mono text-xs text-[rgb(var(--text-secondary))]">
+				<div className="font-mono text-xs text-muted-foreground">
 					{new Date(alert.triggeredAt).toLocaleTimeString()}
 				</div>
-				<div className="font-mono text-[10px] text-[rgb(var(--text-muted))]">
+				<div className="font-mono text-[10px] text-muted-foreground/60">
 					{new Date(alert.triggeredAt).toLocaleDateString()}
 				</div>
 			</div>
 
 			{/* Rule name */}
 			<div className="flex-1 min-w-0">
-				<div className="font-mono text-sm text-[rgb(var(--text-primary))] truncate">
-					{alert.ruleName}
-				</div>
+				<div className="font-mono text-sm text-foreground truncate">{alert.ruleName}</div>
 			</div>
 
 			{/* Severity */}
 			<span
 				className="px-2 py-1 rounded text-xs font-mono uppercase flex-shrink-0"
 				style={{
-					background: `rgba(var(${severityColor}), 0.15)`,
-					color: `rgb(var(${severityColor}))`,
+					background: `color-mix(in oklch, var(${severityColor}) 15%, transparent)`,
+					color: `var(${severityColor})`,
 				}}
 			>
 				{alert.severity}
@@ -620,8 +612,8 @@ function AlertHistoryRow({
 			<span
 				className="w-20 text-center px-2 py-1 rounded text-xs font-mono uppercase flex-shrink-0"
 				style={{
-					background: `rgba(var(${stateColor}), 0.15)`,
-					color: `rgb(var(${stateColor}))`,
+					background: `color-mix(in oklch, var(${stateColor}) 15%, transparent)`,
+					color: `var(${stateColor})`,
 				}}
 			>
 				{alert.state}
@@ -633,14 +625,14 @@ function AlertHistoryRow({
 					<button
 						type="button"
 						onClick={onAcknowledge}
-						className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-[rgba(var(--console-amber),0.1)] text-[rgb(var(--console-amber))] hover:bg-[rgba(var(--console-amber),0.2)] transition-colors"
+						className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-warning/10 text-warning hover:bg-warning/20 transition-colors"
 					>
 						<Check className="w-3.5 h-3.5" />
 						Ack
 					</button>
 				)}
 				{alert.acknowledged && (
-					<span className="flex items-center gap-1 text-xs text-[rgb(var(--console-green))]">
+					<span className="flex items-center gap-1 text-xs text-success">
 						<CheckCircle2 className="w-3.5 h-3.5" />
 						Ack'd
 					</span>
@@ -710,7 +702,7 @@ function AlertRuleModal({
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 						placeholder="e.g., High Latency Alert"
-						className="w-full px-4 py-2.5 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] focus:border-[rgba(var(--console-cyan),0.4)] focus:outline-none font-mono text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))]"
+						className="w-full px-4 py-2.5 rounded-lg bg-secondary border border-primary/15 focus:border-primary/40 focus:outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/60"
 					/>
 				</div>
 
@@ -742,10 +734,10 @@ function AlertRuleModal({
 								value={threshold}
 								onChange={(e) => setThreshold(e.target.value)}
 								placeholder="0"
-								className="w-full px-4 py-2.5 pr-12 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] focus:border-[rgba(var(--console-cyan),0.4)] focus:outline-none font-mono text-sm text-[rgb(var(--text-primary))]"
+								className="w-full px-4 py-2.5 pr-12 rounded-lg bg-secondary border border-primary/15 focus:border-primary/40 focus:outline-none font-mono text-sm text-foreground"
 							/>
 							{selectedMetric && (
-								<span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[rgb(var(--text-muted))] font-mono">
+								<span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-mono">
 									{selectedMetric.unit}
 								</span>
 							)}
@@ -770,13 +762,13 @@ function AlertRuleModal({
 								onClick={() => setSeverity(s.value)}
 								className={`flex-1 py-2.5 rounded-lg font-mono text-sm font-medium transition-all ${
 									severity === s.value
-										? `ring-2 ring-offset-2 ring-offset-[rgb(var(--console-panel))]`
+										? "ring-2 ring-offset-2 ring-offset-card"
 										: "opacity-50 hover:opacity-80"
 								}`}
 								style={{
-									background: `rgba(var(${s.color}), 0.2)`,
-									color: `rgb(var(${s.color}))`,
-									...(severity === s.value && { boxShadow: `0 0 0 2px rgb(var(${s.color}))` }),
+									background: `color-mix(in oklch, var(${s.color}) 20%, transparent)`,
+									color: `var(${s.color})`,
+									...(severity === s.value && { boxShadow: `0 0 0 2px var(${s.color})` }),
 								}}
 							>
 								{s.label}
@@ -799,7 +791,7 @@ function AlertRuleModal({
 					<button
 						type="button"
 						onClick={onClose}
-						className="flex-1 px-4 py-3 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))] hover:border-[rgba(var(--console-cyan),0.3)] transition-colors font-mono text-sm"
+						className="flex-1 px-4 py-3 rounded-lg bg-secondary border border-primary/15 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors font-mono text-sm"
 					>
 						Cancel
 					</button>
@@ -807,7 +799,7 @@ function AlertRuleModal({
 						type="button"
 						onClick={handleSave}
 						disabled={!name || !metric || !condition || !threshold || isSaving}
-						className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--console-cyan))] to-[rgb(var(--console-purple))] text-[rgb(var(--console-void))] font-mono text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+						className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-primary to-violet text-primary-foreground font-mono text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
 					>
 						{isSaving ? (
 							<>
@@ -866,7 +858,7 @@ function ChannelModal({
 								value={config.webhookUrl || ""}
 								onChange={(e) => setConfig({ ...config, webhookUrl: e.target.value })}
 								placeholder="https://hooks.slack.com/services/..."
-								className="w-full px-4 py-2.5 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] focus:border-[rgba(var(--console-cyan),0.4)] focus:outline-none font-mono text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))]"
+								className="w-full px-4 py-2.5 rounded-lg bg-secondary border border-primary/15 focus:border-primary/40 focus:outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/60"
 							/>
 						</div>
 						<div>
@@ -876,7 +868,7 @@ function ChannelModal({
 								value={config.channel || ""}
 								onChange={(e) => setConfig({ ...config, channel: e.target.value })}
 								placeholder="alerts"
-								className="w-full px-4 py-2.5 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] focus:border-[rgba(var(--console-cyan),0.4)] focus:outline-none font-mono text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))]"
+								className="w-full px-4 py-2.5 rounded-lg bg-secondary border border-primary/15 focus:border-primary/40 focus:outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/60"
 							/>
 						</div>
 					</>
@@ -890,9 +882,9 @@ function ChannelModal({
 							value={config.emails || ""}
 							onChange={(e) => setConfig({ ...config, emails: e.target.value })}
 							placeholder="team@example.com, oncall@example.com"
-							className="w-full px-4 py-2.5 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] focus:border-[rgba(var(--console-cyan),0.4)] focus:outline-none font-mono text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))]"
+							className="w-full px-4 py-2.5 rounded-lg bg-secondary border border-primary/15 focus:border-primary/40 focus:outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/60"
 						/>
-						<p className="text-xs text-[rgb(var(--text-muted))] mt-1.5">
+						<p className="text-xs text-muted-foreground mt-1.5">
 							Separate multiple emails with commas
 						</p>
 					</div>
@@ -906,7 +898,7 @@ function ChannelModal({
 							value={config.url || ""}
 							onChange={(e) => setConfig({ ...config, url: e.target.value })}
 							placeholder="https://api.example.com/webhook"
-							className="w-full px-4 py-2.5 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] focus:border-[rgba(var(--console-cyan),0.4)] focus:outline-none font-mono text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))]"
+							className="w-full px-4 py-2.5 rounded-lg bg-secondary border border-primary/15 focus:border-primary/40 focus:outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/60"
 						/>
 					</div>
 				);
@@ -919,7 +911,7 @@ function ChannelModal({
 							value={config.routingKey || ""}
 							onChange={(e) => setConfig({ ...config, routingKey: e.target.value })}
 							placeholder="Integration routing key"
-							className="w-full px-4 py-2.5 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] focus:border-[rgba(var(--console-cyan),0.4)] focus:outline-none font-mono text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))]"
+							className="w-full px-4 py-2.5 rounded-lg bg-secondary border border-primary/15 focus:border-primary/40 focus:outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/60"
 						/>
 					</div>
 				);
@@ -939,7 +931,7 @@ function ChannelModal({
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 						placeholder="e.g., Engineering Slack"
-						className="w-full px-4 py-2.5 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] focus:border-[rgba(var(--console-cyan),0.4)] focus:outline-none font-mono text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))]"
+						className="w-full px-4 py-2.5 rounded-lg bg-secondary border border-primary/15 focus:border-primary/40 focus:outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/60"
 					/>
 				</div>
 
@@ -959,22 +951,18 @@ function ChannelModal({
 									}}
 									className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-all ${
 										type === t.value
-											? "border-[rgb(var(--console-cyan))] bg-[rgba(var(--console-cyan),0.1)]"
-											: "border-[rgba(var(--console-cyan),0.1)] bg-[rgb(var(--console-surface))] hover:border-[rgba(var(--console-cyan),0.3)]"
+											? "border-primary bg-primary/10"
+											: "border-primary/10 bg-secondary hover:border-primary/30"
 									}`}
 								>
 									<Icon
 										className={`w-5 h-5 ${
-											type === t.value
-												? "text-[rgb(var(--console-cyan))]"
-												: "text-[rgb(var(--text-muted))]"
+											type === t.value ? "text-primary" : "text-muted-foreground"
 										}`}
 									/>
 									<span
 										className={`text-xs font-mono ${
-											type === t.value
-												? "text-[rgb(var(--console-cyan))]"
-												: "text-[rgb(var(--text-secondary))]"
+											type === t.value ? "text-primary" : "text-muted-foreground"
 										}`}
 									>
 										{t.label}
@@ -993,7 +981,7 @@ function ChannelModal({
 					<button
 						type="button"
 						onClick={onClose}
-						className="flex-1 px-4 py-3 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))] hover:border-[rgba(var(--console-cyan),0.3)] transition-colors font-mono text-sm"
+						className="flex-1 px-4 py-3 rounded-lg bg-secondary border border-primary/15 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors font-mono text-sm"
 					>
 						Cancel
 					</button>
@@ -1001,7 +989,7 @@ function ChannelModal({
 						type="button"
 						onClick={handleSave}
 						disabled={!name || !type || isSaving}
-						className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--console-purple))] to-[rgb(var(--console-cyan))] text-[rgb(var(--console-void))] font-mono text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+						className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-violet to-primary text-primary-foreground font-mono text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
 					>
 						{isSaving ? (
 							<>
@@ -1118,28 +1106,28 @@ export default function AlertsPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="font-display text-2xl text-[rgb(var(--text-primary))] flex items-center gap-3">
+					<h1 className="font-display text-2xl text-foreground flex items-center gap-3">
 						<div
 							className={`w-8 h-8 rounded-lg flex items-center justify-center ${
 								firingCount > 0
-									? "bg-gradient-to-br from-[rgb(var(--console-red))] to-[rgb(var(--console-amber))]"
-									: "bg-gradient-to-br from-[rgb(var(--console-amber))] to-[rgb(var(--console-red))]"
+									? "bg-gradient-to-br from-destructive to-warning"
+									: "bg-gradient-to-br from-warning to-destructive"
 							}`}
 						>
 							{firingCount > 0 ? (
 								<AlertTriangle className="w-4 h-4 text-white" />
 							) : (
-								<Bell className="w-4 h-4 text-[rgb(var(--console-void))]" />
+								<Bell className="w-4 h-4 text-warning-foreground" />
 							)}
 						</div>
 						Alert Configuration
 						{firingCount > 0 && (
-							<span className="px-2 py-1 rounded-full text-xs font-mono bg-[rgba(var(--console-red),0.2)] text-[rgb(var(--console-red))] animate-pulse">
+							<span className="px-2 py-1 rounded-full text-xs font-mono bg-destructive/20 text-destructive animate-pulse">
 								{firingCount} firing
 							</span>
 						)}
 					</h1>
-					<p className="text-sm text-[rgb(var(--text-muted))] mt-1 ml-11">
+					<p className="text-sm text-muted-foreground mt-1 ml-11">
 						Manage alert rules and notification channels
 					</p>
 				</div>
@@ -1152,11 +1140,9 @@ export default function AlertsPage() {
 					{/* Section header */}
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<Shield className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
-							<h2 className="font-display text-base text-[rgb(var(--text-primary))]">
-								Alert Rules
-							</h2>
-							<span className="px-2 py-0.5 rounded-full text-xs font-mono bg-[rgb(var(--console-surface))] text-[rgb(var(--text-muted))]">
+							<Shield className="w-4 h-4 text-primary" />
+							<h2 className="font-display text-base text-foreground">Alert Rules</h2>
+							<span className="px-2 py-0.5 rounded-full text-xs font-mono bg-secondary text-muted-foreground">
 								{rules.length}
 							</span>
 						</div>
@@ -1166,7 +1152,7 @@ export default function AlertsPage() {
 								setEditingRule(undefined);
 								setShowRuleModal(true);
 							}}
-							className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[rgb(var(--console-cyan))] to-[rgb(var(--console-purple))] text-[rgb(var(--console-void))] font-mono text-sm font-medium hover:shadow-lg hover:shadow-[rgba(var(--console-cyan),0.2)] transition-all"
+							className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-violet text-primary-foreground font-mono text-sm font-medium hover:shadow-lg hover:shadow-primary/20 transition-all"
 						>
 							<Plus className="w-4 h-4" />
 							New Rule
@@ -1179,11 +1165,11 @@ export default function AlertsPage() {
 							{[1, 2, 3].map((i) => (
 								<div key={i} className="panel p-4 animate-pulse">
 									<div className="flex items-center gap-3 mb-3">
-										<div className="w-3 h-3 rounded-full bg-[rgb(var(--console-surface))]" />
-										<div className="h-4 w-32 rounded bg-[rgb(var(--console-surface))]" />
+										<div className="w-3 h-3 rounded-full bg-secondary" />
+										<div className="h-4 w-32 rounded bg-secondary" />
 									</div>
-									<div className="h-12 rounded bg-[rgb(var(--console-surface))] mb-3" />
-									<div className="h-4 w-24 rounded bg-[rgb(var(--console-surface))]" />
+									<div className="h-12 rounded bg-secondary mb-3" />
+									<div className="h-4 w-24 rounded bg-secondary" />
 								</div>
 							))}
 						</div>
@@ -1211,13 +1197,13 @@ export default function AlertsPage() {
 					{/* Section header */}
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<ExternalLink className="w-4 h-4 text-[rgb(var(--console-purple))]" />
-							<h2 className="font-display text-base text-[rgb(var(--text-primary))]">Channels</h2>
+							<ExternalLink className="w-4 h-4 text-violet" />
+							<h2 className="font-display text-base text-foreground">Channels</h2>
 						</div>
 						<button
 							type="button"
 							onClick={() => setShowChannelModal(true)}
-							className="p-2 rounded-lg bg-[rgb(var(--console-surface))] hover:bg-[rgba(var(--console-purple),0.2)] text-[rgb(var(--text-muted))] hover:text-[rgb(var(--console-purple))] transition-colors"
+							className="p-2 rounded-lg bg-secondary hover:bg-violet/20 text-muted-foreground hover:text-violet transition-colors"
 						>
 							<Plus className="w-4 h-4" />
 						</button>
@@ -1236,10 +1222,8 @@ export default function AlertsPage() {
 						))}
 						{channels.length === 0 && !isLoading && (
 							<div className="panel p-6 text-center">
-								<BellOff className="w-8 h-8 text-[rgb(var(--text-dim))] mx-auto mb-3" />
-								<p className="text-sm text-[rgb(var(--text-muted))]">
-									No notification channels configured
-								</p>
+								<BellOff className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+								<p className="text-sm text-muted-foreground">No notification channels configured</p>
 							</div>
 						)}
 					</div>
@@ -1249,12 +1233,10 @@ export default function AlertsPage() {
 			{/* Alert History */}
 			<div className="panel overflow-hidden">
 				{/* Section header */}
-				<div className="flex items-center justify-between px-4 py-4 border-b border-[rgba(var(--console-cyan),0.1)]">
+				<div className="flex items-center justify-between px-4 py-4 border-b border-primary/10">
 					<div className="flex items-center gap-2">
-						<Clock className="w-4 h-4 text-[rgb(var(--console-amber))]" />
-						<h2 className="font-display text-base text-[rgb(var(--text-primary))]">
-							Alert History
-						</h2>
+						<Clock className="w-4 h-4 text-warning" />
+						<h2 className="font-display text-base text-foreground">Alert History</h2>
 					</div>
 				</div>
 
@@ -1270,8 +1252,8 @@ export default function AlertsPage() {
 						))
 					) : (
 						<div className="p-8 text-center">
-							<CheckCircle2 className="w-8 h-8 text-[rgb(var(--console-green))] mx-auto mb-3" />
-							<p className="text-sm text-[rgb(var(--text-muted))]">No recent alerts</p>
+							<CheckCircle2 className="w-8 h-8 text-success mx-auto mb-3" />
+							<p className="text-sm text-muted-foreground">No recent alerts</p>
 						</div>
 					)}
 				</div>

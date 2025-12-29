@@ -321,7 +321,7 @@ export function ServiceHealthGrid({
 					{/* Infrastructure Section */}
 					{showSectionHeaders && infraServices.length > 0 && (
 						<div className="flex items-center gap-2 mt-4">
-							<Database className="h-3.5 w-3.5 text-[rgb(var(--console-purple))]" />
+							<Database className="h-3.5 w-3.5 text-violet" />
 							<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
 								Infrastructure
 							</span>

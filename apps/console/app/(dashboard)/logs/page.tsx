@@ -56,10 +56,10 @@ const TIME_RANGES = [
 ];
 
 const LEVEL_CONFIG: Record<LogLevel, { color: string; icon: typeof Info; label: string }> = {
-	debug: { color: "--console-purple", icon: Bug, label: "DEBUG" },
-	info: { color: "--console-cyan", icon: Info, label: "INFO" },
-	warn: { color: "--console-amber", icon: AlertTriangle, label: "WARN" },
-	error: { color: "--console-red", icon: XCircle, label: "ERROR" },
+	debug: { color: "--violet", icon: Bug, label: "DEBUG" },
+	info: { color: "--primary", icon: Info, label: "INFO" },
+	warn: { color: "--warning", icon: AlertTriangle, label: "WARN" },
+	error: { color: "--destructive", icon: XCircle, label: "ERROR" },
 };
 
 // ============================================
@@ -94,17 +94,17 @@ function FilterDropdown<T extends string>({
 			<button
 				type="button"
 				onClick={() => setIsOpen(!isOpen)}
-				className="flex items-center gap-2 px-3 py-2 rounded-md bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] hover:border-[rgba(var(--console-cyan),0.3)] transition-colors text-sm"
+				className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary border border-primary/15 hover:border-primary/30 transition-colors text-sm"
 			>
-				<Filter className="w-3.5 h-3.5 text-[rgb(var(--text-muted))]" />
-				<span className="text-[rgb(var(--text-secondary))]">{label}</span>
+				<Filter className="w-3.5 h-3.5 text-muted-foreground" />
+				<span className="text-muted-foreground">{label}</span>
 				{selected.length > 0 && (
-					<span className="px-1.5 py-0.5 rounded bg-[rgba(var(--console-cyan),0.2)] text-[rgb(var(--console-cyan))] text-xs font-mono">
+					<span className="px-1.5 py-0.5 rounded bg-primary/20 text-primary text-xs font-mono">
 						{selected.length}
 					</span>
 				)}
 				<ChevronDown
-					className={`w-3.5 h-3.5 text-[rgb(var(--text-muted))] transition-transform ${isOpen ? "rotate-180" : ""}`}
+					className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
 				/>
 			</button>
 
@@ -112,24 +112,24 @@ function FilterDropdown<T extends string>({
 				<>
 					{/* biome-ignore lint/a11y/useKeyWithClickEvents: overlay dismissal */}
 					<div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-					<div className="absolute left-0 top-full mt-1 z-20 min-w-[160px] py-1 rounded-lg bg-[rgb(var(--console-panel))] border border-[rgba(var(--console-cyan),0.2)] shadow-xl shadow-black/30">
+					<div className="absolute left-0 top-full mt-1 z-20 min-w-[160px] py-1 rounded-lg bg-card border border-primary/20 shadow-xl shadow-black/30">
 						{options.map((option) => (
 							<button
 								type="button"
 								key={option}
 								onClick={() => toggleOption(option)}
-								className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-[rgb(var(--console-surface))] transition-colors"
+								className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-secondary transition-colors"
 							>
 								<div
 									className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
 										selected.includes(option)
-											? "bg-[rgb(var(--console-cyan))] border-[rgb(var(--console-cyan))]"
-											: "border-[rgb(var(--text-muted))]"
+											? "bg-primary border-primary"
+											: "border-muted-foreground"
 									}`}
 								>
 									{selected.includes(option) && (
 										<svg
-											className="w-3 h-3 text-[rgb(var(--console-void))]"
+											className="w-3 h-3 text-primary-foreground"
 											fill="none"
 											viewBox="0 0 24 24"
 											stroke="currentColor"
@@ -144,11 +144,11 @@ function FilterDropdown<T extends string>({
 						))}
 						{selected.length > 0 && (
 							<>
-								<div className="h-px bg-[rgba(var(--console-cyan),0.1)] my-1" />
+								<div className="h-px bg-primary/10 my-1" />
 								<button
 									type="button"
 									onClick={() => onChange([])}
-									className="w-full px-3 py-2 text-left text-xs text-[rgb(var(--text-muted))] hover:text-[rgb(var(--console-red))] transition-colors"
+									className="w-full px-3 py-2 text-left text-xs text-muted-foreground hover:text-destructive transition-colors"
 								>
 									Clear all
 								</button>
@@ -172,13 +172,13 @@ function LogEntryRow({ entry, isNew }: { entry: LogEntry; isNew?: boolean }) {
 
 	return (
 		<div
-			className={`group flex items-start gap-3 px-4 py-2 border-b border-[rgba(var(--console-cyan),0.05)] hover:bg-[rgba(var(--console-cyan),0.03)] transition-colors ${
-				isNew ? "animate-fade-in bg-[rgba(var(--console-cyan),0.05)]" : ""
+			className={`group flex items-start gap-3 px-4 py-2 border-b border-primary/5 hover:bg-primary/5 transition-colors ${
+				isNew ? "animate-fade-in bg-primary/5" : ""
 			}`}
 		>
 			{/* Timestamp */}
-			<div className="flex-shrink-0 w-[140px] font-mono text-xs text-[rgb(var(--text-muted))] tabular-nums">
-				<span className="text-[rgb(var(--text-dim))]">
+			<div className="flex-shrink-0 w-[140px] font-mono text-xs text-muted-foreground tabular-nums">
+				<span className="text-muted-foreground/60">
 					{timestamp.toLocaleDateString("en-US", { month: "short", day: "2-digit" })}
 				</span>{" "}
 				{timestamp.toLocaleTimeString("en-US", {
@@ -187,14 +187,14 @@ function LogEntryRow({ entry, isNew }: { entry: LogEntry; isNew?: boolean }) {
 					minute: "2-digit",
 					second: "2-digit",
 				})}
-				<span className="text-[rgb(var(--text-dim))]">
+				<span className="text-muted-foreground/60">
 					.{String(timestamp.getMilliseconds()).padStart(3, "0")}
 				</span>
 			</div>
 
 			{/* Service Badge */}
 			<div className="flex-shrink-0 w-[90px]">
-				<span className="inline-flex px-2 py-0.5 rounded text-[10px] font-mono font-medium uppercase tracking-wider bg-[rgb(var(--console-surface))] text-[rgb(var(--text-secondary))] border border-[rgba(var(--console-cyan),0.1)]">
+				<span className="inline-flex px-2 py-0.5 rounded text-[10px] font-mono font-medium uppercase tracking-wider bg-secondary text-muted-foreground border border-primary/10">
 					{entry.service}
 				</span>
 			</div>
@@ -215,11 +215,11 @@ function LogEntryRow({ entry, isNew }: { entry: LogEntry; isNew?: boolean }) {
 
 			{/* Message */}
 			<div className="flex-1 min-w-0">
-				<p className="font-mono text-sm text-[rgb(var(--text-primary))] break-all leading-relaxed">
+				<p className="font-mono text-sm text-foreground break-all leading-relaxed">
 					{entry.message}
 				</p>
 				{entry.metadata && Object.keys(entry.metadata).length > 0 && (
-					<div className="mt-1 text-xs font-mono text-[rgb(var(--text-dim))] opacity-0 group-hover:opacity-100 transition-opacity">
+					<div className="mt-1 text-xs font-mono text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity">
 						{JSON.stringify(entry.metadata)}
 					</div>
 				)}
@@ -316,12 +316,12 @@ export default function LogsPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between mb-4">
 				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[rgb(var(--console-green))] to-[rgb(var(--console-cyan))] flex items-center justify-center shadow-lg shadow-[rgba(var(--console-green),0.2)]">
-						<ScrollText className="w-5 h-5 text-[rgb(var(--console-void))]" />
+					<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-success to-primary flex items-center justify-center shadow-lg shadow-success/20">
+						<ScrollText className="w-5 h-5 text-success-foreground" />
 					</div>
 					<div>
-						<h1 className="font-display text-2xl text-[rgb(var(--text-primary))]">Logs</h1>
-						<p className="text-sm text-[rgb(var(--text-muted))]">Real-time system event stream</p>
+						<h1 className="font-display text-2xl text-foreground">Logs</h1>
+						<p className="text-sm text-muted-foreground">Real-time system event stream</p>
 					</div>
 				</div>
 
@@ -329,16 +329,12 @@ export default function LogsPage() {
 				<div className="flex items-center gap-4">
 					<div
 						className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono ${
-							isStreaming
-								? "bg-[rgba(var(--console-green),0.1)] text-[rgb(var(--console-green))]"
-								: "bg-[rgba(var(--console-amber),0.1)] text-[rgb(var(--console-amber))]"
+							isStreaming ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
 						}`}
 					>
 						<div
 							className={`w-2 h-2 rounded-full ${
-								isStreaming
-									? "bg-[rgb(var(--console-green))] animate-pulse"
-									: "bg-[rgb(var(--console-amber))]"
+								isStreaming ? "bg-success animate-pulse" : "bg-warning"
 							}`}
 						/>
 						{isStreaming ? "Live" : "Paused"}
@@ -347,24 +343,24 @@ export default function LogsPage() {
 					<button
 						type="button"
 						onClick={() => setIsStreaming(!isStreaming)}
-						className="p-2 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] hover:border-[rgba(var(--console-cyan),0.3)] transition-colors"
+						className="p-2 rounded-lg bg-secondary border border-primary/15 hover:border-primary/30 transition-colors"
 						title={isStreaming ? "Pause stream" : "Resume stream"}
 					>
 						{isStreaming ? (
-							<Pause className="w-4 h-4 text-[rgb(var(--text-secondary))]" />
+							<Pause className="w-4 h-4 text-muted-foreground" />
 						) : (
-							<Play className="w-4 h-4 text-[rgb(var(--console-green))]" />
+							<Play className="w-4 h-4 text-success" />
 						)}
 					</button>
 
 					<button
 						type="button"
 						onClick={fetchLogs}
-						className="p-2 rounded-lg bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] hover:border-[rgba(var(--console-cyan),0.3)] transition-colors"
+						className="p-2 rounded-lg bg-secondary border border-primary/15 hover:border-primary/30 transition-colors"
 						title="Refresh logs"
 					>
 						<RefreshCw
-							className={`w-4 h-4 text-[rgb(var(--text-secondary))] ${isLoading ? "animate-spin" : ""}`}
+							className={`w-4 h-4 text-muted-foreground ${isLoading ? "animate-spin" : ""}`}
 						/>
 					</button>
 				</div>
@@ -411,7 +407,7 @@ export default function LogsPage() {
 									timeRange: e.target.value,
 								}))
 							}
-							className="appearance-none px-3 py-2 pr-8 rounded-md bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] hover:border-[rgba(var(--console-cyan),0.3)] transition-colors text-sm text-[rgb(var(--text-secondary))] cursor-pointer"
+							className="appearance-none px-3 py-2 pr-8 rounded-md bg-secondary border border-primary/15 hover:border-primary/30 transition-colors text-sm text-muted-foreground cursor-pointer"
 						>
 							{TIME_RANGES.map((range) => (
 								<option key={range.id} value={range.id}>
@@ -419,26 +415,26 @@ export default function LogsPage() {
 								</option>
 							))}
 						</select>
-						<ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--text-muted))] pointer-events-none" />
+						<ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
 					</div>
 
 					{/* Search */}
 					<div className="flex-1 min-w-[200px] relative">
-						<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--text-muted))]" />
+						<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
 						<input
 							type="text"
 							value={filters.search}
 							onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
 							placeholder="Search logs..."
-							className="w-full pl-10 pr-8 py-2 rounded-md bg-[rgb(var(--console-surface))] border border-[rgba(var(--console-cyan),0.15)] hover:border-[rgba(var(--console-cyan),0.3)] focus:border-[rgb(var(--console-cyan))] focus:outline-none transition-colors text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-dim))]"
+							className="w-full pl-10 pr-8 py-2 rounded-md bg-secondary border border-primary/15 hover:border-primary/30 focus:border-primary focus:outline-none transition-colors text-sm text-foreground placeholder:text-muted-foreground/60"
 						/>
 						{filters.search && (
 							<button
 								type="button"
 								onClick={() => setFilters((prev) => ({ ...prev, search: "" }))}
-								className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[rgba(var(--console-cyan),0.1)] transition-colors"
+								className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-primary/10 transition-colors"
 							>
-								<X className="w-3 h-3 text-[rgb(var(--text-muted))]" />
+								<X className="w-3 h-3 text-muted-foreground" />
 							</button>
 						)}
 					</div>
@@ -467,10 +463,10 @@ export default function LogsPage() {
 			{/* Logs Container */}
 			<div className="panel flex-1 flex flex-col overflow-hidden">
 				{/* Terminal Header */}
-				<div className="flex items-center gap-2 px-4 py-2 border-b border-[rgba(var(--console-cyan),0.1)] bg-[rgb(var(--console-surface))]">
-					<Terminal className="w-4 h-4 text-[rgb(var(--console-cyan))]" />
-					<span className="font-mono text-xs text-[rgb(var(--text-muted))]">engram.logs</span>
-					<span className="font-mono text-xs text-[rgb(var(--text-dim))]">
+				<div className="flex items-center gap-2 px-4 py-2 border-b border-primary/10 bg-secondary">
+					<Terminal className="w-4 h-4 text-primary" />
+					<span className="font-mono text-xs text-muted-foreground">engram.logs</span>
+					<span className="font-mono text-xs text-muted-foreground/60">
 						— {filteredLogs.length} entries
 					</span>
 				</div>
@@ -479,18 +475,18 @@ export default function LogsPage() {
 				<div ref={logsContainerRef} className="flex-1 overflow-y-auto scroll-smooth">
 					{isLoading ? (
 						<div className="flex items-center justify-center h-full">
-							<div className="flex items-center gap-3 text-[rgb(var(--text-muted))]">
+							<div className="flex items-center gap-3 text-muted-foreground">
 								<RefreshCw className="w-5 h-5 animate-spin" />
 								<span className="font-mono text-sm">Loading logs...</span>
 							</div>
 						</div>
 					) : filteredLogs.length === 0 ? (
-						<div className="flex flex-col items-center justify-center h-full gap-3 text-[rgb(var(--text-muted))]">
+						<div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
 							<ScrollText className="w-12 h-12 opacity-30" />
 							<span className="font-mono text-sm">No logs match your filters</span>
 						</div>
 					) : (
-						<div className="divide-y divide-[rgba(var(--console-cyan),0.05)]">
+						<div className="divide-y divide-primary/5">
 							{filteredLogs.map((entry) => (
 								<LogEntryRow key={entry.id} entry={entry} isNew={newLogIds.has(entry.id)} />
 							))}
@@ -499,15 +495,15 @@ export default function LogsPage() {
 				</div>
 
 				{/* Footer */}
-				<div className="flex items-center justify-between px-4 py-2 border-t border-[rgba(var(--console-cyan),0.1)] bg-[rgb(var(--console-surface))]">
+				<div className="flex items-center justify-between px-4 py-2 border-t border-primary/10 bg-secondary">
 					<div className="flex items-center gap-4">
 						<button
 							type="button"
 							onClick={() => setAutoScroll(!autoScroll)}
 							className={`flex items-center gap-2 px-2 py-1 rounded text-xs font-mono transition-colors ${
 								autoScroll
-									? "text-[rgb(var(--console-cyan))] bg-[rgba(var(--console-cyan),0.1)]"
-									: "text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]"
+									? "text-primary bg-primary/10"
+									: "text-muted-foreground hover:text-foreground"
 							}`}
 						>
 							<ArrowDown className="w-3 h-3" />
@@ -515,7 +511,7 @@ export default function LogsPage() {
 						</button>
 					</div>
 
-					<div className="font-mono text-xs text-[rgb(var(--text-dim))]">
+					<div className="font-mono text-xs text-muted-foreground/60">
 						Showing {filteredLogs.length} of {logs.length} entries
 					</div>
 				</div>
