@@ -8,6 +8,7 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
+import { crc32 } from "node:zlib";
 import type {
 	DeviceCodeRecord,
 	DeviceCodeResponse,
@@ -54,6 +55,56 @@ export function generateUserCode(): string {
 	return code;
 }
 
+// =============================================================================
+// Token Checksum (CRC6)
+// =============================================================================
+
+const BASE62_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+/**
+ * Encode a number to Base62 with fixed length padding.
+ */
+function encodeBase62(num: number, length: number): string {
+	let result = "";
+	let remaining = num >>> 0; // Ensure unsigned 32-bit
+
+	while (remaining > 0) {
+		result = BASE62_CHARS[remaining % 62] + result;
+		remaining = Math.floor(remaining / 62);
+	}
+
+	// Pad to desired length
+	return result.padStart(length, "0");
+}
+
+/**
+ * Compute CRC32 checksum of a string and return as 6-char Base62.
+ * This allows offline validation to eliminate false positives in secret scanning.
+ *
+ * @see https://github.blog/engineering/platform-security/behind-githubs-new-authentication-token-formats/
+ */
+export function computeTokenChecksum(payload: string): string {
+	const checksum = crc32(Buffer.from(payload));
+	return encodeBase62(checksum, 6);
+}
+
+/**
+ * Validate a token's checksum.
+ * Returns true if the checksum matches, false otherwise.
+ */
+export function validateTokenChecksum(token: string): boolean {
+	// Token format: egm_{type}_{random32}_{crc6}
+	const lastUnderscore = token.lastIndexOf("_");
+	if (lastUnderscore === -1) return false;
+
+	const payload = token.slice(0, lastUnderscore);
+	const checksum = token.slice(lastUnderscore + 1);
+
+	if (checksum.length !== 6) return false;
+
+	return computeTokenChecksum(payload) === checksum;
+}
+
 /**
  * Normalize a user code for comparison (uppercase, remove dashes/spaces).
  */
@@ -63,16 +114,61 @@ export function normalizeUserCode(code: string): string {
 
 /**
  * Generate an OAuth access token.
+ *
+ * Format: egm_oauth_{random32}_{crc6}
+ * - egm: Engram company identifier
+ * - oauth: Token type (access token from OAuth flow)
+ * - random32: 32 hex characters (128 bits of entropy)
+ * - crc6: 6 Base62 characters (CRC32 checksum for offline validation)
+ *
+ * Example: egm_oauth_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4_X7kM2p
+ *
+ * @see https://github.blog/engineering/platform-security/behind-githubs-new-authentication-token-formats/
  */
 export function generateAccessToken(): string {
-	return `engram_oauth_${randomBytes(16).toString("hex")}`;
+	const random = randomBytes(16).toString("hex");
+	const payload = `egm_oauth_${random}`;
+	const checksum = computeTokenChecksum(payload);
+	return `${payload}_${checksum}`;
 }
 
 /**
  * Generate an OAuth refresh token.
+ *
+ * Format: egm_refresh_{random32}_{crc6}
+ * - egm: Engram company identifier
+ * - refresh: Token type (refresh token)
+ * - random32: 32 hex characters (128 bits of entropy)
+ * - crc6: 6 Base62 characters (CRC32 checksum for offline validation)
+ *
+ * Example: egm_refresh_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4_X7kM2p
  */
 export function generateRefreshToken(): string {
-	return `engram_refresh_${randomBytes(16).toString("hex")}`;
+	const random = randomBytes(16).toString("hex");
+	const payload = `egm_refresh_${random}`;
+	const checksum = computeTokenChecksum(payload);
+	return `${payload}_${checksum}`;
+}
+
+/**
+ * Generate a client credentials access token string.
+ *
+ * Format: egm_client_{random32}_{crc6}
+ * - egm: Engram company identifier
+ * - client: Token type (client credentials / M2M)
+ * - random32: 32 hex characters (128 bits of entropy)
+ * - crc6: 6 Base62 characters (CRC32 checksum for offline validation)
+ *
+ * Example: egm_client_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4_X7kM2p
+ *
+ * @see https://oauth.net/2/grant-types/client-credentials/
+ * @see https://tools.ietf.org/html/rfc6749#section-4.4
+ */
+function generateClientAccessToken(): string {
+	const random = randomBytes(16).toString("hex");
+	const payload = `egm_client_${random}`;
+	const checksum = computeTokenChecksum(payload);
+	return `${payload}_${checksum}`;
 }
 
 /**
@@ -547,4 +643,70 @@ export async function listUserTokens(userId: string): Promise<OAuthTokenRecord[]
 	);
 
 	return result.rows;
+}
+
+// =============================================================================
+// Client Credentials Grant (M2M)
+// =============================================================================
+
+/**
+ * Generate a client credentials access token (no refresh token per RFC 6749 §4.4).
+ *
+ * Used for machine-to-machine authentication where the client acts on its own behalf,
+ * not on behalf of a user. Per OAuth 2.0 spec, refresh tokens are NOT issued for
+ * client credentials grants as the client can simply request a new token.
+ *
+ * Token lifetime is shorter than user tokens (1 hour vs 7 days) per M2M best practices.
+ *
+ * @param clientId - UUID of the OAuth client (from oauth_clients table)
+ * @param scopes - Array of scopes to grant (e.g., ['memory:read', 'memory:write'])
+ * @param dpopJwkThumbprint - JWK thumbprint from DPoP proof for token binding
+ * @returns Token response with access token, no refresh token
+ *
+ * @see https://tools.ietf.org/html/rfc6749#section-4.4 (no refresh tokens)
+ * @see https://www.oauth.com/oauth2-servers/access-tokens/access-token-lifetime/
+ */
+export async function generateClientToken(
+	clientId: string,
+	scopes: string[],
+	dpopJwkThumbprint: string,
+): Promise<{
+	accessToken: string;
+	expiresIn: number;
+	tokenType: "DPoP";
+	scope: string;
+}> {
+	const accessToken = generateClientAccessToken();
+	const accessTokenHash = hashToken(accessToken);
+	const accessTokenPrefix = `${accessToken.slice(0, 20)}...`;
+
+	// Client credentials tokens have shorter TTL (1 hour vs 7 days for user tokens)
+	const CLIENT_TOKEN_EXPIRES_IN = 60 * 60; // 1 hour
+	const accessTokenExpiresAt = new Date(Date.now() + CLIENT_TOKEN_EXPIRES_IN * 1000);
+
+	// Store token record (NO refresh token per RFC 6749 §4.4)
+	await pool.query(
+		`INSERT INTO oauth_tokens (
+			access_token_hash, access_token_prefix,
+			client_id_ref, grant_type, dpop_jkt, scopes,
+			access_token_expires_at,
+			refresh_token_hash, refresh_token_expires_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL)`,
+		[
+			accessTokenHash,
+			accessTokenPrefix,
+			clientId,
+			"client_credentials",
+			dpopJwkThumbprint,
+			scopes,
+			accessTokenExpiresAt,
+		],
+	);
+
+	return {
+		accessToken,
+		expiresIn: CLIENT_TOKEN_EXPIRES_IN,
+		tokenType: "DPoP",
+		scope: scopes.join(" "),
+	};
 }

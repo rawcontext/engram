@@ -19,7 +19,7 @@ from src.indexing.turns import (
     TurnsIndexer,
     TurnsIndexerConfig,
 )
-from src.middleware.auth import ApiKeyAuth, set_auth_handler
+from src.middleware.auth import AuthHandler, set_auth_handler
 from src.rerankers import RerankerRouter
 from src.retrieval import SearchRetriever
 from src.retrieval.multi_query import MultiQueryRetriever
@@ -58,23 +58,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
 
     # Initialize auth handler if enabled
-    auth_handler: ApiKeyAuth | None = None
+    auth_handler: AuthHandler | None = None
     if settings.auth_enabled:
-        logger.info("Initializing API key authentication...")
-        auth_handler = ApiKeyAuth(settings.postgres_url)
+        logger.info("Initializing OAuth authentication via introspection...")
+        auth_handler = AuthHandler(
+            introspection_url=settings.oauth_introspection_url,
+            client_id=settings.oauth_client_id,
+            client_secret=settings.oauth_client_secret,
+        )
         try:
             await auth_handler.connect()
             set_auth_handler(auth_handler)
             app.state.auth_handler = auth_handler
-            logger.info("API key authentication initialized")
+            logger.info(
+                f"OAuth authentication initialized (introspection URL: "
+                f"{settings.oauth_introspection_url})"
+            )
         except Exception as e:
             logger.error(f"Failed to initialize auth: {e}")
             raise RuntimeError(
-                f"Auth database connection failed: {e}. "
+                f"OAuth introspection connection failed: {e}. "
                 "Set AUTH_ENABLED=false to run without authentication (NOT RECOMMENDED)."
             ) from e
     else:
-        logger.warning("API key authentication DISABLED (AUTH_ENABLED=false)")
+        logger.warning("OAuth authentication DISABLED (AUTH_ENABLED=false)")
 
     # Startup: Initialize Qdrant client and embedders
     logger.info("Starting Engram Search Service...")

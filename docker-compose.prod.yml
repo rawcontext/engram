@@ -94,7 +94,9 @@ services:
       - NATS_URL=nats://nats:4222
       - REDIS_URL=redis://falkordb:6379
       - PORT=6175
-      - AUTH_ENABLED=false
+      - ENGRAM_AUTH_URL=https://observatory.engram.rawcontext.com
+      - ENGRAM_CLIENT_ID=engram-ingestion
+      - ENGRAM_CLIENT_SECRET=${ENGRAM_INGESTION_CLIENT_SECRET}
     depends_on:
       nats:
         condition: service_healthy
@@ -118,6 +120,9 @@ services:
       - NATS_URL=nats://nats:4222
       - FALKORDB_URL=redis://falkordb:6379
       - REDIS_URL=redis://falkordb:6379
+      - ENGRAM_AUTH_URL=https://observatory.engram.rawcontext.com
+      - ENGRAM_CLIENT_ID=engram-memory
+      - ENGRAM_CLIENT_SECRET=${ENGRAM_MEMORY_CLIENT_SECRET}
     depends_on:
       nats:
         condition: service_healthy
@@ -144,6 +149,9 @@ services:
       - SEARCH_DEFAULT_STRATEGY=dense
       - CORS_ORIGINS=["https://observatory.engram.rawcontext.com"]
       - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram?sslmode=disable
+      - ENGRAM_AUTH_URL=https://observatory.engram.rawcontext.com
+      - ENGRAM_CLIENT_ID=engram-search
+      - ENGRAM_CLIENT_SECRET=${ENGRAM_SEARCH_CLIENT_SECRET}
     depends_on:
       qdrant:
         condition: service_healthy
@@ -173,6 +181,9 @@ services:
       - FALKORDB_URL=redis://falkordb:6379
       - REDIS_URL=redis://falkordb:6379
       - PORT=6174
+      - ENGRAM_AUTH_URL=https://observatory.engram.rawcontext.com
+      - ENGRAM_CLIENT_ID=engram-api
+      - ENGRAM_CLIENT_SECRET=${ENGRAM_API_CLIENT_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -196,6 +207,9 @@ services:
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/optuna?sslmode=disable
       - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram?sslmode=disable
+      - ENGRAM_AUTH_URL=https://observatory.engram.rawcontext.com
+      - ENGRAM_CLIENT_ID=engram-tuner
+      - ENGRAM_CLIENT_SECRET=${ENGRAM_TUNER_CLIENT_SECRET}
       - CORS_ORIGINS=["https://observatory.engram.rawcontext.com"]
     depends_on:
       postgres:
@@ -253,7 +267,9 @@ services:
       - HOSTNAME=0.0.0.0
       - PORT=3000
       - ENGRAM_API_URL=http://api:6174
-      - ENGRAM_API_TOKEN=${ENGRAM_API_TOKEN}
+      - ENGRAM_AUTH_URL=https://observatory.engram.rawcontext.com
+      - ENGRAM_CLIENT_ID=engram-console
+      - ENGRAM_CLIENT_SECRET=${ENGRAM_CONSOLE_CLIENT_SECRET}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=https://console.engram.rawcontext.com
       - NEXT_PUBLIC_BETTER_AUTH_URL=https://console.engram.rawcontext.com

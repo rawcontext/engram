@@ -92,7 +92,6 @@ tsx apps/api/scripts/create-api-key.ts [live|test] "Name" "Description"
 ### 10. Documentation
 
 Created:
-- `apps/api/API_KEYS.md` - Complete API key system documentation
 - `apps/api/.env.example` - Example environment configuration
 - `apps/api/IMPLEMENTATION_SUMMARY.md` - This file
 

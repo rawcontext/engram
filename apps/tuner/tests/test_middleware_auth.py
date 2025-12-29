@@ -11,8 +11,8 @@ from fastapi.testclient import TestClient
 
 from tuner.middleware.auth import (
     API_KEY_PATTERN,
-    ApiKeyAuth,
-    ApiKeyContext,
+    AuthContext,
+    AuthHandler,
     get_api_key,
     get_auth_handler,
     hash_api_key,
@@ -20,6 +20,10 @@ from tuner.middleware.auth import (
     require_scope,
     set_auth_handler,
 )
+
+# Backward compatibility alias for tests
+ApiKeyContext = AuthContext
+ApiKeyAuth = AuthHandler
 
 
 class TestHashApiKey:
@@ -97,28 +101,31 @@ class TestApiKeyContext:
     """Tests for ApiKeyContext dataclass."""
 
     def test_create_api_key_context(self) -> None:
-        """Test creating ApiKeyContext instance."""
-        context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_live",
-            key_type="live",
+        """Test creating AuthContext instance."""
+        context = AuthContext(
+            id="key-123",
+            prefix="engram_live",
+            method="api_key",
+            type="live",
             user_id="user-456",
             scopes=["tuner:read", "tuner:write"],
             rate_limit_rpm=100,
         )
-        assert context.key_id == "key-123"
-        assert context.key_prefix == "engram_live"
-        assert context.key_type == "live"
+        assert context.id == "key-123"
+        assert context.prefix == "engram_live"
+        assert context.method == "api_key"
+        assert context.type == "live"
         assert context.user_id == "user-456"
         assert context.scopes == ["tuner:read", "tuner:write"]
         assert context.rate_limit_rpm == 100
 
     def test_api_key_context_none_user_id(self) -> None:
-        """Test ApiKeyContext with None user_id."""
-        context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_test",
-            key_type="test",
+        """Test AuthContext with None user_id."""
+        context = AuthContext(
+            id="key-123",
+            prefix="engram_test",
+            method="api_key",
+            type="test",
             user_id=None,
             scopes=[],
             rate_limit_rpm=60,
@@ -152,6 +159,7 @@ class TestApiKeyAuth:
                 "postgresql://localhost:5432/test",
                 min_size=1,
                 max_size=5,
+                ssl=False,
             )
 
     @pytest.mark.asyncio
@@ -316,9 +324,10 @@ class TestApiKeyAuth:
             result = await auth.validate(key)
 
             assert result is not None
-            assert result.key_id == "key-123"
-            assert result.key_prefix == "engram_live"
-            assert result.key_type == "live"
+            assert result.id == "key-123"
+            assert result.prefix == "engram_live"
+            assert result.method == "api_key"
+            assert result.type == "live"
             assert result.user_id == "user-456"
             assert result.scopes == ["tuner:read", "tuner:write"]
             assert result.rate_limit_rpm == 100
@@ -467,7 +476,7 @@ class TestGetApiKey:
 
         assert exc_info.value.status_code == 401
         assert exc_info.value.detail["error"]["code"] == "UNAUTHORIZED"
-        assert "Invalid API key format" in exc_info.value.detail["error"]["message"]
+        assert "Invalid token format" in exc_info.value.detail["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_get_api_key_validation_error(self) -> None:
@@ -487,7 +496,7 @@ class TestGetApiKey:
 
             assert exc_info.value.status_code == 500
             assert exc_info.value.detail["error"]["code"] == "INTERNAL_ERROR"
-            assert "Failed to validate API key" in exc_info.value.detail["error"]["message"]
+            assert "Failed to validate token" in exc_info.value.detail["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_get_api_key_invalid_key(self) -> None:
@@ -508,7 +517,7 @@ class TestGetApiKey:
 
             assert exc_info.value.status_code == 401
             assert exc_info.value.detail["error"]["code"] == "UNAUTHORIZED"
-            assert "Invalid or expired API key" in exc_info.value.detail["error"]["message"]
+            assert "Invalid or expired token" in exc_info.value.detail["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_get_api_key_success(self) -> None:
@@ -520,10 +529,11 @@ class TestGetApiKey:
             credentials="engram_live_" + "a" * 32,
         )
 
-        expected_context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_live",
-            key_type="live",
+        expected_context = AuthContext(
+            id="key-123",
+            prefix="engram_live",
+            method="api_key",
+            type="live",
             user_id="user-456",
             scopes=["tuner:read"],
             rate_limit_rpm=100,
@@ -544,10 +554,11 @@ class TestRequireAuth:
 
     def test_require_auth_returns_key(self) -> None:
         """Test require_auth returns key context."""
-        key_context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_live",
-            key_type="live",
+        key_context = AuthContext(
+            id="key-123",
+            prefix="engram_live",
+            method="api_key",
+            type="live",
             user_id="user-456",
             scopes=["tuner:read"],
             rate_limit_rpm=100,
@@ -563,10 +574,11 @@ class TestRequireScope:
     @pytest.mark.asyncio
     async def test_require_scope_success_single(self) -> None:
         """Test require_scope succeeds when key has required scope."""
-        key_context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_live",
-            key_type="live",
+        key_context = AuthContext(
+            id="key-123",
+            prefix="engram_live",
+            method="api_key",
+            type="live",
             user_id="user-456",
             scopes=["tuner:read", "tuner:write"],
             rate_limit_rpm=100,
@@ -579,10 +591,11 @@ class TestRequireScope:
     @pytest.mark.asyncio
     async def test_require_scope_success_multiple(self) -> None:
         """Test require_scope succeeds when key has any of required scopes."""
-        key_context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_live",
-            key_type="live",
+        key_context = AuthContext(
+            id="key-123",
+            prefix="engram_live",
+            method="api_key",
+            type="live",
             user_id="user-456",
             scopes=["tuner:write"],
             rate_limit_rpm=100,
@@ -595,10 +608,11 @@ class TestRequireScope:
     @pytest.mark.asyncio
     async def test_require_scope_missing(self) -> None:
         """Test require_scope raises 403 when scope missing."""
-        key_context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_live",
-            key_type="live",
+        key_context = AuthContext(
+            id="key-123",
+            prefix="engram_live",
+            method="api_key",
+            type="live",
             user_id="user-456",
             scopes=["tuner:read"],
             rate_limit_rpm=100,
@@ -617,10 +631,11 @@ class TestRequireScope:
     @pytest.mark.asyncio
     async def test_require_scope_empty_scopes(self) -> None:
         """Test require_scope raises 403 when key has no scopes."""
-        key_context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_live",
-            key_type="live",
+        key_context = AuthContext(
+            id="key-123",
+            prefix="engram_live",
+            method="api_key",
+            type="live",
             user_id="user-456",
             scopes=[],
             rate_limit_rpm=100,
@@ -645,13 +660,14 @@ class TestAuthIntegration:
 
         @app.get("/protected")
         async def protected_route(key: ApiKey = require_auth):
-            return {"key_id": key.key_id}
+            return {"key_id": key.id}
 
         # Mock the auth handler
-        mock_context = ApiKeyContext(
-            key_id="key-123",
-            key_prefix="engram_live",
-            key_type="live",
+        mock_context = AuthContext(
+            id="key-123",
+            prefix="engram_live",
+            method="api_key",
+            type="live",
             user_id="user-456",
             scopes=["tuner:read"],
             rate_limit_rpm=100,
@@ -678,7 +694,7 @@ class TestAuthIntegration:
 
         @app.get("/protected")
         async def protected_route(key: ApiKey = require_auth):
-            return {"key_id": key.key_id}
+            return {"key_id": key.id}
 
         client = TestClient(app)
         response = client.get("/protected")

@@ -31,14 +31,24 @@ class Settings(BaseSettings):
         default=False, description="Prefer gRPC over HTTP for better performance"
     )
 
-    # PostgreSQL (for API key auth)
-    postgres_url: str = Field(
-        default="postgresql://postgres:postgres@localhost:6183/engram",
-        description="PostgreSQL connection URL for API key validation",
-        alias="AUTH_DATABASE_URL",
+    # OAuth introspection (for token validation)
+    oauth_introspection_url: str = Field(
+        default="http://localhost:6178/api/auth/introspect",
+        description="OAuth introspection endpoint URL (RFC 7662)",
+        alias="ENGRAM_OAUTH_INTROSPECTION_URL",
+    )
+    oauth_client_id: str = Field(
+        default="engram-search",
+        description="OAuth client ID for introspection",
+        alias="ENGRAM_CLIENT_ID",
+    )
+    oauth_client_secret: str | None = Field(
+        default=None,
+        description="OAuth client secret for introspection (optional for localhost)",
+        alias="ENGRAM_CLIENT_SECRET",
     )
     auth_enabled: bool = Field(
-        default=True, description="Enable API key authentication (disable for local dev)"
+        default=True, description="Enable OAuth authentication (disable for local dev)"
     )
 
     # FalkorDB (for backfill scripts)

@@ -151,7 +151,7 @@ export class ApiClient {
 				case "Observatory":
 					// Observatory has its own subdomain
 					return {
-						url: this.baseUrl.replace("api.", "observatory.") + "/api/health",
+						url: `${this.baseUrl.replace("api.", "observatory.")}/api/health`,
 						skip: false,
 					};
 				case "Ingestion":

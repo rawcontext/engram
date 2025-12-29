@@ -1,37 +1,39 @@
+import { TOKEN_PATTERNS } from "@engram/common";
 import type { Logger } from "@engram/logger";
 import type { Context, Next } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import type { OAuthToken, OAuthTokenRepository } from "../db/oauth-tokens";
-
-// Token patterns
-const OAUTH_TOKEN_PATTERN = /^engram_oauth_[a-zA-Z0-9]{32}$/;
-const DEV_TOKEN_PATTERN = /^engram_dev_[a-zA-Z0-9_]+$/;
-const SERVICE_TOKEN_PATTERN = /^engram_live_[a-zA-Z0-9]+$/;
+import type { GrantType, OAuthToken, OAuthTokenRepository } from "../db/oauth-tokens";
 
 export interface AuthOptions {
 	logger: Logger;
 	oauthTokenRepo: OAuthTokenRepository;
+	requiredScopes?: string[];
 }
 
 /**
  * Auth context for OAuth tokens.
+ * Includes grant type and client ID for comprehensive authentication metadata.
  */
 export interface AuthContext {
 	/** Unique token ID */
 	id: string;
 	/** Display prefix for logging */
 	prefix: string;
-	/** Authentication method */
-	method: "oauth" | "dev";
-	/** Token type */
-	type: "oauth" | "dev";
-	/** User ID */
-	userId: string;
+	/** Authentication method (always oauth) */
+	method: "oauth";
+	/** Token type (always oauth) */
+	type: "oauth";
+	/** User ID (nullable for client_credentials) */
+	userId: string | null;
 	/** Granted scopes */
 	scopes: string[];
 	/** Rate limit (requests per minute) */
 	rateLimit: number;
-	/** User info */
+	/** Grant type (authorization_code, client_credentials, refresh_token, device_code) */
+	grantType: GrantType;
+	/** Client ID from oauth_tokens.client_id */
+	clientId: string;
+	/** User info (only for user tokens, not client_credentials) */
 	user?: {
 		name: string;
 		email: string;
@@ -39,13 +41,15 @@ export interface AuthContext {
 }
 
 /**
- * OAuth authentication middleware
+ * OAuth 2.1 authentication middleware
  *
- * Validates Bearer tokens against OAuth tokens.
- * Sets the auth context on the request for downstream use.
+ * Validates Bearer tokens (egm_oauth_* and egm_client_*) against OAuth tokens table.
+ * Enforces scope requirements and sets auth context for downstream handlers.
+ *
+ * @see https://oauth.net/2/bearer-tokens/ (RFC 6750)
  */
 export function auth(options: AuthOptions) {
-	const { logger, oauthTokenRepo } = options;
+	const { logger, oauthTokenRepo, requiredScopes = [] } = options;
 
 	return async (c: Context, next: Next) => {
 		const authHeader = c.req.header("Authorization");
@@ -78,71 +82,53 @@ export function auth(options: AuthOptions) {
 
 		const token = authHeader.slice(7); // Remove "Bearer " prefix
 
-		// Handle dev tokens for local development
-		if (DEV_TOKEN_PATTERN.test(token)) {
-			const devContext: AuthContext = {
-				id: "dev",
-				prefix: token.slice(0, 20),
-				method: "dev",
-				type: "dev",
-				userId: "dev",
-				scopes: ["memory:read", "memory:write", "query:read", "state:write"],
-				rateLimit: 1000,
-			};
-			c.set("auth", devContext);
-			await next();
-			return;
-		}
+		// Validate token format (egm_oauth_* or egm_client_*)
+		const isUserToken = TOKEN_PATTERNS.user.test(token);
+		const isClientToken = TOKEN_PATTERNS.client.test(token);
 
-		// Handle service tokens for production services (console, etc.)
-		if (SERVICE_TOKEN_PATTERN.test(token)) {
-			const serviceContext: AuthContext = {
-				id: "service",
-				prefix: token.slice(0, 20),
-				method: "dev",
-				type: "dev",
-				userId: "service",
-				scopes: [
-					"memory:read",
-					"memory:write",
-					"query:read",
-					"state:write",
-					"alerts:read",
-					"alerts:write",
-					"deployments:read",
-					"admin:read",
-				],
-				rateLimit: 1000,
-			};
-			c.set("auth", serviceContext);
-			await next();
-			return;
-		}
-
-		// Validate OAuth token
-		if (OAUTH_TOKEN_PATTERN.test(token)) {
-			const result = await validateOAuthToken(token, oauthTokenRepo, logger);
-			if (result.success) {
-				c.set("auth", result.context);
-				await next();
-				return;
-			}
-			if (result.error) {
-				return c.json(result.error, result.status ?? 401);
-			}
-		}
-
-		// Invalid token format
-		return c.json(
-			{
-				success: false,
-				error: {
-					code: "UNAUTHORIZED",
-					message: "Invalid token format",
+		if (!isUserToken && !isClientToken) {
+			return c.json(
+				{
+					success: false,
+					error: {
+						code: "UNAUTHORIZED",
+						message: "Invalid token format. Expected OAuth bearer token.",
+					},
 				},
-			},
-			401,
-		);
+				401,
+			);
+		}
+
+		// Validate OAuth token against database
+		const result = await validateOAuthToken(token, oauthTokenRepo, logger);
+		if (!result.success) {
+			return c.json(result.error, result.status ?? 401);
+		}
+
+		// Check scope requirements (AND semantics - all required scopes must be present)
+		if (requiredScopes.length > 0 && result.context) {
+			const missingScopes = requiredScopes.filter(
+				(scope) => !result.context?.scopes.includes(scope),
+			);
+			if (missingScopes.length > 0) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "FORBIDDEN",
+							message: `Insufficient scopes. Missing: ${missingScopes.join(", ")}`,
+							required_scopes: requiredScopes,
+							granted_scopes: result.context.scopes,
+						},
+					},
+					403,
+				);
+			}
+		}
+
+		// Set auth context for downstream handlers
+		c.set("auth", result.context);
+		await next();
 	};
 }
 
@@ -157,6 +143,11 @@ interface ValidationResult {
 	status?: ContentfulStatusCode;
 }
 
+/**
+ * Validate OAuth token against database.
+ * Checks token hash, expiration, and revocation status.
+ * Updates last_used_at timestamp in fire-and-forget manner.
+ */
 async function validateOAuthToken(
 	token: string,
 	repo: OAuthTokenRepository,
@@ -203,11 +194,19 @@ async function validateOAuthToken(
 		userId: validatedToken.userId,
 		scopes: validatedToken.scopes,
 		rateLimit: validatedToken.rateLimitRpm,
+		grantType: validatedToken.grantType,
+		clientId: validatedToken.clientId,
 		user: validatedToken.user,
 	};
 
 	logger.debug(
-		{ tokenId: context.id, prefix: context.prefix, userId: context.userId },
+		{
+			tokenId: context.id,
+			prefix: context.prefix,
+			userId: context.userId,
+			grantType: context.grantType,
+			clientId: context.clientId,
+		},
 		"OAuth token authenticated",
 	);
 

@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 /**
- * Default API key for local development.
- * This key is accepted by the API when running locally without database lookup.
+ * @deprecated Legacy dev API key pattern. OAuth 2.1 is now required.
+ * Local development uses client credentials flow via Observatory.
  */
-export const LOCAL_DEV_API_KEY = "engram_dev_local_mcp";
+export const LOCAL_DEV_API_KEY = "";
 
 /**
  * Default API URL - production cloud mode.

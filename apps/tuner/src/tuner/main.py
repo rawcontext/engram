@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from tuner.api import router
 from tuner.config import get_settings
 from tuner.core import get_storage
-from tuner.middleware.auth import ApiKeyAuth, set_auth_handler
+from tuner.middleware.auth import AuthHandler, set_auth_handler
 from tuner.utils.logging import configure_logging, get_logger
 
 configure_logging(json_format=True)
@@ -26,15 +26,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     settings = get_settings()
 
     # Initialize auth handler if enabled
-    auth_handler: ApiKeyAuth | None = None
+    auth_handler: AuthHandler | None = None
     if settings.auth_enabled:
-        logger.info("Initializing API key authentication")
-        auth_handler = ApiKeyAuth(settings.auth_database_url)
+        logger.info("Initializing authentication (API keys + OAuth)")
+        auth_handler = AuthHandler(settings.auth_database_url)
         try:
             await auth_handler.connect()
             set_auth_handler(auth_handler)
             app.state.auth_handler = auth_handler
-            logger.info("API key authentication initialized")
+            logger.info("Authentication initialized (API keys + OAuth tokens)")
         except Exception as e:
             logger.error("Failed to initialize auth", error=str(e))
             raise RuntimeError(
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
                 "Set AUTH_ENABLED=false to run without authentication (NOT RECOMMENDED)."
             ) from e
     else:
-        logger.warning("API key authentication DISABLED (AUTH_ENABLED=false)")
+        logger.warning("Authentication DISABLED (AUTH_ENABLED=false)")
 
     # Initialize Optuna storage
     try:

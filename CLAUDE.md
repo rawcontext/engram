@@ -7,7 +7,7 @@ Bitemporal, graph-backed intelligent agent memory system. Hybrid TypeScript/Pyth
 ```bash
 # TypeScript (bun workspaces)
 bun install              # Install all workspaces
-bun run infra:up         # Start NATS, FalkorDB, Qdrant, Postgres
+bun run infra:up         # Start all services (Observatory, Search, Tuner, DBs)
 bun run infra:down       # Stop infrastructure
 bun run dev              # Start all apps in dev mode
 bun run build            # Build all apps/packages
@@ -25,7 +25,29 @@ cd apps/search && uv run search  # Start service
 
 cd apps/tuner && uv sync       # Install tuner dependencies
 cd apps/tuner && uv run tuner  # Start tuner service
+
+# OAuth verification
+./scripts/verify-oauth-setup.sh  # Verify local OAuth configuration
 ```
+
+## Local Development - OAuth Setup
+
+**CRITICAL**: All services require OAuth authentication in local development for production parity.
+
+```bash
+# First-time setup
+cp .env.local.example .env       # Copy environment template
+bun run infra:up                 # Start Observatory + all services
+./scripts/verify-oauth-setup.sh  # Verify OAuth is working
+```
+
+**Key Points**:
+- Observatory (port 6178) acts as OAuth authorization server
+- All services (search, tuner, api, memory, ingestion) authenticate via token introspection (RFC 7662)
+- No `AUTH_ENABLED=false` bypass - matches production behavior
+- Default dev secrets in `.env` (override for production)
+
+See [docs/local-oauth-setup.md](docs/local-oauth-setup.md) for full guide.
 
 ## Code Standards
 
@@ -55,7 +77,7 @@ IMPORTANT: Run `uv run ruff check` and `uv run pytest` before committing.
 
 ```
 apps/
-├── api/         # Cloud REST API (Hono) - memory operations, API key auth, rate limiting (port 6174)
+├── api/         # Cloud REST API (Hono) - memory operations, OAuth 2.1 auth, rate limiting (port 6174)
 ├── console/     # Infrastructure Console - Next.js 16 management dashboard (port 6185)
 ├── ingestion/   # Event parsing pipeline, 8+ provider parsers, PII redaction (port 6175)
 ├── mcp/         # Engram MCP server - remember/recall/query/context tools (stdio + HTTP ingest)
@@ -83,7 +105,7 @@ packages/
 
 **Data Flow**: External Agent → Ingestion → NATS → Memory → FalkorDB → Search → Qdrant
 
-**Storage**: FalkorDB (graph), Qdrant (vectors), NATS+JetStream (events), PostgreSQL (API keys, Optuna)
+**Storage**: FalkorDB (graph), Qdrant (vectors), NATS+JetStream (events), PostgreSQL (OAuth tokens, Optuna)
 
 **Bitemporal**: All nodes have `vt_start/vt_end` (valid time) + `tt_start/tt_end` (transaction time)
 
@@ -151,6 +173,65 @@ MAX_SESSIONS_PER_USER=10
 - `POST /api/auth/device/token` - Device flow token exchange
 - `GET /.well-known/oauth-authorization-server` - RFC 8414 auth server metadata
 
+## Authentication
+
+Engram uses **OAuth 2.1** for all authentication. Legacy API keys have been deprecated.
+
+### OAuth Flows
+
+| Flow | Use Case | Grant Type | RFC |
+|------|----------|------------|-----|
+| **Device Flow** | User authentication (MCP clients) | `urn:ietf:params:oauth:grant-type:device_code` | RFC 8628 |
+| **Client Credentials** | Machine-to-machine (M2M) | `client_credentials` | RFC 6749 §4.4 |
+
+**Device Flow**: User authenticates via Observatory web UI, MCP client polls for tokens.
+
+**Client Credentials**: Services authenticate with client ID/secret, receive access token (no refresh token per spec).
+
+### Token Format
+
+Engram uses prefixed tokens with CRC32 checksums for secret scanning compatibility:
+
+| Token Type | Format | Example | Flow |
+|------------|--------|---------|------|
+| User Access | `egm_oauth_{random32}_{crc6}` | `egm_oauth_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4_X7kM2p` | Device Flow |
+| Refresh Token | `egm_refresh_{random32}_{crc6}` | `egm_refresh_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4_Y8nL3q` | Device Flow |
+| Client Token | `egm_client_{random32}_{crc6}` | `egm_client_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4_Z9mN4r` | Client Credentials |
+
+**Format breakdown**:
+- `egm`: Engram company identifier (3 chars)
+- `oauth`/`refresh`/`client`: Token type identifier
+- `random32`: 32 hex characters (128 bits of entropy)
+- `crc6`: 6 Base62 characters (CRC32 checksum for offline validation)
+
+The CRC32 checksum enables offline token validation, reducing false positives in secret scanning to near zero. Design inspired by [GitHub's token format](https://github.blog/engineering/platform-security/behind-githubs-new-authentication-token-formats/).
+
+**Validation**: Use `validateTokenChecksum()` from `apps/observatory/lib/device-auth.ts` for offline validation.
+
+### DPoP Token Binding (RFC 9449)
+
+Both user and client tokens support **Demonstrating Proof-of-Possession** (DPoP) for enhanced security:
+
+- Client generates ephemeral key pair, includes JWK thumbprint (`jkt`) in token request
+- All API requests include `DPoP` header with signed proof JWT
+- Server validates proof matches token's bound key, preventing token theft/replay
+
+**Token Type**: Returns `DPoP` instead of `Bearer` when DPoP is used.
+
+### Token Lifetimes
+
+| Token Type | Lifetime | Refreshable |
+|------------|----------|-------------|
+| User Access | 7 days | Yes (via refresh token) |
+| User Refresh | 30 days | Yes (rotates on use) |
+| Client Access | 1 hour | No (request new token) |
+
+### Implementation References
+
+- **Token Generation**: `apps/observatory/lib/device-auth.ts`
+- **Type Definitions**: `packages/common/src/types/auth.ts`
+- **Auth Middleware**: `apps/api/src/middleware/auth.ts`, `apps/ingestion/src/auth.ts`, `apps/search/src/middleware/auth.py`
+
 ## Engram Memory Triggers
 
 ### ALWAYS Recall Before:
@@ -200,8 +281,8 @@ MAX_SESSIONS_PER_USER=10
 | `/v1/memory/recall` | POST | Hybrid search with reranking | `memory:read` |
 | `/v1/memory/query` | POST | Read-only Cypher queries | `query:read` |
 | `/v1/memory/context` | POST | Comprehensive context assembly | `memory:read` |
-| `/v1/keys` | GET | List API keys | `keys:manage` |
-| `/v1/keys/revoke` | POST | Revoke API key | `keys:manage` |
+
+**Authentication**: All endpoints (except `/v1/health`) require OAuth 2.1 bearer token with appropriate scopes.
 
 ## Search Service API (apps/search)
 

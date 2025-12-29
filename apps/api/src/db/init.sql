@@ -116,7 +116,7 @@ CREATE INDEX IF NOT EXISTS idx_device_codes_pending_expires ON device_codes(expi
 CREATE INDEX IF NOT EXISTS idx_device_codes_user_id ON device_codes(user_id);
 
 -- OAuth Tokens Table
--- Stores access and refresh tokens issued via device flow
+-- Stores access and refresh tokens issued via device flow or client credentials
 CREATE TABLE IF NOT EXISTS oauth_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     access_token_hash TEXT NOT NULL UNIQUE,
@@ -134,6 +134,9 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
     revoked_reason TEXT,
     client_id TEXT NOT NULL DEFAULT 'mcp',
     device_code_id UUID REFERENCES device_codes(id) ON DELETE SET NULL,
+    grant_type TEXT NOT NULL DEFAULT 'device_code'
+        CHECK (grant_type IN ('device_code', 'client_credentials', 'refresh_token')),
+    client_id_ref UUID REFERENCES oauth_clients(id) ON DELETE SET NULL,
     user_agent TEXT,
     ip_address TEXT
 );
@@ -142,6 +145,8 @@ CREATE INDEX IF NOT EXISTS idx_oauth_tokens_access_hash ON oauth_tokens(access_t
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_refresh_hash ON oauth_tokens(refresh_token_hash);
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_active ON oauth_tokens(access_token_expires_at)
     WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_client ON oauth_tokens(client_id_ref)
+    WHERE grant_type = 'client_credentials';
 
 -- Updated timestamp trigger for oauth_tokens
 CREATE OR REPLACE FUNCTION update_oauth_tokens_updated_at()

@@ -1,18 +1,18 @@
 /**
  * Authentication middleware for Ingestion service.
  *
- * Supports OAuth tokens: engram_oauth_<32 hex chars>
+ * Supports OAuth tokens:
+ * - User tokens: egm_oauth_{random32}_{crc6}
+ * - Client tokens: egm_client_{random32}_{crc6}
  */
 
 import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { TOKEN_PATTERNS } from "@engram/common";
 import type { Logger } from "@engram/logger";
 import pg from "pg";
 
 const { Pool } = pg;
-
-const OAUTH_TOKEN_PATTERN = /^engram_oauth_[a-f0-9]{32}$/;
-const DEV_TOKEN_PATTERN = /^engram_dev_[a-zA-Z0-9_]+$/;
 
 interface AuthConfig {
 	enabled: boolean;
@@ -32,7 +32,7 @@ interface OAuthTokenRow {
 interface AuthContext {
 	id: string;
 	prefix: string;
-	method: "oauth" | "dev";
+	method: "oauth";
 	scopes: string[];
 }
 
@@ -93,22 +93,13 @@ async function validateOAuthToken(token: string): Promise<AuthContext | null> {
 }
 
 async function validateToken(token: string): Promise<AuthContext | null> {
-	// Handle dev tokens for local development
-	if (DEV_TOKEN_PATTERN.test(token)) {
-		return {
-			id: "dev",
-			prefix: token.slice(0, 20),
-			method: "dev",
-			scopes: ["memory:read", "memory:write", "query:read", "ingest:write"],
-		};
+	// Validate token format (user or client credentials token)
+	if (!TOKEN_PATTERNS.user.test(token) && !TOKEN_PATTERNS.client.test(token)) {
+		return null;
 	}
 
-	// Try OAuth token
-	if (OAUTH_TOKEN_PATTERN.test(token)) {
-		return validateOAuthToken(token);
-	}
-
-	return null;
+	// Validate OAuth token via database
+	return validateOAuthToken(token);
 }
 
 function sendUnauthorized(res: ServerResponse, message: string): void {
@@ -160,12 +151,6 @@ export async function authenticateRequest(
 	}
 
 	const token = authHeader.slice(7);
-
-	// Check if token matches any valid format
-	if (!OAUTH_TOKEN_PATTERN.test(token) && !DEV_TOKEN_PATTERN.test(token)) {
-		sendUnauthorized(res, "Invalid token format");
-		return false;
-	}
 
 	try {
 		const authContext = await validateToken(token);

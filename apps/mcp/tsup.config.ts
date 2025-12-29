@@ -10,6 +10,7 @@ export default defineConfig({
 	splitting: false,
 	sourcemap: true,
 	minify: false,
+	shims: true,
 
 	// Bundle internal @engram/* packages for distribution
 	// These are workspace dependencies that won't be available on npm
@@ -24,6 +25,9 @@ export default defineConfig({
 		"@qdrant/js-client-rest",
 		// MCP SDK - users need compatible version
 		"@modelcontextprotocol/sdk",
+		// Logging
+		"pino",
+		"pino-pretty",
 		// Storage depends on these
 		"@nats-io/jetstream",
 		"@nats-io/transport-node",

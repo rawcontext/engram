@@ -763,4 +763,138 @@ describe("Scopes Middleware", () => {
 			expect(callArgs[0].error.details).not.toHaveProperty("missing");
 		});
 	});
+
+	describe("Client Token Scope Enforcement", () => {
+		it("should reject client token with insufficient scopes for endpoint", async () => {
+			const middleware = requireScopes("memory:write");
+
+			const authContext: AuthContext = {
+				id: "engram-search",
+				prefix: "egm_client_abc123...",
+				method: "client_credentials",
+				type: "client",
+				userId: "engram-search",
+				scopes: ["memory:read", "query:read"], // Missing memory:write
+				rateLimit: 1000,
+			};
+
+			const mockContext = {
+				get: mock(() => authContext),
+				json: mock((data, status) => ({ data, status })),
+			} as unknown as Context;
+
+			const mockNext = mock(async () => {});
+
+			await middleware(mockContext, mockNext);
+
+			expect(mockContext.json).toHaveBeenCalledWith(
+				{
+					success: false,
+					error: {
+						code: "FORBIDDEN",
+						message: "Insufficient permissions",
+						details: {
+							required: ["memory:write"],
+							missing: ["memory:write"],
+							granted: ["memory:read", "query:read"],
+						},
+					},
+				},
+				403,
+			);
+			expect(mockNext).not.toHaveBeenCalled();
+		});
+
+		it("should allow client token with exactly registered scopes", async () => {
+			const middleware = requireScopes("memory:read", "query:read");
+
+			const authContext: AuthContext = {
+				id: "engram-search",
+				prefix: "egm_client_abc123...",
+				method: "client_credentials",
+				type: "client",
+				userId: "engram-search",
+				scopes: ["memory:read", "query:read"],
+				rateLimit: 1000,
+			};
+
+			const mockContext = {
+				get: mock(() => authContext),
+				json: mock((data, status) => ({ data, status })),
+			} as unknown as Context;
+
+			const mockNext = mock(async () => {});
+
+			await middleware(mockContext, mockNext);
+
+			expect(mockContext.json).not.toHaveBeenCalled();
+			expect(mockNext).toHaveBeenCalledTimes(1);
+		});
+
+		it("should reject client token attempting to access mcp:prompts scope", async () => {
+			const middleware = requireScopes("mcp:prompts");
+
+			const authContext: AuthContext = {
+				id: "engram-search",
+				prefix: "egm_client_abc123...",
+				method: "client_credentials",
+				type: "client",
+				userId: "engram-search",
+				scopes: ["memory:read", "query:read"],
+				rateLimit: 1000,
+			};
+
+			const mockContext = {
+				get: mock(() => authContext),
+				json: mock((data, status) => ({ data, status })),
+			} as unknown as Context;
+
+			const mockNext = mock(async () => {});
+
+			await middleware(mockContext, mockNext);
+
+			expect(mockContext.json).toHaveBeenCalledWith(
+				{
+					success: false,
+					error: {
+						code: "FORBIDDEN",
+						message: "Insufficient permissions",
+						details: {
+							required: ["mcp:prompts"],
+							missing: ["mcp:prompts"],
+							granted: ["memory:read", "query:read"],
+						},
+					},
+				},
+				403,
+			);
+			expect(mockNext).not.toHaveBeenCalled();
+		});
+
+		it("should allow client token with superset of required scopes", async () => {
+			const middleware = requireScopes("memory:read");
+
+			const authContext: AuthContext = {
+				id: "engram-tuner",
+				prefix: "egm_client_xyz789...",
+				method: "client_credentials",
+				type: "client",
+				userId: "engram-tuner",
+				scopes: ["memory:read", "memory:write", "tuner:read", "tuner:write"],
+				rateLimit: 1000,
+			};
+
+			const mockContext = {
+				get: mock(() => authContext),
+				json: mock((data, status) => ({ data, status })),
+			} as unknown as Context;
+
+			const mockNext = mock(async () => {});
+
+			await middleware(mockContext, mockNext);
+
+			expect(mockContext.json).not.toHaveBeenCalled();
+			expect(mockNext).toHaveBeenCalledTimes(1);
+		});
+	});
 });

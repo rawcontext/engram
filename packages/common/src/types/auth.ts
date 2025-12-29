@@ -126,9 +126,9 @@ export interface VerifyCodeResponse {
 // =============================================================================
 
 /**
- * Token types supported by the system.
+ * Token types supported by the system for API keys and OAuth.
  */
-export type TokenType = "live" | "test" | "oauth" | "dev";
+export type AuthTokenType = "live" | "test" | "oauth" | "dev";
 
 /**
  * Context for authenticated OAuth tokens.
@@ -167,7 +167,7 @@ export interface AuthContext {
 	/** Authentication method */
 	method: "api_key" | "oauth";
 	/** Token/key type */
-	type: TokenType;
+	type: AuthTokenType;
 	/** User ID (optional for API keys, required for OAuth) */
 	userId?: string;
 	/** Granted scopes */
@@ -390,17 +390,91 @@ export const OAuthConfig = {
 } as const;
 
 /**
- * Token pattern for validation.
- * Matches: engram_live_*, engram_test_*, engram_oauth_*, engram_dev_*
+ * Unified token patterns for all OAuth token types.
+ * Single source of truth for token validation across all services.
+ *
+ * Format: egm_{type}_{random32}_{crc6}
+ * - egm: Engram company identifier
+ * - type: user/client/refresh
+ * - random32: 32 hex characters (a-f0-9)
+ * - crc6: 6 Base62 characters (CRC32 checksum)
+ *
+ * @see https://github.blog/engineering/platform-security/behind-githubs-new-authentication-token-formats/
  */
-export const TOKEN_PATTERN = /^engram_(live|test|oauth|dev)_[a-zA-Z0-9]{32}$/;
+export const TOKEN_PATTERNS = {
+	/** User access token (egm_oauth_*) */
+	user: /^egm_oauth_[a-f0-9]{32}_[a-zA-Z0-9]{6}$/,
+	/** Client credentials token (egm_client_*) for M2M authentication */
+	client: /^egm_client_[a-f0-9]{32}_[a-zA-Z0-9]{6}$/,
+	/** Refresh token (egm_refresh_*) for obtaining new access tokens */
+	refresh: /^egm_refresh_[a-f0-9]{32}_[a-zA-Z0-9]{6}$/,
+} as const;
+
+/**
+ * Identify the token type from a token string.
+ *
+ * @param token - Token string to identify
+ * @returns Token type ('user' | 'client' | 'refresh') or null if invalid
+ *
+ * @example
+ * ```ts
+ * const type = identifyTokenType("egm_oauth_abc123...");
+ * // => "user"
+ *
+ * const type = identifyTokenType("egm_client_def456...");
+ * // => "client"
+ *
+ * const type = identifyTokenType("invalid_token");
+ * // => null
+ * ```
+ */
+export function identifyTokenType(token: string): keyof typeof TOKEN_PATTERNS | null {
+	for (const [type, pattern] of Object.entries(TOKEN_PATTERNS)) {
+		if (pattern.test(token)) {
+			return type as keyof typeof TOKEN_PATTERNS;
+		}
+	}
+	return null;
+}
 
 /**
  * OAuth-specific token pattern.
+ *
+ * Format: egm_oauth_{random32}_{crc6}
+ * - egm: Engram company identifier
+ * - oauth: Token type
+ * - random32: 32 hex characters (a-f0-9)
+ * - crc6: 6 Base62 characters (CRC32 checksum)
+ *
+ * @deprecated Use TOKEN_PATTERNS.user instead for consistency
+ * @see https://github.blog/engineering/platform-security/behind-githubs-new-authentication-token-formats/
  */
-export const OAUTH_TOKEN_PATTERN = /^engram_oauth_[a-zA-Z0-9]{32}$/;
+export const OAUTH_TOKEN_PATTERN = TOKEN_PATTERNS.user;
 
 /**
  * Refresh token pattern.
+ *
+ * Format: egm_refresh_{random32}_{crc6}
+ * - egm: Engram company identifier
+ * - refresh: Token type
+ * - random32: 32 hex characters (a-f0-9)
+ * - crc6: 6 Base62 characters (CRC32 checksum)
+ *
+ * @deprecated Use TOKEN_PATTERNS.refresh instead for consistency
  */
-export const REFRESH_TOKEN_PATTERN = /^engram_refresh_[a-zA-Z0-9]{32}$/;
+export const REFRESH_TOKEN_PATTERN = TOKEN_PATTERNS.refresh;
+
+/**
+ * Client credentials token pattern for M2M/service authentication.
+ *
+ * Format: egm_client_{random32}_{crc6}
+ * - egm: Engram company identifier
+ * - client: Token type for machine-to-machine authentication
+ * - random32: 32 hex characters (a-f0-9)
+ * - crc6: 6 Base62 characters (CRC32 checksum)
+ *
+ * @deprecated Use TOKEN_PATTERNS.client instead for consistency
+ * @see https://oauth.net/2/grant-types/client-credentials/
+ * @see https://tools.ietf.org/html/rfc6749#section-4.4
+ */
+export const CLIENT_TOKEN_PATTERN = TOKEN_PATTERNS.client;

@@ -257,9 +257,7 @@ class TestTurnsBackfillerEdgeCases:
             embedder_preload=False,
         )
 
-    def test_turn_to_document_files_touched_invalid_string(
-        self, mock_settings: Settings
-    ) -> None:
+    def test_turn_to_document_files_touched_invalid_string(self, mock_settings: Settings) -> None:
         """Test handling invalid string for files_touched."""
         backfiller = TurnsBackfiller(settings=mock_settings)
         turn = {
@@ -274,9 +272,7 @@ class TestTurnsBackfillerEdgeCases:
         assert doc is not None
         assert doc.metadata["files_touched"] == []
 
-    def test_turn_to_document_exception_handling(
-        self, mock_settings: Settings
-    ) -> None:
+    def test_turn_to_document_exception_handling(self, mock_settings: Settings) -> None:
         """Test exception handling in turn_to_document."""
         backfiller = TurnsBackfiller(settings=mock_settings)
 
@@ -296,9 +292,7 @@ class TestTurnsBackfillerEdgeCases:
 
         assert doc is None
 
-    def test_turn_to_document_only_user_content(
-        self, mock_settings: Settings
-    ) -> None:
+    def test_turn_to_document_only_user_content(self, mock_settings: Settings) -> None:
         """Test document with only user content."""
         backfiller = TurnsBackfiller(settings=mock_settings)
         turn = {
@@ -313,9 +307,7 @@ class TestTurnsBackfillerEdgeCases:
         assert "User: Only user message" in doc.content
         assert "Assistant:" not in doc.content
 
-    def test_turn_to_document_only_assistant_content(
-        self, mock_settings: Settings
-    ) -> None:
+    def test_turn_to_document_only_assistant_content(self, mock_settings: Settings) -> None:
         """Test document with only assistant content."""
         backfiller = TurnsBackfiller(settings=mock_settings)
         turn = {
@@ -330,9 +322,7 @@ class TestTurnsBackfillerEdgeCases:
         assert "Assistant: Only assistant message" in doc.content
         assert "User:" not in doc.content
 
-    def test_turn_to_document_null_token_counts(
-        self, mock_settings: Settings
-    ) -> None:
+    def test_turn_to_document_null_token_counts(self, mock_settings: Settings) -> None:
         """Test handling null token counts."""
         backfiller = TurnsBackfiller(settings=mock_settings)
         turn = {
@@ -349,9 +339,7 @@ class TestTurnsBackfillerEdgeCases:
         assert doc.metadata["input_tokens"] == 0
         assert doc.metadata["output_tokens"] == 0
 
-    def test_turn_to_document_null_timestamp(
-        self, mock_settings: Settings
-    ) -> None:
+    def test_turn_to_document_null_timestamp(self, mock_settings: Settings) -> None:
         """Test handling null timestamp."""
         backfiller = TurnsBackfiller(settings=mock_settings)
         turn = {
@@ -388,9 +376,7 @@ class TestTurnsBackfillerEdgeCases:
                 "src.scripts.backfill_turns.QdrantClientWrapper",
                 return_value=mock_qdrant,
             ),
-            patch(
-                "src.scripts.backfill_turns.EmbedderFactory", return_value=mock_embedders
-            ),
+            patch("src.scripts.backfill_turns.EmbedderFactory", return_value=mock_embedders),
             patch("src.scripts.backfill_turns.TurnsIndexer", return_value=mock_indexer),
         ):
             await backfiller.connect()
@@ -528,9 +514,7 @@ class TestTurnsBackfillerEdgeCases:
         assert indexed == 0
 
     @pytest.mark.asyncio
-    async def test_backfill_with_invalid_documents(
-        self, mock_settings: Settings
-    ) -> None:
+    async def test_backfill_with_invalid_documents(self, mock_settings: Settings) -> None:
         """Test backfill filters out invalid documents."""
         backfiller = TurnsBackfiller(settings=mock_settings, dry_run=True)
 
@@ -566,7 +550,12 @@ class TestTurnsBackfillerEdgeCases:
         turns_data = []
         for i in range(5):
             turns_data.append(
-                [f"turn-{i}".encode(), f"User {i}".encode(), f"Assistant {i}".encode(), b"session-1"]
+                [
+                    f"turn-{i}".encode(),
+                    f"User {i}".encode(),
+                    f"Assistant {i}".encode(),
+                    b"session-1",
+                ]
             )
 
         mock_redis = AsyncMock()
@@ -594,9 +583,7 @@ class TestTurnsBackfillerEdgeCases:
                 "src.scripts.backfill_turns.QdrantClientWrapper",
                 return_value=mock_qdrant,
             ),
-            patch(
-                "src.scripts.backfill_turns.EmbedderFactory", return_value=mock_embedders
-            ),
+            patch("src.scripts.backfill_turns.EmbedderFactory", return_value=mock_embedders),
             patch("src.scripts.backfill_turns.TurnsIndexer", return_value=mock_indexer),
         ):
             await backfiller.connect()
@@ -725,9 +712,7 @@ class TestMainFunction:
                 "src.scripts.backfill_turns.QdrantClientWrapper",
                 return_value=mock_qdrant,
             ),
-            patch(
-                "src.scripts.backfill_turns.EmbedderFactory", return_value=mock_embedders
-            ),
+            patch("src.scripts.backfill_turns.EmbedderFactory", return_value=mock_embedders),
             patch("src.scripts.backfill_turns.TurnsIndexer", return_value=mock_indexer),
             patch("sys.argv", ["backfill_turns.py"]),
         ):

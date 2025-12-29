@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from tuner.api.health import router as health_router
-from tuner.middleware.auth import ApiKeyContext
+from tuner.middleware.auth import AuthContext
 
 
 @pytest.fixture
@@ -79,12 +79,13 @@ def sample_search_space(
 
 
 @pytest.fixture
-def mock_api_key_context() -> ApiKeyContext:
-    """Create a mock API key context for testing."""
-    return ApiKeyContext(
-        key_id="test-key-id",
-        key_prefix="engram_test",
-        key_type="test",
+def mock_api_key_context() -> AuthContext:
+    """Create a mock auth context for testing."""
+    return AuthContext(
+        id="test-key-id",
+        prefix="engram_test",
+        method="api_key",
+        type="test",
         user_id="test-user",
         scopes=["tuner:read", "tuner:write", "memory:write"],
         rate_limit_rpm=1000,

@@ -48,3 +48,54 @@ output "observatory_url" {
   description = "Observatory UI URL"
   value       = "https://observatory.${var.domain}"
 }
+
+# OAuth configuration outputs
+output "oauth_tuner_client_id" {
+  description = "OAuth client ID for tuner service"
+  value       = local.oauth_config.tuner.client_id
+}
+
+output "oauth_search_client_id" {
+  description = "OAuth client ID for search service"
+  value       = local.oauth_config.search.client_id
+}
+
+output "oauth_console_client_id" {
+  description = "OAuth client ID for console service"
+  value       = local.oauth_config.console.client_id
+}
+
+output "oauth_ingestion_client_id" {
+  description = "OAuth client ID for ingestion service"
+  value       = local.oauth_config.ingestion.client_id
+}
+
+output "oauth_auth_server_url" {
+  description = "OAuth authorization server URL"
+  value       = "https://observatory.${var.domain}"
+}
+
+# Sensitive outputs (use: tofu output -json | jq -r '.oauth_env_tuner.value')
+output "oauth_env_tuner" {
+  description = "OAuth environment variables for tuner service"
+  value       = local.oauth_env.tuner
+  sensitive   = true
+}
+
+output "oauth_env_search" {
+  description = "OAuth environment variables for search service"
+  value       = local.oauth_env.search
+  sensitive   = true
+}
+
+output "oauth_env_console" {
+  description = "OAuth environment variables for console service"
+  value       = local.oauth_env.console
+  sensitive   = true
+}
+
+output "oauth_env_ingestion" {
+  description = "OAuth environment variables for ingestion service"
+  value       = local.oauth_env.ingestion
+  sensitive   = true
+}

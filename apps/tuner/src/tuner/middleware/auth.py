@@ -1,7 +1,12 @@
-"""API key authentication middleware for FastAPI.
+"""Authentication middleware for FastAPI.
 
-Validates API keys against the PostgreSQL api_keys table, matching
-the authentication system used by the API service.
+Validates both API keys and OAuth tokens against the PostgreSQL database,
+matching the unified authentication system used by the API service.
+
+Supports:
+- API keys: engram_live_<32 chars> or engram_test_<32 chars>
+- OAuth user tokens: egm_oauth_{random32}_{crc6}
+- OAuth client credentials tokens: egm_client_{random32}_{crc6}
 """
 
 import contextlib
@@ -18,20 +23,34 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 # API key format: engram_live_<32 alphanumeric chars> or engram_test_<32 alphanumeric chars>
 API_KEY_PATTERN = re.compile(r"^engram_(live|test)_[a-zA-Z0-9]{32}$")
 
+# OAuth user token format: egm_oauth_{random32}_{crc6}
+OAUTH_TOKEN_PATTERN = re.compile(r"^egm_oauth_[a-f0-9]{32}_[a-zA-Z0-9]{6}$")
+
+# OAuth client credentials token format: egm_client_{random32}_{crc6}
+CLIENT_TOKEN_PATTERN = re.compile(r"^egm_client_[a-f0-9]{32}_[a-zA-Z0-9]{6}$")
+
 # Bearer token security scheme
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
 @dataclass
-class ApiKeyContext:
-    """Context extracted from a validated API key."""
+class AuthContext:
+    """Context extracted from a validated API key or OAuth token."""
 
-    key_id: str
-    key_prefix: str
-    key_type: str  # "live" or "test"
+    id: str
+    prefix: str
+    method: str  # "api_key", "oauth", or "client_credentials"
+    type: str  # "live", "test", "oauth", "client", or "dev"
     user_id: str | None
     scopes: list[str]
     rate_limit_rpm: int
+    user_name: str | None = None
+    user_email: str | None = None
+    client_id: str | None = None
+
+
+# Backward compatibility alias
+ApiKeyContext = AuthContext
 
 
 def hash_api_key(key: str) -> str:
@@ -39,10 +58,10 @@ def hash_api_key(key: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
 
 
-class ApiKeyAuth:
-    """API key authentication handler.
+class AuthHandler:
+    """Unified authentication handler for API keys and OAuth tokens.
 
-    Validates API keys against PostgreSQL and caches the database pool.
+    Validates credentials against PostgreSQL and caches the database pool.
     """
 
     def __init__(self, database_url: str) -> None:
@@ -61,6 +80,7 @@ class ApiKeyAuth:
                 self._database_url,
                 min_size=1,
                 max_size=5,
+                ssl=False,  # Disable SSL for internal docker network
             )
 
     async def disconnect(self) -> None:
@@ -69,19 +89,31 @@ class ApiKeyAuth:
             await self._pool.close()
             self._pool = None
 
-    async def validate(self, api_key: str) -> ApiKeyContext | None:
-        """Validate an API key and return its context.
+    async def validate(self, token: str) -> AuthContext | None:
+        """Validate a token (API key or OAuth) and return its context.
 
         Args:
-            api_key: The API key to validate.
+            token: The bearer token to validate.
 
         Returns:
-            ApiKeyContext if valid, None otherwise.
+            AuthContext if valid, None otherwise.
         """
-        # Validate format
-        if not API_KEY_PATTERN.match(api_key):
-            return None
+        # Try OAuth user token first
+        if OAUTH_TOKEN_PATTERN.match(token):
+            return await self._validate_oauth_token(token)
 
+        # Try client credentials token
+        if CLIENT_TOKEN_PATTERN.match(token):
+            return await self._validate_client_token(token)
+
+        # Try API key
+        if API_KEY_PATTERN.match(token):
+            return await self._validate_api_key(token)
+
+        return None
+
+    async def _validate_api_key(self, api_key: str) -> AuthContext | None:
+        """Validate an API key and return its context."""
         # Ensure pool is connected
         if self._pool is None:
             await self.connect()
@@ -127,27 +159,149 @@ class ApiKeyAuth:
                     row["id"],
                 )
 
-            return ApiKeyContext(
-                key_id=row["id"],
-                key_prefix=row["key_prefix"],
-                key_type=row["key_type"],
+            return AuthContext(
+                id=row["id"],
+                prefix=row["key_prefix"],
+                method="api_key",
+                type=row["key_type"],
                 user_id=row["user_id"],
                 scopes=row["scopes"] or [],
                 rate_limit_rpm=row["rate_limit_rpm"],
             )
 
+    async def _validate_oauth_token(self, token: str) -> AuthContext | None:
+        """Validate an OAuth access token and return its context."""
+        # Ensure pool is connected
+        if self._pool is None:
+            await self.connect()
+
+        assert self._pool is not None
+
+        # Hash the token and look it up
+        token_hash = hash_api_key(token)
+
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT
+                    t.id, t.access_token_prefix, t.user_id, t.scopes,
+                    t.access_token_expires_at, t.revoked_at,
+                    u.name as user_name, u.email as user_email
+                FROM oauth_tokens t
+                JOIN "user" u ON t.user_id = u.id
+                WHERE t.access_token_hash = $1
+                """,
+                token_hash,
+            )
+
+            if row is None:
+                return None
+
+            # Check if revoked
+            if row["revoked_at"] is not None:
+                return None
+
+            # Check expiration
+            expires_at = row["access_token_expires_at"]
+            if expires_at is not None:
+                now = datetime.now(UTC)
+                if isinstance(expires_at, datetime) and expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=UTC)
+                if expires_at < now:
+                    return None
+
+            # Update last_used_at (fire and forget)
+            with contextlib.suppress(Exception):
+                await conn.execute(
+                    "UPDATE oauth_tokens SET last_used_at = NOW() WHERE id = $1",
+                    row["id"],
+                )
+
+            return AuthContext(
+                id=row["id"],
+                prefix=row["access_token_prefix"],
+                method="oauth",
+                type="oauth",
+                user_id=row["user_id"],
+                scopes=row["scopes"] or [],
+                rate_limit_rpm=1000,  # Default rate limit for OAuth tokens
+                user_name=row["user_name"],
+                user_email=row["user_email"],
+            )
+
+    async def _validate_client_token(self, token: str) -> AuthContext | None:
+        """Validate an OAuth client credentials token and return its context."""
+        # Ensure pool is connected
+        if self._pool is None:
+            await self.connect()
+
+        assert self._pool is not None
+
+        # Hash the token and look it up
+        token_hash = hash_api_key(token)
+
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT
+                    t.id, t.access_token_prefix, t.client_id, t.scopes,
+                    t.access_token_expires_at, t.revoked_at
+                FROM oauth_tokens t
+                WHERE t.access_token_hash = $1 AND t.grant_type = 'client_credentials'
+                """,
+                token_hash,
+            )
+
+            if row is None:
+                return None
+
+            # Check if revoked
+            if row["revoked_at"] is not None:
+                return None
+
+            # Check expiration
+            expires_at = row["access_token_expires_at"]
+            if expires_at is not None:
+                now = datetime.now(UTC)
+                if isinstance(expires_at, datetime) and expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=UTC)
+                if expires_at < now:
+                    return None
+
+            # Update last_used_at (fire and forget)
+            with contextlib.suppress(Exception):
+                await conn.execute(
+                    "UPDATE oauth_tokens SET last_used_at = NOW() WHERE id = $1",
+                    row["id"],
+                )
+
+            return AuthContext(
+                id=row["id"],
+                prefix=row["access_token_prefix"],
+                method="client_credentials",
+                type="client",
+                user_id=None,  # Client credentials tokens are not user-scoped
+                scopes=row["scopes"] or [],
+                rate_limit_rpm=5000,  # Higher rate limit for M2M tokens
+                client_id=row["client_id"],
+            )
+
+
+# Backward compatibility alias
+ApiKeyAuth = AuthHandler
+
 
 # Global auth handler (initialized in lifespan)
-_auth_handler: ApiKeyAuth | None = None
+_auth_handler: AuthHandler | None = None
 
 
-def set_auth_handler(handler: ApiKeyAuth) -> None:
+def set_auth_handler(handler: AuthHandler) -> None:
     """Set the global auth handler (called during app startup)."""
     global _auth_handler
     _auth_handler = handler
 
 
-def get_auth_handler() -> ApiKeyAuth:
+def get_auth_handler() -> AuthHandler:
     """Get the global auth handler."""
     if _auth_handler is None:
         raise RuntimeError("Auth handler not initialized")
@@ -157,15 +311,17 @@ def get_auth_handler() -> ApiKeyAuth:
 async def get_api_key(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
-) -> ApiKeyContext:
-    """Dependency to extract and validate API key from request.
+) -> AuthContext:
+    """Dependency to extract and validate bearer token from request.
+
+    Supports both API keys and OAuth tokens.
 
     Args:
         request: FastAPI request.
         credentials: Bearer token credentials.
 
     Returns:
-        Validated API key context.
+        Validated auth context.
 
     Raises:
         HTTPException: If authentication fails.
@@ -182,23 +338,28 @@ async def get_api_key(
             },
         )
 
-    api_key = credentials.credentials
+    token = credentials.credentials
 
-    if not API_KEY_PATTERN.match(api_key):
+    # Check if token matches any valid format
+    if not (
+        API_KEY_PATTERN.match(token)
+        or OAUTH_TOKEN_PATTERN.match(token)
+        or CLIENT_TOKEN_PATTERN.match(token)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
                 "success": False,
                 "error": {
                     "code": "UNAUTHORIZED",
-                    "message": "Invalid API key format",
+                    "message": "Invalid token format",
                 },
             },
         )
 
     try:
         auth = get_auth_handler()
-        key_context = await auth.validate(api_key)
+        auth_context = await auth.validate(token)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -206,27 +367,27 @@ async def get_api_key(
                 "success": False,
                 "error": {
                     "code": "INTERNAL_ERROR",
-                    "message": f"Failed to validate API key: {e!s}",
+                    "message": f"Failed to validate token: {e!s}",
                 },
             },
         ) from e
 
-    if key_context is None:
+    if auth_context is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
                 "success": False,
                 "error": {
                     "code": "UNAUTHORIZED",
-                    "message": "Invalid or expired API key",
+                    "message": "Invalid or expired token",
                 },
             },
         )
 
     # Store in request state for logging
-    request.state.api_key = key_context
+    request.state.api_key = auth_context
 
-    return key_context
+    return auth_context
 
 
 # Type alias for dependency injection

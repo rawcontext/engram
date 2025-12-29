@@ -83,7 +83,7 @@ class TestLifespan:
         test_app = create_app()
 
         with (
-            patch("tuner.main.ApiKeyAuth") as mock_auth_class,
+            patch("tuner.main.AuthHandler") as mock_auth_class,
             patch("tuner.main.get_settings") as mock_settings,
             patch("tuner.main.set_auth_handler") as mock_set_auth,
             patch("tuner.main.get_storage"),
@@ -109,7 +109,7 @@ class TestLifespan:
         test_app = create_app()
 
         with (
-            patch("tuner.main.ApiKeyAuth") as mock_auth_class,
+            patch("tuner.main.AuthHandler") as mock_auth_class,
             patch("tuner.main.get_settings") as mock_settings,
             patch("tuner.main.set_auth_handler"),
             patch("tuner.main.get_storage"),
@@ -134,7 +134,7 @@ class TestLifespan:
         test_app = create_app()
 
         with (
-            patch("tuner.main.ApiKeyAuth") as mock_auth_class,
+            patch("tuner.main.AuthHandler") as mock_auth_class,
             patch("tuner.main.get_settings") as mock_settings,
             patch("tuner.main.get_storage"),
         ):
@@ -150,7 +150,7 @@ class TestLifespan:
         test_app = create_app()
 
         with (
-            patch("tuner.main.ApiKeyAuth") as mock_auth_class,
+            patch("tuner.main.AuthHandler") as mock_auth_class,
             patch("tuner.main.get_settings") as mock_settings,
             patch("tuner.main.set_auth_handler"),
             patch("tuner.main.get_storage"),
@@ -172,7 +172,7 @@ class TestLifespan:
         test_app = create_app()
 
         with (
-            patch("tuner.main.ApiKeyAuth") as mock_auth_class,
+            patch("tuner.main.AuthHandler") as mock_auth_class,
             patch("tuner.main.get_settings") as mock_settings,
             patch("tuner.main.set_auth_handler"),
             patch("tuner.main.get_storage"),

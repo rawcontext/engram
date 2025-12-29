@@ -58,3 +58,28 @@ variable "domain" {
   type        = string
   # No default - must be provided via TF_VAR_domain or -var
 }
+
+# OAuth service client credentials
+variable "engram_tuner_client_secret" {
+  description = "OAuth client secret for engram-tuner service"
+  type        = string
+  sensitive   = true
+}
+
+variable "engram_search_client_secret" {
+  description = "OAuth client secret for engram-search service"
+  type        = string
+  sensitive   = true
+}
+
+variable "engram_console_client_secret" {
+  description = "OAuth client secret for engram-console service"
+  type        = string
+  sensitive   = true
+}
+
+variable "engram_ingestion_client_secret" {
+  description = "OAuth client secret for engram-ingestion service"
+  type        = string
+  sensitive   = true
+}

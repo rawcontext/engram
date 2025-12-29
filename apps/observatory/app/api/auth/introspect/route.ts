@@ -43,6 +43,8 @@ interface IntrospectionResponse {
 	aud?: string | string[];
 	/** Token type */
 	token_type?: string;
+	/** Grant type used to obtain this token (not in RFC 7662 but common extension) */
+	grant_type?: "authorization_code" | "device_code" | "client_credentials" | "refresh_token";
 }
 
 /**
@@ -125,13 +127,14 @@ export async function POST(request: Request) {
 			user_id: string;
 			scopes: string[];
 			client_id: string;
+			grant_type: string;
 			access_token_expires_at: Date;
 			created_at: Date;
 			revoked_at: Date | null;
 			user_name: string;
 			user_email: string;
 		}>(
-			`SELECT t.id, t.user_id, t.scopes, t.client_id,
+			`SELECT t.id, t.user_id, t.scopes, t.client_id, t.grant_type,
 			        t.access_token_expires_at, t.created_at, t.revoked_at,
 			        u.name as user_name, u.email as user_email
 			 FROM oauth_tokens t
@@ -171,6 +174,11 @@ export async function POST(request: Request) {
 			active: true,
 			sub: record.user_id,
 			client_id: record.client_id,
+			grant_type: record.grant_type as
+				| "authorization_code"
+				| "device_code"
+				| "client_credentials"
+				| "refresh_token",
 			scope: record.scopes.join(" "),
 			email: record.user_email,
 			name: record.user_name,

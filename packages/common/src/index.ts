@@ -108,6 +108,8 @@ export {
 } from "./constants";
 export type {
 	AuthContext,
+	// Auth token type
+	AuthTokenType,
 	// Cache types
 	CachedTokens,
 	// Database types
@@ -120,9 +122,14 @@ export type {
 	TokenErrorResponse,
 	TokenRequest,
 	TokenResponse,
-	// Auth context types
-	TokenType,
 	VerifyCodeRequest,
 	VerifyCodeResponse,
 } from "./types";
-export { OAUTH_TOKEN_PATTERN, OAuthConfig, REFRESH_TOKEN_PATTERN, TOKEN_PATTERN } from "./types";
+export {
+	CLIENT_TOKEN_PATTERN,
+	identifyTokenType,
+	OAUTH_TOKEN_PATTERN,
+	OAuthConfig,
+	REFRESH_TOKEN_PATTERN,
+	TOKEN_PATTERNS,
+} from "./types";

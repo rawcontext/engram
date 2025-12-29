@@ -435,24 +435,16 @@ class TestHelperFunctions:
         """Test recording Qdrant requests."""
         from src.utils.metrics import QDRANT_REQUESTS, record_qdrant_request
 
-        initial_success = QDRANT_REQUESTS.labels(
-            operation="search", status="success"
-        )._value._value
-        initial_error = QDRANT_REQUESTS.labels(
-            operation="upsert", status="error"
-        )._value._value
+        initial_success = QDRANT_REQUESTS.labels(operation="search", status="success")._value._value
+        initial_error = QDRANT_REQUESTS.labels(operation="upsert", status="error")._value._value
 
         # Record successful search
         record_qdrant_request(operation="search", success=True, latency=0.025)
         # Record failed upsert
         record_qdrant_request(operation="upsert", success=False, latency=0.1)
 
-        final_success = QDRANT_REQUESTS.labels(
-            operation="search", status="success"
-        )._value._value
-        final_error = QDRANT_REQUESTS.labels(
-            operation="upsert", status="error"
-        )._value._value
+        final_success = QDRANT_REQUESTS.labels(operation="search", status="success")._value._value
+        final_error = QDRANT_REQUESTS.labels(operation="upsert", status="error")._value._value
 
         assert final_success == initial_success + 1
         assert final_error == initial_error + 1

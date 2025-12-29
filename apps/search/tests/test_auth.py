@@ -1,20 +1,19 @@
-"""Tests for API key authentication middleware."""
+"""Tests for OAuth authentication middleware."""
 
-from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
+import httpx
 import pytest
 from fastapi import HTTPException, Request
 
 from src.middleware.auth import (
-    API_KEY_PATTERN,
-    OAUTH_TOKEN_PATTERN,
+    CLIENT_TOKEN_PATTERN,
+    USER_TOKEN_PATTERN,
     AuthContext,
     AuthHandler,
     _is_internal_network,
     get_api_key,
     get_auth_handler,
-    hash_api_key,
     optional_scope,
     require_auth,
     require_scope,
@@ -22,516 +21,194 @@ from src.middleware.auth import (
 )
 
 
-def create_mock_pool_with_connection(mock_conn):
-    """Helper to create a mock pool with proper async context manager."""
-    mock_pool = MagicMock()
-    mock_acquire = AsyncMock()
-    mock_acquire.__aenter__.return_value = mock_conn
-    mock_acquire.__aexit__.return_value = None
-    mock_pool.acquire.return_value = mock_acquire
-    return mock_pool
-
-
-class TestHashApiKey:
-    """Tests for hash_api_key function."""
-
-    def test_hash_api_key_returns_sha256(self):
-        """Test that hash_api_key returns SHA-256 hash."""
-        key = "engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        hashed = hash_api_key(key)
-        assert isinstance(hashed, str)
-        assert len(hashed) == 64  # SHA-256 produces 64 hex characters
-        # Same input should produce same hash
-        assert hash_api_key(key) == hashed
-
-    def test_hash_api_key_different_keys_different_hashes(self):
-        """Test that different keys produce different hashes."""
-        key1 = "engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        key2 = "engram_test_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-        assert hash_api_key(key1) != hash_api_key(key2)
-
-
 class TestPatterns:
     """Tests for regex patterns."""
 
-    def test_api_key_pattern_matches_live_key(self):
-        """Test that API_KEY_PATTERN matches live keys."""
-        assert API_KEY_PATTERN.match("engram_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    def test_user_token_pattern_matches_valid_token(self):
+        """Test that USER_TOKEN_PATTERN matches valid user tokens."""
+        # Format: egm_oauth_{32_hex}_{6_base62}
+        assert USER_TOKEN_PATTERN.match("egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p")
 
-    def test_api_key_pattern_matches_test_key(self):
-        """Test that API_KEY_PATTERN matches test keys."""
-        assert API_KEY_PATTERN.match("engram_test_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+    def test_user_token_pattern_rejects_invalid_chars(self):
+        """Test that USER_TOKEN_PATTERN rejects non-hex chars in random portion."""
+        assert not USER_TOKEN_PATTERN.match("egm_oauth_gggggggggggggggggggggggggggggggg_X7kM2p")
 
-    def test_api_key_pattern_rejects_invalid_prefix(self):
-        """Test that API_KEY_PATTERN rejects invalid prefix."""
-        assert not API_KEY_PATTERN.match("invalid_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    def test_user_token_pattern_rejects_legacy_format(self):
+        """Test that USER_TOKEN_PATTERN rejects legacy engram_oauth format."""
+        assert not USER_TOKEN_PATTERN.match("engram_oauth_abcdef1234567890abcdef1234567890")
 
-    def test_api_key_pattern_rejects_short_suffix(self):
-        """Test that API_KEY_PATTERN rejects short suffix."""
-        assert not API_KEY_PATTERN.match("engram_test_short")
+    def test_client_token_pattern_matches_valid_token(self):
+        """Test that CLIENT_TOKEN_PATTERN matches valid client tokens."""
+        # Format: egm_client_{32_hex}_{6_base62}
+        assert CLIENT_TOKEN_PATTERN.match("egm_client_abcdef1234567890abcdef1234567890_Y8nL3q")
 
-    def test_oauth_token_pattern_matches_valid_token(self):
-        """Test that OAUTH_TOKEN_PATTERN matches valid tokens."""
-        assert OAUTH_TOKEN_PATTERN.match("engram_oauth_abcdef1234567890abcdef1234567890")
-
-    def test_oauth_token_pattern_rejects_invalid_chars(self):
-        """Test that OAUTH_TOKEN_PATTERN rejects non-hex chars."""
-        assert not OAUTH_TOKEN_PATTERN.match("engram_oauth_gggggggggggggggggggggggggggggggg")
+    def test_client_token_pattern_rejects_user_token(self):
+        """Test that CLIENT_TOKEN_PATTERN rejects user tokens."""
+        assert not CLIENT_TOKEN_PATTERN.match("egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p")
 
 
 class TestAuthHandler:
     """Tests for AuthHandler class."""
 
     @pytest.mark.asyncio
-    async def test_connect_creates_pool(self):
-        """Test that connect() creates a connection pool."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
+    async def test_connect_creates_http_client(self):
+        """Test that connect() creates an HTTP client."""
+        handler = AuthHandler(
+            introspection_url="http://localhost:6178/api/auth/introspect",
+            client_id="test-client",
+            client_secret="test-secret",
+        )
 
-        mock_pool = AsyncMock()
-        with patch("src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
-            mock_create_pool.return_value = mock_pool
+        await handler.connect()
+        assert handler._http_client is not None
+        assert isinstance(handler._http_client, httpx.AsyncClient)
 
-            await handler.connect()
-
-            mock_create_pool.assert_called_once()
-            assert handler._pool is mock_pool
+        await handler.disconnect()
 
     @pytest.mark.asyncio
     async def test_connect_idempotent(self):
         """Test that connect() is idempotent."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
+        handler = AuthHandler(
+            introspection_url="http://localhost:6178/api/auth/introspect",
+            client_id="test-client",
+        )
 
-        mock_pool = AsyncMock()
-        with patch("src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
-            mock_create_pool.return_value = mock_pool
+        await handler.connect()
+        first_client = handler._http_client
 
-            await handler.connect()
-            await handler.connect()  # Second call should do nothing
+        await handler.connect()  # Second call should do nothing
+        assert handler._http_client is first_client
 
-            # Should only be called once
-            assert mock_create_pool.call_count == 1
+        await handler.disconnect()
 
     @pytest.mark.asyncio
-    async def test_disconnect_closes_pool(self):
-        """Test that disconnect() closes the pool."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
+    async def test_disconnect_closes_client(self):
+        """Test that disconnect() closes the HTTP client."""
+        handler = AuthHandler(
+            introspection_url="http://localhost:6178/api/auth/introspect",
+            client_id="test-client",
+        )
 
-        mock_pool = AsyncMock()
-        with patch("src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
-            mock_create_pool.return_value = mock_pool
+        await handler.connect()
+        await handler.disconnect()
 
-            await handler.connect()
-            await handler.disconnect()
-
-            mock_pool.close.assert_called_once()
-            assert handler._pool is None
+        assert handler._http_client is None
 
     @pytest.mark.asyncio
     async def test_disconnect_when_not_connected(self):
-        """Test that disconnect() works when pool is None."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
+        """Test that disconnect() works when client is None."""
+        handler = AuthHandler(
+            introspection_url="http://localhost:6178/api/auth/introspect",
+            client_id="test-client",
+        )
         # Should not raise
         await handler.disconnect()
 
     @pytest.mark.asyncio
-    async def test_validate_oauth_token(self):
-        """Test that validate() handles OAuth tokens."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
+    async def test_validate_user_token_success(self):
+        """Test validating a user token via introspection."""
+        handler = AuthHandler(
+            introspection_url="http://localhost:6178/api/auth/introspect",
+            client_id="test-client",
+        )
 
-        with patch.object(handler, "_validate_oauth_token") as mock_validate:
-            mock_validate.return_value = AuthContext(
-                id="test-id",
-                prefix="engram_oauth_abc",
-                method="oauth",
-                type="oauth",
-                user_id="user-123",
-                scopes=["memory:read"],
-                rate_limit_rpm=1000,
-            )
-
-            result = await handler.validate("engram_oauth_abcdef1234567890abcdef1234567890")
-
-            assert result is not None
-            mock_validate.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_validate_api_key(self):
-        """Test that validate() handles API keys."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        with patch.object(handler, "_validate_api_key") as mock_validate:
-            mock_validate.return_value = AuthContext(
-                id="test-id",
-                prefix="engram_test_abc",
-                method="api_key",
-                type="test",
-                user_id="user-123",
-                scopes=["memory:read"],
-                rate_limit_rpm=1000,
-            )
-
-            result = await handler.validate("engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-
-            assert result is not None
-            mock_validate.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_validate_invalid_format(self):
-        """Test that validate() returns None for invalid format."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-        result = await handler.validate("invalid-token")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_validate_api_key_not_found(self):
-        """Test _validate_api_key when key not found in database."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = None
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        handler._pool = mock_pool
-
-        result = await handler._validate_api_key("engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_validate_api_key_inactive(self):
-        """Test _validate_api_key when key is inactive."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "key_prefix": "engram_test_abc",
-            "key_type": "test",
-            "user_id": "user-123",
-            "scopes": ["memory:read"],
-            "rate_limit_rpm": 1000,
-            "is_active": False,
-            "expires_at": None,
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "active": True,
+            "sub": "user-123",
+            "scope": "memory:read memory:write",
+            "name": "Test User",
+            "email": "test@example.com",
         }
-        mock_conn.execute = AsyncMock()
 
-        mock_pool = create_mock_pool_with_connection(mock_conn)
+        mock_http_client = AsyncMock()
+        mock_http_client.post.return_value = mock_response
+        handler._http_client = mock_http_client
 
-        handler._pool = mock_pool
+        result = await handler.validate("egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p")
 
-        result = await handler._validate_api_key("engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_validate_api_key_expired(self):
-        """Test _validate_api_key when key is expired."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        expired_time = datetime.now(UTC) - timedelta(days=1)
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "key_prefix": "engram_test_abc",
-            "key_type": "test",
-            "user_id": "user-123",
-            "scopes": ["memory:read"],
-            "rate_limit_rpm": 1000,
-            "is_active": True,
-            "expires_at": expired_time,
-        }
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        handler._pool = mock_pool
-
-        result = await handler._validate_api_key("engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_validate_api_key_expired_naive_datetime(self):
-        """Test _validate_api_key when expires_at is timezone-naive."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        # Create naive datetime in the past
-        expired_time = datetime.now() - timedelta(days=1)
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "key_prefix": "engram_test_abc",
-            "key_type": "test",
-            "user_id": "user-123",
-            "scopes": ["memory:read"],
-            "rate_limit_rpm": 1000,
-            "is_active": True,
-            "expires_at": expired_time,
-        }
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        handler._pool = mock_pool
-
-        result = await handler._validate_api_key("engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_validate_api_key_success(self):
-        """Test _validate_api_key with valid key."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        future_time = datetime.now(UTC) + timedelta(days=30)
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "key_prefix": "engram_test_abc",
-            "key_type": "test",
-            "user_id": "user-123",
-            "scopes": ["memory:read"],
-            "rate_limit_rpm": 1000,
-            "is_active": True,
-            "expires_at": future_time,
-        }
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        handler._pool = mock_pool
-
-        result = await handler._validate_api_key("engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         assert result is not None
-        assert result.id == "test-id"
-        assert result.method == "api_key"
-        assert result.type == "test"
-        assert result.scopes == ["memory:read"]
-
-    @pytest.mark.asyncio
-    async def test_validate_api_key_null_scopes(self):
-        """Test _validate_api_key handles null scopes."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "key_prefix": "engram_test_abc",
-            "key_type": "test",
-            "user_id": "user-123",
-            "scopes": None,
-            "rate_limit_rpm": 1000,
-            "is_active": True,
-            "expires_at": None,
-        }
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        handler._pool = mock_pool
-
-        result = await handler._validate_api_key("engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        assert result is not None
-        assert result.scopes == []
-
-    @pytest.mark.asyncio
-    async def test_validate_oauth_token_not_found(self):
-        """Test _validate_oauth_token when token not found."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = None
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        handler._pool = mock_pool
-
-        result = await handler._validate_oauth_token("engram_oauth_abcdef1234567890abcdef1234567890")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_validate_oauth_token_revoked(self):
-        """Test _validate_oauth_token when token is revoked."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "access_token_prefix": "engram_oauth_abc",
-            "user_id": "user-123",
-            "scopes": ["memory:read"],
-            "access_token_expires_at": datetime.now(UTC) + timedelta(days=30),
-            "revoked_at": datetime.now(UTC),
-            "user_name": "Test User",
-            "user_email": "test@example.com",
-        }
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        handler._pool = mock_pool
-
-        result = await handler._validate_oauth_token("engram_oauth_abcdef1234567890abcdef1234567890")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_validate_oauth_token_expired(self):
-        """Test _validate_oauth_token when token is expired."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        expired_time = datetime.now(UTC) - timedelta(days=1)
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "access_token_prefix": "engram_oauth_abc",
-            "user_id": "user-123",
-            "scopes": ["memory:read"],
-            "access_token_expires_at": expired_time,
-            "revoked_at": None,
-            "user_name": "Test User",
-            "user_email": "test@example.com",
-        }
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        handler._pool = mock_pool
-
-        result = await handler._validate_oauth_token("engram_oauth_abcdef1234567890abcdef1234567890")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_validate_oauth_token_success(self):
-        """Test _validate_oauth_token with valid token."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
-
-        future_time = datetime.now(UTC) + timedelta(days=30)
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "access_token_prefix": "engram_oauth_abc",
-            "user_id": "user-123",
-            "scopes": ["memory:read", "memory:write"],
-            "access_token_expires_at": future_time,
-            "revoked_at": None,
-            "user_name": "Test User",
-            "user_email": "test@example.com",
-        }
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        handler._pool = mock_pool
-
-        result = await handler._validate_oauth_token("engram_oauth_abcdef1234567890abcdef1234567890")
-        assert result is not None
-        assert result.id == "test-id"
+        assert result.user_id == "user-123"
         assert result.method == "oauth"
         assert result.type == "oauth"
         assert result.scopes == ["memory:read", "memory:write"]
         assert result.user_name == "Test User"
         assert result.user_email == "test@example.com"
-        assert result.rate_limit_rpm == 1000
 
     @pytest.mark.asyncio
-    async def test_validate_oauth_token_expired_naive_datetime(self):
-        """Test _validate_oauth_token when expires_at is timezone-naive."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
+    async def test_validate_client_token_success(self):
+        """Test validating a client credentials token via introspection."""
+        handler = AuthHandler(
+            introspection_url="http://localhost:6178/api/auth/introspect",
+            client_id="test-client",
+        )
 
-        # Create naive datetime in the past
-        expired_time = datetime.now() - timedelta(days=1)
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "access_token_prefix": "engram_oauth_abc",
-            "user_id": "user-123",
-            "scopes": ["memory:read"],
-            "access_token_expires_at": expired_time,
-            "revoked_at": None,
-            "user_name": "Test User",
-            "user_email": "test@example.com",
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "active": True,
+            "client_id": "engram-search",
+            "scope": "memory:read query:read",
         }
-        mock_conn.execute = AsyncMock()
 
-        mock_pool = create_mock_pool_with_connection(mock_conn)
+        mock_http_client = AsyncMock()
+        mock_http_client.post.return_value = mock_response
+        handler._http_client = mock_http_client
 
-        handler._pool = mock_pool
+        result = await handler.validate("egm_client_abcdef1234567890abcdef1234567890_Y8nL3q")
 
-        result = await handler._validate_oauth_token("engram_oauth_abcdef1234567890abcdef1234567890")
+        assert result is not None
+        assert result.user_id == "engram-search"
+        assert result.method == "client_credentials"
+        assert result.type == "client"
+        assert result.scopes == ["memory:read", "query:read"]
+
+    @pytest.mark.asyncio
+    async def test_validate_inactive_token(self):
+        """Test that inactive tokens return None."""
+        handler = AuthHandler(
+            introspection_url="http://localhost:6178/api/auth/introspect",
+            client_id="test-client",
+        )
+
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"active": False}
+
+        mock_http_client = AsyncMock()
+        mock_http_client.post.return_value = mock_response
+        handler._http_client = mock_http_client
+
+        result = await handler.validate("egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p")
+
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_validate_api_key_auto_connect(self):
-        """Test _validate_api_key auto-connects if pool is None."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
+    async def test_validate_invalid_format(self):
+        """Test that invalid token formats return None."""
+        handler = AuthHandler(
+            introspection_url="http://localhost:6178/api/auth/introspect",
+            client_id="test-client",
+        )
 
-        future_time = datetime.now(UTC) + timedelta(days=30)
-
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "key_prefix": "engram_test_abc",
-            "key_type": "test",
-            "user_id": "user-123",
-            "scopes": ["memory:read"],
-            "rate_limit_rpm": 1000,
-            "is_active": True,
-            "expires_at": future_time,
-        }
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        with patch("src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
-            mock_create_pool.return_value = mock_pool
-
-            # Pool starts as None
-            assert handler._pool is None
-
-            result = await handler._validate_api_key("engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-
-            # Should have auto-connected
-            mock_create_pool.assert_called_once()
-            assert result is not None
+        result = await handler.validate("invalid-token")
+        assert result is None
 
     @pytest.mark.asyncio
-    async def test_validate_oauth_token_auto_connect(self):
-        """Test _validate_oauth_token auto-connects if pool is None."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
+    async def test_validate_network_error(self):
+        """Test that network errors return None."""
+        handler = AuthHandler(
+            introspection_url="http://localhost:6178/api/auth/introspect",
+            client_id="test-client",
+        )
 
-        future_time = datetime.now(UTC) + timedelta(days=30)
+        mock_http_client = AsyncMock()
+        mock_http_client.post.side_effect = httpx.RequestError("Connection failed")
+        handler._http_client = mock_http_client
 
-        mock_conn = AsyncMock()
-        mock_conn.fetchrow.return_value = {
-            "id": "test-id",
-            "access_token_prefix": "engram_oauth_abc",
-            "user_id": "user-123",
-            "scopes": ["memory:read", "memory:write"],
-            "access_token_expires_at": future_time,
-            "revoked_at": None,
-            "user_name": "Test User",
-            "user_email": "test@example.com",
-        }
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = create_mock_pool_with_connection(mock_conn)
-
-        with patch("src.middleware.auth.asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
-            mock_create_pool.return_value = mock_pool
-
-            # Pool starts as None
-            assert handler._pool is None
-
-            result = await handler._validate_oauth_token("engram_oauth_abcdef1234567890abcdef1234567890")
-
-            # Should have auto-connected
-            mock_create_pool.assert_called_once()
-            assert result is not None
+        result = await handler.validate("egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p")
+        assert result is None
 
 
 class TestAuthHandlerGlobals:
@@ -539,7 +216,10 @@ class TestAuthHandlerGlobals:
 
     def test_set_and_get_auth_handler(self):
         """Test setting and getting global auth handler."""
-        handler = AuthHandler("postgresql://test:test@localhost/test")
+        handler = AuthHandler(
+            introspection_url="http://localhost:6178/api/auth/introspect",
+            client_id="test-client",
+        )
         set_auth_handler(handler)
         assert get_auth_handler() is handler
 
@@ -580,55 +260,19 @@ class TestGetApiKey:
         assert "Invalid token format" in exc_info.value.detail["error"]["message"]
 
     @pytest.mark.asyncio
-    async def test_validation_error(self):
-        """Test get_api_key when validation raises exception."""
-        request = Mock(spec=Request)
-        credentials = Mock()
-        credentials.credentials = "engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-
-        mock_handler = AsyncMock()
-        mock_handler.validate.side_effect = Exception("Database error")
-
-        with patch("src.middleware.auth.get_auth_handler", return_value=mock_handler):
-            with pytest.raises(HTTPException) as exc_info:
-                await get_api_key(request, credentials)
-
-            assert exc_info.value.status_code == 500
-            assert exc_info.value.detail["error"]["code"] == "INTERNAL_ERROR"
-            assert "Failed to validate token" in exc_info.value.detail["error"]["message"]
-
-    @pytest.mark.asyncio
-    async def test_invalid_token(self):
-        """Test get_api_key when token is invalid."""
-        request = Mock(spec=Request)
-        request.state = Mock()
-        credentials = Mock()
-        credentials.credentials = "engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-
-        mock_handler = AsyncMock()
-        mock_handler.validate.return_value = None
-
-        with patch("src.middleware.auth.get_auth_handler", return_value=mock_handler):
-            with pytest.raises(HTTPException) as exc_info:
-                await get_api_key(request, credentials)
-
-            assert exc_info.value.status_code == 401
-            assert exc_info.value.detail["error"]["code"] == "UNAUTHORIZED"
-            assert "Invalid or expired token" in exc_info.value.detail["error"]["message"]
-
-    @pytest.mark.asyncio
     async def test_valid_token(self):
         """Test get_api_key with valid token."""
         request = Mock(spec=Request)
         request.state = Mock()
+        request.headers = {"DPoP": None}
         credentials = Mock()
-        credentials.credentials = "engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        credentials.credentials = "egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"
 
         auth_context = AuthContext(
-            id="test-id",
-            prefix="engram_test_abc",
-            method="api_key",
-            type="test",
+            id="user-123",
+            prefix="egm_oauth_abcdef12345...",
+            method="oauth",
+            type="oauth",
             user_id="user-123",
             scopes=["memory:read"],
             rate_limit_rpm=1000,
@@ -648,12 +292,12 @@ class TestRequireAuth:
     """Tests for require_auth dependency."""
 
     def test_require_auth_returns_key(self):
-        """Test that require_auth returns the API key context."""
+        """Test that require_auth returns the auth context."""
         context = AuthContext(
-            id="test-id",
-            prefix="engram_test_abc",
-            method="api_key",
-            type="test",
+            id="user-123",
+            prefix="egm_oauth_abcdef12345...",
+            method="oauth",
+            type="oauth",
             user_id="user-123",
             scopes=["memory:read"],
             rate_limit_rpm=1000,
@@ -668,12 +312,12 @@ class TestRequireScope:
 
     @pytest.mark.asyncio
     async def test_require_scope_success(self):
-        """Test require_scope when key has required scope."""
+        """Test require_scope when token has required scope."""
         context = AuthContext(
-            id="test-id",
-            prefix="engram_test_abc",
-            method="api_key",
-            type="test",
+            id="user-123",
+            prefix="egm_oauth_abcdef12345...",
+            method="oauth",
+            type="oauth",
             user_id="user-123",
             scopes=["memory:read", "memory:write"],
             rate_limit_rpm=1000,
@@ -684,30 +328,13 @@ class TestRequireScope:
         assert result is context
 
     @pytest.mark.asyncio
-    async def test_require_scope_any_match(self):
-        """Test require_scope matches any of the required scopes."""
-        context = AuthContext(
-            id="test-id",
-            prefix="engram_test_abc",
-            method="api_key",
-            type="test",
-            user_id="user-123",
-            scopes=["memory:write"],
-            rate_limit_rpm=1000,
-        )
-
-        checker = require_scope("memory:read", "memory:write")
-        result = await checker(context)
-        assert result is context
-
-    @pytest.mark.asyncio
     async def test_require_scope_missing(self):
-        """Test require_scope when key lacks required scope."""
+        """Test require_scope when token lacks required scope."""
         context = AuthContext(
-            id="test-id",
-            prefix="engram_test_abc",
-            method="api_key",
-            type="test",
+            id="user-123",
+            prefix="egm_oauth_abcdef12345...",
+            method="oauth",
+            type="oauth",
             user_id="user-123",
             scopes=["search:read"],
             rate_limit_rpm=1000,
@@ -779,75 +406,6 @@ class TestOptionalScope:
             assert result.method == "internal"
             assert "*" in result.scopes
 
-    @pytest.mark.asyncio
-    async def test_optional_scope_external_with_valid_auth(self):
-        """Test optional_scope with external request and valid auth."""
-        with patch("src.middleware.auth.get_settings") as mock_settings:
-            mock_settings.return_value.auth_enabled = True
-
-            request = Mock(spec=Request)
-            request.state = Mock()
-            request.client = Mock()
-            request.client.host = "203.0.113.1"
-
-            credentials = Mock()
-            credentials.credentials = "engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-
-            auth_context = AuthContext(
-                id="test-id",
-                prefix="engram_test_abc",
-                method="api_key",
-                type="test",
-                user_id="user-123",
-                scopes=["memory:read", "memory:write"],
-                rate_limit_rpm=1000,
-            )
-
-            mock_handler = AsyncMock()
-            mock_handler.validate.return_value = auth_context
-
-            with patch("src.middleware.auth.get_auth_handler", return_value=mock_handler):
-                checker = optional_scope("memory:read")
-                result = await checker(request, credentials)
-
-                assert result is auth_context
-
-    @pytest.mark.asyncio
-    async def test_optional_scope_external_missing_scope(self):
-        """Test optional_scope with external request missing required scope."""
-        with patch("src.middleware.auth.get_settings") as mock_settings:
-            mock_settings.return_value.auth_enabled = True
-
-            request = Mock(spec=Request)
-            request.state = Mock()
-            request.client = Mock()
-            request.client.host = "203.0.113.1"
-
-            credentials = Mock()
-            credentials.credentials = "engram_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-
-            auth_context = AuthContext(
-                id="test-id",
-                prefix="engram_test_abc",
-                method="api_key",
-                type="test",
-                user_id="user-123",
-                scopes=["search:read"],
-                rate_limit_rpm=1000,
-            )
-
-            mock_handler = AsyncMock()
-            mock_handler.validate.return_value = auth_context
-
-            with patch("src.middleware.auth.get_auth_handler", return_value=mock_handler):
-                checker = optional_scope("memory:read")
-
-                with pytest.raises(HTTPException) as exc_info:
-                    await checker(request, credentials)
-
-                assert exc_info.value.status_code == 403
-                assert "memory:read" in exc_info.value.detail["error"]["message"]
-
 
 class TestAuthMiddleware:
     """Tests for authentication middleware integration."""
@@ -866,7 +424,7 @@ class TestAuthMiddleware:
 
     @pytest.mark.asyncio
     async def test_invalid_key_format_returns_401(self, unauthenticated_client):
-        """Test that invalid API key format returns 401."""
+        """Test that invalid token format returns 401."""
         response = await unauthenticated_client.post(
             "/v1/search/query",
             json={"text": "test query"},
@@ -895,13 +453,319 @@ class TestAuthMiddleware:
         response = await unauthenticated_client.get("/v1/search/metrics")
         assert response.status_code == 200
 
+
+class TestScopeEnforcement:
+    """Tests for scope enforcement per client registration (RFC 6749 §3.3)."""
+
     @pytest.mark.asyncio
-    async def test_authenticated_request_succeeds(self, client):
-        """Test that authenticated request proceeds to handler."""
-        # This will still fail if Qdrant isn't available, but with 503 not 401
-        response = await client.post(
+    async def test_client_token_with_insufficient_scopes_returns_403(self):
+        """Test that client token lacking required scope is rejected."""
+        # Client registered with scope='memory:read query:read'
+        # Attempting to access endpoint requiring 'memory:write'
+        context = AuthContext(
+            id="engram-search",
+            prefix="egm_client_abc123...",
+            method="client_credentials",
+            type="client",
+            user_id="engram-search",
+            scopes=["memory:read", "query:read"],  # Missing memory:write
+            rate_limit_rpm=1000,
+        )
+
+        # Simulate require_scope("memory:write") dependency
+        checker = require_scope("memory:write")
+
+        with pytest.raises(HTTPException) as exc_info:
+            await checker(context)
+
+        assert exc_info.value.status_code == 403
+        assert exc_info.value.detail["error"]["code"] == "FORBIDDEN"
+        assert "memory:write" in exc_info.value.detail["error"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_client_token_with_exact_scopes_allows_access(self):
+        """Test that client token with exact scopes can access endpoint."""
+        context = AuthContext(
+            id="engram-search",
+            prefix="egm_client_abc123...",
+            method="client_credentials",
+            type="client",
+            user_id="engram-search",
+            scopes=["memory:read", "query:read"],
+            rate_limit_rpm=1000,
+        )
+
+        # Check access to endpoint requiring memory:read
+        checker = require_scope("memory:read")
+        result = await checker(context)
+
+        assert result is context
+
+    @pytest.mark.asyncio
+    async def test_client_token_cannot_access_mcp_scopes(self):
+        """Test that client token cannot access MCP-specific scopes."""
+        # engram-search client registered with scope='memory:read query:read'
+        # Should not have access to mcp:tools, mcp:resources, mcp:prompts
+        context = AuthContext(
+            id="engram-search",
+            prefix="egm_client_abc123...",
+            method="client_credentials",
+            type="client",
+            user_id="engram-search",
+            scopes=["memory:read", "query:read"],
+            rate_limit_rpm=1000,
+        )
+
+        # Try to access MCP tools scope
+        checker = require_scope("mcp:tools")
+
+        with pytest.raises(HTTPException) as exc_info:
+            await checker(context)
+
+        assert exc_info.value.status_code == 403
+        assert "mcp:tools" in exc_info.value.detail["error"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_user_token_with_mcp_scopes_allows_access(self):
+        """Test that user OAuth token with MCP scopes can access MCP endpoints."""
+        context = AuthContext(
+            id="user-123",
+            prefix="egm_oauth_abc123...",
+            method="oauth",
+            type="oauth",
+            user_id="user-123",
+            scopes=["mcp:tools", "mcp:resources", "mcp:prompts"],
+            rate_limit_rpm=100,
+        )
+
+        # Check access to MCP tools
+        checker = require_scope("mcp:tools")
+        result = await checker(context)
+
+        assert result is context
+
+    @pytest.mark.asyncio
+    async def test_scope_validation_matches_client_registration(self):
+        """Test that scope enforcement reflects client registration constraints."""
+        # engram-tuner client registered with scope='memory:read memory:write tuner:read tuner:write'
+        context = AuthContext(
+            id="engram-tuner",
+            prefix="egm_client_xyz789...",
+            method="client_credentials",
+            type="client",
+            user_id="engram-tuner",
+            scopes=["memory:read", "memory:write", "tuner:read", "tuner:write"],
+            rate_limit_rpm=1000,
+        )
+
+        # Should allow tuner:read
+        checker_tuner = require_scope("tuner:read")
+        result = await checker_tuner(context)
+        assert result is context
+
+        # Should allow memory:write
+        checker_memory = require_scope("memory:write")
+        result = await checker_memory(context)
+        assert result is context
+
+        # Should NOT allow query:read (not in registration)
+        checker_query = require_scope("query:read")
+        with pytest.raises(HTTPException) as exc_info:
+            await checker_query(context)
+
+        assert exc_info.value.status_code == 403
+        assert "query:read" in exc_info.value.detail["error"]["message"]
+
+
+class TestClientTokenIntegration:
+    """Integration tests for client credentials token validation."""
+
+    @pytest.mark.asyncio
+    async def test_client_token_accepted_for_query_endpoint(self, app):
+        """Test that client credentials tokens authenticate correctly."""
+        from httpx import ASGITransport, AsyncClient
+
+        # Create a valid client credentials token
+        valid_client_token = "egm_client_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6_Y8nL3q"
+
+        # Mock auth handler to return client credentials context
+        client_auth_context = AuthContext(
+            id="engram-search",
+            prefix="egm_client_a1b2c3d4e5...",
+            method="client_credentials",
+            type="client",
+            user_id="engram-search",
+            scopes=["memory:read", "query:read"],
+            rate_limit_rpm=5000,
+        )
+
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=client_auth_context)
+
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": f"Bearer {valid_client_token}"},
+            ) as client:
+                # Make a request to the query endpoint
+                response = await client.post(
+                    "/v1/search/query",
+                    json={
+                        "text": "test query",
+                        "strategy": "hybrid",
+                        "limit": 10,
+                    },
+                )
+
+                # Should NOT return 401 or 403 - auth passed
+                # May return 503 (service unavailable) if retriever not initialized
+                assert response.status_code != 401
+                assert response.status_code != 403
+
+                # Verify the auth handler was called with the token
+                mock_handler.validate.assert_called_once()
+                call_args = mock_handler.validate.call_args
+                assert call_args[0][0] == valid_client_token
+
+    @pytest.mark.asyncio
+    async def test_client_token_with_insufficient_scope_rejected(self, app):
+        """Test that client tokens without required scope are rejected."""
+        from httpx import ASGITransport, AsyncClient
+
+        valid_client_token = "egm_client_b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7_Z9oP4r"
+
+        # Mock auth handler to return client with insufficient scopes
+        client_auth_context = AuthContext(
+            id="engram-api",
+            prefix="egm_client_b2c3d4e5f6...",
+            method="client_credentials",
+            type="client",
+            user_id="engram-api",
+            scopes=["memory:write"],  # Missing search:read scope
+            rate_limit_rpm=5000,
+        )
+
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=client_auth_context)
+
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": f"Bearer {valid_client_token}"},
+            ) as client:
+                response = await client.post(
+                    "/v1/search/query",
+                    json={
+                        "text": "test query",
+                        "strategy": "hybrid",
+                        "limit": 10,
+                    },
+                )
+
+                # Should return 403 for insufficient scope
+                assert response.status_code == 403
+                data = response.json()
+                assert data["detail"]["error"]["code"] == "FORBIDDEN"
+
+    @pytest.mark.asyncio
+    async def test_client_token_format_validation(self, unauthenticated_client):
+        """Test that client token format is validated correctly."""
+        # Invalid client token format (wrong prefix)
+        response = await unauthenticated_client.post(
             "/v1/search/query",
             json={"text": "test query"},
+            headers={"Authorization": "Bearer egm_oauth_invalidclienttoken123_ABC123"},
         )
-        # Should not be 401 - auth succeeded
-        assert response.status_code != 401
+
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_client_token_with_memory_read_scope(self, app):
+        """Test client token with memory:read scope authenticates successfully."""
+        from httpx import ASGITransport, AsyncClient
+
+        valid_client_token = "egm_client_c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8_A0qR5s"
+
+        client_auth_context = AuthContext(
+            id="engram-memory",
+            prefix="egm_client_c3d4e5f6a7...",
+            method="client_credentials",
+            type="client",
+            user_id="engram-memory",
+            scopes=["memory:read"],
+            rate_limit_rpm=10000,
+        )
+
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=client_auth_context)
+
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": f"Bearer {valid_client_token}"},
+            ) as client:
+                response = await client.post(
+                    "/v1/search/query",
+                    json={
+                        "text": "test query",
+                        "strategy": "dense",
+                        "limit": 5,
+                    },
+                )
+
+                # Should NOT return 401 or 403 - auth passed
+                assert response.status_code != 401
+                assert response.status_code != 403
+
+
+class TestUserTokenIntegration:
+    """Integration tests for user OAuth token validation."""
+
+    @pytest.mark.asyncio
+    async def test_user_token_accepted_for_query_endpoint(self, app):
+        """Test that user OAuth tokens authenticate correctly."""
+        from httpx import ASGITransport, AsyncClient
+
+        valid_user_token = "egm_oauth_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6_X7kM2p"
+
+        user_auth_context = AuthContext(
+            id="user-123",
+            prefix="egm_oauth_a1b2c3d4e5...",
+            method="oauth",
+            type="oauth",
+            user_id="user-123",
+            scopes=["memory:read", "memory:write"],
+            rate_limit_rpm=1000,
+            user_name="Test User",
+            user_email="test@example.com",
+        )
+
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=user_auth_context)
+
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={"Authorization": f"Bearer {valid_user_token}"},
+            ) as client:
+                response = await client.post(
+                    "/v1/search/query",
+                    json={
+                        "text": "test query",
+                        "strategy": "hybrid",
+                        "limit": 10,
+                    },
+                )
+
+                # Should NOT return 401 or 403 - auth passed
+                assert response.status_code != 401
+                assert response.status_code != 403
+                mock_handler.validate.assert_called_once()

@@ -13,16 +13,18 @@ import { auth } from "@/lib/auth";
 // Get the Engram API URL from environment
 const ENGRAM_API_URL = process.env.ENGRAM_API_URL || "http://localhost:6174";
 
-// Token must match pattern: engram_dev_[alphanumeric_underscore]+ or engram_oauth_[32chars]
-// Use explicit checks to handle empty strings from env vars
+// Token must match pattern: egm_oauth_[32chars]_[6chars] or egm_client_[32chars]_[6chars]
+// Console uses OAuth client credentials (egm_client_*) for service-to-service auth
 function getApiToken(): string {
-	const key = process.env.ENGRAM_API_KEY;
-	const token = process.env.ENGRAM_API_TOKEN;
+	const token = process.env.ENGRAM_CLIENT_TOKEN;
+	const oauthToken = process.env.ENGRAM_API_TOKEN;
 
-	if (key && key.trim()) return key.trim();
 	if (token && token.trim()) return token.trim();
+	if (oauthToken && oauthToken.trim()) return oauthToken.trim();
 
-	return "engram_dev_console";
+	// In production, this will fail - client token must be configured
+	console.warn("[Console] No ENGRAM_CLIENT_TOKEN configured - API calls will fail");
+	return "";
 }
 
 const ENGRAM_API_KEY = getApiToken();

@@ -116,7 +116,7 @@
     },
     "apps/mcp": {
       "name": "@rawcontext/engram-mcp",
-      "version": "0.1.0",
+      "version": "0.1.6",
       "bin": {
         "engram-mcp": "dist/index.js",
       },
@@ -125,6 +125,8 @@
         "@engram/logger": "*",
         "@modelcontextprotocol/sdk": "^1.25.1",
         "express": "^5.0.1",
+        "pino": "^10.1.0",
+        "pino-pretty": "^13.1.3",
         "ulid": "^3.0.2",
         "zod": "^4.2.1",
       },
@@ -201,6 +203,20 @@
     "apps/tuner": {
       "name": "@engram/optimizer",
       "version": "0.0.0",
+    },
+    "packages/auth-mock": {
+      "name": "@engram/auth-mock",
+      "version": "0.0.0",
+      "bin": {
+        "auth-mock": "./src/cli.ts",
+      },
+      "dependencies": {
+        "@engram/common": "*",
+      },
+      "devDependencies": {
+        "@engram/tsconfig": "*",
+        "@types/node": "^25.0.3",
+      },
     },
     "packages/common": {
       "name": "@engram/common",
@@ -463,6 +479,8 @@
     "@emnapi/runtime": ["@emnapi/runtime@1.7.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-PVtJr5CmLwYAU9PZDMITZoR5iAOShYREoR45EyyLrbntV50mdePTgUn4AmOw90Ifcj+x2kRjdzr1HP3RrNiHGA=="],
 
     "@engram/api": ["@engram/api@workspace:apps/api"],
+
+    "@engram/auth-mock": ["@engram/auth-mock@workspace:packages/auth-mock"],
 
     "@engram/common": ["@engram/common@workspace:packages/common"],
 

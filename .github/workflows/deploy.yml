@@ -290,6 +290,12 @@ jobs:
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
           TF_VAR_domain: ${{ env.ROOT_DOMAIN }}
           TF_VAR_ssh_public_key: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
+          TF_VAR_engram_api_client_secret: ${{ secrets.ENGRAM_API_CLIENT_SECRET }}
+          TF_VAR_engram_search_client_secret: ${{ secrets.ENGRAM_SEARCH_CLIENT_SECRET }}
+          TF_VAR_engram_tuner_client_secret: ${{ secrets.ENGRAM_TUNER_CLIENT_SECRET }}
+          TF_VAR_engram_ingestion_client_secret: ${{ secrets.ENGRAM_INGESTION_CLIENT_SECRET }}
+          TF_VAR_engram_memory_client_secret: ${{ secrets.ENGRAM_MEMORY_CLIENT_SECRET }}
+          TF_VAR_engram_console_client_secret: ${{ secrets.ENGRAM_CONSOLE_CLIENT_SECRET }}
         run: |
           # Disable state locking - workflow concurrency already prevents parallel runs
           tofu plan -out=tfplan -no-color -lock=false
@@ -303,6 +309,12 @@ jobs:
           TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
           TF_VAR_domain: ${{ env.ROOT_DOMAIN }}
           TF_VAR_ssh_public_key: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
+          TF_VAR_engram_api_client_secret: ${{ secrets.ENGRAM_API_CLIENT_SECRET }}
+          TF_VAR_engram_search_client_secret: ${{ secrets.ENGRAM_SEARCH_CLIENT_SECRET }}
+          TF_VAR_engram_tuner_client_secret: ${{ secrets.ENGRAM_TUNER_CLIENT_SECRET }}
+          TF_VAR_engram_ingestion_client_secret: ${{ secrets.ENGRAM_INGESTION_CLIENT_SECRET }}
+          TF_VAR_engram_memory_client_secret: ${{ secrets.ENGRAM_MEMORY_CLIENT_SECRET }}
+          TF_VAR_engram_console_client_secret: ${{ secrets.ENGRAM_CONSOLE_CLIENT_SECRET }}
         run: |
           tofu apply -auto-approve -lock=false tfplan
 
@@ -371,7 +383,12 @@ jobs:
           BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
           GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          ENGRAM_API_TOKEN=${{ secrets.ENGRAM_API_TOKEN }}
+          ENGRAM_API_CLIENT_SECRET=${{ secrets.ENGRAM_API_CLIENT_SECRET }}
+          ENGRAM_SEARCH_CLIENT_SECRET=${{ secrets.ENGRAM_SEARCH_CLIENT_SECRET }}
+          ENGRAM_TUNER_CLIENT_SECRET=${{ secrets.ENGRAM_TUNER_CLIENT_SECRET }}
+          ENGRAM_INGESTION_CLIENT_SECRET=${{ secrets.ENGRAM_INGESTION_CLIENT_SECRET }}
+          ENGRAM_MEMORY_CLIENT_SECRET=${{ secrets.ENGRAM_MEMORY_CLIENT_SECRET }}
+          ENGRAM_CONSOLE_CLIENT_SECRET=${{ secrets.ENGRAM_CONSOLE_CLIENT_SECRET }}
           ENVEOF"
 
       - name: Fix postgres permissions and run migrations

@@ -1,0 +1,33 @@
+{
+	"name": "@engram/auth-mock",
+	"version": "0.0.0",
+	"type": "module",
+	"description": "Mock OAuth server for CI testing without database dependencies",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"bin": {
+		"auth-mock": "./src/cli.ts"
+	},
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@engram/common": "*"
+	},
+	"devDependencies": {
+		"@engram/tsconfig": "*",
+		"@types/node": "^25.0.3"
+	},
+	"turbo": {
+		"build": {
+			"outputs": []
+		}
+	},
+	"scripts": {
+		"build": "echo 'Build success'",
+		"typecheck": "tsgo --noEmit",
+		"lint": "biome check .",
+		"format": "biome format .",
+		"start": "bun src/cli.ts"
+	}
+}

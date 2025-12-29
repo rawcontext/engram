@@ -69,6 +69,36 @@ Memory Service → Redis Pub/Sub → WebSocket Server → React Client
 - `POST /api/search` - Semantic search proxy
 - `POST /api/graphql` - GraphQL queries (GraphQL Yoga)
 
+**OAuth Endpoints (RFC 8628 Device Flow)**
+- `POST /api/auth/device/code` - Generate device code for MCP authentication
+- `POST /api/auth/device/token` - Poll for tokens or refresh existing tokens
+- `POST /api/auth/introspect` - RFC 7662 token introspection
+- `GET /.well-known/oauth-authorization-server` - RFC 8414 auth server metadata
+
+## OAuth Token Format
+
+Observatory issues OAuth tokens for MCP server authentication using a secure, identifiable format:
+
+| Token Type | Format | Example |
+|------------|--------|---------|
+| Access Token | `egm_oauth_{random32}_{crc6}` | `egm_oauth_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4_X7kM2p` |
+| Refresh Token | `egm_refresh_{random32}_{crc6}` | `egm_refresh_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4_Y8nL3q` |
+
+**Format breakdown**:
+- `egm`: Engram company identifier (unique to prevent prefix collisions)
+- `oauth`/`refresh`: Token type identifier
+- `random32`: 32 hex characters (128 bits of entropy from `crypto.randomBytes`)
+- `crc6`: 6 Base62 characters (CRC32 checksum encoded as Base62)
+
+**Benefits**:
+- **Secret scanning**: Unique prefix allows GitHub/GitLab secret scanning to identify leaked tokens
+- **Offline validation**: CRC32 checksum enables validation without database lookup (reduces false positives to ~0%)
+- **Type identification**: Token type embedded in prefix for quick categorization
+
+**Implementation**: See `lib/device-auth.ts` for `generateAccessToken()`, `generateRefreshToken()`, and `validateTokenChecksum()`.
+
+Design inspired by [GitHub's token format](https://github.blog/engineering/platform-security/behind-githubs-new-authentication-token-formats/).
+
 ## Technology Stack
 
 - **Framework**: Next.js 16 (App Router, RSC), React 19

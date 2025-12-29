@@ -6,10 +6,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.main import create_app
-from src.middleware.auth import ApiKeyContext
+from src.middleware.auth import AuthContext
 
 # Mock auth context for authenticated requests
-MOCK_API_KEY_CONTEXT = ApiKeyContext(
+MOCK_API_KEY_CONTEXT = AuthContext(
     id="test-key-id",
     prefix="engram_test_abc123...",
     method="api_key",

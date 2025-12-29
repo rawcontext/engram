@@ -45,6 +45,10 @@ bun run plan && bun run up
 | `vercel_api_token` | Vercel API token for DNS |
 | `ssh_public_key` | SSH public key content |
 | `domain` | Base domain (e.g., `example.com`) |
+| `engram_tuner_client_secret` | OAuth client secret for tuner service |
+| `engram_search_client_secret` | OAuth client secret for search service |
+| `engram_console_client_secret` | OAuth client secret for console service |
+| `engram_ingestion_client_secret` | OAuth client secret for ingestion service |
 
 Optional: `vercel_team_id`, `server_name` (default: `engram`), `server_type` (default: `cpx31`), `location` (default: `ash`)
 
@@ -70,6 +74,24 @@ bun run test      # Run OpenTofu tests
 | `ssh_command` | SSH connection command |
 | `api_url` | API gateway URL |
 | `observatory_url` | Observatory UI URL |
+| `oauth_*_client_id` | OAuth client IDs for each service |
+| `oauth_auth_server_url` | OAuth authorization server URL |
+| `oauth_env_*` | Sensitive OAuth environment variables (JSON) |
+
+### Accessing OAuth Credentials
+
+To retrieve OAuth environment variables for deployment:
+
+```bash
+# Get all OAuth env vars for a service (JSON format)
+tofu output -json | jq -r '.oauth_env_tuner.value'
+tofu output -json | jq -r '.oauth_env_search.value'
+tofu output -json | jq -r '.oauth_env_console.value'
+tofu output -json | jq -r '.oauth_env_ingestion.value'
+
+# Export as shell environment variables
+eval $(tofu output -json | jq -r '.oauth_env_tuner.value | to_entries | .[] | "export \(.key)=\(.value)"')
+```
 
 ## Deployment
 

@@ -8,6 +8,8 @@
 import { createHash } from "node:crypto";
 import type { PostgresClient } from "@engram/storage";
 
+export type GrantType = "device_code" | "client_credentials" | "refresh_token";
+
 export interface OAuthToken {
 	id: string;
 	accessTokenHash: string;
@@ -22,6 +24,8 @@ export interface OAuthToken {
 	lastUsedAt?: Date;
 	revokedAt?: Date;
 	clientId: string;
+	grantType: GrantType;
+	clientIdRef?: string;
 	user?: {
 		name: string;
 		email: string;
@@ -42,6 +46,8 @@ interface DbOAuthToken {
 	last_used_at?: Date;
 	revoked_at?: Date;
 	client_id: string;
+	grant_type: GrantType;
+	client_id_ref?: string;
 	user_name?: string;
 	user_email?: string;
 }
@@ -70,8 +76,8 @@ export class OAuthTokenRepository {
 			`SELECT t.id, t.access_token_hash, t.access_token_prefix, t.user_id,
 			        t.scopes, t.rate_limit_rpm, t.access_token_expires_at,
 			        t.refresh_token_expires_at, t.created_at, t.updated_at,
-			        t.last_used_at, t.revoked_at, t.client_id,
-			        u.name as user_name, u.email as user_email
+			        t.last_used_at, t.revoked_at, t.client_id, t.grant_type,
+			        t.client_id_ref, u.name as user_name, u.email as user_email
 			 FROM oauth_tokens t
 			 JOIN "user" u ON t.user_id = u.id
 			 WHERE t.access_token_hash = $1`,
@@ -123,6 +129,8 @@ export class OAuthTokenRepository {
 			lastUsedAt: row.last_used_at,
 			revokedAt: row.revoked_at,
 			clientId: row.client_id,
+			grantType: row.grant_type,
+			clientIdRef: row.client_id_ref,
 			user: row.user_name
 				? {
 						name: row.user_name,

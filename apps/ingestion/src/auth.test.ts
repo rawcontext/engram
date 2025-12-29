@@ -336,12 +336,12 @@ describeOrSkip("Auth", () => {
 			expect(endResMock).toHaveBeenCalledWith(
 				JSON.stringify({
 					success: false,
-					error: { code: "UNAUTHORIZED", message: "Invalid token format" },
+					error: { code: "UNAUTHORIZED", message: "Invalid or expired token" },
 				}),
 			);
 		});
 
-		it("should accept valid dev token", async () => {
+		it("should accept valid OAuth user token with correct scope", async () => {
 			const config = {
 				enabled: true,
 				postgresUrl: "postgresql://localhost/test",
@@ -350,28 +350,7 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			mockReq.headers = { authorization: "Bearer engram_dev_test123" };
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBe(true);
-			expect(mockLogger.debug).toHaveBeenCalled();
-		});
-
-		it("should accept valid OAuth token with correct scope", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			const validToken = `engram_oauth_${"a".repeat(32)}`;
+			const validToken = `egm_oauth_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_X7kM2p`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response
@@ -399,6 +378,43 @@ describeOrSkip("Auth", () => {
 			expect(mockLogger.debug).toHaveBeenCalled();
 		});
 
+		it("should accept valid OAuth client token with correct scope", async () => {
+			const config = {
+				enabled: true,
+				postgresUrl: "postgresql://localhost/test",
+				logger: mockLogger,
+			};
+
+			auth.initAuth(config);
+
+			const validToken = `egm_client_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb_Y8nL3q`;
+			mockReq.headers = { authorization: `Bearer ${validToken}` };
+
+			// Mock database response
+			queryMock.mockResolvedValueOnce({
+				rows: [
+					{
+						id: "token-456",
+						access_token_prefix: validToken.slice(0, 20),
+						scopes: ["ingest:write", "memory:write"],
+						user_id: "client-123",
+						access_token_expires_at: null,
+						revoked_at: null,
+					},
+				],
+			});
+
+			const result = await auth.authenticateRequest(
+				mockReq as IncomingMessage,
+				mockRes as ServerResponse,
+				["ingest:write"],
+			);
+
+			expect(result).toBe(true);
+			expect(mockState.queryCalls.length).toBe(2); // Once for validation, once for update
+			expect(mockLogger.debug).toHaveBeenCalled();
+		});
+
 		it("should reject OAuth token not found in database", async () => {
 			const config = {
 				enabled: true,
@@ -408,7 +424,7 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const validToken = `engram_oauth_${"a".repeat(32)}`;
+			const validToken = `egm_oauth_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_X7kM2p`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock empty database response
@@ -439,7 +455,7 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const validToken = `engram_oauth_${"b".repeat(32)}`;
+			const validToken = `egm_oauth_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb_Y8nL3q`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response with revoked token
@@ -475,7 +491,7 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const validToken = `engram_oauth_${"c".repeat(32)}`;
+			const validToken = `egm_oauth_cccccccccccccccccccccccccccccccc_Z9oP4r`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response with expired token
@@ -514,7 +530,7 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const validToken = `engram_oauth_${"d".repeat(32)}`;
+			const validToken = `egm_oauth_dddddddddddddddddddddddddddddddd_A0qR5s`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response with future expiration
@@ -552,7 +568,7 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const validToken = `engram_oauth_${"e".repeat(32)}`;
+			const validToken = `egm_oauth_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee_B1sT6t`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response with different scopes
@@ -597,7 +613,7 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const validToken = `engram_oauth_${"f".repeat(32)}`;
+			const validToken = `egm_oauth_ffffffffffffffffffffffffffffffff_C2uV7u`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response
@@ -633,7 +649,7 @@ describeOrSkip("Auth", () => {
 			auth.initAuth(config);
 
 			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `engram_oauth_${"3".repeat(32)}`;
+			const validToken = `egm_oauth_33333333333333333333333333333333_D3wX8v`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database error
@@ -669,7 +685,7 @@ describeOrSkip("Auth", () => {
 			auth.initAuth(config);
 
 			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `engram_oauth_${"1".repeat(32)}`;
+			const validToken = `egm_oauth_11111111111111111111111111111111_E4yZ9w`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response
@@ -708,7 +724,7 @@ describeOrSkip("Auth", () => {
 			auth.initAuth(config);
 
 			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `engram_oauth_${"2".repeat(32)}`;
+			const validToken = `egm_oauth_22222222222222222222222222222222_F5aB0x`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			// Mock database response for SELECT
@@ -738,71 +754,6 @@ describeOrSkip("Auth", () => {
 			expect(result).toBe(true);
 		});
 
-		it("should accept dev token with all default scopes", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			mockReq.headers = { authorization: "Bearer engram_dev_local" };
-
-			// Test each default scope
-			const scopes = ["memory:read", "memory:write", "query:read", "ingest:write"];
-
-			for (const scope of scopes) {
-				const result = await auth.authenticateRequest(
-					mockReq as IncomingMessage,
-					mockRes as ServerResponse,
-					[scope],
-				);
-
-				expect(result).toBe(true);
-			}
-		});
-
-		it("should accept dev token with underscores and alphanumeric chars", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			mockReq.headers = { authorization: "Bearer engram_dev_test_123_ABC" };
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBe(true);
-		});
-
-		it("should reject dev token with invalid characters", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			mockReq.headers = { authorization: "Bearer engram_dev_test-invalid" };
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBe(false);
-		});
-
 		it("should reject OAuth token with wrong length", async () => {
 			const config = {
 				enabled: true,
@@ -812,7 +763,7 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			mockReq.headers = { authorization: "Bearer engram_oauth_abc123" }; // Too short
+			mockReq.headers = { authorization: "Bearer egm_oauth_abc123" }; // Too short
 
 			const result = await auth.authenticateRequest(
 				mockReq as IncomingMessage,
@@ -833,7 +784,9 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			mockReq.headers = { authorization: `Bearer engram_oauth_${"A".repeat(32)}` };
+			mockReq.headers = {
+				authorization: `Bearer egm_oauth_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1_K0mN5C`,
+			};
 
 			const result = await auth.authenticateRequest(
 				mockReq as IncomingMessage,
@@ -853,7 +806,7 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const validToken = "engram_oauth_0123456789abcdef0123456789abcdef";
+			const validToken = "egm_oauth_0123456789abcdef0123456789abcdef_J9iK4B";
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			queryMock.mockResolvedValueOnce({
@@ -888,7 +841,7 @@ describeOrSkip("Auth", () => {
 			auth.initAuth(config);
 
 			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `engram_oauth_${"4".repeat(32)}`;
+			const validToken = `egm_oauth_44444444444444444444444444444444_G6cD1y`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			queryMock.mockResolvedValueOnce({
@@ -914,28 +867,6 @@ describeOrSkip("Auth", () => {
 			);
 		});
 
-		it("should log with correct prefix for dev token", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			const devToken = "engram_dev_test123";
-			mockReq.headers = { authorization: `Bearer ${devToken}` };
-
-			await auth.authenticateRequest(mockReq as IncomingMessage, mockRes as ServerResponse, [
-				"ingest:write",
-			]);
-
-			expect(mockLogger.debug).toHaveBeenCalledWith(
-				{ prefix: devToken.slice(0, 20), method: "dev" },
-				"Request authenticated",
-			);
-		});
-
 		it("should handle null pool for OAuth token", async () => {
 			const config = {
 				enabled: true,
@@ -947,7 +878,7 @@ describeOrSkip("Auth", () => {
 			await auth.closeAuth(); // Close pool
 
 			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `engram_oauth_${"5".repeat(32)}`;
+			const validToken = `egm_oauth_55555555555555555555555555555555_H7eF2z`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			const result = await auth.authenticateRequest(
@@ -969,7 +900,21 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			mockReq.headers = { authorization: "Bearer engram_dev_test" };
+			const validToken = `egm_oauth_77777777777777777777777777777777_L0pQ7D`;
+			mockReq.headers = { authorization: `Bearer ${validToken}` };
+
+			queryMock.mockResolvedValueOnce({
+				rows: [
+					{
+						id: "token-789",
+						access_token_prefix: validToken.slice(0, 20),
+						scopes: ["ingest:write"],
+						user_id: "user-789",
+						access_token_expires_at: null,
+						revoked_at: null,
+					},
+				],
+			});
 
 			const result = await auth.authenticateRequest(
 				mockReq as IncomingMessage,
@@ -991,7 +936,7 @@ describeOrSkip("Auth", () => {
 			auth.initAuth(config);
 
 			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `engram_oauth_${"6".repeat(32)}`;
+			const validToken = `egm_oauth_66666666666666666666666666666666_I8gH3A`;
 			mockReq.headers = { authorization: `Bearer ${validToken}` };
 
 			queryMock.mockResolvedValueOnce({

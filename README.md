@@ -150,6 +150,27 @@ All services use Kaprekar's constant (6174) as the base port.
 - **Vectors**: Qdrant with BGE/SPLADE embeddings
 - **Messaging**: NATS JetStream
 - **Frontend**: Next.js 16, React 19, React Flow
+- **Auth**: OAuth 2.1 with RFC 7662 token introspection
+
+## Development
+
+### Local OAuth Setup
+
+All services require OAuth authentication in local development for production parity. See [Local OAuth Setup Guide](docs/local-oauth-setup.md) for detailed configuration.
+
+**Quick start**:
+```bash
+# Configure environment (copy template)
+cp .env.local.example .env
+
+# Start all services with OAuth
+bun run infra:up
+
+# Verify OAuth server
+curl http://localhost:6178/api/health
+```
+
+Observatory (port 6178) acts as the OAuth authorization server. All services (search, tuner, api, memory, ingestion) authenticate via token introspection.
 
 ## License
 
