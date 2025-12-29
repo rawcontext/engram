@@ -3,6 +3,13 @@ data/
 
 # Large packages not needed in Docker builds
 packages/benchmark/
+packages/infra/
+
+# CI/CD and tooling
+.github/
+.beads/
+configs/docs/
+configs/beads/
 
 # Git
 .git/
