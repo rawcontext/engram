@@ -92,7 +92,7 @@ export function EnvironmentSwitcher() {
 				type="button"
 				ref={triggerRef}
 				onClick={() => setIsOpen(!isOpen)}
-				className="panel flex items-center gap-3 px-4 py-2 hover:border-primary/30 transition-all group"
+				className="flex items-center gap-3 px-4 py-2 bg-card border border-border rounded-lg hover:border-primary/30 transition-all group"
 				aria-expanded={isOpen}
 				aria-haspopup="listbox"
 			>
@@ -102,12 +102,9 @@ export function EnvironmentSwitcher() {
 					<span
 						className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card ${
 							isConnected
-								? "bg-success shadow-[0_0_6px_hsl(var(--success)/0.5)]"
-								: "bg-destructive shadow-[0_0_6px_hsl(var(--destructive)/0.5)]"
+								? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]"
+								: "bg-destructive shadow-[0_0_6px_rgba(239,68,68,0.5)] animate-pulse"
 						}`}
-						style={{
-							animation: isConnected ? "none" : "pulse-status 2s ease-in-out infinite",
-						}}
 					/>
 				</div>
 
@@ -125,12 +122,7 @@ export function EnvironmentSwitcher() {
 
 			{/* Dropdown */}
 			{isOpen && (
-				<div
-					className="absolute top-full left-0 mt-2 w-72 panel overflow-hidden z-50"
-					style={{
-						animation: "dropdown-slide 0.15s ease-out",
-					}}
-				>
+				<div className="absolute top-full left-0 mt-2 w-72 bg-card border border-border rounded-lg overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
 					{/* Header */}
 					<div className="px-3 py-2 border-b border-primary/10">
 						<div className="flex items-center justify-between">
@@ -181,7 +173,7 @@ export function EnvironmentSwitcher() {
 												{env.name}
 											</span>
 											{env.isCustom && (
-												<span className="px-1.5 py-0.5 rounded text-[8px] font-mono uppercase bg-violet/15 text-violet">
+												<span className="px-1.5 py-0.5 rounded text-[8px] font-mono uppercase bg-purple-500/15 text-purple-500">
 													Custom
 												</span>
 											)}
@@ -266,29 +258,6 @@ export function EnvironmentSwitcher() {
 					</div>
 				</div>
 			)}
-
-			<style jsx>{`
-				@keyframes dropdown-slide {
-					from {
-						opacity: 0;
-						transform: translateY(-8px);
-					}
-					to {
-						opacity: 1;
-						transform: translateY(0);
-					}
-				}
-
-				@keyframes pulse-status {
-					0%,
-					100% {
-						opacity: 1;
-					}
-					50% {
-						opacity: 0.4;
-					}
-				}
-			`}</style>
 		</div>
 	);
 }
