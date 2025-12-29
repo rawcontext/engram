@@ -12,7 +12,7 @@ Engram gives AI agents persistent memory across sessions. Store decisions, prefe
 <summary>Claude Code</summary>
 
 ```bash
-claude mcp add engram npx @rawcontext/engram-mcp
+claude mcp add engram -- npx -y @rawcontext/engram-mcp
 ```
 
 </details>
@@ -21,7 +21,7 @@ claude mcp add engram npx @rawcontext/engram-mcp
 <summary>Gemini CLI</summary>
 
 ```bash
-gemini mcp add engram npx @rawcontext/engram-mcp
+gemini mcp add engram -- npx -y @rawcontext/engram-mcp
 ```
 
 </details>
@@ -30,7 +30,7 @@ gemini mcp add engram npx @rawcontext/engram-mcp
 <summary>Codex CLI</summary>
 
 ```bash
-codex mcp add engram npx @rawcontext/engram-mcp
+codex mcp add engram -- npx -y @rawcontext/engram-mcp
 ```
 
 </details>
@@ -38,8 +38,17 @@ codex mcp add engram npx @rawcontext/engram-mcp
 <details>
 <summary>OpenCode</summary>
 
-```bash
-opencode mcp add engram npx @rawcontext/engram-mcp
+Add to `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "mcp": {
+    "engram": {
+      "command": "npx",
+      "args": ["-y", "@rawcontext/engram-mcp"]
+    }
+  }
+}
 ```
 
 </details>
@@ -47,8 +56,15 @@ opencode mcp add engram npx @rawcontext/engram-mcp
 <details>
 <summary>Antigravity</summary>
 
-```bash
-antigravity mcp add engram npx @rawcontext/engram-mcp
+Click **Agent Session → ⋯ → MCP Servers → Manage MCP Servers → View raw config** and add:
+
+```json
+{
+  "engram": {
+    "command": "npx",
+    "args": ["-y", "@rawcontext/engram-mcp"]
+  }
+}
 ```
 
 </details>
@@ -56,8 +72,17 @@ antigravity mcp add engram npx @rawcontext/engram-mcp
 <details>
 <summary>Cursor</summary>
 
-```bash
-cursor mcp add engram npx @rawcontext/engram-mcp
+Add to `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "npx",
+      "args": ["-y", "@rawcontext/engram-mcp"]
+    }
+  }
+}
 ```
 
 </details>
