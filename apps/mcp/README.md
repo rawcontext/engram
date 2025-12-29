@@ -65,20 +65,30 @@ cursor mcp add engram npx @rawcontext/engram-mcp
 <details>
 <summary>VS Code</summary>
 
-```bash
-code --add-mcp '{"name":"engram","command":"npx","args":["-y","@rawcontext/engram-mcp"]}'
+Add to `.vscode/mcp.json` or `~/.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "engram": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@rawcontext/engram-mcp"]
+    }
+  }
+}
 ```
 
 </details>
 
 <details>
-<summary>JetBrains (WebStorm, IntelliJ, etc.)</summary>
+<summary>JetBrains (WebStorm, IntelliJ, PyCharm, etc.)</summary>
 
-Go to **Settings → Tools → AI Assistant → Model Context Protocol (MCP)** and add:
+Go to **Settings → Tools → AI Assistant → Model Context Protocol (MCP)**, click **Add**, and configure:
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "engram": {
       "command": "npx",
       "args": ["-y", "@rawcontext/engram-mcp"]
@@ -92,8 +102,9 @@ Go to **Settings → Tools → AI Assistant → Model Context Protocol (MCP)** a
 <details>
 <summary>Visual Studio</summary>
 
-Go to **Tools → Options → GitHub Copilot → MCP Servers** and add a new server:
-- Name: `engram`
+Open **GitHub Copilot Chat**, select **Agent** mode, click the tools icon, then **+** to add:
+- Server ID: `engram`
+- Type: `stdio`
 - Command: `npx`
 - Args: `-y @rawcontext/engram-mcp`
 
