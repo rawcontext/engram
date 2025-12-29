@@ -118,6 +118,39 @@ Parsers in `packages/parser/src/providers/`: Anthropic, OpenAI, Gemini, Claude C
 
 **Sampling-Required Tools**: `summarize`, `extract_facts`, and `enrich_memory` require the MCP client to support **sampling capability** (server requesting LLM completions from the client). If unsupported, these tools return `available: false` gracefully.
 
+### MCP Transport Modes
+
+| Mode | Use Case | Auth |
+|------|----------|------|
+| **stdio** (default) | CLI usage, local development | None needed |
+| **http** | Remote access, cloud deployment | OAuth 2.1 bearer tokens |
+
+**HTTP Transport Configuration**:
+```bash
+# Required for HTTP transport
+MCP_TRANSPORT=http
+MCP_HTTP_PORT=3010
+
+# OAuth configuration
+ENGRAM_AUTH_SERVER_URL=https://observatory.engram.rawcontext.com
+ENGRAM_MCP_SERVER_URL=https://mcp.engram.rawcontext.com
+ENGRAM_MCP_CLIENT_ID=engram-mcp-server
+ENGRAM_MCP_CLIENT_SECRET=<secret>
+
+# Session settings
+SESSION_TTL_SECONDS=3600
+MAX_SESSIONS_PER_USER=10
+```
+
+**OAuth Endpoints (served by MCP server)**:
+- `GET /.well-known/oauth-protected-resource` - RFC 9728 protected resource metadata
+- `GET /.well-known/oauth-authorization-server` - RFC 8414 (proxied from Observatory)
+
+**OAuth Endpoints (served by Observatory)**:
+- `POST /api/auth/introspect` - RFC 7662 token introspection
+- `POST /api/auth/device/token` - Device flow token exchange
+- `GET /.well-known/oauth-authorization-server` - RFC 8414 auth server metadata
+
 ## Engram Memory Triggers
 
 ### ALWAYS Recall Before:
