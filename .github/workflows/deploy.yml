@@ -137,17 +137,19 @@ jobs:
 
       - name: Wait for API State Backend
         run: |
-          echo "Waiting for API state backend to be available..."
-          for i in {1..30}; do
-            if curl -sf "https://api.engram.rawcontext.com/v1/health" > /dev/null 2>&1; then
+          echo "Checking if API state backend is available..."
+          # Quick check - if API responds, great. If not, continue anyway
+          # (state backend will fail later if truly unavailable, but we can
+          # use -lock=false and -migrate-state to bootstrap)
+          for i in {1..6}; do
+            if curl -sf --max-time 5 "https://api.engram.rawcontext.com/v1/health" > /dev/null 2>&1; then
               echo "API is healthy, proceeding with OpenTofu init"
               exit 0
             fi
-            echo "Attempt $i/30: API not ready, waiting 10s..."
+            echo "Attempt $i/6: API not ready, waiting 10s..."
             sleep 10
           done
-          echo "::error::API state backend not available after 5 minutes"
-          exit 1
+          echo "::warning::API state backend not available - will attempt to continue anyway"
 
       - name: OpenTofu Init
         working-directory: packages/infra
