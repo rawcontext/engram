@@ -536,7 +536,9 @@ jobs:
             # Create data directories at /var/lib/engram (outside Docker build context)
             echo "Creating data directories at /var/lib/engram..."
             sudo mkdir -p /var/lib/engram/{qdrant,falkordb,postgres,nats,caddy/data,caddy/config}
-            sudo chown -R engram:engram /var/lib/engram
+            # Set ownership - postgres needs 999:999, others can use engram
+            sudo chown -R engram:engram /var/lib/engram/qdrant /var/lib/engram/falkordb /var/lib/engram/nats /var/lib/engram/caddy
+            sudo chown -R 999:999 /var/lib/engram/postgres
 
             # Migrate existing data if present (one-time migration)
             if [ -d "/opt/engram/data" ] && [ "$(ls -A /opt/engram/data 2>/dev/null)" ]; then
