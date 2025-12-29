@@ -397,7 +397,12 @@ jobs:
             docker compose -f docker-compose.prod.yml build api
             docker compose -f docker-compose.prod.yml up -d --force-recreate api
             echo "Waiting for API health check..."
-            sleep 5
+            sleep 10
+            if ! docker compose -f docker-compose.prod.yml ps api | grep -q "(healthy)"; then
+              echo "=== API Container Logs ==="
+              docker compose -f docker-compose.prod.yml logs --tail=100 api
+              echo "==========================="
+            fi
             docker compose -f docker-compose.prod.yml ps api
           EOF
 
@@ -457,7 +462,12 @@ jobs:
             docker compose -f docker-compose.prod.yml build --no-cache tuner
             docker compose -f docker-compose.prod.yml up -d --force-recreate tuner
             echo "Waiting for Tuner health check..."
-            sleep 5
+            sleep 10
+            if ! docker compose -f docker-compose.prod.yml ps tuner | grep -q "(healthy)"; then
+              echo "=== Tuner Container Logs ==="
+              docker compose -f docker-compose.prod.yml logs --tail=100 tuner
+              echo "==========================="
+            fi
             docker compose -f docker-compose.prod.yml ps tuner
           EOF
 
