@@ -5,6 +5,8 @@ RUN bun install
 # Build-time env vars needed for Next.js page collection (overridden at runtime)
 ENV BETTER_AUTH_URL=http://localhost:3000
 ENV BETTER_AUTH_SECRET=build-time-placeholder
+# Create placeholder .env.local (symlink target excluded in build context)
+RUN touch apps/console/.env.local apps/observatory/.env.local
 RUN bun run build --filter=observatory...
 
 FROM oven/bun:1.3.5-alpine AS runner
