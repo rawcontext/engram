@@ -21,10 +21,12 @@ export const config = {
 		 * - /activate (device flow activation page)
 		 * - /api/auth/* (auth API routes)
 		 * - /api/well-known/* (OAuth metadata - rewrites from /.well-known/*)
+		 * - /api/ingest (ingestion endpoint - uses Bearer token auth)
+		 * - /api/health (health check endpoint)
 		 * - /.well-known/* (OAuth discovery endpoints)
 		 * - /_next/* (Next.js internals)
 		 * - /favicon.ico, /robots.txt (static files)
 		 */
-		"/((?!sign-in|activate|api/auth|api/well-known|\\.well-known|_next/static|_next/image|favicon.ico|robots.txt).*)",
+		"/((?!sign-in|activate|api/auth|api/well-known|api/ingest|api/health|\\.well-known|_next/static|_next/image|favicon.ico|robots.txt).*)",
 	],
 };
