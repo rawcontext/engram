@@ -1,5 +1,4 @@
 import { createNodeLogger } from "@engram/logger";
-import type { NextResponse } from "next/server";
 
 const logger = createNodeLogger({
 	service: "observatory",
@@ -25,15 +24,15 @@ export const trackUsage = (
 };
 
 export const withTelemetry =
-	(handler: (req: Request, ...args: unknown[]) => Promise<NextResponse>) =>
+	(handler: (req: Request, ...args: unknown[]) => Promise<Response>) =>
 	async (req: Request, ...args: unknown[]) => {
 		const start = performance.now();
-		let res: NextResponse;
+		let res: Response;
 		try {
 			res = await handler(req, ...args);
 		} catch (e) {
 			// Should have been caught by validate/apiError, but just in case
-			res = new Response("Internal Server Error", { status: 500 }) as NextResponse;
+			res = new Response("Internal Server Error", { status: 500 });
 			throw e;
 		} finally {
 			const duration = performance.now() - start;
