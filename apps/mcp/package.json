@@ -43,6 +43,7 @@
 		"@engram/graph": "*",
 		"@engram/logger": "*",
 		"@modelcontextprotocol/sdk": "^1.25.1",
+		"chokidar": "^4.0.3",
 		"express": "^5.0.1",
 		"pino": "^10.1.0",
 		"pino-pretty": "^13.1.3",

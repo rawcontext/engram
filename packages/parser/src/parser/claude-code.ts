@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { ParserStrategy, StreamDelta } from "./interface";
 import {
 	ClaudeCodeAssistantSchema,
@@ -12,7 +13,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Parser for Claude Code's stream-json output format.
+ * Schema for Claude Code hook event payloads.
+ * These are sent by the Engram plugin hooks (SessionStart, SessionEnd, PostToolUse, Stop).
+ */
+export const ClaudeCodeHookInputSchema = z.object({
+	session_id: z.string(),
+	transcript_path: z.string().optional(),
+	cwd: z.string().optional(),
+	permission_mode: z.string().optional(),
+	hook_event_name: z.string(),
+	tool_name: z.string().optional(),
+	tool_input: z.unknown().optional(),
+	tool_result: z.unknown().optional(),
+	tool_use_id: z.string().optional(),
+	prompt: z.string().optional(), // UserPromptSubmit
+	stop_hook_active: z.boolean().optional(), // Stop
+	reason: z.string().optional(), // SessionEnd
+	source: z.string().optional(), // SessionStart
+});
+
+/**
+ * Parser for Claude Code's stream-json output format and hook events.
  *
  * Claude Code stream-json events have these types:
  * - system: { type: "system", subtype: "init"|"hook_response", ... }
@@ -20,12 +41,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * - tool_use: { type: "tool_use", tool_use: { tool_use_id, name, input }, ... }
  * - tool_result: { type: "tool_result", tool_result: { tool_use_id, content }, ... }
  * - result: { type: "result", result: string, usage: {...}, ... }
+ *
+ * Hook events (from Engram plugin) have:
+ * - hook_event_name: "SessionStart" | "SessionEnd" | "PostToolUse" | "Stop" | "UserPromptSubmit"
+ * - session_id, cwd, tool_name, tool_input, etc.
  */
 export class ClaudeCodeParser implements ParserStrategy {
 	parse(payload: unknown): StreamDelta | null {
 		// Type guard for payload
 		if (!isRecord(payload)) {
 			return null;
+		}
+
+		// Check if this is a hook event (has hook_event_name)
+		if ("hook_event_name" in payload) {
+			return this.parseHookEvent(payload);
 		}
 
 		const type = typeof payload.type === "string" ? payload.type : "";
@@ -226,5 +256,62 @@ export class ClaudeCodeParser implements ParserStrategy {
 
 		// Ignore other event types
 		return null;
+	}
+
+	/**
+	 * Parse hook event payloads from Engram plugin.
+	 */
+	private parseHookEvent(payload: Record<string, unknown>): StreamDelta | null {
+		const parseResult = ClaudeCodeHookInputSchema.safeParse(payload);
+		if (!parseResult.success) {
+			return null;
+		}
+
+		const data = parseResult.data;
+		const delta: StreamDelta = {
+			session: { id: data.session_id },
+		};
+
+		switch (data.hook_event_name) {
+			case "SessionStart":
+				delta.type = "content";
+				delta.content = `[Session Started: ${data.source || "startup"}]`;
+				if (data.cwd) {
+					delta.content += ` cwd=${data.cwd}`;
+				}
+				break;
+
+			case "SessionEnd":
+				delta.type = "stop";
+				delta.stopReason = data.reason || "session_end";
+				break;
+
+			case "PostToolUse":
+				delta.type = "tool_call";
+				delta.toolCall = {
+					id: data.tool_use_id,
+					name: data.tool_name,
+					args: data.tool_input ? JSON.stringify(data.tool_input) : undefined,
+					index: 0,
+				};
+				break;
+
+			case "Stop":
+				delta.type = "stop";
+				delta.stopReason = "agent_stop";
+				break;
+
+			case "UserPromptSubmit":
+				delta.type = "content";
+				delta.role = "user";
+				delta.content = data.prompt || "";
+				break;
+
+			default:
+				// Unknown hook event type
+				return null;
+		}
+
+		return delta;
 	}
 }
