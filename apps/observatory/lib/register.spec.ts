@@ -1,8 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 
-// Skip in CI - Bun's mock.module() doesn't work reliably with dynamic imports in CI
-const isCI = process.env.CI === "true";
-const describeOrSkip = isCI ? describe.skip : describe;
+// Skip when running with bun test (outside Next.js context)
+// These tests require Next.js runtime for @lib/* path aliases
+const isBunTest = typeof Bun !== "undefined" && !process.env.NEXT_RUNTIME;
+const describeOrSkip = isBunTest ? describe.skip : describe;
 
 /**
  * Mock response structure

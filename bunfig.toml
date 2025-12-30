@@ -3,11 +3,13 @@
 # Mocks module-level singletons (FalkorDB, NATS, Logger) before tests import them
 preload = ["./test-preload.ts"]
 
-# Exclude non-Bun test files (note: Bun doesn't support ignore patterns for test files)
+# Exclude non-Bun test files
+# Observatory tests require Next.js runtime for path aliases and API routes
 # For CI, see scripts/test.sh which excludes mock.module tests
 ignore = [
   "**/*.spec.ts",
   "**/node_modules/**",
+  "apps/observatory/**/*.test.ts",
 ]
 
 # Timeouts (30s for long-running tests)

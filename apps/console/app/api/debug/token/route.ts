@@ -15,8 +15,8 @@ function getApiToken(): string {
 	const clientToken = process.env.ENGRAM_CLIENT_TOKEN;
 	const oauthToken = process.env.ENGRAM_API_TOKEN;
 
-	if (clientToken && clientToken.trim()) return clientToken.trim();
-	if (oauthToken && oauthToken.trim()) return oauthToken.trim();
+	if (clientToken?.trim()) return clientToken.trim();
+	if (oauthToken?.trim()) return oauthToken.trim();
 
 	return "";
 }
@@ -27,12 +27,11 @@ export async function GET() {
 	const length = token.length;
 	const matchesUserToken = USER_TOKEN_PATTERN.test(token);
 	const matchesClientToken = CLIENT_TOKEN_PATTERN.test(token);
-	const source =
-		process.env.ENGRAM_CLIENT_TOKEN && process.env.ENGRAM_CLIENT_TOKEN.trim()
-			? "ENGRAM_CLIENT_TOKEN"
-			: process.env.ENGRAM_API_TOKEN && process.env.ENGRAM_API_TOKEN.trim()
-				? "ENGRAM_API_TOKEN"
-				: "none";
+	const source = process.env.ENGRAM_CLIENT_TOKEN?.trim()
+		? "ENGRAM_CLIENT_TOKEN"
+		: process.env.ENGRAM_API_TOKEN?.trim()
+			? "ENGRAM_API_TOKEN"
+			: "none";
 
 	return NextResponse.json({
 		prefix: `${prefix}...`,

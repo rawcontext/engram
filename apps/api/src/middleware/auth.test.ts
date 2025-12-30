@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { OAuthToken, OAuthTokenRepository } from "../db/oauth-tokens";
-import { type AuthContext, type AuthOptions, auth } from "./auth";
+import { type AuthContext, auth } from "./auth";
 
 describe("OAuth Authentication Middleware", () => {
 	let mockLogger: any;
@@ -26,7 +26,7 @@ describe("OAuth Authentication Middleware", () => {
 				if (token === validUserToken) {
 					return {
 						id: "user-token-123",
-						accessTokenPrefix: validUserToken.slice(0, 20) + "...",
+						accessTokenPrefix: `${validUserToken.slice(0, 20)}...`,
 						userId: "user-123",
 						scopes: ["memory:read", "memory:write"],
 						rateLimitRpm: 1000,
@@ -42,7 +42,7 @@ describe("OAuth Authentication Middleware", () => {
 				if (token === validClientToken) {
 					return {
 						id: "client-token-456",
-						accessTokenPrefix: validClientToken.slice(0, 20) + "...",
+						accessTokenPrefix: `${validClientToken.slice(0, 20)}...`,
 						userId: null,
 						scopes: ["memory:read", "query:read"],
 						rateLimitRpm: 5000,

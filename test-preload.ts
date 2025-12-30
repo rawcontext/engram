@@ -173,6 +173,57 @@ mock.module("@engram/logger", () => ({
 }));
 
 // =============================================================================
+// Observatory Path Alias Mocks (@lib/* -> ./lib/*)
+// =============================================================================
+
+// Mock @lib/device-auth to prevent module resolution errors in bun test
+// This is needed because bun doesn't resolve Next.js path aliases
+mock.module("@lib/device-auth", () => ({
+	generateDeviceCode: mock(() => "test-device-code"),
+	generateUserCode: mock(() => "ABCD-EFGH"),
+	generateAccessToken: mock(() => "egm_oauth_test_token"),
+	generateRefreshToken: mock(() => "egm_refresh_test_token"),
+	generateClientToken: mock(async () => ({
+		accessToken: "egm_client_test_token",
+		expiresIn: 3600,
+		tokenType: "DPoP",
+		scope: "memory:read",
+	})),
+	hashToken: mock((token: string) => `hashed_${token}`),
+	validateTokenChecksum: mock(() => true),
+	normalizeUserCode: mock((code: string) => code.toUpperCase().replace(/-/g, "")),
+	createDeviceCode: mock(async () => ({})),
+	findDeviceCodeByUserCode: mock(async () => null),
+	findDeviceCode: mock(async () => null),
+	authorizeDeviceCode: mock(async () => true),
+	denyDeviceCode: mock(async () => true),
+	updatePollTimestamp: mock(async () => ({ shouldSlowDown: false })),
+	pollForToken: mock(async () => ({})),
+	issueTokens: mock(async () => ({})),
+	refreshAccessToken: mock(async () => ({})),
+	validateAccessToken: mock(async () => null),
+	revokeToken: mock(async () => true),
+	listUserTokens: mock(async () => []),
+	computeTokenChecksum: mock(() => "abc123"),
+}));
+
+// Mock @lib/dpop for DPoP proof validation
+mock.module("@lib/dpop", () => ({
+	validateDPoPProof: mock(async () => ({ valid: true, jwkThumbprint: "test-thumbprint" })),
+	createDPoPProof: mock(async () => "test-dpop-jwt"),
+}));
+
+// Mock @lib/client-registration for client validation
+mock.module("@lib/client-registration", () => ({
+	validateClientCredentials: mock(async () => ({
+		valid: false,
+		error: "Client not found",
+	})),
+	registerClient: mock(async () => ({})),
+	getClient: mock(async () => null),
+}));
+
+// =============================================================================
 // Export mocks for test files to access
 // =============================================================================
 

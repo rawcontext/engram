@@ -25,7 +25,7 @@ mock.module("@lib/device-auth", () => ({
 
 // Mock client registration validation
 mock.module("@lib/client-registration", () => ({
-	validateClientCredentials: async (clientId: string, clientSecret?: string) => {
+	validateClientCredentials: async (_clientId: string, _clientSecret?: string) => {
 		// Return invalid for any client that isn't the expected MCP server
 		return { valid: false, error: "Client not found" };
 	},

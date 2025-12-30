@@ -19,8 +19,8 @@ function getApiToken(): string {
 	const token = process.env.ENGRAM_CLIENT_TOKEN;
 	const oauthToken = process.env.ENGRAM_API_TOKEN;
 
-	if (token && token.trim()) return token.trim();
-	if (oauthToken && oauthToken.trim()) return oauthToken.trim();
+	if (token?.trim()) return token.trim();
+	if (oauthToken?.trim()) return oauthToken.trim();
 
 	// In production, this will fail - client token must be configured
 	console.warn("[Console] No ENGRAM_CLIENT_TOKEN configured - API calls will fail");
