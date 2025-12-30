@@ -1,6 +1,11 @@
 import { GraphPruner } from "@engram/graph";
 import { createNodeLogger, type Logger, pino, withTraceContext } from "@engram/logger";
-import { createFalkorClient, createNatsClient, type GraphClient } from "@engram/storage";
+import {
+	createFalkorClient,
+	createNatsClient,
+	type GraphClient,
+	TenantAwareFalkorClient,
+} from "@engram/storage";
 import { createNatsPubSubPublisher, type NatsPubSubPublisher } from "@engram/storage/nats";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -18,6 +23,8 @@ import {
 export interface MemoryServiceDeps {
 	/** Graph client for session persistence. Defaults to FalkorClient. */
 	graphClient?: GraphClient;
+	/** Tenant-aware client for multi-tenant graph isolation. */
+	tenantClient?: TenantAwareFalkorClient;
 	/** NATS client for event streaming. */
 	natsClient?: ReturnType<typeof createNatsClient>;
 	/** NATS pub/sub publisher for real-time updates. */
@@ -63,7 +70,11 @@ export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
 			pino.destination(2),
 		);
 
-	const graphClient = deps?.graphClient ?? createFalkorClient();
+	// Create FalkorClient - keep reference for tenant client
+	const falkorClient = createFalkorClient();
+	const graphClient = deps?.graphClient ?? falkorClient;
+	// Tenant client needs concrete FalkorClient, not the interface
+	const tenantClient = deps?.tenantClient ?? new TenantAwareFalkorClient(falkorClient);
 	const natsClient = deps?.natsClient ?? createNatsClient("memory-service");
 	const natsPubSub = deps?.natsPubSub ?? createNatsPubSubPublisher();
 	const graphPruner = deps?.graphPruner ?? new GraphPruner(graphClient);
@@ -107,6 +118,7 @@ export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
 		deps?.turnAggregator ??
 		new TurnAggregator({
 			graphClient,
+			tenantClient,
 			logger,
 			onNodeCreated,
 			onTurnFinalized,
@@ -114,6 +126,7 @@ export function createMemoryServiceDeps(deps?: MemoryServiceDeps): Required<
 
 	return {
 		graphClient,
+		tenantClient,
 		natsClient,
 		natsPubSub,
 		logger,
@@ -135,6 +148,7 @@ const logger = createNodeLogger(
 
 // Initialize Services
 const falkor = createFalkorClient();
+const tenantClient = new TenantAwareFalkorClient(falkor);
 const nats = createNatsClient("memory-service");
 const natsPubSub = createNatsPubSubPublisher();
 const pruner = new GraphPruner(falkor);
@@ -173,6 +187,7 @@ const onTurnFinalized: TurnFinalizedCallback = async (payload) => {
 
 const turnAggregator = new TurnAggregator({
 	graphClient: falkor,
+	tenantClient,
 	logger,
 	onNodeCreated,
 	onTurnFinalized,

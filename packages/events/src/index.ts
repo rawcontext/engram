@@ -32,6 +32,9 @@ export const RawStreamEventSchema = z.object({
 	// We'll use z.record(z.string(), z.unknown()) to be explicit and compatible
 	payload: z.record(z.string(), z.unknown()),
 	headers: z.record(z.string(), z.string()).optional(),
+	// Tenant context for multi-tenancy isolation
+	org_id: z.string().optional(),
+	org_slug: z.string().optional(),
 	// Bitemporal fields for time-travel support
 	vt_start: z.number().default(() => Date.now()),
 	vt_end: z.number().default(MAX_BITEMPORAL_DATE),
@@ -70,6 +73,9 @@ export const ParsedStreamEventSchema = z.object({
 		})
 		.optional(),
 	metadata: z.record(z.string(), z.unknown()).optional(),
+	// Tenant context for multi-tenancy isolation
+	org_id: z.string().optional(),
+	org_slug: z.string().optional(),
 	// Bitemporal fields for time-travel support
 	vt_start: z.number().default(() => Date.now()),
 	vt_end: z.number().default(MAX_BITEMPORAL_DATE),

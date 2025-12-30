@@ -1,11 +1,23 @@
+import { ADMIN_READ_SCOPE } from "@engram/common";
 import type { Logger } from "@engram/logger";
 import { Hono } from "hono";
 import { z } from "zod";
+import type { OAuthAuthContext } from "../middleware/auth";
 import { requireScopes } from "../middleware/scopes";
+import type { AuditClient } from "../services/audit";
+import type { MemoryService } from "../services/memory";
+
+type Env = {
+	Variables: {
+		auth: OAuthAuthContext;
+	};
+};
 
 export interface AdminRoutesOptions {
 	logger: Logger;
 	redisUrl?: string;
+	memoryService?: MemoryService;
+	auditClient?: AuditClient;
 }
 
 const ClearCacheSchema = z.object({
@@ -16,9 +28,23 @@ const ResetConsumerSchema = z.object({
 	stream: z.string().min(1),
 });
 
+// Cross-tenant query schemas
+const AdminMemoriesSchema = z.object({
+	limit: z.number().int().min(1).max(100).default(20),
+	offset: z.number().int().min(0).default(0),
+	type: z.enum(["decision", "context", "insight", "preference", "fact"]).optional(),
+	orgId: z.string().optional(),
+});
+
+const AdminSessionsSchema = z.object({
+	limit: z.number().int().min(1).max(100).default(20),
+	offset: z.number().int().min(0).default(0),
+	orgId: z.string().optional(),
+});
+
 export function createAdminRoutes(options: AdminRoutesOptions) {
-	const { logger } = options;
-	const app = new Hono();
+	const { logger, memoryService, auditClient } = options;
+	const app = new Hono<Env>();
 
 	// GET /v1/admin/streams - List NATS streams
 	// Note: Returns mock data for now - full NATS integration would require
@@ -151,6 +177,166 @@ export function createAdminRoutes(options: AdminRoutesOptions) {
 				timestamp: Date.now(),
 			},
 		});
+	});
+
+	// GET /v1/admin/memories - List memories across all tenants
+	app.get("/memories", requireScopes(ADMIN_READ_SCOPE), async (c) => {
+		if (!memoryService) {
+			return c.json(
+				{
+					success: false,
+					error: {
+						code: "SERVICE_UNAVAILABLE",
+						message: "Memory service not configured",
+					},
+				},
+				503,
+			);
+		}
+
+		try {
+			const query = c.req.query();
+			const parsed = AdminMemoriesSchema.safeParse({
+				limit: query.limit ? Number.parseInt(query.limit, 10) : undefined,
+				offset: query.offset ? Number.parseInt(query.offset, 10) : undefined,
+				type: query.type,
+				orgId: query.orgId,
+			});
+
+			if (!parsed.success) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "VALIDATION_ERROR",
+							message: "Invalid query parameters",
+							details: parsed.error.issues,
+						},
+					},
+					400,
+				);
+			}
+
+			const { limit, offset, type, orgId } = parsed.data;
+
+			// Get auth context for audit logging
+			const auth = c.get("auth");
+
+			// Log cross-tenant access if querying a specific org
+			if (auditClient && orgId && orgId !== auth.orgId) {
+				await auditClient.logCrossTenantRead({
+					userId: auth.userId || "unknown",
+					userOrgId: auth.orgId,
+					targetOrgId: orgId,
+					resourceType: "memory",
+					ipAddress: c.req.header("x-forwarded-for") || c.req.header("x-real-ip"),
+					userAgent: c.req.header("user-agent"),
+				});
+			}
+
+			// Query memories across all tenants (no org_id filter unless specified)
+			const memories = await memoryService.listMemoriesAdmin({
+				limit,
+				offset,
+				type,
+				orgId,
+			});
+
+			return c.json({
+				success: true,
+				data: {
+					memories,
+					limit,
+					offset,
+				},
+				meta: {
+					count: memories.length,
+					timestamp: Date.now(),
+				},
+			});
+		} catch (error) {
+			logger.error({ error }, "Error listing admin memories");
+			throw error;
+		}
+	});
+
+	// GET /v1/admin/sessions - List sessions across all tenants
+	app.get("/sessions", requireScopes(ADMIN_READ_SCOPE), async (c) => {
+		if (!memoryService) {
+			return c.json(
+				{
+					success: false,
+					error: {
+						code: "SERVICE_UNAVAILABLE",
+						message: "Memory service not configured",
+					},
+				},
+				503,
+			);
+		}
+
+		try {
+			const query = c.req.query();
+			const parsed = AdminSessionsSchema.safeParse({
+				limit: query.limit ? Number.parseInt(query.limit, 10) : undefined,
+				offset: query.offset ? Number.parseInt(query.offset, 10) : undefined,
+				orgId: query.orgId,
+			});
+
+			if (!parsed.success) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "VALIDATION_ERROR",
+							message: "Invalid query parameters",
+							details: parsed.error.issues,
+						},
+					},
+					400,
+				);
+			}
+
+			const { limit, offset, orgId } = parsed.data;
+
+			// Get auth context for audit logging
+			const auth = c.get("auth");
+
+			// Log cross-tenant access if querying a specific org
+			if (auditClient && orgId && orgId !== auth.orgId) {
+				await auditClient.logCrossTenantRead({
+					userId: auth.userId || "unknown",
+					userOrgId: auth.orgId,
+					targetOrgId: orgId,
+					resourceType: "session",
+					ipAddress: c.req.header("x-forwarded-for") || c.req.header("x-real-ip"),
+					userAgent: c.req.header("user-agent"),
+				});
+			}
+
+			// Query sessions across all tenants (no org_id filter unless specified)
+			const sessions = await memoryService.listSessionsAdmin({
+				limit,
+				offset,
+				orgId,
+			});
+
+			return c.json({
+				success: true,
+				data: {
+					sessions,
+					limit,
+					offset,
+				},
+				meta: {
+					count: sessions.length,
+					timestamp: Date.now(),
+				},
+			});
+		} catch (error) {
+			logger.error({ error }, "Error listing admin sessions");
+			throw error;
+		}
 	});
 
 	return app;

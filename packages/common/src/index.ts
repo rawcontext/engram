@@ -107,6 +107,11 @@ export {
 	WebSocketIntervals,
 } from "./constants";
 export type {
+	// Audit types
+	AuditAction,
+	AuditLogEntry,
+	AuditLogFilter,
+	AuditResourceType,
 	AuthContext,
 	// Auth token type
 	AuthTokenType,
@@ -130,15 +135,23 @@ export type {
 export {
 	ADMIN_READ_SCOPE,
 	CLIENT_TOKEN_PATTERN,
+	// Audit utilities
+	createAuditEntry,
 	createTenantContext,
 	generateOrgSlug,
+	getActionSeverity,
+	getTenantContext,
 	getTenantGraphName,
 	identifyTokenType,
+	isCrossTenantAction,
 	isValidOrgSlug,
 	OAUTH_TOKEN_PATTERN,
 	OAuthConfig,
 	REFRESH_TOKEN_PATTERN,
+	runWithTenantContext,
 	TenantAccessError,
+	TenantContextError,
 	TOKEN_PATTERNS,
+	tryGetTenantContext,
 	validateTenantAccess,
 } from "./types";

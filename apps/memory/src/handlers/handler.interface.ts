@@ -20,6 +20,8 @@ export interface TurnFinalizedPayload {
 	timestamp: number;
 	/** Valid time start - when the turn began (Unix ms) */
 	vt_start: number;
+	/** Tenant context for multi-tenancy isolation */
+	org_id?: string;
 }
 
 /**
@@ -66,6 +68,10 @@ export interface TurnState {
 	sequenceIndex: number;
 	createdAt: number;
 	isFinalized: boolean;
+	/** Tenant organization ID for multi-tenancy isolation */
+	orgId?: string;
+	/** Tenant organization slug for graph naming */
+	orgSlug?: string;
 }
 
 export interface ReasoningState {

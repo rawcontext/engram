@@ -1,5 +1,5 @@
 import { createNodeLogger } from "@engram/logger";
-import { FalkorClient, PostgresClient } from "@engram/storage";
+import { FalkorClient, PostgresClient, TenantAwareFalkorClient } from "@engram/storage";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -8,6 +8,7 @@ import { logger as honoLogger } from "hono/logger";
 import { loadConfig } from "./config";
 import { runMigrations } from "./db/migrate";
 import { OAuthTokenRepository } from "./db/oauth-tokens";
+import { OrganizationRepository } from "./db/organizations";
 import { StateRepository } from "./db/state";
 import { UsageRepository } from "./db/usage";
 import { auth } from "./middleware/auth";
@@ -18,8 +19,10 @@ import { createDeploymentsRoutes } from "./routes/deployments";
 import { createHealthRoutes } from "./routes/health";
 import { createMemoryRoutes } from "./routes/memory";
 import { createMetricsRoutes } from "./routes/metrics";
+import { createOrganizationRoutes } from "./routes/organizations";
 import { createStateRoutes } from "./routes/state";
 import { createUsageRoutes } from "./routes/usage";
+import { AuditClient } from "./services/audit";
 import { MemoryService } from "./services/memory";
 
 async function main() {
@@ -46,14 +49,25 @@ async function main() {
 
 	// Initialize repositories
 	const oauthTokenRepo = new OAuthTokenRepository(postgresClient);
+	const organizationRepo = new OrganizationRepository(postgresClient);
 	const usageRepo = new UsageRepository(postgresClient);
 	const stateRepo = new StateRepository(postgresClient);
+
+	// Initialize tenant-aware FalkorDB client for multi-tenant graph isolation
+	const tenantClient = new TenantAwareFalkorClient(graphClient);
 
 	// Initialize services
 	const memoryService = new MemoryService({
 		graphClient,
+		tenantClient,
 		searchUrl: config.searchUrl,
 		logger,
+	});
+
+	// Initialize audit client for cross-tenant access logging
+	const auditClient = new AuditClient({
+		logger,
+		databaseUrl: config.postgresUrl,
 	});
 
 	// Create Hono app
@@ -74,14 +88,20 @@ async function main() {
 	// Memory routes - require memory scopes
 	protectedRoutes.route("/memory", createMemoryRoutes({ memoryService, logger }));
 
+	// Organization routes - require org scopes
+	protectedRoutes.route("/organizations", createOrganizationRoutes({ organizationRepo, logger }));
+
 	// Usage routes - any authenticated token can view usage
 	protectedRoutes.route("/usage", createUsageRoutes({ usageRepo, logger }));
 
 	// Metrics routes - infrastructure monitoring
 	protectedRoutes.route("/metrics", createMetricsRoutes({ graphClient, logger }));
 
-	// Admin routes - cache management, NATS streams
-	protectedRoutes.route("/admin", createAdminRoutes({ logger, redisUrl: config.redisUrl }));
+	// Admin routes - cache management, NATS streams, cross-tenant access
+	protectedRoutes.route(
+		"/admin",
+		createAdminRoutes({ logger, redisUrl: config.redisUrl, memoryService, auditClient }),
+	);
 
 	// Alerts routes - alert rules, notification channels, history
 	protectedRoutes.route("/alerts", createAlertsRoutes({ postgresClient, logger }));
@@ -135,6 +155,7 @@ async function main() {
 	// Graceful shutdown
 	const shutdown = async () => {
 		logger.info("Shutting down...");
+		await auditClient.close();
 		await graphClient.disconnect();
 		await postgresClient.disconnect();
 		process.exit(0);

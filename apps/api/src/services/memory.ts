@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { QdrantCollections } from "@engram/common";
+import { QdrantCollections, type TenantContext } from "@engram/common";
 import type { Logger } from "@engram/logger";
-import type { GraphClient } from "@engram/storage";
+import { type GraphClient, type QueryParams, TenantAwareFalkorClient } from "@engram/storage";
 import { ulid } from "ulid";
 import { SearchClient } from "../clients/search";
 
@@ -35,9 +35,14 @@ const BLOCKED_CYPHER_KEYWORDS = [
 ];
 
 export interface MemoryServiceOptions {
+	/** Default graph client for non-tenant operations */
 	graphClient: GraphClient;
+	/** URL for the search service */
 	searchUrl: string;
+	/** Logger instance */
 	logger: Logger;
+	/** Optional tenant-aware client for multi-tenant graph isolation */
+	tenantClient?: TenantAwareFalkorClient;
 }
 
 export interface RememberInput {
@@ -77,36 +82,97 @@ export interface ContextItem {
 	source: string;
 }
 
+export interface AdminMemoryListOptions {
+	limit: number;
+	offset: number;
+	type?: string;
+	orgId?: string;
+}
+
+export interface AdminSessionListOptions {
+	limit: number;
+	offset: number;
+	orgId?: string;
+}
+
+export interface AdminMemoryResult extends MemoryResult {
+	orgId?: string;
+	orgSlug?: string;
+}
+
+export interface AdminSessionResult {
+	id: string;
+	orgId?: string;
+	orgSlug?: string;
+	agentType?: string;
+	workingDir?: string;
+	createdAt: string;
+	updatedAt?: string;
+}
+
 /**
  * Memory service for Cloud API
  *
  * Provides memory operations backed by FalkorDB and Qdrant via the search service.
+ * Supports multi-tenant graph isolation when TenantAwareFalkorClient is provided.
  */
 export class MemoryService {
 	private graphClient: GraphClient;
+	private tenantClient?: TenantAwareFalkorClient;
 	private searchClient: SearchClient;
 	private logger: Logger;
 
 	constructor(options: MemoryServiceOptions) {
 		this.graphClient = options.graphClient;
+		this.tenantClient = options.tenantClient;
 		this.searchClient = new SearchClient(options.searchUrl, options.logger);
 		this.logger = options.logger;
 	}
 
 	/**
+	 * Execute a query on the tenant-specific graph.
+	 * Falls back to the default graph if no tenant context or client is available.
+	 *
+	 * @param cypher - Cypher query to execute
+	 * @param params - Query parameters
+	 * @param tenantContext - Optional tenant context for graph isolation
+	 * @returns Query results
+	 */
+	private async tenantQuery<T>(
+		cypher: string,
+		params: Record<string, unknown>,
+		tenantContext?: TenantContext,
+	): Promise<T[]> {
+		// Use tenant-specific graph when context is available
+		if (this.tenantClient && tenantContext) {
+			const graph = await this.tenantClient.ensureTenantGraph(tenantContext);
+			// Cast params to QueryParams (compatible types for FalkorDB)
+			const result = await graph.query(cypher, { params: params as QueryParams });
+			return result.data as T[];
+		}
+
+		// Fall back to default graph
+		return this.graphClient.query<T>(cypher, params);
+	}
+
+	/**
 	 * Store a memory with deduplication
 	 */
-	async remember(input: RememberInput): Promise<{
+	async remember(
+		input: RememberInput,
+		tenantContext: TenantContext,
+	): Promise<{
 		id: string;
 		stored: boolean;
 		duplicate: boolean;
 	}> {
 		const contentHash = createHash("sha256").update(input.content).digest("hex");
 
-		// Check for duplicates
-		const existing = await this.graphClient.query<{ id: string }>(
+		// Check for duplicates (tenant-scoped)
+		const existing = await this.tenantQuery<{ id: string }>(
 			"MATCH (m:Memory {content_hash: $hash}) WHERE m.vt_end > $now RETURN m.id as id LIMIT 1",
 			{ hash: contentHash, now: Date.now() },
+			tenantContext,
 		);
 
 		if (existing.length > 0) {
@@ -121,7 +187,8 @@ export class MemoryService {
 		const now = new Date().toISOString();
 		const nowMs = Date.now();
 
-		await this.graphClient.query(
+		// Create memory in tenant-specific graph
+		await this.tenantQuery(
 			`CREATE (m:Memory {
 				id: $id,
 				content: $content,
@@ -148,11 +215,16 @@ export class MemoryService {
 				ttEnd: Number.MAX_SAFE_INTEGER,
 				createdAt: now,
 			},
+			tenantContext,
 		);
 
-		this.logger.info({ id, type: input.type }, "Memory stored");
+		this.logger.info(
+			{ id, type: input.type, orgId: tenantContext.orgId },
+			"Memory stored in tenant graph",
+		);
 
 		// Index memory for semantic search (non-blocking)
+		// Include org_id for tenant-scoped search
 		this.searchClient
 			.indexMemory({
 				id,
@@ -160,6 +232,7 @@ export class MemoryService {
 				type: input.type ?? "context",
 				tags: input.tags,
 				project: input.project,
+				orgId: tenantContext.orgId,
 			})
 			.then(() => {
 				this.logger.debug({ id }, "Memory indexed for search");
@@ -183,6 +256,7 @@ export class MemoryService {
 		limit = 5,
 		filters?: RecallFilters,
 		rerankOptions?: RerankOptions,
+		tenantContext?: TenantContext,
 	): Promise<MemoryResult[]> {
 		// Note: Qdrant search filters use semantic types (thought/code/doc),
 		// not memory types (decision/context/insight/preference/fact).
@@ -201,6 +275,11 @@ export class MemoryService {
 				start: filters.after ? new Date(filters.after).getTime() : 0,
 				end: filters.before ? new Date(filters.before).getTime() : Date.now(),
 			};
+		}
+
+		// Include org_id filter for tenant isolation in vector search
+		if (tenantContext?.orgId) {
+			searchFilters.org_id = tenantContext.orgId;
 		}
 
 		try {
@@ -251,7 +330,8 @@ export class MemoryService {
 
 			const whereClause = graphConditions.join(" AND ");
 
-			const graphResults = await this.graphClient.query<{
+			// Query tenant-specific graph for keyword fallback
+			const graphResults = await this.tenantQuery<{
 				id: string;
 				content: string;
 				type: string;
@@ -264,6 +344,7 @@ export class MemoryService {
 				ORDER BY m.vt_start DESC
 				LIMIT $limit`,
 				graphParams,
+				tenantContext,
 			);
 
 			// Merge and dedupe results (prioritize vector search)
@@ -349,7 +430,8 @@ export class MemoryService {
 
 			const whereClause = graphConditions.join(" AND ");
 
-			const results = await this.graphClient.query<{
+			// Query tenant-specific graph for keyword fallback
+			const results = await this.tenantQuery<{
 				id: string;
 				content: string;
 				type: string;
@@ -362,6 +444,7 @@ export class MemoryService {
 				ORDER BY m.vt_start DESC
 				LIMIT $limit`,
 				graphParams,
+				tenantContext,
 			);
 
 			return results.map((r, i) => ({
@@ -378,7 +461,11 @@ export class MemoryService {
 	/**
 	 * Execute read-only Cypher query
 	 */
-	async query<T = unknown>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
+	async query<T = unknown>(
+		cypher: string,
+		params?: Record<string, unknown>,
+		tenantContext?: TenantContext,
+	): Promise<T[]> {
 		// Validate query is read-only
 		const normalized = cypher.trim().toUpperCase();
 
@@ -396,7 +483,8 @@ export class MemoryService {
 			throw new Error("Write operations are not allowed via the API");
 		}
 
-		return this.graphClient.query<T>(cypher, params);
+		// Execute query on tenant-specific graph
+		return this.tenantQuery<T>(cypher, params ?? {}, tenantContext);
 	}
 
 	/**
@@ -406,6 +494,7 @@ export class MemoryService {
 		task: string,
 		_files?: string[],
 		depth: "shallow" | "medium" | "deep" = "medium",
+		tenantContext?: TenantContext,
 	): Promise<ContextItem[]> {
 		const limits = {
 			shallow: 3,
@@ -416,8 +505,8 @@ export class MemoryService {
 		const limit = limits[depth];
 		const context: ContextItem[] = [];
 
-		// Get relevant memories
-		const memories = await this.recall(task, limit);
+		// Get relevant memories (tenant-scoped)
+		const memories = await this.recall(task, limit, undefined, undefined, tenantContext);
 		for (const memory of memories) {
 			context.push({
 				type: "memory",
@@ -427,10 +516,14 @@ export class MemoryService {
 			});
 		}
 
-		// Get decisions about this topic
-		const decisions = await this.recall(`decisions about ${task}`, Math.ceil(limit / 2), {
-			type: "decision",
-		});
+		// Get decisions about this topic (tenant-scoped)
+		const decisions = await this.recall(
+			`decisions about ${task}`,
+			Math.ceil(limit / 2),
+			{ type: "decision" },
+			undefined,
+			tenantContext,
+		);
 		for (const decision of decisions) {
 			context.push({
 				type: "decision",
@@ -442,5 +535,131 @@ export class MemoryService {
 
 		// Sort by relevance and limit
 		return context.toSorted((a, b) => b.relevance - a.relevance).slice(0, limit * 2);
+	}
+
+	/**
+	 * List memories across all tenants (admin only).
+	 * Does NOT filter by tenant - requires admin:read scope.
+	 *
+	 * NOTE: This is a placeholder implementation. In production, this would need to:
+	 * 1. Query all tenant graphs (each tenant has engram_{orgSlug}_{orgId} graph)
+	 * 2. Aggregate results across graphs
+	 * 3. Or use a centralized metadata index for cross-tenant queries
+	 *
+	 * Current implementation only queries the current tenant's graph.
+	 */
+	async listMemoriesAdmin(options: AdminMemoryListOptions): Promise<AdminMemoryResult[]> {
+		const { limit, offset, type, orgId } = options;
+
+		const conditions: string[] = ["m.vt_end > $now"];
+		const params: Record<string, unknown> = {
+			now: Date.now(),
+			limit,
+			offset,
+		};
+
+		if (type) {
+			conditions.push("m.type = $type");
+			params.type = type;
+		}
+
+		if (orgId) {
+			conditions.push("m.org_id = $orgId");
+			params.orgId = orgId;
+		}
+
+		const whereClause = conditions.join(" AND ");
+
+		// TODO: Implement proper cross-tenant querying
+		// This currently only queries the default graph, not all tenant graphs
+		const results = await this.graphClient.query<{
+			id: string;
+			content: string;
+			type: string;
+			tags: string[];
+			created_at: string;
+			org_id?: string;
+			org_slug?: string;
+		}>(
+			`MATCH (m:Memory)
+			WHERE ${whereClause}
+			RETURN m.id as id, m.content as content, m.type as type, m.tags as tags,
+			       m.created_at as created_at, m.org_id as org_id, m.org_slug as org_slug
+			ORDER BY m.vt_start DESC
+			SKIP $offset
+			LIMIT $limit`,
+			params,
+		);
+
+		return results.map((r) => ({
+			id: r.id,
+			content: r.content,
+			type: r.type,
+			tags: r.tags ?? [],
+			createdAt: r.created_at,
+			orgId: r.org_id,
+			orgSlug: r.org_slug,
+		}));
+	}
+
+	/**
+	 * List sessions across all tenants (admin only).
+	 * Does NOT filter by tenant - requires admin:read scope.
+	 *
+	 * NOTE: This is a placeholder implementation. In production, this would need to:
+	 * 1. Query all tenant graphs (each tenant has engram_{orgSlug}_{orgId} graph)
+	 * 2. Aggregate results across graphs
+	 * 3. Or use a centralized metadata index for cross-tenant queries
+	 *
+	 * Current implementation only queries the current tenant's graph.
+	 */
+	async listSessionsAdmin(options: AdminSessionListOptions): Promise<AdminSessionResult[]> {
+		const { limit, offset, orgId } = options;
+
+		const conditions: string[] = ["s.vt_end > $now"];
+		const params: Record<string, unknown> = {
+			now: Date.now(),
+			limit,
+			offset,
+		};
+
+		if (orgId) {
+			conditions.push("s.org_id = $orgId");
+			params.orgId = orgId;
+		}
+
+		const whereClause = conditions.join(" AND ");
+
+		// TODO: Implement proper cross-tenant querying
+		// This currently only queries the default graph, not all tenant graphs
+		const results = await this.graphClient.query<{
+			id: string;
+			org_id?: string;
+			org_slug?: string;
+			agent_type?: string;
+			working_dir?: string;
+			created_at: string;
+			updated_at?: string;
+		}>(
+			`MATCH (s:Session)
+			WHERE ${whereClause}
+			RETURN s.id as id, s.org_id as org_id, s.org_slug as org_slug,
+			       s.agent_type as agent_type, s.working_dir as working_dir,
+			       s.created_at as created_at, s.updated_at as updated_at
+			ORDER BY s.vt_start DESC
+			SKIP $offset
+			LIMIT $limit`,
+			params,
+		);
+
+		return results.map((r) => ({
+			id: r.id,
+			orgId: r.org_id,
+			orgSlug: r.org_slug,
+			agentType: r.agent_type,
+			workingDir: r.working_dir,
+			createdAt: r.created_at,
+			updatedAt: r.updated_at,
+		}));
 	}
 }

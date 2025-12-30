@@ -44,8 +44,22 @@ export type { TenantContext } from "./tenant";
 export {
 	createTenantContext,
 	generateOrgSlug,
+	getTenantContext,
 	getTenantGraphName,
 	isValidOrgSlug,
+	runWithTenantContext,
 	TenantAccessError,
+	TenantContextError,
+	tryGetTenantContext,
 	validateTenantAccess,
 } from "./tenant";
+
+// Audit logging types
+export type {
+	AuditAction,
+	AuditLogEntry,
+	AuditLogFilter,
+	AuditResourceType,
+} from "./audit";
+
+export { createAuditEntry, getActionSeverity, isCrossTenantAction } from "./audit";

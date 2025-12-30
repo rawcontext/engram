@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
+import type { TenantContext } from "@engram/common/types";
 import type { ParsedStreamEvent } from "@engram/events";
 import type { Logger } from "@engram/logger";
-import type { GraphClient } from "@engram/storage";
+import { type GraphClient, type QueryParams, TenantAwareFalkorClient } from "@engram/storage";
 import {
 	createDefaultHandlerRegistry,
 	type EventHandlerRegistry,
@@ -81,10 +82,13 @@ export interface TurnAggregatorDeps {
 	onNodeCreated?: NodeCreatedCallback;
 	onTurnFinalized?: TurnFinalizedCallback;
 	handlerRegistry?: EventHandlerRegistry;
+	/** Optional tenant-aware client for multi-tenant graph isolation */
+	tenantClient?: TenantAwareFalkorClient;
 }
 
 export class TurnAggregator {
 	private graphClient: GraphClient;
+	private tenantClient?: TenantAwareFalkorClient;
 	private logger: Logger;
 	private onNodeCreated?: NodeCreatedCallback;
 	private onTurnFinalized?: TurnFinalizedCallback;
@@ -96,10 +100,41 @@ export class TurnAggregator {
 
 	constructor(deps: TurnAggregatorDeps) {
 		this.graphClient = deps.graphClient;
+		this.tenantClient = deps.tenantClient;
 		this.logger = deps.logger;
 		this.onNodeCreated = deps.onNodeCreated;
 		this.onTurnFinalized = deps.onTurnFinalized;
 		this.handlerRegistry = deps.handlerRegistry ?? createDefaultHandlerRegistry();
+	}
+
+	/**
+	 * Execute a query on the tenant-specific graph.
+	 * Falls back to the default graph if no tenant context is available.
+	 *
+	 * @param cypher - Cypher query to execute
+	 * @param params - Query parameters
+	 * @param turn - Turn state containing tenant context
+	 */
+	private async tenantQuery<T>(
+		cypher: string,
+		params: Record<string, unknown>,
+		turn?: Pick<TurnState, "orgId" | "orgSlug">,
+	): Promise<T[]> {
+		// Use tenant-specific graph when both orgId and orgSlug are available
+		if (this.tenantClient && turn?.orgId && turn?.orgSlug) {
+			const tenantContext: TenantContext = {
+				orgId: turn.orgId,
+				orgSlug: turn.orgSlug,
+				userId: "system", // Memory service operates as system user
+				isAdmin: false,
+			};
+			const graph = await this.tenantClient.ensureTenantGraph(tenantContext);
+			const result = await graph.query(cypher, { params: params as QueryParams });
+			return result.data as T[];
+		}
+
+		// Fall back to default graph
+		return this.graphClient.query<T>(cypher, params);
 	}
 
 	/**
@@ -185,6 +220,8 @@ export class TurnAggregator {
 				: undefined,
 			usage: input.usage,
 			metadata: input.metadata,
+			org_id: (input as any).org_id, // Extract org_id if present
+			org_slug: (input as any).org_slug, // Extract org_slug if present
 		} as ParsedStreamEvent;
 	}
 
@@ -202,7 +239,13 @@ export class TurnAggregator {
 
 		// User content starts a new turn
 		if (role === "user" && content) {
-			await this.startNewTurn(sessionId, content, normalizedEvent.vt_start);
+			await this.startNewTurn(
+				sessionId,
+				content,
+				normalizedEvent.vt_start,
+				normalizedEvent.org_id,
+				normalizedEvent.org_slug,
+			);
 			return;
 		}
 
@@ -219,6 +262,8 @@ export class TurnAggregator {
 				sessionId,
 				"[No user message captured]",
 				normalizedEvent.vt_start,
+				normalizedEvent.org_id,
+				normalizedEvent.org_slug,
 			);
 		}
 
@@ -275,11 +320,15 @@ export class TurnAggregator {
 	/**
 	 * Start a new turn for a session
 	 * @param vtStart - Optional vt_start from event (for benchmark data with historical dates)
+	 * @param orgId - Optional org_id from event for tenant isolation
+	 * @param orgSlug - Optional org_slug from event for tenant graph naming
 	 */
 	private async startNewTurn(
 		sessionId: string,
 		userContent: string,
 		vtStart?: number,
+		orgId?: string,
+		orgSlug?: string,
 	): Promise<TurnState> {
 		// Finalize any existing turn for this session
 		const existingTurn = this.activeTurns.get(sessionId);
@@ -308,6 +357,8 @@ export class TurnAggregator {
 			sequenceIndex: nextSeq,
 			createdAt: vtStart ?? Date.now(),
 			isFinalized: false,
+			orgId, // Tenant organization ID for graph isolation
+			orgSlug, // Tenant organization slug for graph naming
 		};
 
 		this.activeTurns.set(sessionId, turn);
@@ -353,19 +404,24 @@ export class TurnAggregator {
 			RETURN t
 		`;
 
-		await this.graphClient.query(query, {
-			sessionId: turn.sessionId,
-			turnId: turn.turnId,
-			userContent: turn.userContent.slice(0, 10000), // Limit stored content
-			userContentHash,
-			assistantPreview: turn.assistantContent.slice(0, 2000),
-			sequenceIndex: turn.sequenceIndex,
-			filesTouched: JSON.stringify([...turn.filesTouched.keys()]),
-			toolCallsCount: turn.toolCallsCount,
-			prevSeqIndex: turn.sequenceIndex - 1,
-			vtStart: turn.createdAt,
-			ttStart: ttNow,
-		});
+		// Use tenant-specific graph when org context is available
+		await this.tenantQuery(
+			query,
+			{
+				sessionId: turn.sessionId,
+				turnId: turn.turnId,
+				userContent: turn.userContent.slice(0, 10000), // Limit stored content
+				userContentHash,
+				assistantPreview: turn.assistantContent.slice(0, 2000),
+				sequenceIndex: turn.sequenceIndex,
+				filesTouched: JSON.stringify([...turn.filesTouched.keys()]),
+				toolCallsCount: turn.toolCallsCount,
+				prevSeqIndex: turn.sequenceIndex - 1,
+				vtStart: turn.createdAt,
+				ttStart: ttNow,
+			},
+			turn,
+		);
 
 		// Emit node created event for real-time WebSocket updates
 		try {
@@ -406,14 +462,19 @@ export class TurnAggregator {
 		`;
 
 		try {
-			await this.graphClient.query(query, {
-				turnId: turn.turnId,
-				preview: turn.assistantContent.slice(0, 2000),
-				filesTouched: JSON.stringify([...turn.filesTouched.keys()]),
-				toolCallsCount: turn.toolCallsCount,
-				inputTokens: turn.inputTokens,
-				outputTokens: turn.outputTokens,
-			});
+			// Use tenant-specific graph when org context is available
+			await this.tenantQuery(
+				query,
+				{
+					turnId: turn.turnId,
+					preview: turn.assistantContent.slice(0, 2000),
+					filesTouched: JSON.stringify([...turn.filesTouched.keys()]),
+					toolCallsCount: turn.toolCallsCount,
+					inputTokens: turn.inputTokens,
+					outputTokens: turn.outputTokens,
+				},
+				turn,
+			);
 
 			// Publish turn_finalized event for search service indexing
 			if (this.onTurnFinalized) {
@@ -434,6 +495,7 @@ export class TurnAggregator {
 						output_tokens: turn.outputTokens,
 						timestamp: Date.now(),
 						vt_start: turn.createdAt,
+						org_id: turn.orgId, // Propagate org_id for tenant isolation
 					});
 				} catch (e) {
 					this.logger.error(
