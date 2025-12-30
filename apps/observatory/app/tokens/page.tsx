@@ -100,23 +100,27 @@ export default function TokensPage() {
 	const parseUserAgent = (ua: string | null) => {
 		if (!ua) return { device: "Unknown", platform: "Unknown" };
 
-		const device =
-			ua.includes("Claude") || ua.includes("claude")
-				? "Claude Code"
-				: ua.includes("node") || ua.includes("Node")
-					? "Node.js"
-					: ua.includes("Python")
-						? "Python"
-						: "Unknown Client";
+		// Parse device/client name
+		let device = "Unknown Client";
+		if (ua.includes("Engram-MCP")) {
+			device = "Engram MCP";
+		} else if (ua.includes("Claude") || ua.includes("claude")) {
+			device = "Claude Code";
+		} else if (ua.includes("node") || ua.includes("Node")) {
+			device = "Node.js";
+		} else if (ua.includes("Python")) {
+			device = "Python";
+		}
 
-		const platform =
-			ua.includes("Darwin") || ua.includes("Mac")
-				? "macOS"
-				: ua.includes("Linux")
-					? "Linux"
-					: ua.includes("Windows")
-						? "Windows"
-						: "Unknown";
+		// Parse platform/OS
+		let platform = "Unknown";
+		if (ua.includes("macOS") || ua.includes("Darwin") || ua.includes("Mac")) {
+			platform = "macOS";
+		} else if (ua.includes("Linux")) {
+			platform = "Linux";
+		} else if (ua.includes("Windows")) {
+			platform = "Windows";
+		}
 
 		return { device, platform };
 	};

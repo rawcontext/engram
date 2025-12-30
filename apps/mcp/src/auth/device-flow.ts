@@ -8,7 +8,7 @@
  */
 
 import { exec } from "node:child_process";
-import { platform } from "node:os";
+import { platform, release, arch } from "node:os";
 import type { DeviceCodeResponse, TokenErrorResponse, TokenResponse } from "@engram/common/types";
 import type { Logger } from "@engram/logger";
 import { TokenCache } from "./token-cache";
@@ -40,6 +40,21 @@ export class DeviceFlowClient {
 		this.clientId = options.clientId ?? "mcp";
 		this.logger = options.logger;
 		this.tokenCache = options.tokenCache;
+	}
+
+	/**
+	 * Generate a descriptive User-Agent string for device identification
+	 */
+	private getUserAgent(): string {
+		const os = platform();
+		const osRelease = release();
+		const architecture = arch();
+
+		// Map platform to friendly name
+		const osName =
+			os === "darwin" ? "macOS" : os === "win32" ? "Windows" : os === "linux" ? "Linux" : os;
+
+		return `Engram-MCP/1.0 (${osName} ${osRelease}; ${architecture}) Bun/${process.versions.bun ?? "unknown"}`;
 	}
 
 	/**
@@ -122,7 +137,10 @@ export class DeviceFlowClient {
 	private async requestDeviceCode(): Promise<DeviceCodeResponse> {
 		const response = await fetch(`${this.apiUrl}/api/auth/device`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				"User-Agent": this.getUserAgent(),
+			},
 			body: JSON.stringify({ client_id: this.clientId }),
 		});
 
