@@ -34,9 +34,10 @@ class TestDocument:
 
     def test_required_fields(self) -> None:
         """Test document with required fields only."""
-        doc = Document(id="doc-1", content="test content")
+        doc = Document(id="doc-1", content="test content", org_id="org-123")
         assert doc.id == "doc-1"
         assert doc.content == "test content"
+        assert doc.org_id == "org-123"
         assert doc.metadata == {}
         assert doc.session_id is None
 
@@ -45,10 +46,12 @@ class TestDocument:
         doc = Document(
             id="doc-2",
             content="test content",
+            org_id="org-456",
             metadata={"type": "code"},
             session_id="session-123",
         )
         assert doc.id == "doc-2"
+        assert doc.org_id == "org-456"
         assert doc.metadata == {"type": "code"}
         assert doc.session_id == "session-123"
 
@@ -102,7 +105,7 @@ class TestBatchQueue:
         queue = BatchQueue(config, async_callback)
         await queue.start()
 
-        doc = Document(id="1", content="test")
+        doc = Document(id="1", content="test", org_id="org-123")
         await queue.add(doc)
 
         await queue.stop()
@@ -123,7 +126,7 @@ class TestBatchQueue:
         queue = BatchQueue(config, mock_callback)
         await queue.start()
 
-        doc = Document(id="1", content="test")
+        doc = Document(id="1", content="test", org_id="org-123")
         await queue.add(doc)
 
         assert queue.queue_size == 1
@@ -139,7 +142,7 @@ class TestBatchQueue:
 
         # Add documents up to batch size (3)
         for i in range(3):
-            await queue.add(Document(id=str(i), content=f"content {i}"))
+            await queue.add(Document(id=str(i), content=f"content {i}", org_id="org-123"))
 
         # Give a small delay for flush
         await asyncio.sleep(0.01)
@@ -161,11 +164,11 @@ class TestBatchQueue:
 
         # Fill queue to max capacity
         for i in range(5):
-            await queue.add(Document(id=str(i), content=f"content {i}"))
+            await queue.add(Document(id=str(i), content=f"content {i}", org_id="org-123"))
 
         # Next add should raise
         with pytest.raises(RuntimeError, match="max capacity"):
-            await queue.add(Document(id="overflow", content="overflow"))
+            await queue.add(Document(id="overflow", content="overflow", org_id="org-123"))
 
         await queue.stop()
 
@@ -177,7 +180,7 @@ class TestBatchQueue:
         await queue.start()
 
         # Add a document
-        await queue.add(Document(id="1", content="test"))
+        await queue.add(Document(id="1", content="test", org_id="org-123"))
 
         # Wait longer than flush interval
         await asyncio.sleep(0.15)
@@ -207,7 +210,7 @@ class TestBatchQueue:
         queue = BatchQueue(config, mock_callback)
         await queue.start()
 
-        doc = Document(id="1", content="test")
+        doc = Document(id="1", content="test", org_id="org-123")
         await queue.add(doc)
 
         await queue.stop()
@@ -222,7 +225,7 @@ class TestBatchQueue:
 
         # Add enough to trigger flush
         for i in range(3):
-            await queue.add(Document(id=str(i), content=f"content {i}"))
+            await queue.add(Document(id=str(i), content=f"content {i}", org_id="org-123"))
 
         await asyncio.sleep(0.01)
 
@@ -236,10 +239,10 @@ class TestBatchQueue:
 
         assert queue.queue_size == 0
 
-        await queue.add(Document(id="1", content="test"))
+        await queue.add(Document(id="1", content="test", org_id="org-123"))
         assert queue.queue_size == 1
 
-        await queue.add(Document(id="2", content="test2"))
+        await queue.add(Document(id="2", content="test2", org_id="org-123"))
         assert queue.queue_size == 2
 
         await queue.stop()
@@ -258,7 +261,7 @@ class TestBatchQueue:
         await queue.start()
 
         # Add document and trigger multiple flushes
-        await queue.add(Document(id="1", content="test"))
+        await queue.add(Document(id="1", content="test", org_id="org-123"))
         await asyncio.sleep(0.15)
 
         # Should have tried to flush
@@ -437,6 +440,7 @@ class TestMemoryEventConsumer:
             "content": "test content",
             "type": "thought",
             "sessionId": "session-456",
+            "orgId": "org-123",
             "metadata": {"extra": "data"},
         }
 
@@ -445,6 +449,7 @@ class TestMemoryEventConsumer:
         assert doc is not None
         assert doc.id == "node-123"
         assert doc.content == "test content"
+        assert doc.org_id == "org-123"
         assert doc.session_id == "session-456"
         assert doc.metadata["type"] == "thought"
         assert doc.metadata["extra"] == "data"
@@ -498,12 +503,13 @@ class TestMemoryEventConsumer:
             config=config,
         )
 
-        data = {"id": "node-123", "content": "test content"}
+        data = {"id": "node-123", "content": "test content", "orgId": "org-123"}
         doc = consumer._parse_memory_node(data)
 
         assert doc is not None
         assert doc.id == "node-123"
         assert doc.content == "test content"
+        assert doc.org_id == "org-123"
         assert doc.session_id is None
         assert doc.metadata == {}
 
@@ -522,7 +528,7 @@ class TestMemoryEventConsumer:
         consumer._batch_queue = MagicMock()
         consumer._batch_queue.add = AsyncMock()
 
-        data = {"id": "node-123", "content": "test content"}
+        data = {"id": "node-123", "content": "test content", "orgId": "org-123"}
 
         await consumer._handle_message("memory.nodes.created", data)
 
@@ -548,6 +554,7 @@ class TestMemoryEventConsumer:
             "content": "test content",
             "type": "thought",
             "sessionId": "session-456",
+            "orgId": "org-123",
         }
 
         await consumer._handle_message("memory.nodes.created", data)
@@ -802,7 +809,7 @@ class TestDocumentIndexer:
             config=config,
         )
 
-        doc = Document(id="doc-1", content="test content", session_id="session-1")
+        doc = Document(id="doc-1", content="test content", org_id="org-123", session_id="session-1")
         result = await indexer.index_documents([doc])
 
         assert result == 1
@@ -821,7 +828,7 @@ class TestDocumentIndexer:
             config=config,
         )
 
-        doc = Document(id="doc-1", content="test content")
+        doc = Document(id="doc-1", content="test content", org_id="org-123")
         result = await indexer.index_documents([doc])
 
         assert result == 1
@@ -843,7 +850,7 @@ class TestDocumentIndexer:
             config=config,
         )
 
-        doc = Document(id="doc-1", content="test content")
+        doc = Document(id="doc-1", content="test content", org_id="org-123")
         result = await indexer.index_documents([doc])
 
         assert result == 0
@@ -861,7 +868,7 @@ class TestDocumentIndexer:
             config=config,
         )
 
-        doc = Document(id="doc-1", content="test content")
+        doc = Document(id="doc-1", content="test content", org_id="org-123")
         result = await indexer.index_single(doc)
 
         assert result is True
@@ -881,7 +888,7 @@ class TestDocumentIndexer:
             config=config,
         )
 
-        doc = Document(id="doc-1", content="test content")
+        doc = Document(id="doc-1", content="test content", org_id="org-123")
         result = await indexer.index_single(doc)
 
         assert result is False
@@ -904,6 +911,7 @@ class TestDocumentIndexer:
         doc = Document(
             id="doc-1",
             content="test content",
+            org_id="org-123",
             metadata={"type": "code"},
             session_id="session-1",
         )
@@ -938,7 +946,7 @@ class TestDocumentIndexer:
             config=config,
         )
 
-        doc = Document(id="doc-1", content="test content")
+        doc = Document(id="doc-1", content="test content", org_id="org-123")
 
         point = indexer._build_point(
             doc=doc,
@@ -962,7 +970,7 @@ class TestDocumentIndexer:
             config=config,
         )
 
-        doc = Document(id="doc-1", content="test content")
+        doc = Document(id="doc-1", content="test content", org_id="org-123")
 
         point = indexer._build_point(
             doc=doc,
@@ -1003,7 +1011,7 @@ class TestDocumentIndexer:
             config=config,
         )
 
-        doc = Document(id="doc-1", content="test content")
+        doc = Document(id="doc-1", content="test content", org_id="org-123")
         result = await indexer.index_documents([doc])
 
         assert result == 1

@@ -337,6 +337,7 @@ class TestMemoryEventConsumer:
             "content": "This is test content",
             "type": "thought",
             "sessionId": "session-456",
+            "orgId": "org-123",
             "metadata": {"extra": "data"},
         }
 
@@ -344,6 +345,7 @@ class TestMemoryEventConsumer:
 
         assert doc is not None
         assert doc.id == "node-123"
+        assert doc.org_id == "org-123"
         assert doc.content == "This is test content"
         assert doc.session_id == "session-456"
         assert doc.metadata["type"] == "thought"
@@ -365,12 +367,14 @@ class TestMemoryEventConsumer:
         data = {
             "id": "node-123",
             "content": "Minimal content",
+            "orgId": "org-123",
         }
 
         doc = consumer._parse_memory_node(data)
 
         assert doc is not None
         assert doc.id == "node-123"
+        assert doc.org_id == "org-123"
         assert doc.content == "Minimal content"
         assert doc.session_id is None
         assert doc.metadata == {}
@@ -428,11 +432,13 @@ class TestMemoryEventConsumer:
             "id": "node-123",
             "content": "Code snippet",
             "type": "code",
+            "orgId": "org-123",
         }
 
         doc = consumer._parse_memory_node(data)
 
         assert doc is not None
+        assert doc.org_id == "org-123"
         assert doc.metadata["type"] == "code"
 
     def test_parse_memory_node_error_handling(
@@ -474,6 +480,7 @@ class TestMemoryEventConsumer:
         data = {
             "id": "node-123",
             "content": "Test content",
+            "orgId": "org-123",
         }
 
         await consumer._handle_message("memory.nodes.created", data)
@@ -483,6 +490,7 @@ class TestMemoryEventConsumer:
         doc = call_args[0][0]
         assert isinstance(doc, Document)
         assert doc.id == "node-123"
+        assert doc.org_id == "org-123"
 
     async def test_handle_message_invalid_data(
         self,

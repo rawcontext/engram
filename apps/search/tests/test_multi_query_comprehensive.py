@@ -552,7 +552,7 @@ class TestMultiQuerySearch:
                 text="test",
                 limit=5,
                 threshold=0.7,
-                filters=SearchFilters(session_id="session-123"),
+                filters=SearchFilters(org_id="org-123", session_id="session-123"),
                 strategy=SearchStrategy.HYBRID,
                 rerank=True,
                 rerank_tier="accurate",

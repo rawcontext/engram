@@ -53,6 +53,7 @@ class TestTurnsBackfiller:
             "output_tokens": 500,
             "timestamp": 1234567890,
             "session_id": "session-456",
+            "org_id": "org-123",
         }
 
         doc = backfiller.turn_to_document(turn)
@@ -73,6 +74,7 @@ class TestTurnsBackfiller:
             "turn_id": "turn-123",
             "user_content": "Hello",
             "assistant_preview": "Hi there!",
+            "org_id": "org-123",
         }
 
         doc = backfiller.turn_to_document(turn)
@@ -111,6 +113,7 @@ class TestTurnsBackfiller:
             "turn_id": "turn-123",
             "user_content": "Show me code",
             "assistant_preview": "Here's code:\n```python\nprint('hello')\n```",
+            "org_id": "org-123",
         }
 
         doc = backfiller.turn_to_document(turn)
@@ -125,6 +128,7 @@ class TestTurnsBackfiller:
             "user_content": "Test",
             "assistant_preview": "Response",
             "files_touched": ["file1.ts", "file2.ts"],
+            "org_id": "org-123",
         }
 
         doc = backfiller.turn_to_document(turn)
@@ -139,6 +143,7 @@ class TestTurnsBackfiller:
             "user_content": "Test",
             "assistant_preview": "Response",
             "files_touched": None,
+            "org_id": "org-123",
         }
 
         doc = backfiller.turn_to_document(turn)
@@ -265,6 +270,7 @@ class TestTurnsBackfillerEdgeCases:
             "user_content": "Test",
             "assistant_preview": "Response",
             "files_touched": "not a valid list",  # Invalid string
+            "org_id": "org-123",
         }
 
         doc = backfiller.turn_to_document(turn)
@@ -299,6 +305,7 @@ class TestTurnsBackfillerEdgeCases:
             "turn_id": "turn-123",
             "user_content": "Only user message",
             "assistant_preview": "",
+            "org_id": "org-123",
         }
 
         doc = backfiller.turn_to_document(turn)
@@ -314,6 +321,7 @@ class TestTurnsBackfillerEdgeCases:
             "turn_id": "turn-123",
             "user_content": "",
             "assistant_preview": "Only assistant message",
+            "org_id": "org-123",
         }
 
         doc = backfiller.turn_to_document(turn)
@@ -331,6 +339,7 @@ class TestTurnsBackfillerEdgeCases:
             "assistant_preview": "Response",
             "input_tokens": None,
             "output_tokens": None,
+            "org_id": "org-123",
         }
 
         doc = backfiller.turn_to_document(turn)
@@ -347,6 +356,7 @@ class TestTurnsBackfillerEdgeCases:
             "user_content": "Test",
             "assistant_preview": "Response",
             "timestamp": None,
+            "org_id": "org-123",
         }
 
         doc = backfiller.turn_to_document(turn)
@@ -555,6 +565,7 @@ class TestTurnsBackfillerEdgeCases:
                     f"User {i}".encode(),
                     f"Assistant {i}".encode(),
                     b"session-1",
+                    b"org-123",
                 ]
             )
 
@@ -562,7 +573,7 @@ class TestTurnsBackfillerEdgeCases:
         mock_redis.ping = AsyncMock()
         mock_redis.execute_command = AsyncMock(
             return_value=[
-                [b"turn_id", b"user_content", b"assistant_preview", b"session_id"],
+                [b"turn_id", b"user_content", b"assistant_preview", b"session_id", b"org_id"],
                 turns_data,
                 [b"Stats"],
             ]

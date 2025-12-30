@@ -110,7 +110,7 @@ class TestTurnsIndexer:
         )
 
         doc = Document(
-            id="turn-1", content="User: test\nAssistant: response", session_id="session-1"
+            id="turn-1", content="User: test\nAssistant: response", org_id="org-123", session_id="session-1"
         )
         result = await indexer.index_documents([doc])
 
@@ -130,7 +130,7 @@ class TestTurnsIndexer:
             config=config,
         )
 
-        doc = Document(id="turn-1", content="test content")
+        doc = Document(id="turn-1", content="test content", org_id="org-123")
         result = await indexer.index_documents([doc])
 
         assert result == 1
@@ -151,7 +151,7 @@ class TestTurnsIndexer:
             config=config,
         )
 
-        doc = Document(id="turn-1", content="test content")
+        doc = Document(id="turn-1", content="test content", org_id="org-123")
         result = await indexer.index_documents([doc])
 
         assert result == 0
@@ -172,6 +172,7 @@ class TestTurnsIndexer:
         doc = Document(
             id="turn-1",
             content="test content",
+            org_id="org-123",
             metadata={"type": "turn"},
             session_id="session-1",
         )
@@ -203,7 +204,7 @@ class TestTurnsIndexer:
             config=config,
         )
 
-        doc = Document(id="turn-1", content="test content")
+        doc = Document(id="turn-1", content="test content", org_id="org-123")
         point = indexer._build_point(
             doc=doc,
             dense_vec=[0.1, 0.2, 0.3],
@@ -341,6 +342,7 @@ class TestTurnFinalizedConsumer:
         data = {
             "id": "turn-123",
             "session_id": "session-456",
+            "org_id": "org-123",
             "sequence_index": 0,
             "user_content": "What is the capital of France?",
             "assistant_content": "The capital of France is Paris.",
@@ -356,6 +358,7 @@ class TestTurnFinalizedConsumer:
 
         assert doc is not None
         assert doc.id == "turn-123"
+        assert doc.org_id == "org-123"
         assert "User: What is the capital of France?" in doc.content
         assert "Assistant: The capital of France is Paris." in doc.content
         assert "Reasoning: I need to answer about geography." in doc.content
@@ -417,12 +420,14 @@ class TestTurnFinalizedConsumer:
 
         data = {
             "id": "turn-123",
+            "org_id": "org-123",
             "assistant_content": "Here's the code:\n```python\nprint('hello')\n```",
         }
 
         doc = consumer._parse_turn_finalized(data)
 
         assert doc is not None
+        assert doc.org_id == "org-123"
         assert doc.metadata["has_code"] is True
 
     def test_parse_turn_finalized_user_only(
@@ -440,12 +445,14 @@ class TestTurnFinalizedConsumer:
 
         data = {
             "id": "turn-123",
+            "org_id": "org-123",
             "user_content": "Hello world",
         }
 
         doc = consumer._parse_turn_finalized(data)
 
         assert doc is not None
+        assert doc.org_id == "org-123"
         assert "User: Hello world" in doc.content
         assert "Assistant:" not in doc.content
 
@@ -523,7 +530,7 @@ class TestTurnFinalizedConsumer:
         consumer._batch_queue = MagicMock()
         consumer._batch_queue.add = AsyncMock()
 
-        data = {"id": "turn-123", "user_content": "test content"}
+        data = {"id": "turn-123", "org_id": "org-123", "user_content": "test content"}
 
         await consumer._handle_message("memory.turns.finalized", data)
 
@@ -546,6 +553,7 @@ class TestTurnFinalizedConsumer:
 
         data = {
             "id": "turn-123",
+            "org_id": "org-123",
             "user_content": "test content",
             "assistant_content": "response",
             "session_id": "session-456",

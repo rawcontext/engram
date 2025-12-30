@@ -83,6 +83,7 @@ class TestTurnsIndexer:
             Document(
                 id="turn-1",
                 content="User: How do I fix this?\n\nAssistant: Here's the solution...",
+                org_id="org-123",
                 metadata={"type": "turn", "sequence_index": 0},
                 session_id="session-1",
             )
@@ -134,6 +135,7 @@ class TestTurnsIndexer:
             Document(
                 id="turn-1",
                 content="Test content",
+                org_id="org-123",
                 metadata={},
             )
         ]
@@ -174,6 +176,7 @@ class TestTurnFinalizedConsumer:
         event = {
             "id": "turn-123",
             "session_id": "session-456",
+            "org_id": "org-123",
             "sequence_index": 2,
             "user_content": "How do I implement this feature?",
             "assistant_content": "Here's how you can implement it...",
@@ -189,6 +192,7 @@ class TestTurnFinalizedConsumer:
 
         assert document is not None
         assert document.id == "turn-123"
+        assert document.org_id == "org-123"
         assert document.session_id == "session-456"
         assert "User: How do I implement" in document.content
         assert "Assistant: Here's how" in document.content
@@ -211,6 +215,7 @@ class TestTurnFinalizedConsumer:
 
         event = {
             "id": "turn-123",
+            "org_id": "org-123",
             "user_content": "Hello",
             "assistant_content": "Hi there!",
         }
@@ -219,6 +224,7 @@ class TestTurnFinalizedConsumer:
 
         assert document is not None
         assert document.id == "turn-123"
+        assert document.org_id == "org-123"
         assert "User: Hello" in document.content
         assert "Assistant: Hi there!" in document.content
 
@@ -273,6 +279,7 @@ class TestTurnFinalizedConsumer:
 
         event = {
             "id": "turn-123",
+            "org_id": "org-123",
             "user_content": "Show me example code",
             "assistant_content": "Here's an example:\n```python\nprint('hello')\n```",
         }
@@ -280,6 +287,7 @@ class TestTurnFinalizedConsumer:
         document = consumer._parse_turn_finalized(event)
 
         assert document is not None
+        assert document.org_id == "org-123"
         assert document.metadata["has_code"] is True
 
 
