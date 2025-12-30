@@ -616,7 +616,7 @@ export async function validateAccessToken(accessToken: string): Promise<OAuthTok
 }
 
 /**
- * Revoke an OAuth token.
+ * Revoke an OAuth token by ID.
  */
 export async function revokeToken(tokenId: string, reason?: string): Promise<boolean> {
 	const result = await pool.query(
@@ -627,6 +627,57 @@ export async function revokeToken(tokenId: string, reason?: string): Promise<boo
 	);
 
 	return result.rowCount === 1;
+}
+
+/**
+ * Revoke an OAuth token by its value (RFC 7009).
+ *
+ * Accepts either an access token or refresh token and revokes it.
+ * Per RFC 7009, this should return success even if the token is invalid
+ * or already revoked (to prevent token enumeration attacks).
+ *
+ * @param token - The access or refresh token to revoke
+ * @param tokenTypeHint - Optional hint: "access_token" or "refresh_token"
+ * @returns true if a token was revoked, false if not found (but endpoint still returns 200)
+ *
+ * @see https://datatracker.ietf.org/doc/html/rfc7009
+ */
+export async function revokeTokenByValue(
+	token: string,
+	tokenTypeHint?: "access_token" | "refresh_token",
+): Promise<boolean> {
+	const tokenHash = hashToken(token);
+
+	// Try access token first if no hint or hint is access_token
+	if (!tokenTypeHint || tokenTypeHint === "access_token") {
+		const result = await pool.query(
+			`UPDATE oauth_tokens
+			 SET revoked_at = NOW(), revoked_reason = 'user_revoked'
+			 WHERE access_token_hash = $1 AND revoked_at IS NULL`,
+			[tokenHash],
+		);
+
+		if (result.rowCount === 1) {
+			return true;
+		}
+	}
+
+	// Try refresh token if no hint, hint is refresh_token, or access token not found
+	if (!tokenTypeHint || tokenTypeHint === "refresh_token") {
+		const result = await pool.query(
+			`UPDATE oauth_tokens
+			 SET revoked_at = NOW(), revoked_reason = 'user_revoked'
+			 WHERE refresh_token_hash = $1 AND revoked_at IS NULL`,
+			[tokenHash],
+		);
+
+		if (result.rowCount === 1) {
+			return true;
+		}
+	}
+
+	// Token not found or already revoked - per RFC 7009, still return success
+	return false;
 }
 
 /**

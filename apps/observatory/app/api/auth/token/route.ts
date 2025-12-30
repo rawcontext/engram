@@ -95,8 +95,10 @@ export async function POST(request: Request) {
 		}
 
 		// Step 4: Validate DPoP proof
-		const url = new URL(request.url);
-		const dpopResult = await validateDPoPProof(dpopHeader, "POST", url.toString());
+		// Use public URL from env (BETTER_AUTH_URL) since request.url is internal container URL
+		const baseUrl = process.env.BETTER_AUTH_URL || "http://localhost:6178";
+		const expectedUrl = `${baseUrl.replace(/\/$/, "")}/api/auth/token`;
+		const dpopResult = await validateDPoPProof(dpopHeader, "POST", expectedUrl);
 
 		if (!dpopResult.valid) {
 			return NextResponse.json(

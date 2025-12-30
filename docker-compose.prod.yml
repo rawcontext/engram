@@ -239,6 +239,7 @@ services:
       - BETTER_AUTH_URL=https://observatory.engram.rawcontext.com
       - NEXT_PUBLIC_BETTER_AUTH_URL=https://observatory.engram.rawcontext.com
       - NEXT_PUBLIC_CONSOLE_URL=https://console.engram.rawcontext.com
+      - ENGRAM_MCP_SERVER_URL=https://mcp.engram.rawcontext.com
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - AUTH_DATABASE_URL=postgresql://${POSTGRES_USER:-engram}:${POSTGRES_PASSWORD}@postgres:5432/engram?sslmode=disable
