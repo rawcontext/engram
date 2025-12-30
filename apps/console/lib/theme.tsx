@@ -50,8 +50,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 		const resolved = theme === "system" ? getSystemTheme() : theme;
 		setResolvedTheme(resolved);
 
-		// Apply to document
-		document.documentElement.setAttribute("data-theme", resolved);
+		// Apply to document - shadcn uses .dark class
+		const root = document.documentElement;
+		root.classList.remove("light", "dark");
+		root.classList.add(resolved);
 	}, [theme, isHydrated]);
 
 	// Listen for system theme changes
@@ -60,8 +62,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 		const handler = (e: MediaQueryListEvent) => {
-			setResolvedTheme(e.matches ? "dark" : "light");
-			document.documentElement.setAttribute("data-theme", e.matches ? "dark" : "light");
+			const resolved = e.matches ? "dark" : "light";
+			setResolvedTheme(resolved);
+			const root = document.documentElement;
+			root.classList.remove("light", "dark");
+			root.classList.add(resolved);
 		};
 
 		mediaQuery.addEventListener("change", handler);
