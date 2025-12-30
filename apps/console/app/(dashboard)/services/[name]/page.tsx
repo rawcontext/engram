@@ -230,7 +230,7 @@ function GaugeBar({ value, label, colorVar }: { value: number; label: string; co
 function LogLine({ entry }: { entry: LogEntry }) {
 	const levelColors = {
 		info: "text-primary",
-		warn: "text-warning",
+		warn: "text-amber-500",
 		error: "text-destructive",
 		debug: "text-muted-foreground",
 	};
@@ -261,7 +261,7 @@ function DependencyChip({ name, status }: { name: string; status: string }) {
 			</span>
 			<span
 				className={`w-1.5 h-1.5 rounded-full ${
-					status === "online" ? "bg-success" : "bg-destructive"
+					status === "online" ? "bg-green-500" : "bg-destructive"
 				}`}
 			/>
 		</Link>
@@ -276,11 +276,11 @@ function SkeletonPage() {
 				<div className="h-8 w-32 rounded bg-secondary" />
 			</div>
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				<div className="panel p-6 h-48" />
-				<div className="panel p-6 h-48" />
-				<div className="panel p-6 h-48" />
+				<div className="bg-card border border-border rounded-lg p-6 h-48" />
+				<div className="bg-card border border-border rounded-lg p-6 h-48" />
+				<div className="bg-card border border-border rounded-lg p-6 h-48" />
 			</div>
-			<div className="panel p-6 h-64" />
+			<div className="bg-card border border-border rounded-lg p-6 h-64" />
 		</div>
 	);
 }
@@ -411,57 +411,65 @@ export default function ServiceDetailPage() {
 
 			{/* Stats Grid */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-				<div className="panel p-5 hover-lift">
+				<div className="bg-card border border-border rounded-lg p-5 hover:-translate-y-0.5 hover:shadow-lg transition-all">
 					<div className="flex items-center gap-3 mb-3">
 						<div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
 							<Clock className="w-4 h-4 text-primary" />
 						</div>
-						<span className="text-xs uppercase tracking-wider text-muted-foreground">Latency</span>
+						<span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+							Latency
+						</span>
 					</div>
-					<div className="metric-value">{health?.latency ?? "—"}ms</div>
+					<div className="font-mono text-2xl font-semibold">{health?.latency ?? "—"}ms</div>
 				</div>
 
-				<div className="panel p-5 hover-lift">
+				<div className="bg-card border border-border rounded-lg p-5 hover:-translate-y-0.5 hover:shadow-lg transition-all">
 					<div className="flex items-center gap-3 mb-3">
-						<div className="w-8 h-8 rounded-md bg-success/10 flex items-center justify-center">
-							<Zap className="w-4 h-4 text-success" />
+						<div className="w-8 h-8 rounded-md bg-green-500/10 flex items-center justify-center">
+							<Zap className="w-4 h-4 text-green-500" />
 						</div>
-						<span className="text-xs uppercase tracking-wider text-muted-foreground">
+						<span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
 							Requests/min
 						</span>
 					</div>
-					<div className="metric-value">{metrics?.requestsPerMin.toLocaleString() ?? "—"}</div>
+					<div className="font-mono text-2xl font-semibold">
+						{metrics?.requestsPerMin.toLocaleString() ?? "—"}
+					</div>
 				</div>
 
-				<div className="panel p-5 hover-lift">
+				<div className="bg-card border border-border rounded-lg p-5 hover:-translate-y-0.5 hover:shadow-lg transition-all">
 					<div className="flex items-center gap-3 mb-3">
-						<div className="w-8 h-8 rounded-md bg-warning/10 flex items-center justify-center">
-							<AlertCircle className="w-4 h-4 text-warning" />
+						<div className="w-8 h-8 rounded-md bg-amber-500/10 flex items-center justify-center">
+							<AlertCircle className="w-4 h-4 text-amber-500" />
 						</div>
-						<span className="text-xs uppercase tracking-wider text-muted-foreground">
+						<span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
 							Error Rate
 						</span>
 					</div>
-					<div className="metric-value">{metrics?.errorRate.toFixed(2) ?? "—"}%</div>
+					<div className="font-mono text-2xl font-semibold">
+						{metrics?.errorRate.toFixed(2) ?? "—"}%
+					</div>
 				</div>
 
-				<div className="panel p-5 hover-lift">
+				<div className="bg-card border border-border rounded-lg p-5 hover:-translate-y-0.5 hover:shadow-lg transition-all">
 					<div className="flex items-center gap-3 mb-3">
-						<div className="w-8 h-8 rounded-md bg-violet/10 flex items-center justify-center">
-							<Clock className="w-4 h-4 text-violet" />
+						<div className="w-8 h-8 rounded-md bg-purple-500/10 flex items-center justify-center">
+							<Clock className="w-4 h-4 text-purple-500" />
 						</div>
-						<span className="text-xs uppercase tracking-wider text-muted-foreground">
+						<span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
 							Avg Response
 						</span>
 					</div>
-					<div className="metric-value">{metrics?.avgResponseTime ?? "—"}ms</div>
+					<div className="font-mono text-2xl font-semibold">
+						{metrics?.avgResponseTime ?? "—"}ms
+					</div>
 				</div>
 			</div>
 
 			{/* Main Content Grid */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				{/* Resource Usage */}
-				<div className="panel p-5">
+				<div className="bg-card border border-border rounded-lg p-5">
 					<div className="flex items-center gap-2 mb-5">
 						<Cpu className="w-4 h-4 text-primary" />
 						<h3 className="text-foreground font-display text-base">Resource Usage</h3>
@@ -474,9 +482,9 @@ export default function ServiceDetailPage() {
 				</div>
 
 				{/* Dependencies */}
-				<div className="panel p-5">
+				<div className="bg-card border border-border rounded-lg p-5">
 					<div className="flex items-center gap-2 mb-5">
-						<Network className="w-4 h-4 text-violet" />
+						<Network className="w-4 h-4 text-purple-500" />
 						<h3 className="text-foreground font-display text-base">Dependencies</h3>
 					</div>
 					{config.dependencies.length > 0 ? (
@@ -491,7 +499,7 @@ export default function ServiceDetailPage() {
 				</div>
 
 				{/* Health Status */}
-				<div className="panel p-5 relative overflow-hidden">
+				<div className="bg-card border border-border rounded-lg p-5 relative overflow-hidden">
 					<div
 						className="absolute inset-0 opacity-10"
 						style={{
@@ -502,7 +510,7 @@ export default function ServiceDetailPage() {
 					/>
 					<div className="relative flex flex-col items-center justify-center h-full py-4">
 						{isOnline ? (
-							<CheckCircle2 className="w-16 h-16 text-success mb-3" />
+							<CheckCircle2 className="w-16 h-16 text-green-500 mb-3" />
 						) : (
 							<XCircle className="w-16 h-16 text-destructive mb-3" />
 						)}
@@ -517,10 +525,10 @@ export default function ServiceDetailPage() {
 			</div>
 
 			{/* Logs */}
-			<div className="panel p-5">
+			<div className="bg-card border border-border rounded-lg p-5">
 				<div className="flex items-center justify-between mb-4">
 					<div className="flex items-center gap-2">
-						<Terminal className="w-4 h-4 text-success" />
+						<Terminal className="w-4 h-4 text-green-500" />
 						<h3 className="text-foreground font-display text-base">Recent Logs</h3>
 					</div>
 					<Badge

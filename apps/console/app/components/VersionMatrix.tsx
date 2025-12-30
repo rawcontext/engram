@@ -105,15 +105,15 @@ function StatusBadge({ status }: { status: VersionInfo["status"] }) {
 		case "current":
 			return (
 				<div className="flex items-center gap-1.5">
-					<CheckCircle2 className="w-3.5 h-3.5 text-success" />
-					<span className="text-xs font-mono text-success">Current</span>
+					<CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+					<span className="text-xs font-mono text-green-500">Current</span>
 				</div>
 			);
 		case "update":
 			return (
 				<div className="flex items-center gap-1.5">
-					<ArrowUp className="w-3.5 h-3.5 text-warning" />
-					<span className="text-xs font-mono text-warning">Update</span>
+					<ArrowUp className="w-3.5 h-3.5 text-amber-500" />
+					<span className="text-xs font-mono text-amber-500">Update</span>
 				</div>
 			);
 		case "outdated":
@@ -182,13 +182,13 @@ export function VersionMatrix({ showHeader = true, filterType = "all" }: Version
 	};
 
 	return (
-		<div className="panel p-5">
+		<div className="bg-card border border-border rounded-lg p-5">
 			{showHeader && (
 				<div className="flex items-center justify-between mb-4">
 					<h3 className="font-display text-lg text-foreground">Version Matrix</h3>
 					<div className="flex items-center gap-4 text-xs font-mono">
-						<span className="text-success">{stats.current} current</span>
-						{stats.update > 0 && <span className="text-warning">{stats.update} updates</span>}
+						<span className="text-green-500">{stats.current} current</span>
+						{stats.update > 0 && <span className="text-amber-500">{stats.update} updates</span>}
 						{stats.outdated > 0 && (
 							<span className="text-destructive">{stats.outdated} outdated</span>
 						)}

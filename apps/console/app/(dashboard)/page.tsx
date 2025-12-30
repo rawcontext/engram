@@ -384,8 +384,8 @@ function ActivityFeed({
 							href={activity.href}
 							className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors group"
 						>
-							<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet/15">
-								<Rocket className="h-4 w-4 text-violet" />
+							<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/15">
+								<Rocket className="h-4 w-4 text-purple-500" />
 							</div>
 							<div className="flex-1 min-w-0">
 								<div className="font-mono text-sm truncate">{activity.title}</div>

@@ -140,7 +140,7 @@ function PercentileCard({ data, isLoading }: { data: PercentileData; isLoading: 
 	};
 
 	return (
-		<div className="panel p-5 hover-lift group relative overflow-hidden">
+		<div className="bg-card border border-border rounded-lg p-5 hover:-translate-y-0.5 hover:shadow-lg transition-all group relative overflow-hidden">
 			{/* Background glow */}
 			<div
 				className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
@@ -152,7 +152,7 @@ function PercentileCard({ data, isLoading }: { data: PercentileData; isLoading: 
 			{/* Threshold warning indicator */}
 			{isAboveThreshold && (
 				<div className="absolute top-0 right-0 w-12 h-12 overflow-hidden">
-					<div className="absolute rotate-45 translate-x-4 -translate-y-2 w-16 h-6 flex items-center justify-center bg-warning">
+					<div className="absolute rotate-45 translate-x-4 -translate-y-2 w-16 h-6 flex items-center justify-center bg-amber-500">
 						<span className="text-[8px] font-bold text-background">SLO</span>
 					</div>
 				</div>
@@ -168,7 +168,7 @@ function PercentileCard({ data, isLoading }: { data: PercentileData; isLoading: 
 				</div>
 
 				<div
-					className={`flex items-center gap-1 text-sm font-mono ${isPositive ? "text-success" : "text-destructive"}`}
+					className={`flex items-center gap-1 text-sm font-mono ${isPositive ? "text-green-500" : "text-destructive"}`}
 				>
 					{isPositive ? (
 						<ArrowDownRight className="w-4 h-4" />
@@ -200,7 +200,9 @@ function PercentileCard({ data, isLoading }: { data: PercentileData; isLoading: 
 			</div>
 
 			{/* Label */}
-			<div className="metric-label">{data.label}</div>
+			<div className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+				{data.label}
+			</div>
 
 			{/* Sparkline */}
 			<div className="absolute bottom-3 right-3 w-24 h-10 opacity-30 group-hover:opacity-60 transition-opacity">
@@ -240,7 +242,7 @@ function LatencyHistogram({ data, isLoading }: { data: LatencyBucket[]; isLoadin
 	};
 
 	return (
-		<div className="panel p-6 relative overflow-hidden">
+		<div className="bg-card border border-border rounded-lg p-6 relative overflow-hidden">
 			{/* Corner accent */}
 			<div
 				className="absolute top-0 left-0 w-24 h-24 pointer-events-none"
@@ -254,7 +256,7 @@ function LatencyHistogram({ data, isLoading }: { data: LatencyBucket[]; isLoadin
 			<div className="flex items-center justify-between mb-6 relative">
 				<div>
 					<h3 className="font-display text-lg text-foreground flex items-center gap-2">
-						<div className="w-2 h-2 rounded-full bg-violet" />
+						<div className="w-2 h-2 rounded-full bg-purple-500" />
 						Latency Distribution
 					</h3>
 					<p className="text-sm text-muted-foreground mt-1 font-mono">
@@ -265,7 +267,7 @@ function LatencyHistogram({ data, isLoading }: { data: LatencyBucket[]; isLoadin
 				{/* Legend */}
 				<div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
 					<div className="flex items-center gap-2">
-						<div className="w-3 h-3 rounded-sm bg-violet" />
+						<div className="w-3 h-3 rounded-sm bg-purple-500" />
 						<span>Request Count</span>
 					</div>
 				</div>
@@ -307,17 +309,23 @@ function LatencyHistogram({ data, isLoading }: { data: LatencyBucket[]; isLoadin
 			{/* Bottom stats */}
 			<div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-primary/10">
 				<div>
-					<div className="metric-label mb-1">Fastest Bucket</div>
-					<div className="font-mono text-sm text-success">0-10ms</div>
+					<div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">
+						Fastest Bucket
+					</div>
+					<div className="font-mono text-sm text-green-500">0-10ms</div>
 				</div>
 				<div>
-					<div className="metric-label mb-1">Mode</div>
+					<div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">
+						Mode
+					</div>
 					<div className="font-mono text-sm text-foreground">
 						{data.length > 0 ? data.reduce((a, b) => (a.count > b.count ? a : b)).range : "-"}
 					</div>
 				</div>
 				<div>
-					<div className="metric-label mb-1">Total Requests</div>
+					<div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">
+						Total Requests
+					</div>
 					<div className="font-mono text-sm text-foreground">
 						{data.reduce((sum, b) => sum + b.count, 0).toLocaleString()}
 					</div>
@@ -361,7 +369,7 @@ function StrategyComparisonChart({
 	};
 
 	return (
-		<div className="panel p-6 relative overflow-hidden">
+		<div className="bg-card border border-border rounded-lg p-6 relative overflow-hidden">
 			{/* Corner accent */}
 			<div
 				className="absolute top-0 right-0 w-32 h-32 pointer-events-none"
@@ -490,7 +498,9 @@ function StrategyComparisonChart({
 					},
 				].map((strategy) => (
 					<div key={strategy.name}>
-						<div className="metric-label mb-1">{strategy.name} Avg</div>
+						<div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">
+							{strategy.name} Avg
+						</div>
 						<div
 							className="font-mono text-lg font-medium"
 							style={{ color: `hsl(var(${strategy.color}))` }}
@@ -510,7 +520,7 @@ function StrategyComparisonChart({
 
 function PercentileSkeleton() {
 	return (
-		<div className="panel p-5 animate-pulse">
+		<div className="bg-card border border-border rounded-lg p-5 animate-pulse">
 			<div className="flex items-start justify-between mb-4">
 				<div className="w-11 h-11 rounded-lg bg-secondary" />
 				<div className="h-5 w-16 rounded bg-secondary" />
@@ -571,7 +581,7 @@ export default function PerformancePage() {
 			<div className="flex items-center justify-between">
 				<div>
 					<h1 className="font-display text-2xl text-foreground flex items-center gap-3">
-						<div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-violet flex items-center justify-center">
+						<div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
 							<Gauge className="w-4 h-4 text-background" />
 						</div>
 						Performance Analytics
@@ -598,7 +608,9 @@ export default function PerformancePage() {
 			<section>
 				<div className="flex items-center gap-2 mb-4">
 					<div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
-					<span className="metric-label px-2">Latency Percentiles</span>
+					<span className="text-xs font-mono uppercase tracking-wider text-muted-foreground px-2">
+						Latency Percentiles
+					</span>
 					<div className="h-px flex-1 bg-gradient-to-l from-primary/30 to-transparent" />
 				</div>
 

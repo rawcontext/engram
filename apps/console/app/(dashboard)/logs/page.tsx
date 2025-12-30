@@ -316,8 +316,8 @@ export default function LogsPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between mb-4">
 				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-success to-primary flex items-center justify-center shadow-lg shadow-success/20">
-						<ScrollText className="w-5 h-5 text-success-foreground" />
+					<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-primary flex items-center justify-center shadow-lg shadow-green-500/20">
+						<ScrollText className="w-5 h-5 text-green-50" />
 					</div>
 					<div>
 						<h1 className="font-display text-2xl text-foreground">Logs</h1>
@@ -329,12 +329,12 @@ export default function LogsPage() {
 				<div className="flex items-center gap-4">
 					<div
 						className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono ${
-							isStreaming ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+							isStreaming ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500"
 						}`}
 					>
 						<div
 							className={`w-2 h-2 rounded-full ${
-								isStreaming ? "bg-success animate-pulse" : "bg-warning"
+								isStreaming ? "bg-green-500 animate-pulse" : "bg-amber-500"
 							}`}
 						/>
 						{isStreaming ? "Live" : "Paused"}
@@ -349,7 +349,7 @@ export default function LogsPage() {
 						{isStreaming ? (
 							<Pause className="w-4 h-4 text-muted-foreground" />
 						) : (
-							<Play className="w-4 h-4 text-success" />
+							<Play className="w-4 h-4 text-green-500" />
 						)}
 					</button>
 
@@ -367,7 +367,7 @@ export default function LogsPage() {
 			</div>
 
 			{/* Filter Bar */}
-			<div className="panel p-3 mb-4">
+			<div className="bg-card border border-border rounded-lg p-3 mb-4">
 				<div className="flex items-center gap-3 flex-wrap">
 					{/* Service Filter */}
 					<FilterDropdown
@@ -461,7 +461,7 @@ export default function LogsPage() {
 			</div>
 
 			{/* Logs Container */}
-			<div className="panel flex-1 flex flex-col overflow-hidden">
+			<div className="bg-card border border-border rounded-lg flex-1 flex flex-col overflow-hidden">
 				{/* Terminal Header */}
 				<div className="flex items-center gap-2 px-4 py-2 border-b border-primary/10 bg-secondary">
 					<Terminal className="w-4 h-4 text-primary" />

@@ -146,7 +146,7 @@ function ActiveDeploymentCard({ deployment }: { deployment: Deployment }) {
 	}, [deployment.deployedAt]);
 
 	return (
-		<div className="panel p-4 mb-6 relative overflow-hidden">
+		<div className="bg-card border border-border rounded-lg p-4 mb-6 relative overflow-hidden">
 			{/* Animated border */}
 			<div className="absolute inset-0 rounded-lg">
 				<div
@@ -178,7 +178,9 @@ function ActiveDeploymentCard({ deployment }: { deployment: Deployment }) {
 
 				<div className="flex items-center gap-6">
 					<div className="text-right">
-						<div className="metric-label mb-1">Elapsed</div>
+						<div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">
+							Elapsed
+						</div>
 						<div className="font-mono text-lg text-primary">{formatDuration(elapsed)}</div>
 					</div>
 					<button
@@ -228,7 +230,9 @@ function DeploymentRow({
 			<td className="px-4 py-3">
 				<div className="flex items-center gap-2">
 					<GitCommit className="w-4 h-4 text-muted-foreground" />
-					<span className="font-mono text-sm text-violet">{deployment.commitHash.slice(0, 7)}</span>
+					<span className="font-mono text-sm text-purple-500">
+						{deployment.commitHash.slice(0, 7)}
+					</span>
 				</div>
 				<p className="mt-0.5 text-sm text-secondary-foreground truncate max-w-[300px]">
 					{deployment.commitMessage}
@@ -270,7 +274,7 @@ function DeploymentRow({
 						<button
 							type="button"
 							onClick={() => onRollback(deployment.id)}
-							className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:text-warning hover:bg-warning/10 transition-colors"
+							className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
 						>
 							<RotateCcw className="w-3.5 h-3.5" />
 							Rollback
@@ -369,7 +373,7 @@ export default function DeploymentsPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet to-primary flex items-center justify-center shadow-lg shadow-violet/20">
+					<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-primary flex items-center justify-center shadow-lg shadow-purple-500/20">
 						<Rocket className="w-5 h-5 text-background" />
 					</div>
 					<div>
@@ -382,7 +386,7 @@ export default function DeploymentsPage() {
 					{/* Stats */}
 					<div className="flex items-center gap-4 px-4 py-2 rounded-lg bg-secondary">
 						<div className="flex items-center gap-2">
-							<CheckCircle2 className="w-4 h-4 text-success" />
+							<CheckCircle2 className="w-4 h-4 text-green-500" />
 							<span className="font-mono text-sm text-secondary-foreground">{stats.success}</span>
 						</div>
 						<div className="w-px h-4 bg-primary/20" />
@@ -453,7 +457,7 @@ export default function DeploymentsPage() {
 			</div>
 
 			{/* Deployments Table */}
-			<div className="panel overflow-hidden">
+			<div className="bg-card border border-border rounded-lg overflow-hidden">
 				<table className="w-full">
 					<thead>
 						<tr className="border-b border-primary/10 bg-secondary">
@@ -529,7 +533,7 @@ export default function DeploymentsPage() {
 			</div>
 
 			{/* Pipeline Visual */}
-			<div className="panel p-4">
+			<div className="bg-card border border-border rounded-lg p-4">
 				<div className="flex items-center gap-2 mb-4">
 					<ChevronRight className="w-4 h-4 text-primary" />
 					<span className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
@@ -541,10 +545,10 @@ export default function DeploymentsPage() {
 						<div key={stage} className="flex items-center flex-1">
 							<div className="flex-1 flex flex-col items-center">
 								<div
-									className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${i < 3 ? "bg-success/15" : "bg-primary/15"}`}
+									className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${i < 3 ? "bg-green-500/15" : "bg-primary/15"}`}
 								>
 									{i < 3 ? (
-										<CheckCircle2 className="w-5 h-5 text-success" />
+										<CheckCircle2 className="w-5 h-5 text-green-500" />
 									) : (
 										<Loader2 className="w-5 h-5 text-primary animate-spin" />
 									)}
@@ -554,7 +558,7 @@ export default function DeploymentsPage() {
 									{i < 3 ? "2m 34s" : "In progress..."}
 								</span>
 							</div>
-							{i < 3 && <div className="flex-1 h-0.5 bg-success/30 mx-2" />}
+							{i < 3 && <div className="flex-1 h-0.5 bg-green-500/30 mx-2" />}
 						</div>
 					))}
 				</div>

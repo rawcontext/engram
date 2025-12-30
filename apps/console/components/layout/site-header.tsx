@@ -81,7 +81,7 @@ export function SiteHeader() {
 					{/* Notifications */}
 					<Button variant="ghost" size="icon" className="relative">
 						<Bell className="h-4 w-4" />
-						<span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-warning" />
+						<span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-500" />
 						<span className="sr-only">Notifications</span>
 					</Button>
 

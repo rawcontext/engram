@@ -172,7 +172,11 @@ function Select<T extends string>({
 
 	return (
 		<div className="relative">
-			{label && <label className="metric-label block mb-2">{label}</label>}
+			{label && (
+				<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+					{label}
+				</label>
+			)}
 			<button
 				type="button"
 				onClick={() => setIsOpen(!isOpen)}
@@ -242,7 +246,11 @@ function MultiSelect({
 
 	return (
 		<div className="relative">
-			{label && <label className="metric-label block mb-2">{label}</label>}
+			{label && (
+				<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+					{label}
+				</label>
+			)}
 			<button
 				type="button"
 				onClick={() => setIsOpen(!isOpen)}
@@ -346,7 +354,7 @@ function Modal({
 		<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: modal backdrop */}
 			<div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-			<div className="relative panel p-6 max-w-lg w-full max-h-[85vh] overflow-auto animate-fade-in">
+			<div className="relative bg-card border border-border rounded-lg p-6 max-w-lg w-full max-h-[85vh] overflow-auto animate-in fade-in">
 				{/* Header */}
 				<div className="flex items-center justify-between mb-6">
 					<h3 className="font-display text-lg text-foreground">{title}</h3>
@@ -388,7 +396,7 @@ function AlertRuleCard({
 
 	return (
 		<div
-			className={`panel p-4 hover-lift group transition-all ${
+			className={`bg-card border border-border rounded-lg p-4 hover:-translate-y-0.5 hover:shadow-lg transition-all group transition-all ${
 				rule.status === "triggered" ? "ring-1 ring-destructive" : ""
 			}`}
 		>
@@ -431,12 +439,12 @@ function AlertRuleCard({
 			<div className="p-3 rounded-lg bg-secondary mb-3 font-mono text-sm">
 				<span className="text-primary">{metric?.label}</span>
 				<span className="text-muted-foreground mx-2">{condition?.symbol}</span>
-				<span className="text-warning">
+				<span className="text-amber-500">
 					{rule.threshold}
 					{metric?.unit}
 				</span>
 				<span className="text-muted-foreground mx-2">for</span>
-				<span className="text-violet">{formatDuration(rule.duration)}</span>
+				<span className="text-purple-500">{formatDuration(rule.duration)}</span>
 			</div>
 
 			{/* Channels */}
@@ -509,15 +517,15 @@ function ChannelCard({
 		<div className="p-4 rounded-lg bg-secondary border border-primary/10 hover:border-primary/20 transition-colors group">
 			<div className="flex items-start justify-between">
 				<div className="flex items-center gap-3">
-					<div className="w-9 h-9 rounded-lg bg-violet/10 flex items-center justify-center">
-						<Icon className="w-4 h-4 text-violet" />
+					<div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
+						<Icon className="w-4 h-4 text-purple-500" />
 					</div>
 					<div>
 						<div className="font-mono text-sm text-foreground">{channel.name}</div>
 						<div className="flex items-center gap-2 mt-1">
 							<span className="text-xs text-muted-foreground uppercase">{channel.type}</span>
 							{channel.verified && (
-								<span className="flex items-center gap-1 text-xs text-success">
+								<span className="flex items-center gap-1 text-xs text-green-500">
 									<CheckCircle2 className="w-3 h-3" />
 									Verified
 								</span>
@@ -625,14 +633,14 @@ function AlertHistoryRow({
 					<button
 						type="button"
 						onClick={onAcknowledge}
-						className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-warning/10 text-warning hover:bg-warning/20 transition-colors"
+						className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors"
 					>
 						<Check className="w-3.5 h-3.5" />
 						Ack
 					</button>
 				)}
 				{alert.acknowledged && (
-					<span className="flex items-center gap-1 text-xs text-success">
+					<span className="flex items-center gap-1 text-xs text-green-500">
 						<CheckCircle2 className="w-3.5 h-3.5" />
 						Ack'd
 					</span>
@@ -696,7 +704,9 @@ function AlertRuleModal({
 			<div className="space-y-5">
 				{/* Name */}
 				<div>
-					<label className="metric-label block mb-2">Rule Name</label>
+					<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+						Rule Name
+					</label>
 					<input
 						type="text"
 						value={name}
@@ -727,7 +737,9 @@ function AlertRuleModal({
 				{/* Threshold & Duration */}
 				<div className="grid grid-cols-2 gap-4">
 					<div>
-						<label className="metric-label block mb-2">Threshold</label>
+						<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+							Threshold
+						</label>
 						<div className="relative">
 							<input
 								type="number"
@@ -753,7 +765,9 @@ function AlertRuleModal({
 
 				{/* Severity */}
 				<div>
-					<label className="metric-label block mb-2">Severity</label>
+					<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+						Severity
+					</label>
 					<div className="flex gap-2">
 						{SEVERITIES.map((s) => (
 							<button
@@ -799,7 +813,7 @@ function AlertRuleModal({
 						type="button"
 						onClick={handleSave}
 						disabled={!name || !metric || !condition || !threshold || isSaving}
-						className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-primary to-violet text-primary-foreground font-mono text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+						className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-primary to-purple-500 text-primary-foreground font-mono text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
 					>
 						{isSaving ? (
 							<>
@@ -852,7 +866,9 @@ function ChannelModal({
 				return (
 					<>
 						<div>
-							<label className="metric-label block mb-2">Webhook URL</label>
+							<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+								Webhook URL
+							</label>
 							<input
 								type="url"
 								value={config.webhookUrl || ""}
@@ -862,7 +878,9 @@ function ChannelModal({
 							/>
 						</div>
 						<div>
-							<label className="metric-label block mb-2">Channel</label>
+							<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+								Channel
+							</label>
 							<input
 								type="text"
 								value={config.channel || ""}
@@ -876,7 +894,9 @@ function ChannelModal({
 			case "email":
 				return (
 					<div>
-						<label className="metric-label block mb-2">Email Addresses</label>
+						<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+							Email Addresses
+						</label>
 						<input
 							type="text"
 							value={config.emails || ""}
@@ -892,7 +912,9 @@ function ChannelModal({
 			case "webhook":
 				return (
 					<div>
-						<label className="metric-label block mb-2">Webhook URL</label>
+						<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+							Webhook URL
+						</label>
 						<input
 							type="url"
 							value={config.url || ""}
@@ -905,7 +927,9 @@ function ChannelModal({
 			case "pagerduty":
 				return (
 					<div>
-						<label className="metric-label block mb-2">Routing Key</label>
+						<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+							Routing Key
+						</label>
 						<input
 							type="text"
 							value={config.routingKey || ""}
@@ -925,7 +949,9 @@ function ChannelModal({
 			<div className="space-y-5">
 				{/* Name */}
 				<div>
-					<label className="metric-label block mb-2">Channel Name</label>
+					<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+						Channel Name
+					</label>
 					<input
 						type="text"
 						value={name}
@@ -937,7 +963,9 @@ function ChannelModal({
 
 				{/* Type */}
 				<div>
-					<label className="metric-label block mb-2">Channel Type</label>
+					<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+						Channel Type
+					</label>
 					<div className="grid grid-cols-4 gap-2">
 						{CHANNEL_TYPES.map((t) => {
 							const Icon = t.icon;
@@ -989,7 +1017,7 @@ function ChannelModal({
 						type="button"
 						onClick={handleSave}
 						disabled={!name || !type || isSaving}
-						className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-violet to-primary text-primary-foreground font-mono text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+						className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-primary text-primary-foreground font-mono text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
 					>
 						{isSaving ? (
 							<>
@@ -1110,14 +1138,14 @@ export default function AlertsPage() {
 						<div
 							className={`w-8 h-8 rounded-lg flex items-center justify-center ${
 								firingCount > 0
-									? "bg-gradient-to-br from-destructive to-warning"
-									: "bg-gradient-to-br from-warning to-destructive"
+									? "bg-gradient-to-br from-destructive to-amber-500"
+									: "bg-gradient-to-br from-amber-500 to-destructive"
 							}`}
 						>
 							{firingCount > 0 ? (
 								<AlertTriangle className="w-4 h-4 text-white" />
 							) : (
-								<Bell className="w-4 h-4 text-warning-foreground" />
+								<Bell className="w-4 h-4 text-amber-50" />
 							)}
 						</div>
 						Alert Configuration
@@ -1152,7 +1180,7 @@ export default function AlertsPage() {
 								setEditingRule(undefined);
 								setShowRuleModal(true);
 							}}
-							className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-violet text-primary-foreground font-mono text-sm font-medium hover:shadow-lg hover:shadow-primary/20 transition-all"
+							className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-purple-500 text-primary-foreground font-mono text-sm font-medium hover:shadow-lg hover:shadow-primary/20 transition-all"
 						>
 							<Plus className="w-4 h-4" />
 							New Rule
@@ -1163,7 +1191,7 @@ export default function AlertsPage() {
 					{isLoading ? (
 						<div className="space-y-4">
 							{[1, 2, 3].map((i) => (
-								<div key={i} className="panel p-4 animate-pulse">
+								<div key={i} className="bg-card border border-border rounded-lg p-4 animate-pulse">
 									<div className="flex items-center gap-3 mb-3">
 										<div className="w-3 h-3 rounded-full bg-secondary" />
 										<div className="h-4 w-32 rounded bg-secondary" />
@@ -1197,13 +1225,13 @@ export default function AlertsPage() {
 					{/* Section header */}
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<ExternalLink className="w-4 h-4 text-violet" />
+							<ExternalLink className="w-4 h-4 text-purple-500" />
 							<h2 className="font-display text-base text-foreground">Channels</h2>
 						</div>
 						<button
 							type="button"
 							onClick={() => setShowChannelModal(true)}
-							className="p-2 rounded-lg bg-secondary hover:bg-violet/20 text-muted-foreground hover:text-violet transition-colors"
+							className="p-2 rounded-lg bg-secondary hover:bg-purple-500/20 text-muted-foreground hover:text-purple-500 transition-colors"
 						>
 							<Plus className="w-4 h-4" />
 						</button>
@@ -1221,7 +1249,7 @@ export default function AlertsPage() {
 							/>
 						))}
 						{channels.length === 0 && !isLoading && (
-							<div className="panel p-6 text-center">
+							<div className="bg-card border border-border rounded-lg p-6 text-center">
 								<BellOff className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
 								<p className="text-sm text-muted-foreground">No notification channels configured</p>
 							</div>
@@ -1231,11 +1259,11 @@ export default function AlertsPage() {
 			</div>
 
 			{/* Alert History */}
-			<div className="panel overflow-hidden">
+			<div className="bg-card border border-border rounded-lg overflow-hidden">
 				{/* Section header */}
 				<div className="flex items-center justify-between px-4 py-4 border-b border-primary/10">
 					<div className="flex items-center gap-2">
-						<Clock className="w-4 h-4 text-warning" />
+						<Clock className="w-4 h-4 text-amber-500" />
 						<h2 className="font-display text-base text-foreground">Alert History</h2>
 					</div>
 				</div>
@@ -1252,7 +1280,7 @@ export default function AlertsPage() {
 						))
 					) : (
 						<div className="p-8 text-center">
-							<CheckCircle2 className="w-8 h-8 text-success mx-auto mb-3" />
+							<CheckCircle2 className="w-8 h-8 text-green-500 mx-auto mb-3" />
 							<p className="text-sm text-muted-foreground">No recent alerts</p>
 						</div>
 					)}

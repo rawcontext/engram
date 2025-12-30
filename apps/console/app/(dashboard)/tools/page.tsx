@@ -106,11 +106,11 @@ function highlightCypher(code: string): string {
 	const numbers = /\b(\d+(?:\.\d+)?)\b/g;
 
 	return code
-		.replace(strings, '<span class="text-success">$1</span>')
-		.replace(keywords, '<span class="text-violet font-semibold">$1</span>')
+		.replace(strings, '<span class="text-green-500">$1</span>')
+		.replace(keywords, '<span class="text-purple-500 font-semibold">$1</span>')
 		.replace(functions, '<span class="text-primary">$1</span>')
-		.replace(variables, '<span class="text-warning">$1</span>')
-		.replace(numbers, '<span class="text-warning">$1</span>');
+		.replace(variables, '<span class="text-amber-500">$1</span>')
+		.replace(numbers, '<span class="text-amber-500">$1</span>');
 }
 
 // ============================================
@@ -133,7 +133,9 @@ function Dropdown<T extends string>({
 
 	return (
 		<div className="relative">
-			<label className="metric-label block mb-2">{label}</label>
+			<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+				{label}
+			</label>
 			<button
 				type="button"
 				onClick={() => setIsOpen(!isOpen)}
@@ -204,7 +206,7 @@ function ConfirmDialog({
 		<div className="fixed inset-0 z-50 flex items-center justify-center">
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: modal backdrop */}
 			<div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-			<div className="relative panel p-6 max-w-md w-full mx-4 animate-fade-in">
+			<div className="relative bg-card border border-border rounded-lg p-6 max-w-md w-full mx-4 animate-in fade-in">
 				<div
 					className="w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto"
 					style={{ background: `color-mix(in oklch, var(${variantColor}) 15%, transparent)` }}
@@ -275,12 +277,12 @@ function GraphQueryPanel() {
 	}, [apiClient, query]);
 
 	return (
-		<div className="panel p-6 flex flex-col h-full">
+		<div className="bg-card border border-border rounded-lg p-6 flex flex-col h-full">
 			{/* Header */}
 			<div className="flex items-center justify-between mb-4">
 				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-lg bg-violet/15 flex items-center justify-center">
-						<Database className="w-5 h-5 text-violet" />
+					<div className="w-10 h-10 rounded-lg bg-purple-500/15 flex items-center justify-center">
+						<Database className="w-5 h-5 text-purple-500" />
 					</div>
 					<div>
 						<h3 className="font-display text-base text-foreground">Graph Query Executor</h3>
@@ -308,7 +310,7 @@ function GraphQueryPanel() {
 			{/* Query Editor */}
 			<div className="relative flex-shrink-0 mb-4">
 				<div className="absolute top-3 left-3 flex items-center gap-2 text-xs font-mono text-muted-foreground z-10">
-					<span className="px-2 py-0.5 rounded bg-violet/20 text-violet">CYPHER</span>
+					<span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-500">CYPHER</span>
 				</div>
 				<div className="relative rounded-lg bg-secondary border border-primary/10 overflow-hidden">
 					{/* Syntax highlight overlay */}
@@ -335,7 +337,7 @@ function GraphQueryPanel() {
 				type="button"
 				onClick={executeQuery}
 				disabled={isExecuting || !query.trim()}
-				className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-violet to-primary text-background font-mono text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-violet/30 transition-all mb-4"
+				className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-primary text-background font-mono text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-purple-500/30 transition-all mb-4"
 			>
 				{isExecuting ? (
 					<>
@@ -364,7 +366,7 @@ function GraphQueryPanel() {
 					{/* Stats bar */}
 					<div className="flex items-center gap-4 mb-3 text-xs font-mono text-muted-foreground">
 						<div className="flex items-center gap-1.5">
-							<Clock className="w-3.5 h-3.5 text-success" />
+							<Clock className="w-3.5 h-3.5 text-green-500" />
 							<span>{result.executionTime.toFixed(1)}ms</span>
 						</div>
 						<div className="flex items-center gap-1.5">
@@ -507,7 +509,7 @@ function VectorSearchPanel() {
 	};
 
 	return (
-		<div className="panel p-6 flex flex-col h-full">
+		<div className="bg-card border border-border rounded-lg p-6 flex flex-col h-full">
 			{/* Header */}
 			<div className="flex items-center justify-between mb-4">
 				<div className="flex items-center gap-3">
@@ -525,7 +527,7 @@ function VectorSearchPanel() {
 				{(isSearching || elapsedTime > 0) && (
 					<div
 						className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-mono text-xs ${
-							isSearching ? "bg-primary/10 text-primary" : "bg-success/10 text-success"
+							isSearching ? "bg-primary/10 text-primary" : "bg-green-500/10 text-green-500"
 						}`}
 					>
 						<Zap className="w-3.5 h-3.5" />
@@ -556,7 +558,9 @@ function VectorSearchPanel() {
 			{/* Limit Slider */}
 			<div className="mb-4">
 				<div className="flex items-center justify-between mb-2">
-					<label className="metric-label">Result Limit</label>
+					<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+						Result Limit
+					</label>
 					<span className="font-mono text-sm text-primary">{limit}</span>
 				</div>
 				<input
@@ -736,11 +740,11 @@ function CacheControlsPanel() {
 	};
 
 	return (
-		<div className="panel p-6 flex flex-col h-full">
+		<div className="bg-card border border-border rounded-lg p-6 flex flex-col h-full">
 			{/* Header */}
 			<div className="flex items-center gap-3 mb-6">
-				<div className="w-10 h-10 rounded-lg bg-warning/15 flex items-center justify-center">
-					<Wrench className="w-5 h-5 text-warning" />
+				<div className="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center">
+					<Wrench className="w-5 h-5 text-amber-500" />
 				</div>
 				<div>
 					<h3 className="font-display text-base text-foreground">Cache Controls</h3>
@@ -754,8 +758,8 @@ function CacheControlsPanel() {
 				<div className="p-4 rounded-lg bg-secondary border border-primary/[0.08]">
 					<div className="flex items-center justify-between mb-3">
 						<div className="flex items-center gap-3">
-							<div className="w-8 h-8 rounded-lg bg-violet/10 flex items-center justify-center">
-								<Sparkles className="w-4 h-4 text-violet" />
+							<div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+								<Sparkles className="w-4 h-4 text-purple-500" />
 							</div>
 							<div>
 								<div className="font-mono text-sm text-foreground">Embedding Cache</div>
@@ -785,7 +789,7 @@ function CacheControlsPanel() {
 					{/* Status */}
 					<div className="flex items-center gap-2 text-xs font-mono">
 						{actions.embedding.result?.success ? (
-							<CheckCircle2 className="w-3.5 h-3.5 text-success" />
+							<CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
 						) : (
 							<Clock className="w-3.5 h-3.5 text-muted-foreground" />
 						)}
@@ -830,7 +834,7 @@ function CacheControlsPanel() {
 					{/* Status */}
 					<div className="flex items-center gap-2 text-xs font-mono">
 						{actions.query.result?.success ? (
-							<CheckCircle2 className="w-3.5 h-3.5 text-success" />
+							<CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
 						) : (
 							<Clock className="w-3.5 h-3.5 text-muted-foreground" />
 						)}
@@ -844,8 +848,8 @@ function CacheControlsPanel() {
 				<div className="p-4 rounded-lg bg-secondary border border-primary/[0.08]">
 					<div className="flex items-center justify-between mb-3">
 						<div className="flex items-center gap-3">
-							<div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center">
-								<Server className="w-4 h-4 text-warning" />
+							<div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+								<Server className="w-4 h-4 text-amber-500" />
 							</div>
 							<div>
 								<div className="font-mono text-sm text-foreground">NATS Consumer</div>
@@ -862,7 +866,7 @@ function CacheControlsPanel() {
 								)
 							}
 							disabled={actions.consumer.isLoading || !selectedStream}
-							className="flex items-center gap-2 px-4 py-2 rounded-lg bg-warning/10 text-warning hover:bg-warning/20 transition-colors font-mono text-xs font-medium disabled:opacity-50"
+							className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors font-mono text-xs font-medium disabled:opacity-50"
 						>
 							{actions.consumer.isLoading ? (
 								<Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -875,7 +879,9 @@ function CacheControlsPanel() {
 
 					{/* Stream Selector */}
 					<div className="mb-3">
-						<label className="metric-label block mb-2">Target Stream</label>
+						<label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
+							Target Stream
+						</label>
 						<select
 							value={selectedStream}
 							onChange={(e) => setSelectedStream(e.target.value)}
@@ -892,7 +898,7 @@ function CacheControlsPanel() {
 					{/* Status */}
 					<div className="flex items-center gap-2 text-xs font-mono">
 						{actions.consumer.result?.success ? (
-							<CheckCircle2 className="w-3.5 h-3.5 text-success" />
+							<CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
 						) : (
 							<Clock className="w-3.5 h-3.5 text-muted-foreground" />
 						)}
@@ -906,14 +912,16 @@ function CacheControlsPanel() {
 			{/* Stream Stats */}
 			{streams.length > 0 && (
 				<div className="mt-4 pt-4 border-t border-primary/10">
-					<div className="metric-label mb-3">Stream Overview</div>
+					<div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3">
+						Stream Overview
+					</div>
 					<div className="grid grid-cols-3 gap-3">
 						{streams.map((stream) => (
 							<div
 								key={stream.name}
 								className={`p-3 rounded-lg text-center transition-colors ${
 									stream.name === selectedStream
-										? "bg-warning/10 border border-warning/20"
+										? "bg-amber-500/10 border border-amber-500/20"
 										: "bg-card"
 								}`}
 							>
@@ -953,7 +961,7 @@ export default function ToolsPage() {
 			{/* Header */}
 			<div>
 				<h1 className="font-display text-2xl text-foreground flex items-center gap-3">
-					<div className="w-8 h-8 rounded-lg bg-gradient-to-br from-warning to-destructive flex items-center justify-center">
+					<div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-destructive flex items-center justify-center">
 						<Wrench className="w-4 h-4 text-background" />
 					</div>
 					Admin Tools
