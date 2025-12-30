@@ -38,3 +38,6 @@ packages/benchmark/results/
 packages/benchmark/*-report.md
 *mcp.json
 .vercel
+
+# Temp directory for external repo work
+.tmp/
