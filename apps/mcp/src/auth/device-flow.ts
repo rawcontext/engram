@@ -8,7 +8,7 @@
  */
 
 import { exec } from "node:child_process";
-import { platform, release, arch } from "node:os";
+import { arch, platform, release } from "node:os";
 import type { DeviceCodeResponse, TokenErrorResponse, TokenResponse } from "@engram/common/types";
 import type { Logger } from "@engram/logger";
 import { TokenCache } from "./token-cache";

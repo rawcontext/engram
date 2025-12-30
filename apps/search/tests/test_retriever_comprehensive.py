@@ -93,6 +93,12 @@ def retriever(
     )
 
 
+@pytest.fixture
+def test_filters() -> SearchFilters:
+    """Create test filters with required org_id."""
+    return SearchFilters(org_id="test-org-123")
+
+
 def create_mock_point(point_id: str | int, score: float, payload: dict[str, Any]) -> MagicMock:
     """Helper to create a mock Qdrant ScoredPoint."""
     point = MagicMock()
@@ -109,6 +115,7 @@ class TestSearchRetrieverDense:
     async def test_search_dense_basic(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test basic dense search."""
@@ -121,7 +128,11 @@ class TestSearchRetrieverDense:
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
         query = SearchQuery(
-            text="test query", limit=10, strategy=SearchStrategy.DENSE, rerank=False
+            text="test query",
+            limit=10,
+            strategy=SearchStrategy.DENSE,
+            rerank=False,
+            filters=test_filters,
         )
         results = await retriever.search(query)
 
@@ -134,6 +145,7 @@ class TestSearchRetrieverDense:
     async def test_search_dense_code_filter(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
         mock_embedder_factory: MagicMock,
     ) -> None:
@@ -146,7 +158,7 @@ class TestSearchRetrieverDense:
             text="function definition",
             limit=10,
             strategy=SearchStrategy.DENSE,
-            filters=SearchFilters(type="code"),
+            filters=SearchFilters(org_id="test-org-123", type="code"),
             rerank=False,
         )
         await retriever.search(query)
@@ -160,6 +172,7 @@ class TestSearchRetrieverDense:
     async def test_search_dense_threshold(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test dense search applies custom threshold."""
@@ -174,6 +187,7 @@ class TestSearchRetrieverDense:
             strategy=SearchStrategy.DENSE,
             threshold=custom_threshold,
             rerank=False,
+            filters=test_filters,
         )
         await retriever.search(query)
 
@@ -188,6 +202,7 @@ class TestSearchRetrieverSparse:
     async def test_search_sparse_basic(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test basic sparse search."""
@@ -198,7 +213,11 @@ class TestSearchRetrieverSparse:
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
         query = SearchQuery(
-            text="exact keyword search", limit=5, strategy=SearchStrategy.SPARSE, rerank=False
+            text="exact keyword search",
+            limit=5,
+            strategy=SearchStrategy.SPARSE,
+            rerank=False,
+            filters=test_filters,
         )
         results = await retriever.search(query)
 
@@ -209,6 +228,7 @@ class TestSearchRetrieverSparse:
     async def test_search_sparse_vector_format(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
         mock_embedder_factory: MagicMock,
     ) -> None:
@@ -221,7 +241,13 @@ class TestSearchRetrieverSparse:
         sparse_embedder = await mock_embedder_factory.get_sparse_embedder()
         sparse_embedder.embed_sparse.return_value = {5: 0.9, 15: 0.7, 25: 0.5}
 
-        query = SearchQuery(text="test", limit=10, strategy=SearchStrategy.SPARSE, rerank=False)
+        query = SearchQuery(
+            text="test",
+            limit=10,
+            strategy=SearchStrategy.SPARSE,
+            rerank=False,
+            filters=test_filters,
+        )
         await retriever.search(query)
 
         # Verify query_points was called with SparseVector
@@ -239,6 +265,7 @@ class TestSearchRetrieverHybrid:
     async def test_search_hybrid_basic(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test hybrid search with RRF fusion."""
@@ -253,6 +280,7 @@ class TestSearchRetrieverHybrid:
             limit=10,
             strategy=SearchStrategy.HYBRID,
             rerank=False,
+            filters=test_filters,
         )
         results = await retriever.search(query)
 
@@ -266,6 +294,7 @@ class TestSearchRetrieverHybrid:
     async def test_search_hybrid_rrf_fusion_query(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test hybrid search uses RRF fusion query."""
@@ -273,7 +302,13 @@ class TestSearchRetrieverHybrid:
         mock_response.points = []
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
-        query = SearchQuery(text="test", limit=10, strategy=SearchStrategy.HYBRID, rerank=False)
+        query = SearchQuery(
+            text="test",
+            limit=10,
+            strategy=SearchStrategy.HYBRID,
+            rerank=False,
+            filters=test_filters,
+        )
         await retriever.search(query)
 
         call_args = mock_qdrant_client.client.query_points.call_args
@@ -285,6 +320,7 @@ class TestSearchRetrieverHybrid:
     async def test_search_hybrid_code_filter(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
         mock_embedder_factory: MagicMock,
     ) -> None:
@@ -297,7 +333,7 @@ class TestSearchRetrieverHybrid:
             text="code search",
             limit=10,
             strategy=SearchStrategy.HYBRID,
-            filters=SearchFilters(type="code"),
+            filters=SearchFilters(org_id="test-org-123", type="code"),
             rerank=False,
         )
         await retriever.search(query)
@@ -313,6 +349,7 @@ class TestSearchRetrieverReranking:
     async def test_search_with_reranking_basic(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
         mock_reranker_router: MagicMock,
     ) -> None:
@@ -336,7 +373,12 @@ class TestSearchRetrieverReranking:
         mock_reranker_router.rerank = AsyncMock(return_value=(reranked_results, "fast", False))
 
         query = SearchQuery(
-            text="test query", limit=3, rerank=True, rerank_tier="fast", rerank_depth=10
+            text="test query",
+            limit=3,
+            rerank=True,
+            rerank_tier="fast",
+            rerank_depth=10,
+            filters=test_filters,
         )
         results = await retriever.search(query)
 
@@ -350,6 +392,7 @@ class TestSearchRetrieverReranking:
     async def test_search_reranking_oversample(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
         mock_reranker_router: MagicMock,
     ) -> None:
@@ -358,7 +401,14 @@ class TestSearchRetrieverReranking:
         mock_response.points = []
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
-        query = SearchQuery(text="test", limit=5, rerank=True, rerank_depth=20, rerank_tier="fast")
+        query = SearchQuery(
+            text="test",
+            limit=5,
+            rerank=True,
+            rerank_depth=20,
+            rerank_tier="fast",
+            filters=test_filters,
+        )
         await retriever.search(query)
 
         # Verify we fetched rerank_depth results
@@ -369,6 +419,7 @@ class TestSearchRetrieverReranking:
     async def test_search_reranking_timeout(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
         mock_reranker_router: MagicMock,
     ) -> None:
@@ -381,7 +432,7 @@ class TestSearchRetrieverReranking:
         reranked = [MagicMock(original_index=0, score=0.95)]
         mock_reranker_router.rerank = AsyncMock(return_value=(reranked, "fast", False))
 
-        query = SearchQuery(text="test", limit=5, rerank=True)
+        query = SearchQuery(text="test", limit=5, rerank=True, filters=test_filters)
         await retriever.search(query)
 
         # Verify timeout was passed to reranker
@@ -392,6 +443,7 @@ class TestSearchRetrieverReranking:
     async def test_search_reranker_auto_tier_selection(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
         mock_reranker_router: MagicMock,
     ) -> None:
@@ -405,7 +457,9 @@ class TestSearchRetrieverReranking:
         mock_reranker_router.rerank = AsyncMock(return_value=(reranked, "fast", False))
 
         # Query without explicit tier - should auto-select
-        query = SearchQuery(text="simple query", limit=5, rerank=True, rerank_tier=None)
+        query = SearchQuery(
+            text="simple query", limit=5, rerank=True, rerank_tier=None, filters=test_filters
+        )
         await retriever.search(query)
 
         # Verify reranker was called (tier was auto-selected)
@@ -415,6 +469,7 @@ class TestSearchRetrieverReranking:
     async def test_search_reranker_degraded_flag(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
         mock_reranker_router: MagicMock,
     ) -> None:
@@ -430,7 +485,9 @@ class TestSearchRetrieverReranking:
             return_value=(reranked, "fast", True)
         )  # degraded=True
 
-        query = SearchQuery(text="test", limit=5, rerank=True, rerank_tier="accurate")
+        query = SearchQuery(
+            text="test", limit=5, rerank=True, rerank_tier="accurate", filters=test_filters
+        )
         results = await retriever.search(query)
 
         assert results[0].degraded is True
@@ -439,6 +496,7 @@ class TestSearchRetrieverReranking:
     async def test_search_reranker_fallback_on_error(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
         mock_reranker_router: MagicMock,
     ) -> None:
@@ -452,7 +510,7 @@ class TestSearchRetrieverReranking:
         # Make reranker throw an exception
         mock_reranker_router.rerank = AsyncMock(side_effect=Exception("Reranker failed"))
 
-        query = SearchQuery(text="test query", limit=5, rerank=True)
+        query = SearchQuery(text="test query", limit=5, rerank=True, filters=test_filters)
         results = await retriever.search(query)
 
         # Should still get results with degraded flag
@@ -468,6 +526,7 @@ class TestSearchRetrieverTurns:
     async def test_search_turns_dense(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test turn-level dense search."""
@@ -476,7 +535,9 @@ class TestSearchRetrieverTurns:
         mock_response.points = [mock_result]
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
-        query = SearchQuery(text="test", limit=10, strategy=SearchStrategy.DENSE, rerank=False)
+        query = SearchQuery(
+            text="test", limit=10, strategy=SearchStrategy.DENSE, rerank=False, filters=test_filters
+        )
         results = await retriever.search_turns(query)
 
         assert len(results) == 1
@@ -576,6 +637,7 @@ class TestSearchRetrieverFilters:
     async def test_filter_session_id(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test session_id filter is applied."""
@@ -587,7 +649,7 @@ class TestSearchRetrieverFilters:
             text="test",
             limit=10,
             strategy=SearchStrategy.DENSE,
-            filters=SearchFilters(session_id="session-123"),
+            filters=SearchFilters(org_id="test-org-123", session_id="session-123"),
             rerank=False,
         )
         await retriever.search(query)
@@ -600,6 +662,7 @@ class TestSearchRetrieverFilters:
     async def test_filter_type(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test type filter is applied."""
@@ -611,7 +674,7 @@ class TestSearchRetrieverFilters:
             text="test",
             limit=10,
             strategy=SearchStrategy.DENSE,
-            filters=SearchFilters(type="thought"),
+            filters=SearchFilters(org_id="test-org-123", type="thought"),
             rerank=False,
         )
         await retriever.search(query)
@@ -624,6 +687,7 @@ class TestSearchRetrieverFilters:
     async def test_filter_time_range(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test time_range filter is applied."""
@@ -635,7 +699,7 @@ class TestSearchRetrieverFilters:
             text="test",
             limit=10,
             strategy=SearchStrategy.DENSE,
-            filters=SearchFilters(time_range=TimeRange(start=1000, end=2000)),
+            filters=SearchFilters(org_id="test-org-123", time_range=TimeRange(start=1000, end=2000)),
             rerank=False,
         )
         await retriever.search(query)
@@ -648,6 +712,7 @@ class TestSearchRetrieverFilters:
     async def test_filter_combined(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test multiple filters are combined."""
@@ -660,7 +725,10 @@ class TestSearchRetrieverFilters:
             limit=10,
             strategy=SearchStrategy.DENSE,
             filters=SearchFilters(
-                session_id="session-123", type="code", time_range=TimeRange(start=1000, end=2000)
+                org_id="test-org-123",
+                session_id="session-123",
+                type="code",
+                time_range=TimeRange(start=1000, end=2000),
             ),
             rerank=False,
         )
@@ -678,6 +746,7 @@ class TestSearchRetrieverEdgeCases:
     async def test_search_empty_results(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test search returns empty list when no matches."""
@@ -685,7 +754,7 @@ class TestSearchRetrieverEdgeCases:
         mock_response.points = []
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
-        query = SearchQuery(text="nonexistent query", limit=10, rerank=False)
+        query = SearchQuery(text="nonexistent query", limit=10, rerank=False, filters=test_filters)
         results = await retriever.search(query)
 
         assert results == []
@@ -694,6 +763,7 @@ class TestSearchRetrieverEdgeCases:
     async def test_search_qdrant_error_handling(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test search handles Qdrant errors gracefully."""
@@ -702,7 +772,9 @@ class TestSearchRetrieverEdgeCases:
             side_effect=RuntimeError("Qdrant connection failed")
         )
 
-        query = SearchQuery(text="test", limit=10, strategy=SearchStrategy.DENSE, rerank=False)
+        query = SearchQuery(
+            text="test", limit=10, strategy=SearchStrategy.DENSE, rerank=False, filters=test_filters
+        )
 
         # Should raise the exception (error handling is at API level)
         with pytest.raises(RuntimeError):
@@ -712,6 +784,7 @@ class TestSearchRetrieverEdgeCases:
     async def test_search_uuid_id_conversion(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test UUID IDs are converted to strings."""
@@ -724,7 +797,7 @@ class TestSearchRetrieverEdgeCases:
         mock_response.points = [mock_result]
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
-        query = SearchQuery(text="test", limit=10, rerank=False)
+        query = SearchQuery(text="test", limit=10, rerank=False, filters=test_filters)
         results = await retriever.search(query)
 
         # UUID should be converted to string
@@ -735,6 +808,7 @@ class TestSearchRetrieverEdgeCases:
     async def test_search_auto_strategy_selection(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test strategy auto-selection when not provided."""
@@ -744,7 +818,11 @@ class TestSearchRetrieverEdgeCases:
 
         # Query without explicit strategy - should use classifier
         query = SearchQuery(
-            text="how do I implement this feature?", limit=5, strategy=None, rerank=False
+            text="how do I implement this feature?",
+            limit=5,
+            strategy=None,
+            rerank=False,
+            filters=test_filters,
         )
         await retriever.search(query)
 
@@ -755,6 +833,7 @@ class TestSearchRetrieverEdgeCases:
     async def test_search_result_score_preservation(
         self,
         retriever: SearchRetriever,
+        test_filters: SearchFilters,
         mock_qdrant_client: MagicMock,
         mock_reranker_router: MagicMock,
     ) -> None:
@@ -770,7 +849,7 @@ class TestSearchRetrieverEdgeCases:
         reranked = [MagicMock(original_index=0, score=reranker_score)]
         mock_reranker_router.rerank = AsyncMock(return_value=(reranked, "fast", False))
 
-        query = SearchQuery(text="test", limit=5, rerank=True)
+        query = SearchQuery(text="test", limit=5, rerank=True, filters=test_filters)
         results = await retriever.search(query)
 
         # Both scores should be preserved

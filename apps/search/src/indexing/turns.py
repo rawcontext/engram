@@ -165,9 +165,10 @@ class TurnsIndexer:
         if colbert_vecs and self.config.enable_colbert:
             vectors[self.config.colbert_vector_name] = colbert_vecs
 
-        # Build payload with content and metadata
+        # Build payload with content, org_id (required for tenant isolation), and metadata
         payload = {
             "content": doc.content,
+            "org_id": doc.org_id,  # Required for tenant filtering
             **doc.metadata,
         }
 
@@ -368,6 +369,7 @@ class TurnFinalizedConsumer:
         {
             "id": "turn-id",
             "session_id": "session-id",
+            "org_id": "org-id",
             "sequence_index": 0,
             "user_content": "complete user message",
             "assistant_content": "complete assistant response",
@@ -390,6 +392,14 @@ class TurnFinalizedConsumer:
             turn_id = data.get("id")
             if not turn_id:
                 logger.warning("Missing turn id in turn_finalized event")
+                return None
+
+            org_id = data.get("org_id")
+            if not org_id:
+                logger.error(
+                    f"Missing org_id in turn_finalized event {turn_id} - "
+                    "required for tenant isolation"
+                )
                 return None
 
             # Build complete content from user + assistant + reasoning
@@ -434,6 +444,7 @@ class TurnFinalizedConsumer:
             return Document(
                 id=str(turn_id),
                 content=full_content,
+                org_id=str(org_id),
                 metadata=metadata,
                 session_id=data.get("session_id"),
             )

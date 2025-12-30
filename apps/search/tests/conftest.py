@@ -15,6 +15,7 @@ MOCK_AUTH_CONTEXT = AuthContext(
     method="oauth",
     type="oauth",
     user_id="test-user",
+    org_id="test-org",
     scopes=["memory:read", "memory:write", "query:read"],
     rate_limit_rpm=1000,
 )

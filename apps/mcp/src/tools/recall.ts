@@ -7,7 +7,7 @@ import type { IMemoryRetriever } from "../services/interfaces";
 export function registerRecallTool(
 	server: McpServer,
 	memoryRetriever: IMemoryRetriever,
-	_getSessionContext: () => { project?: string },
+	getSessionContext: () => { project?: string; orgId?: string; orgSlug?: string },
 	elicitationService?: ElicitationService,
 ) {
 	server.registerTool(
@@ -75,10 +75,15 @@ export function registerRecallTool(
 			// Note: Don't auto-apply project filter from session context
 			// Memories may have been stored before roots were populated (with project: null)
 
+			const context = getSessionContext();
 			const memories = await memoryRetriever.recall(query, limit ?? 5, {
 				...filters,
 				rerank: rerank ?? true,
 				rerank_tier: rerank_tier ?? "fast",
+				tenant:
+					context.orgId && context.orgSlug
+						? { orgId: context.orgId, orgSlug: context.orgSlug }
+						: undefined,
 			});
 
 			// If disambiguation is requested and we have multiple similar results, ask user to select

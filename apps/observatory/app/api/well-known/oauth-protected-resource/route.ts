@@ -47,7 +47,7 @@ export async function GET() {
 	const metadata: ProtectedResourceMetadata = {
 		resource: mcpServerUrl,
 		authorization_servers: [authServerUrl],
-		scopes_supported: [...OAuthConfig.DEFAULT_SCOPES, "mcp:tools", "mcp:resources", "mcp:prompts"],
+		scopes_supported: [...OAuthConfig.SUPPORTED_SCOPES],
 		bearer_methods_supported: ["header"],
 		resource_documentation: "https://github.com/rawcontext/engram/tree/main/apps/mcp",
 		resource_name: "Engram MCP Server",

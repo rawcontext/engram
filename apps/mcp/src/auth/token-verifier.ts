@@ -28,6 +28,10 @@ export interface AccessToken {
 	userId?: string;
 	/** User email (if available) */
 	email?: string;
+	/** Organization ID (ULID) for tenant isolation */
+	orgId?: string;
+	/** Organization slug for graph naming */
+	orgSlug?: string;
 	/** Additional claims from the token */
 	claims?: Record<string, unknown>;
 }
@@ -54,6 +58,10 @@ interface IntrospectionResponse {
 	iss?: string;
 	/** User email */
 	email?: string;
+	/** Organization ID (ULID) for tenant isolation */
+	org_id?: string;
+	/** Organization slug for graph naming */
+	org_slug?: string;
 	/** Additional claims */
 	[key: string]: unknown;
 }
@@ -203,6 +211,8 @@ export class IntrospectionTokenVerifier {
 			expiresAt: data.exp,
 			userId: data.sub,
 			email: data.email,
+			orgId: data.org_id,
+			orgSlug: data.org_slug,
 		};
 
 		// Collect additional claims
@@ -216,6 +226,8 @@ export class IntrospectionTokenVerifier {
 			"aud",
 			"iss",
 			"email",
+			"org_id",
+			"org_slug",
 		]);
 		const claims: Record<string, unknown> = {};
 		for (const [key, value] of Object.entries(data)) {

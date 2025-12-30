@@ -42,7 +42,8 @@ RETURN
     t.input_tokens AS input_tokens,
     t.output_tokens AS output_tokens,
     t.vt_start AS timestamp,
-    s.id AS session_id
+    s.id AS session_id,
+    s.org_id AS org_id
 ORDER BY s.started_at, t.sequence_index
 """
 
@@ -160,6 +161,11 @@ class TurnsBackfiller:
                 logger.warning("Turn missing id, skipping")
                 return None
 
+            org_id = turn.get("org_id")
+            if not org_id:
+                logger.error(f"Turn {turn_id} missing org_id - required for tenant isolation")
+                return None
+
             # Build content from user + assistant
             content_parts = []
 
@@ -206,6 +212,7 @@ class TurnsBackfiller:
             return Document(
                 id=str(turn_id),
                 content=full_content,
+                org_id=str(org_id),
                 metadata=metadata,
                 session_id=turn.get("session_id"),
             )

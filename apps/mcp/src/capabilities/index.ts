@@ -182,6 +182,10 @@ export interface SessionContext {
 	roots: string[];
 	/** Client capabilities */
 	capabilities: ClientCapabilities;
+	/** Organization ID (ULID) for tenant isolation */
+	orgId?: string;
+	/** Organization slug for graph naming */
+	orgSlug?: string;
 }
 
 export function createSessionContext(capabilities: ClientCapabilities): SessionContext {

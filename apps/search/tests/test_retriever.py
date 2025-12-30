@@ -6,6 +6,7 @@ import pytest
 
 from src.config import Settings
 from src.retrieval import (
+    SearchFilters,
     SearchQuery,
     SearchRetriever,
     SearchStrategy,
@@ -76,6 +77,12 @@ def retriever(
     )
 
 
+@pytest.fixture
+def test_filters() -> SearchFilters:
+    """Create test filters with required org_id."""
+    return SearchFilters(org_id="test-org-123")
+
+
 class TestSearchRetriever:
     """Tests for SearchRetriever."""
 
@@ -84,6 +91,7 @@ class TestSearchRetriever:
         self,
         retriever: SearchRetriever,
         mock_qdrant_client: MagicMock,
+        test_filters: SearchFilters,
     ) -> None:
         """Test dense search strategy."""
         # Setup mock response
@@ -101,6 +109,7 @@ class TestSearchRetriever:
             text="test query",
             limit=10,
             strategy=SearchStrategy.DENSE,
+            filters=test_filters,
             rerank=False,
         )
         results = await retriever.search(query)
@@ -116,6 +125,7 @@ class TestSearchRetriever:
         self,
         retriever: SearchRetriever,
         mock_qdrant_client: MagicMock,
+        test_filters: SearchFilters,
     ) -> None:
         """Test sparse search strategy."""
         # Setup mock response
@@ -133,6 +143,7 @@ class TestSearchRetriever:
             text="exact keyword search",
             limit=5,
             strategy=SearchStrategy.SPARSE,
+            filters=test_filters,
             rerank=False,
         )
         results = await retriever.search(query)
@@ -146,6 +157,7 @@ class TestSearchRetriever:
         self,
         retriever: SearchRetriever,
         mock_qdrant_client: MagicMock,
+        test_filters: SearchFilters,
     ) -> None:
         """Test hybrid search with RRF fusion."""
         # Setup mock response
@@ -163,6 +175,7 @@ class TestSearchRetriever:
             text="semantic and keyword search",
             limit=10,
             strategy=SearchStrategy.HYBRID,
+            filters=test_filters,
             rerank=False,
         )
         results = await retriever.search(query)
@@ -178,6 +191,7 @@ class TestSearchRetriever:
         retriever: SearchRetriever,
         mock_qdrant_client: MagicMock,
         mock_reranker_router: MagicMock,
+        test_filters: SearchFilters,
     ) -> None:
         """Test search with reranking enabled."""
         # Setup mock Qdrant response with multiple results
@@ -205,6 +219,7 @@ class TestSearchRetriever:
         query = SearchQuery(
             text="test query",
             limit=3,
+            filters=test_filters,
             rerank=True,
             rerank_tier="fast",
             rerank_depth=10,
@@ -222,6 +237,7 @@ class TestSearchRetriever:
         self,
         retriever: SearchRetriever,
         mock_qdrant_client: MagicMock,
+        test_filters: SearchFilters,
     ) -> None:
         """Test that strategy is auto-selected when not provided."""
         mock_response = MagicMock()
@@ -232,6 +248,7 @@ class TestSearchRetriever:
         query = SearchQuery(
             text="how do I implement this feature?",
             limit=5,
+            filters=test_filters,
             strategy=None,
             rerank=False,
         )
@@ -247,18 +264,17 @@ class TestSearchRetriever:
         mock_qdrant_client: MagicMock,
     ) -> None:
         """Test search with session_id and type filters."""
-        from src.retrieval.types import SearchFilters
-
         mock_response = MagicMock()
         mock_response.points = []
         mock_qdrant_client.client.query_points = AsyncMock(return_value=mock_response)
 
-        # Query with filters
+        # Query with filters including required org_id
         query = SearchQuery(
             text="test query",
             limit=5,
             strategy=SearchStrategy.DENSE,
             filters=SearchFilters(
+                org_id="test-org-123",
                 session_id="session-123",
                 type="thought",
             ),
@@ -275,6 +291,7 @@ class TestSearchRetriever:
         self,
         retriever: SearchRetriever,
         mock_qdrant_client: MagicMock,
+        test_filters: SearchFilters,
     ) -> None:
         """Test search returns empty list when no matches."""
         mock_response = MagicMock()
@@ -284,6 +301,7 @@ class TestSearchRetriever:
         query = SearchQuery(
             text="nonexistent query",
             limit=10,
+            filters=test_filters,
             rerank=False,
         )
         results = await retriever.search(query)
@@ -296,6 +314,7 @@ class TestSearchRetriever:
         retriever: SearchRetriever,
         mock_qdrant_client: MagicMock,
         mock_reranker_router: MagicMock,
+        test_filters: SearchFilters,
     ) -> None:
         """Test graceful degradation when reranker fails."""
         # Setup mock Qdrant response
@@ -314,6 +333,7 @@ class TestSearchRetriever:
         query = SearchQuery(
             text="test query",
             limit=5,
+            filters=test_filters,
             rerank=True,
         )
         results = await retriever.search(query)

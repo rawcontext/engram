@@ -5,7 +5,13 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 from qdrant_client.http import models
-from qdrant_client.http.models import Distance, SparseVectorParams, VectorParams
+from qdrant_client.http.models import (
+    Distance,
+    KeywordIndexParams,
+    PayloadSchemaType,
+    SparseVectorParams,
+    VectorParams,
+)
 
 from src.clients.qdrant import QdrantClientWrapper
 from src.config import Settings
@@ -352,4 +358,43 @@ class SchemaManager:
 
         except Exception as e:
             logger.error(f"Failed to update collection '{collection_name}' parameters: {e}")
+            raise
+
+    async def ensure_tenant_index(self, collection_name: str) -> None:
+        """Create tenant-aware index for efficient filtering.
+
+        Uses is_tenant=True for Qdrant 1.16+ to co-locate tenant vectors
+        for optimal sequential read performance.
+
+        Args:
+                collection_name: Name of the collection to create the tenant index on.
+
+        Raises:
+                Exception: If index creation fails.
+        """
+        try:
+            # Check if collection exists
+            exists = await self.qdrant.collection_exists(collection_name)
+
+            if not exists:
+                raise ValueError(f"Collection '{collection_name}' does not exist")
+
+            # Create tenant index on org_id field
+            await self.qdrant.client.create_payload_index(
+                collection_name=collection_name,
+                field_name="org_id",
+                field_schema=KeywordIndexParams(
+                    type=PayloadSchemaType.KEYWORD,
+                    is_tenant=True,  # Qdrant 1.16+ co-locates tenant vectors
+                ),
+                wait=True,
+            )
+
+            logger.info(
+                f"Successfully created tenant index on 'org_id' field "
+                f"for collection '{collection_name}' (is_tenant=True)"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to create tenant index for collection '{collection_name}': {e}")
             raise

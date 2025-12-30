@@ -14,7 +14,12 @@ export function registerContextTool(
 	server: McpServer,
 	memoryRetriever: IMemoryRetriever,
 	client: IEngramClient,
-	getSessionContext: () => { project?: string; workingDir?: string },
+	getSessionContext: () => {
+		project?: string;
+		workingDir?: string;
+		orgId?: string;
+		orgSlug?: string;
+	},
 	samplingService?: SamplingService,
 ) {
 	server.registerTool(
@@ -59,6 +64,12 @@ export function registerContextTool(
 			const sessionContext = getSessionContext();
 			const contextItems: ContextItem[] = [];
 
+			// Build tenant context if available
+			const tenant =
+				sessionContext.orgId && sessionContext.orgSlug
+					? { orgId: sessionContext.orgId, orgSlug: sessionContext.orgSlug }
+					: undefined;
+
 			// Determine search limits based on depth
 			const limits = {
 				shallow: { memories: 3, files: 2 },
@@ -69,6 +80,7 @@ export function registerContextTool(
 			// 1. Search memories for relevant context
 			const memories = await memoryRetriever.recall(task, limits.memories, {
 				project: sessionContext.project,
+				tenant,
 			});
 
 			for (const memory of memories) {
@@ -90,6 +102,7 @@ export function registerContextTool(
 						 ORDER BY ft.vt_start DESC
 						 LIMIT 3`,
 						{ filePath },
+						tenant,
 					);
 
 					if (Array.isArray(touches) && touches.length > 0) {
@@ -110,6 +123,7 @@ export function registerContextTool(
 			const decisions = await memoryRetriever.recall(`decisions about ${task}`, 3, {
 				type: "decision",
 				project: sessionContext.project,
+				tenant,
 			});
 
 			for (const decision of decisions) {

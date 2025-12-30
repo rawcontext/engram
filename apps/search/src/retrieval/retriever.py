@@ -454,16 +454,40 @@ class SearchRetriever:
     ) -> models.Filter | None:  # SearchFilters | None
         """Build Qdrant filter from search filters.
 
+        CRITICAL: org_id filter is ALWAYS required for tenant isolation.
+        This method enforces the security boundary at the retriever level.
+
         Args:
-            filters: Optional search filters.
+            filters: Optional search filters (must contain org_id).
 
         Returns:
             Qdrant filter object or None.
+
+        Raises:
+            ValueError: If filters is None or org_id is missing/empty.
         """
+        # CRITICAL SECURITY BOUNDARY: org_id is mandatory for all queries
         if not filters:
-            return None
+            raise ValueError(
+                "Search filters are required for tenant isolation. "
+                "org_id must be provided for all Qdrant queries."
+            )
+
+        if not hasattr(filters, "org_id") or not filters.org_id:
+            raise ValueError(
+                "org_id is required for tenant isolation. "
+                "All Qdrant queries must include a valid org_id filter."
+            )
 
         conditions: list[models.Condition] = []
+
+        # ALWAYS apply org_id filter for tenant isolation - this is the security boundary
+        conditions.append(
+            models.FieldCondition(
+                key="org_id",
+                match=models.MatchValue(value=filters.org_id),
+            )
+        )
 
         if hasattr(filters, "session_id") and filters.session_id:
             conditions.append(
@@ -492,9 +516,6 @@ class SearchRetriever:
                     ),
                 )
             )
-
-        if not conditions:
-            return None
 
         return models.Filter(must=conditions)
 

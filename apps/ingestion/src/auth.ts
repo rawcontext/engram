@@ -25,6 +25,8 @@ interface OAuthTokenRow {
 	access_token_prefix: string;
 	scopes: string[];
 	user_id: string;
+	org_id: string;
+	org_slug: string;
 	access_token_expires_at: Date | null;
 	revoked_at: Date | null;
 }
@@ -34,6 +36,9 @@ interface AuthContext {
 	prefix: string;
 	method: "oauth";
 	scopes: string[];
+	userId: string;
+	orgId: string;
+	orgSlug: string;
 }
 
 let pool: InstanceType<typeof Pool> | null = null;
@@ -66,7 +71,7 @@ async function validateOAuthToken(token: string): Promise<AuthContext | null> {
 	const tokenHash = createHash("sha256").update(token).digest("hex");
 
 	const result = await pool.query<OAuthTokenRow>(
-		`SELECT id, access_token_prefix, scopes, user_id, access_token_expires_at, revoked_at
+		`SELECT id, access_token_prefix, scopes, user_id, org_id, org_slug, access_token_expires_at, revoked_at
 		 FROM oauth_tokens
 		 WHERE access_token_hash = $1`,
 		[tokenHash],
@@ -89,6 +94,9 @@ async function validateOAuthToken(token: string): Promise<AuthContext | null> {
 		prefix: row.access_token_prefix,
 		method: "oauth",
 		scopes: row.scopes,
+		userId: row.user_id,
+		orgId: row.org_id,
+		orgSlug: row.org_slug,
 	};
 }
 

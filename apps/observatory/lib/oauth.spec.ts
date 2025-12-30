@@ -78,6 +78,16 @@ describe("OAuth Authorization Server Metadata Endpoint", () => {
 		expect(scopes).toContain("mcp:prompts");
 	});
 
+	it("should include admin scopes", async () => {
+		const { GET } = await import("../app/api/well-known/oauth-authorization-server/route");
+
+		const response = (await GET()) as unknown as MockedJsonResponse;
+		const metadata = response.body as Record<string, unknown>;
+		const scopes = metadata.scopes_supported as string[];
+
+		expect(scopes).toContain("admin:read");
+	});
+
 	it("should include token endpoint auth methods", async () => {
 		const { GET } = await import("../app/api/well-known/oauth-authorization-server/route");
 
@@ -150,6 +160,16 @@ describe("OAuth Protected Resource Metadata Endpoint", () => {
 		expect(scopes).toContain("mcp:tools");
 		expect(scopes).toContain("mcp:resources");
 		expect(scopes).toContain("mcp:prompts");
+	});
+
+	it("should include admin scopes", async () => {
+		const { GET } = await import("../app/api/well-known/oauth-protected-resource/route");
+
+		const response = (await GET()) as unknown as MockedJsonResponse;
+		const metadata = response.body as Record<string, unknown>;
+		const scopes = metadata.scopes_supported as string[];
+
+		expect(scopes).toContain("admin:read");
 	});
 
 	it("should include resource name and documentation", async () => {

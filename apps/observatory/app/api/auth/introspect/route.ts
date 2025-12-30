@@ -45,6 +45,10 @@ interface IntrospectionResponse {
 	token_type?: string;
 	/** Grant type used to obtain this token (not in RFC 7662 but common extension) */
 	grant_type?: "authorization_code" | "device_code" | "client_credentials" | "refresh_token";
+	/** Organization ULID (custom claim) */
+	org_id?: string;
+	/** URL-safe organization slug (custom claim) */
+	org_slug?: string;
 }
 
 /**
@@ -133,9 +137,12 @@ export async function POST(request: Request) {
 			revoked_at: Date | null;
 			user_name: string;
 			user_email: string;
+			org_id: string;
+			org_slug: string;
 		}>(
 			`SELECT t.id, t.user_id, t.scopes, t.client_id, t.grant_type,
 			        t.access_token_expires_at, t.created_at, t.revoked_at,
+			        t.org_id, t.org_slug,
 			        u.name as user_name, u.email as user_email
 			 FROM oauth_tokens t
 			 JOIN "user" u ON t.user_id = u.id
@@ -187,6 +194,8 @@ export async function POST(request: Request) {
 			iss: issuer,
 			aud: mcpServerUrl,
 			token_type: "Bearer",
+			org_id: record.org_id,
+			org_slug: record.org_slug,
 		};
 
 		return NextResponse.json(response, { status: 200 });

@@ -161,9 +161,10 @@ class DocumentIndexer:
         if colbert_vecs and self.config.enable_colbert:
             vectors[self.config.colbert_vector_name] = colbert_vecs
 
-        # Build payload with content and metadata
+        # Build payload with content, org_id (required for tenant isolation), and metadata
         payload = {
             "content": doc.content,
+            "org_id": doc.org_id,  # Required for tenant filtering
             **doc.metadata,
         }
 

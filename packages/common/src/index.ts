@@ -119,6 +119,8 @@ export type {
 	DeviceCodeResponse,
 	OAuthTokenContext,
 	OAuthTokenRecord,
+	// Tenant types
+	TenantContext,
 	TokenErrorResponse,
 	TokenRequest,
 	TokenResponse,
@@ -126,10 +128,17 @@ export type {
 	VerifyCodeResponse,
 } from "./types";
 export {
+	ADMIN_READ_SCOPE,
 	CLIENT_TOKEN_PATTERN,
+	createTenantContext,
+	generateOrgSlug,
+	getTenantGraphName,
 	identifyTokenType,
+	isValidOrgSlug,
 	OAUTH_TOKEN_PATTERN,
 	OAuthConfig,
 	REFRESH_TOKEN_PATTERN,
+	TenantAccessError,
 	TOKEN_PATTERNS,
+	validateTenantAccess,
 } from "./types";

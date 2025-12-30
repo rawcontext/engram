@@ -74,11 +74,13 @@ class SearchFilters(BaseModel):
     """Search filter parameters for narrowing results.
 
     Attributes:
+        org_id: Organization ID for tenant isolation (required).
         session_id: Filter by session ID.
         type: Filter by memory type (e.g., thought, code, doc).
         time_range: Filter by time range.
     """
 
+    org_id: str = Field(description="Organization ID for tenant isolation")
     session_id: str | None = Field(default=None, description="Filter by session ID")
     type: str | None = Field(default=None, description="Filter by memory type (thought, code, doc)")
     time_range: TimeRange | None = Field(default=None, description="Filter by time range")

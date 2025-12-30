@@ -26,6 +26,8 @@ export interface OAuthToken {
 	clientId: string;
 	grantType: GrantType;
 	clientIdRef?: string;
+	orgId: string;
+	orgSlug: string;
 	user?: {
 		name: string;
 		email: string;
@@ -48,6 +50,8 @@ interface DbOAuthToken {
 	client_id: string;
 	grant_type: GrantType;
 	client_id_ref?: string;
+	org_id: string;
+	org_slug: string;
 	user_name?: string;
 	user_email?: string;
 }
@@ -77,7 +81,8 @@ export class OAuthTokenRepository {
 			        t.scopes, t.rate_limit_rpm, t.access_token_expires_at,
 			        t.refresh_token_expires_at, t.created_at, t.updated_at,
 			        t.last_used_at, t.revoked_at, t.client_id, t.grant_type,
-			        t.client_id_ref, u.name as user_name, u.email as user_email
+			        t.client_id_ref, t.org_id, t.org_slug,
+			        u.name as user_name, u.email as user_email
 			 FROM oauth_tokens t
 			 JOIN "user" u ON t.user_id = u.id
 			 WHERE t.access_token_hash = $1`,
@@ -131,6 +136,8 @@ export class OAuthTokenRepository {
 			clientId: row.client_id,
 			grantType: row.grant_type,
 			clientIdRef: row.client_id_ref,
+			orgId: row.org_id,
+			orgSlug: row.org_slug,
 			user: row.user_name
 				? {
 						name: row.user_name,

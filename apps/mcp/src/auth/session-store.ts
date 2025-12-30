@@ -25,6 +25,10 @@ export interface SessionRecord {
 	clientId: string;
 	/** Scopes granted to this session */
 	scopes: string[];
+	/** Organization ID (ULID) for tenant isolation */
+	orgId?: string;
+	/** Organization slug for graph naming */
+	orgSlug?: string;
 	/** When the session was created (Unix epoch ms) */
 	createdAt: number;
 	/** When the session was last accessed (Unix epoch ms) */

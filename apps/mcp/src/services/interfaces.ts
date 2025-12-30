@@ -1,6 +1,16 @@
 import type { MemoryNode, MemoryType } from "@engram/graph";
 
 /**
+ * Tenant context for multi-tenancy isolation
+ */
+export interface TenantContext {
+	/** Organization ID (ULID) for tenant isolation */
+	orgId: string;
+	/** Organization slug for graph naming */
+	orgSlug: string;
+}
+
+/**
  * Input for creating a memory
  */
 export interface CreateMemoryInput {
@@ -12,6 +22,8 @@ export interface CreateMemoryInput {
 	sourceSessionId?: string;
 	sourceTurnId?: string;
 	source?: "user" | "auto" | "import";
+	/** Tenant context for multi-tenancy (optional for backwards compatibility) */
+	tenant?: TenantContext;
 }
 
 /**
@@ -29,6 +41,8 @@ export interface RecallFilters {
 	sessionId?: string;
 	rerank?: boolean;
 	rerank_tier?: RerankTier;
+	/** Tenant context for multi-tenancy (optional for backwards compatibility) */
+	tenant?: TenantContext;
 }
 
 /**
@@ -140,7 +154,11 @@ export interface IEngramClient extends IMemoryStore, IMemoryRetriever {
 	/**
 	 * Execute a read-only Cypher query (cloud mode only)
 	 */
-	query<T = unknown>(cypher: string, params?: Record<string, unknown>): Promise<T[]>;
+	query<T = unknown>(
+		cypher: string,
+		params?: Record<string, unknown>,
+		tenant?: TenantContext,
+	): Promise<T[]>;
 
 	/**
 	 * Get comprehensive context for a task
@@ -149,5 +167,6 @@ export interface IEngramClient extends IMemoryStore, IMemoryRetriever {
 		task: string,
 		files?: string[],
 		depth?: "shallow" | "medium" | "deep",
+		tenant?: TenantContext,
 	): Promise<ContextItem[]>;
 }

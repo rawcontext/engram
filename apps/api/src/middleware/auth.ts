@@ -1,8 +1,13 @@
 import { TOKEN_PATTERNS } from "@engram/common";
+import { createTenantContext, type TenantContext } from "@engram/common/types";
+import type { AuthContext as CommonAuthContext } from "@engram/common/types";
 import type { Logger } from "@engram/logger";
 import type { Context, Next } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { GrantType, OAuthToken, OAuthTokenRepository } from "../db/oauth-tokens";
+
+// Re-export AuthContext for backwards compatibility
+export type AuthContext = CommonAuthContext;
 
 export interface AuthOptions {
 	logger: Logger;
@@ -11,33 +16,24 @@ export interface AuthOptions {
 }
 
 /**
- * Auth context for OAuth tokens.
- * Includes grant type and client ID for comprehensive authentication metadata.
+ * OAuth-specific auth context with required tenant fields.
+ * All OAuth tokens must have orgId, orgSlug, and userId.
  */
-export interface AuthContext {
-	/** Unique token ID */
-	id: string;
-	/** Display prefix for logging */
-	prefix: string;
+export interface OAuthAuthContext extends CommonAuthContext {
+	/** User ID (required for OAuth tokens) */
+	userId: string;
+	/** Organization ULID (required for OAuth tokens) */
+	orgId: string;
+	/** URL-safe organization slug (required for OAuth tokens) */
+	orgSlug: string;
 	/** Authentication method (always oauth) */
 	method: "oauth";
 	/** Token type (always oauth) */
 	type: "oauth";
-	/** User ID (nullable for client_credentials) */
-	userId: string | null;
-	/** Granted scopes */
-	scopes: string[];
-	/** Rate limit (requests per minute) */
-	rateLimit: number;
-	/** Grant type (authorization_code, client_credentials, refresh_token, device_code) */
+	/** Grant type (device_code, client_credentials, refresh_token) */
 	grantType: GrantType;
 	/** Client ID from oauth_tokens.client_id */
 	clientId: string;
-	/** User info (only for user tokens, not client_credentials) */
-	user?: {
-		name: string;
-		email: string;
-	};
 }
 
 /**
@@ -127,7 +123,16 @@ export function auth(options: AuthOptions) {
 		}
 
 		// Set auth context for downstream handlers
+		// At this point, result.success is true, so result.context is guaranteed to be defined
+		if (!result.context) {
+			throw new Error("Unexpected: result.context is undefined when result.success is true");
+		}
 		c.set("auth", result.context);
+
+		// Create tenant context from auth context
+		const tenantContext = createTenantContext(result.context);
+		c.set("tenant", tenantContext);
+
 		await next();
 	};
 }
@@ -138,7 +143,7 @@ export function auth(options: AuthOptions) {
 
 interface ValidationResult {
 	success: boolean;
-	context?: AuthContext;
+	context?: OAuthAuthContext;
 	error?: { success: false; error: { code: string; message: string } };
 	status?: ContentfulStatusCode;
 }
@@ -186,7 +191,7 @@ async function validateOAuthToken(
 		};
 	}
 
-	const context: AuthContext = {
+	const context: OAuthAuthContext = {
 		id: validatedToken.id,
 		prefix: validatedToken.accessTokenPrefix,
 		method: "oauth",
@@ -196,7 +201,15 @@ async function validateOAuthToken(
 		rateLimit: validatedToken.rateLimitRpm,
 		grantType: validatedToken.grantType,
 		clientId: validatedToken.clientId,
-		user: validatedToken.user,
+		orgId: validatedToken.orgId,
+		orgSlug: validatedToken.orgSlug,
+		user: validatedToken.user
+			? {
+					id: validatedToken.userId,
+					name: validatedToken.user.name,
+					email: validatedToken.user.email,
+				}
+			: undefined,
 	};
 
 	logger.debug(

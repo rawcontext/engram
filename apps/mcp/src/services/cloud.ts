@@ -19,6 +19,7 @@ import type {
 	IEngramClient,
 	RecallFilters,
 	RecallResult,
+	TenantContext,
 } from "./interfaces";
 
 export interface EngramCloudClientOptions {
@@ -221,6 +222,7 @@ export class EngramCloudClient implements IEngramClient {
 				type: input.type,
 				tags: input.tags,
 				project: input.project,
+				tenant: input.tenant,
 			},
 		);
 
@@ -340,6 +342,7 @@ export class EngramCloudClient implements IEngramClient {
 							after: filters.since,
 						}
 					: undefined,
+				tenant: filters?.tenant,
 			},
 		);
 
@@ -358,10 +361,15 @@ export class EngramCloudClient implements IEngramClient {
 	// IEngramClient Additional Methods
 	// ==========================================================================
 
-	async query<T = unknown>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
+	async query<T = unknown>(
+		cypher: string,
+		params?: Record<string, unknown>,
+		tenant?: TenantContext,
+	): Promise<T[]> {
 		const result = await this.request<{ results: T[] }>("POST", "/v1/memory/query", {
 			cypher,
 			params,
+			tenant,
 		});
 
 		return result.results;
@@ -371,11 +379,13 @@ export class EngramCloudClient implements IEngramClient {
 		task: string,
 		files?: string[],
 		depth: "shallow" | "medium" | "deep" = "medium",
+		tenant?: TenantContext,
 	): Promise<ContextItem[]> {
 		const result = await this.request<{ context: ContextItem[] }>("POST", "/v1/memory/context", {
 			task,
 			files,
 			depth,
+			tenant,
 		});
 
 		return result.context;

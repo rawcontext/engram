@@ -88,6 +88,86 @@ CREATE TABLE IF NOT EXISTS "verification" (
 CREATE INDEX IF NOT EXISTS verification_identifier_idx ON "verification"(identifier);
 
 -- =============================================================================
+-- ORGANIZATIONS TABLE (Multi-Tenancy)
+-- =============================================================================
+-- Each organization gets isolated FalkorDB graphs and Qdrant vector spaces.
+
+CREATE TABLE IF NOT EXISTS organizations (
+	id TEXT PRIMARY KEY,                    -- ULID
+	slug TEXT NOT NULL UNIQUE,              -- URL-safe identifier (max 32 chars)
+	name TEXT NOT NULL,                     -- Display name
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+	updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
+
+-- Updated timestamp trigger for organizations
+CREATE OR REPLACE FUNCTION update_organizations_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+	NEW.updated_at = NOW();
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS organizations_updated_at ON organizations;
+CREATE TRIGGER organizations_updated_at
+	BEFORE UPDATE ON organizations
+	FOR EACH ROW
+	EXECUTE FUNCTION update_organizations_updated_at();
+
+-- Add org_id to user table (for existing installations)
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'user' AND column_name = 'org_id'
+	) THEN
+		ALTER TABLE "user" ADD COLUMN org_id TEXT REFERENCES organizations(id);
+	END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_users_org_id ON "user"(org_id);
+
+-- Add org_id and org_slug to oauth_tokens table (for existing installations)
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'oauth_tokens' AND column_name = 'org_id'
+	) THEN
+		ALTER TABLE oauth_tokens ADD COLUMN org_id TEXT REFERENCES organizations(id);
+	END IF;
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'oauth_tokens' AND column_name = 'org_slug'
+	) THEN
+		ALTER TABLE oauth_tokens ADD COLUMN org_slug TEXT;
+	END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_org_id ON oauth_tokens(org_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_org_slug ON oauth_tokens(org_slug);
+
+-- =============================================================================
+-- RLS ROLES (Row Level Security)
+-- =============================================================================
+-- Create PostgreSQL roles for tenant isolation and Row Level Security policies.
+-- These roles are granted to connections based on authentication context.
+
+DO $$
+BEGIN
+	IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+		CREATE ROLE authenticated;
+	END IF;
+	IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'service_role') THEN
+		CREATE ROLE service_role;
+	END IF;
+END
+$$;
+
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT USAGE ON SCHEMA public TO service_role;
+
+-- =============================================================================
 -- OAUTH DEVICE FLOW TABLES
 -- =============================================================================
 -- See docs/design/oauth-device-flow.md for design details

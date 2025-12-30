@@ -25,11 +25,15 @@ interface BaseNode {
 
 ## Repositories
 
-Type-safe CRUD with automatic bitemporal management:
+Type-safe CRUD with automatic bitemporal management. Repositories support both **single-tenant (legacy)** and **multi-tenant** modes.
+
+### Single-Tenant Mode (Legacy)
 
 ```typescript
 import { FalkorSessionRepository, FalkorTurnRepository } from "@engram/graph";
+import { createFalkorClient } from "@engram/storage";
 
+const graphClient = createFalkorClient();
 const sessionRepo = new FalkorSessionRepository(graphClient);
 const session = await sessionRepo.create({
   userId: "user_123",
@@ -45,6 +49,40 @@ const turn = await turnRepo.create({
   toolCallsCount: 5,
 });
 ```
+
+### Multi-Tenant Mode
+
+For production deployments with multiple organizations, use `TenantAwareFalkorClient`:
+
+```typescript
+import { FalkorSessionRepository } from "@engram/graph";
+import { FalkorClient, TenantAwareFalkorClient } from "@engram/storage";
+import type { TenantContext } from "@engram/common/types";
+
+// Initialize base client
+const falkorClient = new FalkorClient("redis://localhost:6179");
+const tenantClient = new TenantAwareFalkorClient(falkorClient);
+
+// Extract tenant context from OAuth token
+const tenantContext: TenantContext = {
+  orgId: "01ABCDEF123456789012345678",
+  orgSlug: "acme-corp",
+  userId: "user_123",
+  isAdmin: false,
+};
+
+// Create tenant-scoped repository
+const sessionRepo = new FalkorSessionRepository(tenantClient, tenantContext);
+
+// All operations are automatically scoped to tenant graph: engram_acme-corp_01ABCDEF123456789012345678
+const session = await sessionRepo.create({
+  userId: tenantContext.userId,
+  agentType: "claude-code",
+  workingDir: "/home/user/projects/app",
+});
+```
+
+**Graph Isolation**: Each tenant gets a dedicated FalkorDB graph named `engram_{orgSlug}_{orgId}`. This ensures complete data isolation between organizations.
 
 **Available**: `FalkorSessionRepository`, `FalkorTurnRepository`, `FalkorReasoningRepository`, `FalkorToolCallRepository`
 

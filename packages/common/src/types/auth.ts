@@ -143,6 +143,10 @@ export interface OAuthTokenContext {
 	tokenType: "oauth";
 	/** User ID from Better Auth */
 	userId: string;
+	/** Organization ULID from OAuth token */
+	orgId: string;
+	/** URL-safe org slug for graph naming */
+	orgSlug: string;
 	/** Granted scopes */
 	scopes: string[];
 	/** Rate limit (requests per minute) */
@@ -170,6 +174,10 @@ export interface AuthContext {
 	type: AuthTokenType;
 	/** User ID (optional for API keys, required for OAuth) */
 	userId?: string;
+	/** Organization ULID from OAuth token (optional for backwards compatibility with API keys) */
+	orgId?: string;
+	/** URL-safe org slug for graph naming (optional for backwards compatibility with API keys) */
+	orgSlug?: string;
 	/** Granted scopes */
 	scopes: string[];
 	/** Rate limit (requests per minute) */
@@ -213,6 +221,8 @@ export interface OAuthTokenRecord {
 	refresh_token_hash: string;
 	access_token_prefix: string;
 	user_id: string;
+	org_id: string;
+	org_slug: string;
 	scopes: string[];
 	rate_limit_rpm: number;
 	access_token_expires_at: Date;
@@ -357,8 +367,33 @@ export interface CachedTokens {
 }
 
 // =============================================================================
+// Scope Types
+// =============================================================================
+
+/**
+ * OAuth scope values supported by Engram.
+ */
+export type OAuthScope =
+	// Core memory scopes (default)
+	| "memory:read"
+	| "memory:write"
+	| "query:read"
+	// MCP protocol scopes
+	| "mcp:tools"
+	| "mcp:resources"
+	| "mcp:prompts"
+	// Admin scopes (privileged, not granted by default)
+	| "admin:read"; // Cross-tenant read access for trusted admin users
+
+// =============================================================================
 // Constants
 // =============================================================================
+
+/**
+ * Admin scope constant for cross-tenant read access.
+ * Allows super-admins to read data across all tenant boundaries.
+ */
+export const ADMIN_READ_SCOPE = "admin:read" as const;
 
 /**
  * OAuth token configuration constants.
@@ -378,6 +413,23 @@ export const OAuthConfig = {
 
 	/** Default scopes for OAuth tokens */
 	DEFAULT_SCOPES: ["memory:read", "memory:write", "query:read"] as const,
+
+	/**
+	 * All supported OAuth scopes.
+	 * Includes default scopes plus privileged scopes that must be explicitly granted.
+	 */
+	SUPPORTED_SCOPES: [
+		// Default scopes (granted to all users)
+		"memory:read",
+		"memory:write",
+		"query:read",
+		// MCP-specific scopes
+		"mcp:tools",
+		"mcp:resources",
+		"mcp:prompts",
+		// Admin scopes (must be explicitly granted, not default)
+		"admin:read", // Cross-tenant read access for trusted admin users
+	] as const,
 
 	/** Default rate limit for OAuth tokens */
 	DEFAULT_RATE_LIMIT: 60,

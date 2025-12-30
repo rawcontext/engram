@@ -123,6 +123,8 @@ export async function createHttpTransport(
 							userId: auth.userId ?? "anonymous",
 							clientId: auth.clientId,
 							scopes: auth.scopes,
+							orgId: auth.orgId,
+							orgSlug: auth.orgSlug,
 							createdAt: Date.now(),
 							lastAccessAt: Date.now(),
 						});

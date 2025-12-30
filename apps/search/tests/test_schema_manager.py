@@ -284,6 +284,43 @@ class TestSchemaManager:
                 hnsw_m=32,
             )
 
+    @pytest.mark.asyncio
+    async def test_ensure_tenant_index_success(
+        self,
+        schema_manager: SchemaManager,
+        mock_qdrant_wrapper: QdrantClientWrapper,
+    ) -> None:
+        """Test successful creation of tenant index."""
+        mock_qdrant_wrapper.collection_exists = AsyncMock(return_value=True)  # type: ignore[method-assign]
+        mock_qdrant_wrapper.client.create_payload_index = AsyncMock()  # type: ignore[method-assign]
+
+        await schema_manager.ensure_tenant_index("test_collection")
+
+        # Verify create_payload_index was called with correct parameters
+        mock_qdrant_wrapper.client.create_payload_index.assert_called_once()
+        call_args = mock_qdrant_wrapper.client.create_payload_index.call_args
+
+        assert call_args.kwargs["collection_name"] == "test_collection"
+        assert call_args.kwargs["field_name"] == "org_id"
+        assert call_args.kwargs["wait"] is True
+
+        # Verify field_schema has is_tenant=True
+        field_schema = call_args.kwargs["field_schema"]
+        assert field_schema.is_tenant is True
+        assert field_schema.type == models.PayloadSchemaType.KEYWORD
+
+    @pytest.mark.asyncio
+    async def test_ensure_tenant_index_not_exists(
+        self,
+        schema_manager: SchemaManager,
+        mock_qdrant_wrapper: QdrantClientWrapper,
+    ) -> None:
+        """Test creating tenant index on non-existent collection raises error."""
+        mock_qdrant_wrapper.collection_exists = AsyncMock(return_value=False)  # type: ignore[method-assign]
+
+        with pytest.raises(ValueError, match="does not exist"):
+            await schema_manager.ensure_tenant_index("nonexistent")
+
     def test_collection_schema_defaults(self) -> None:
         """Test CollectionSchema default values."""
         schema = CollectionSchema(collection_name="test")

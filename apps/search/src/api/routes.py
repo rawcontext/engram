@@ -140,20 +140,21 @@ async def search(
         )
 
     try:
-        # Build search filters
-        filters = None
-        if search_request.filters:
-            time_range = None
-            if search_request.filters.time_range:
-                time_range = TimeRange(
-                    start=search_request.filters.time_range.get("start", 0),
-                    end=search_request.filters.time_range.get("end", 0),
-                )
-            filters = SearchFilters(
-                session_id=search_request.filters.session_id,
-                type=search_request.filters.type,
-                time_range=time_range,
+        # Build search filters - ALWAYS include org_id for tenant isolation
+        time_range = None
+        if search_request.filters and search_request.filters.time_range:
+            time_range = TimeRange(
+                start=search_request.filters.time_range.get("start", 0),
+                end=search_request.filters.time_range.get("end", 0),
             )
+
+        # CRITICAL: org_id is mandatory for all queries (tenant isolation)
+        filters = SearchFilters(
+            org_id=api_key.org_id,  # Injected from authenticated user's token
+            session_id=search_request.filters.session_id if search_request.filters else None,
+            type=search_request.filters.type if search_request.filters else None,
+            time_range=time_range,
+        )
 
         # Convert string strategy/tier to enums if provided
         strategy = SearchStrategy(search_request.strategy) if search_request.strategy else None
@@ -358,20 +359,23 @@ async def multi_query_search(
             rrf_k=multi_query_request.rrf_k,
         )
 
-        # Build search filters
-        filters = None
-        if multi_query_request.filters:
-            time_range = None
-            if multi_query_request.filters.time_range:
-                time_range = TimeRange(
-                    start=multi_query_request.filters.time_range.get("start", 0),
-                    end=multi_query_request.filters.time_range.get("end", 0),
-                )
-            filters = SearchFilters(
-                session_id=multi_query_request.filters.session_id,
-                type=multi_query_request.filters.type,
-                time_range=time_range,
+        # Build search filters - ALWAYS include org_id for tenant isolation
+        time_range = None
+        if multi_query_request.filters and multi_query_request.filters.time_range:
+            time_range = TimeRange(
+                start=multi_query_request.filters.time_range.get("start", 0),
+                end=multi_query_request.filters.time_range.get("end", 0),
             )
+
+        # CRITICAL: org_id is mandatory for all queries (tenant isolation)
+        filters = SearchFilters(
+            org_id=api_key.org_id,  # Injected from authenticated user's token
+            session_id=multi_query_request.filters.session_id
+            if multi_query_request.filters
+            else None,
+            type=multi_query_request.filters.type if multi_query_request.filters else None,
+            time_range=time_range,
+        )
 
         # Convert string strategy/tier to enums if provided
         strategy = (
@@ -482,8 +486,13 @@ async def session_aware_search(
             final_top_k=session_request.final_top_k,
         )
 
-        # Execute session-aware retrieval
-        results = await session_aware_retriever.retrieve(session_request.query)
+        # Execute session-aware retrieval with org_id for tenant isolation
+        # TODO: Update SessionAwareRetriever to accept org_id filter
+        # For now, use api_key.org_id when retriever supports it
+        results = await session_aware_retriever.retrieve(
+            session_request.query,
+            org_id=api_key.org_id,
+        )
 
         # Calculate timing
         took_ms = int((time.time() - start_time) * 1000)
@@ -607,6 +616,7 @@ async def index_memory(
                 )
 
         # Build payload - include original ULID as node_id for reference
+        # CRITICAL: org_id is mandatory for tenant isolation in vector search
         payload = {
             "content": memory_request.content,
             "type": memory_request.type,
@@ -614,6 +624,7 @@ async def index_memory(
             "project": memory_request.project,
             "source_session_id": memory_request.source_session_id,
             "node_id": memory_request.id,  # Original ULID for graph lookups
+            "org_id": api_key.org_id,  # Tenant isolation - required for all queries
         }
 
         # Upsert to Qdrant - use UUID for point ID

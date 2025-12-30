@@ -115,6 +115,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info(
                 "Created memory collection 'engram_memory' with 384-dim dense and sparse vectors"
             )
+
+        # Create tenant indexes for multi-tenancy support
+        try:
+            await schema_manager.ensure_tenant_index(settings.qdrant_collection)
+            logger.info(f"Tenant index ensured for collection '{settings.qdrant_collection}'")
+        except Exception as e:
+            logger.warning(f"Failed to create tenant index for turns collection: {e}")
+
+        try:
+            await schema_manager.ensure_tenant_index("engram_memory")
+            logger.info("Tenant index ensured for collection 'engram_memory'")
+        except Exception as e:
+            logger.warning(f"Failed to create tenant index for memory collection: {e}")
+
         app.state.schema_manager = schema_manager
 
     except Exception as e:

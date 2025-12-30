@@ -402,9 +402,9 @@ export async function pollForToken(
 			};
 	}
 
-	// Get user info
-	const userResult = await pool.query<UserInfo>(
-		`SELECT id, name, email FROM "user" WHERE id = $1`,
+	// Get user info with org_id
+	const userResult = await pool.query<UserInfo & { org_id: string | null }>(
+		`SELECT id, name, email, org_id FROM "user" WHERE id = $1`,
 		[record.user_id],
 	);
 
@@ -416,10 +416,24 @@ export async function pollForToken(
 		};
 	}
 
+	// Get org_slug if user has an org_id
+	let orgSlug: string | undefined;
+	if (user.org_id) {
+		const orgResult = await pool.query<{ slug: string }>(
+			`SELECT slug FROM organizations WHERE id = $1`,
+			[user.org_id],
+		);
+		if (orgResult.rows[0]) {
+			orgSlug = orgResult.rows[0].slug;
+		}
+	}
+
 	// Generate tokens
 	const tokens = await issueTokens({
 		userId: user.id,
 		user,
+		orgId: user.org_id || undefined,
+		orgSlug,
 		deviceCodeId: record.id,
 		clientId: record.client_id,
 		userAgent: record.user_agent || undefined,
@@ -438,6 +452,8 @@ export async function pollForToken(
 export async function issueTokens(options: {
 	userId: string;
 	user: UserInfo;
+	orgId?: string;
+	orgSlug?: string;
 	deviceCodeId?: string;
 	clientId?: string;
 	userAgent?: string;
@@ -458,14 +474,16 @@ export async function issueTokens(options: {
 	await pool.query(
 		`INSERT INTO oauth_tokens (
 			access_token_hash, refresh_token_hash, access_token_prefix,
-			user_id, scopes, access_token_expires_at, refresh_token_expires_at,
+			user_id, org_id, org_slug, scopes, access_token_expires_at, refresh_token_expires_at,
 			client_id, device_code_id, user_agent, ip_address
-		 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 		[
 			accessTokenHash,
 			refreshTokenHash,
 			accessTokenPrefix,
 			options.userId,
+			options.orgId || null,
+			options.orgSlug || null,
 			scopes,
 			accessTokenExpiresAt,
 			refreshTokenExpiresAt,
@@ -495,8 +513,10 @@ export async function refreshAccessToken(
 ): Promise<TokenResponse | TokenErrorResponse> {
 	const refreshTokenHash = hashToken(refreshToken);
 
-	// Find the token record
-	const result = await pool.query<OAuthTokenRecord & { user_name: string; user_email: string }>(
+	// Find the token record with org fields
+	const result = await pool.query<
+		OAuthTokenRecord & { user_name: string; user_email: string; org_id: string; org_slug: string }
+	>(
 		`SELECT t.*, u.name as user_name, u.email as user_email
 		 FROM oauth_tokens t
 		 JOIN "user" u ON t.user_id = u.id
@@ -548,7 +568,7 @@ export async function refreshAccessToken(
 	const accessTokenExpiresAt = new Date(Date.now() + OAuthConfig.ACCESS_TOKEN_EXPIRES_IN * 1000);
 	const refreshTokenExpiresAt = new Date(Date.now() + OAuthConfig.REFRESH_TOKEN_EXPIRES_IN * 1000);
 
-	// Update token record with new tokens
+	// Update token record with new tokens (preserve org fields)
 	await pool.query(
 		`UPDATE oauth_tokens
 		 SET access_token_hash = $1,

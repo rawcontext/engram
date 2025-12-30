@@ -1,3 +1,5 @@
+import type { TenantContext } from "@engram/common/types";
+import { getTenantGraphName } from "@engram/common/types";
 import { FalkorDB, type Graph } from "falkordb";
 import type { GraphClient } from "./interfaces";
 
@@ -69,7 +71,8 @@ export type FalkorResult<T = Record<string, unknown>> = FalkorRow<T>[];
 
 export class FalkorClient implements GraphClient {
 	private dbPromise: Promise<FalkorDB> | null = null;
-	private db: FalkorDB | null = null;
+	/** @internal Exposed for TenantAwareFalkorClient. Do not use directly. */
+	db: FalkorDB | null = null;
 	private graph: Graph | null = null;
 	private graphName = "EngramGraph";
 	private connected = false;
@@ -170,6 +173,71 @@ export const createFalkorClient = () => {
 	const url = process.env.FALKORDB_URL || "redis://localhost:6179";
 	return new FalkorClient(url);
 };
+
+// =============================================================================
+// Tenant-Aware FalkorDB Client
+// =============================================================================
+
+/**
+ * Tenant-aware FalkorDB client for multi-tenancy support.
+ * Selects tenant-specific graphs based on TenantContext.
+ *
+ * Each tenant gets an isolated graph with the naming pattern:
+ * engram_{orgSlug}_{orgId}
+ *
+ * @example
+ * ```ts
+ * const client = new FalkorClient(url);
+ * const tenantClient = new TenantAwareFalkorClient(client);
+ * const graph = await tenantClient.ensureTenantGraph({ orgSlug: "acme", orgId: "01ABC123...", userId: "user123", isAdmin: false });
+ * ```
+ */
+export class TenantAwareFalkorClient {
+	private client: FalkorClient;
+
+	constructor(client: FalkorClient) {
+		this.client = client;
+	}
+
+	/**
+	 * Select the graph for a specific tenant.
+	 * Graph name format: engram_{orgSlug}_{orgId}
+	 *
+	 * @param ctx - Tenant context with orgSlug and orgId
+	 * @returns FalkorDB Graph instance for the tenant
+	 */
+	async selectTenantGraph(ctx: TenantContext): Promise<Graph> {
+		// Ensure client is connected
+		await this.client.connect();
+
+		// Access the internal db instance
+		if (!this.client.db) {
+			throw new Error("FalkorDB connection not established");
+		}
+
+		const graphName = getTenantGraphName(ctx);
+		return this.client.db.selectGraph(graphName);
+	}
+
+	/**
+	 * Ensure tenant graph exists with required indexes.
+	 * Creates indexes on first access (idempotent).
+	 *
+	 * @param ctx - Tenant context
+	 * @returns FalkorDB Graph instance with indexes created
+	 */
+	async ensureTenantGraph(ctx: TenantContext): Promise<Graph> {
+		const graph = await this.selectTenantGraph(ctx);
+
+		// FalkorDB creates graph on first query
+		// Ensure required indexes exist (CREATE INDEX IF NOT EXISTS is idempotent)
+		await graph.query("CREATE INDEX IF NOT EXISTS FOR (s:Session) ON (s.id)");
+		await graph.query("CREATE INDEX IF NOT EXISTS FOR (t:Turn) ON (t.id)");
+		await graph.query("CREATE INDEX IF NOT EXISTS FOR (m:Memory) ON (m.id)");
+
+		return graph;
+	}
+}
 
 // =============================================================================
 // DEPRECATED: Domain Types

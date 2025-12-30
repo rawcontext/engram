@@ -35,6 +35,7 @@ class AuthContext:
     method: str  # "oauth" or "client_credentials"
     type: str  # "oauth" or "client"
     user_id: str
+    org_id: str  # Organization ID for tenant isolation (user_id for single-tenant users)
     scopes: list[str]
     rate_limit_rpm: int
     user_name: str | None = None
@@ -145,12 +146,17 @@ class AuthHandler:
             # Calculate token prefix for logging
             prefix = token[:20] + "..."
 
+            # For tenant isolation: org_id defaults to user_id for single-tenant users
+            # In multi-tenant scenarios, the token should include an explicit org_id claim
+            org_id = introspection.get("org_id", user_id)
+
             return AuthContext(
                 id=user_id,  # Using sub/client_id as id
                 prefix=prefix,
                 method=method,
                 type=token_type,
                 user_id=user_id,
+                org_id=org_id,
                 scopes=scopes,
                 rate_limit_rpm=1000,  # Default rate limit
                 user_name=introspection.get("name"),
@@ -326,6 +332,7 @@ _anonymous_context = AuthContext(
     method="dev",
     type="dev",
     user_id="anonymous",
+    org_id="anonymous",  # No tenant isolation for internal/anonymous access
     scopes=["*"],  # All scopes when auth disabled
     rate_limit_rpm=1000,
 )
@@ -350,6 +357,7 @@ _internal_context = AuthContext(
     method="internal",
     type="internal",
     user_id="internal",
+    org_id="internal",  # No tenant isolation for internal service-to-service calls
     scopes=["*"],  # All scopes for internal service calls
     rate_limit_rpm=10000,
 )

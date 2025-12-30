@@ -6,7 +6,13 @@ import type { IMemoryStore } from "../services/interfaces";
 export function registerRememberTool(
 	server: McpServer,
 	memoryStore: IMemoryStore,
-	getSessionContext: () => { sessionId?: string; workingDir?: string; project?: string },
+	getSessionContext: () => {
+		sessionId?: string;
+		workingDir?: string;
+		project?: string;
+		orgId?: string;
+		orgSlug?: string;
+	},
 ) {
 	server.registerTool(
 		"remember",
@@ -47,6 +53,10 @@ export function registerRememberTool(
 				workingDir: context.workingDir,
 				sourceSessionId: context.sessionId,
 				source: "user",
+				tenant:
+					context.orgId && context.orgSlug
+						? { orgId: context.orgId, orgSlug: context.orgSlug }
+						: undefined,
 			});
 
 			const output = {

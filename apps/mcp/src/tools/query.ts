@@ -53,7 +53,11 @@ function isReadOnlyCypher(cypher: string): { valid: boolean; reason?: string } {
 	return { valid: true };
 }
 
-export function registerQueryTool(server: McpServer, client: IEngramClient) {
+export function registerQueryTool(
+	server: McpServer,
+	client: IEngramClient,
+	getSessionContext?: () => { orgId?: string; orgSlug?: string },
+) {
 	server.registerTool(
 		"query",
 		{
@@ -98,7 +102,32 @@ export function registerQueryTool(server: McpServer, client: IEngramClient) {
 			}
 
 			try {
-				const result = await client.query(cypher, params ?? {});
+				const context = getSessionContext?.();
+
+				// Tenant context is required for query execution
+				// All queries are automatically scoped to the authenticated user's tenant
+				if (!context?.orgId || !context?.orgSlug) {
+					return {
+						content: [
+							{
+								type: "text" as const,
+								text: JSON.stringify({
+									error:
+										"Tenant context required. Queries are automatically scoped to your organization's graph.",
+									results: [],
+									count: 0,
+								}),
+							},
+						],
+						isError: true,
+					};
+				}
+
+				const tenant = { orgId: context.orgId, orgSlug: context.orgSlug };
+
+				// Execute query against tenant-specific graph
+				// Graph name: engram_{orgSlug}_{orgId}
+				const result = await client.query(cypher, params ?? {}, tenant);
 
 				const results = Array.isArray(result) ? result : [];
 				const output = {

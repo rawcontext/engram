@@ -1,4 +1,7 @@
-import type { GraphClient } from "@engram/storage";
+import type { TenantContext } from "@engram/common/types";
+import type { GraphClient, QueryParams } from "@engram/storage";
+import { TenantAwareFalkorClient } from "@engram/storage";
+import type { Graph } from "falkordb";
 import { ulid } from "ulid";
 import { QueryBuilder } from "../queries/builder";
 import { createBitemporal, MAX_DATE, now } from "../utils/time";
@@ -21,9 +24,26 @@ export interface TimeTravelOptions {
  * - Query parameter building
  * - Node property mapping
  * - Time-travel query support
+ * - Tenant-aware graph selection
+ *
+ * @remarks
+ * This class supports both legacy (single-tenant) and multi-tenant modes:
+ * - Legacy mode: Pass GraphClient directly, all queries use default graph
+ * - Tenant mode: Pass TenantAwareFalkorClient + TenantContext, queries scoped to tenant graph
  */
 export abstract class FalkorBaseRepository {
-	constructor(protected readonly graphClient: GraphClient) {}
+	protected readonly graphClient?: GraphClient;
+	protected readonly tenantClient?: TenantAwareFalkorClient;
+	protected readonly tenantContext?: TenantContext;
+
+	constructor(client: GraphClient | TenantAwareFalkorClient, tenantContext?: TenantContext) {
+		if (client instanceof TenantAwareFalkorClient) {
+			this.tenantClient = client;
+			this.tenantContext = tenantContext;
+		} else {
+			this.graphClient = client;
+		}
+	}
 
 	/**
 	 * Generate a new ULID for entity IDs.
@@ -95,9 +115,60 @@ export abstract class FalkorBaseRepository {
 
 	/**
 	 * Execute a typed Cypher query.
+	 * Automatically routes to tenant-specific graph when in tenant mode.
 	 */
 	protected async query<T>(cypher: string, params: Record<string, unknown> = {}): Promise<T[]> {
-		return this.graphClient.query<T>(cypher, params);
+		if (this.tenantClient && this.tenantContext) {
+			// Tenant mode: use tenant-specific graph
+			const graph = await this.tenantClient.ensureTenantGraph(this.tenantContext);
+			// Cast params to QueryParams (compatible with FalkorDB library)
+			const queryParams = params as QueryParams;
+			const result = await graph.query(cypher, { params: queryParams });
+			return result.data as T[];
+		}
+		if (this.graphClient) {
+			// Legacy mode: use default graph
+			return this.graphClient.query<T>(cypher, params);
+		}
+		throw new Error(
+			"Repository not properly initialized with GraphClient or TenantAwareFalkorClient",
+		);
+	}
+
+	/**
+	 * Get the tenant-specific graph instance.
+	 * Only available in tenant mode.
+	 *
+	 * @throws {Error} If not in tenant mode
+	 */
+	protected async getTenantGraph(): Promise<Graph> {
+		if (!this.tenantClient || !this.tenantContext) {
+			throw new Error(
+				"Tenant mode not enabled. Pass TenantAwareFalkorClient and TenantContext to constructor.",
+			);
+		}
+		return this.tenantClient.ensureTenantGraph(this.tenantContext);
+	}
+
+	/**
+	 * Check if this repository is operating in tenant mode.
+	 */
+	protected isTenantMode(): boolean {
+		return this.tenantClient !== undefined && this.tenantContext !== undefined;
+	}
+
+	/**
+	 * Get the current tenant context.
+	 *
+	 * @throws {Error} If not in tenant mode
+	 */
+	protected getTenantContext(): TenantContext {
+		if (!this.tenantContext) {
+			throw new Error(
+				"Tenant mode not enabled. Pass TenantAwareFalkorClient and TenantContext to constructor.",
+			);
+		}
+		return this.tenantContext;
 	}
 
 	/**

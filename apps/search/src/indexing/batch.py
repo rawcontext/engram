@@ -24,6 +24,7 @@ class Document(BaseModel):
 
     id: str
     content: str
+    org_id: str = Field(description="Organization ID for tenant isolation (required)")
     metadata: dict[str, Any] = Field(default_factory=dict)
     session_id: str | None = None
 

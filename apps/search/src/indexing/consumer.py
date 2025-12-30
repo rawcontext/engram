@@ -218,6 +218,7 @@ class MemoryEventConsumer:
             "content": "text content",
             "type": "thought|code|doc",
             "sessionId": "session-id",
+            "orgId": "org-id",
             "metadata": { ... }
         }
 
@@ -231,9 +232,16 @@ class MemoryEventConsumer:
             # Extract required fields
             node_id = data.get("id")
             content = data.get("content")
+            org_id = data.get("orgId")
 
             if not node_id or not content:
                 logger.warning(f"Missing required fields in memory node: {data}")
+                return None
+
+            if not org_id:
+                logger.error(
+                    f"Missing org_id in memory node {node_id} - required for tenant isolation"
+                )
                 return None
 
             # Extract metadata
@@ -250,6 +258,7 @@ class MemoryEventConsumer:
             return Document(
                 id=str(node_id),
                 content=str(content),
+                org_id=str(org_id),
                 metadata=metadata,
                 session_id=session_id,
             )

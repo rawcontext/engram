@@ -50,7 +50,7 @@ export async function GET() {
 		registration_endpoint: `${baseUrl}/api/auth/register`,
 		introspection_endpoint: `${baseUrl}/api/auth/introspect`,
 		revocation_endpoint: `${baseUrl}/api/auth/revoke`,
-		scopes_supported: [...OAuthConfig.DEFAULT_SCOPES, "mcp:tools", "mcp:resources", "mcp:prompts"],
+		scopes_supported: [...OAuthConfig.SUPPORTED_SCOPES],
 		response_types_supported: ["code"],
 		grant_types_supported: [
 			"authorization_code",

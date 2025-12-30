@@ -204,6 +204,8 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 			project: sessionContext.project ?? roots.primaryProject,
 			capabilities: sessionContext.capabilities,
 			roots: sessionContext.roots,
+			orgId: sessionContext.orgId,
+			orgSlug: sessionContext.orgSlug,
 		};
 	};
 
@@ -217,7 +219,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	registerEnrichMemoryTool(mcpServer, sampling);
 
 	// Register query and context tools
-	registerQueryTool(mcpServer, cloudClient);
+	registerQueryTool(mcpServer, cloudClient, getSessionContext);
 	registerContextTool(mcpServer, memoryRetriever, cloudClient, getSessionContext, sampling);
 
 	// Register resources

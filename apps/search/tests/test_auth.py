@@ -274,6 +274,7 @@ class TestGetApiKey:
             method="oauth",
             type="oauth",
             user_id="user-123",
+            org_id="test-org",
             scopes=["memory:read"],
             rate_limit_rpm=1000,
         )
@@ -299,6 +300,7 @@ class TestRequireAuth:
             method="oauth",
             type="oauth",
             user_id="user-123",
+            org_id="test-org",
             scopes=["memory:read"],
             rate_limit_rpm=1000,
         )
@@ -319,6 +321,7 @@ class TestRequireScope:
             method="oauth",
             type="oauth",
             user_id="user-123",
+            org_id="test-org",
             scopes=["memory:read", "memory:write"],
             rate_limit_rpm=1000,
         )
@@ -336,6 +339,7 @@ class TestRequireScope:
             method="oauth",
             type="oauth",
             user_id="user-123",
+            org_id="test-org",
             scopes=["search:read"],
             rate_limit_rpm=1000,
         )
@@ -468,6 +472,7 @@ class TestScopeEnforcement:
             method="client_credentials",
             type="client",
             user_id="engram-search",
+            org_id="test-org",
             scopes=["memory:read", "query:read"],  # Missing memory:write
             rate_limit_rpm=1000,
         )
@@ -491,6 +496,7 @@ class TestScopeEnforcement:
             method="client_credentials",
             type="client",
             user_id="engram-search",
+            org_id="test-org",
             scopes=["memory:read", "query:read"],
             rate_limit_rpm=1000,
         )
@@ -512,6 +518,7 @@ class TestScopeEnforcement:
             method="client_credentials",
             type="client",
             user_id="engram-search",
+            org_id="test-org",
             scopes=["memory:read", "query:read"],
             rate_limit_rpm=1000,
         )
@@ -534,6 +541,7 @@ class TestScopeEnforcement:
             method="oauth",
             type="oauth",
             user_id="user-123",
+            org_id="test-org",
             scopes=["mcp:tools", "mcp:resources", "mcp:prompts"],
             rate_limit_rpm=100,
         )
@@ -554,6 +562,7 @@ class TestScopeEnforcement:
             method="client_credentials",
             type="client",
             user_id="engram-tuner",
+            org_id="test-org",
             scopes=["memory:read", "memory:write", "tuner:read", "tuner:write"],
             rate_limit_rpm=1000,
         )
@@ -595,6 +604,7 @@ class TestClientTokenIntegration:
             method="client_credentials",
             type="client",
             user_id="engram-search",
+            org_id="test-org",
             scopes=["memory:read", "query:read"],
             rate_limit_rpm=5000,
         )
@@ -643,6 +653,7 @@ class TestClientTokenIntegration:
             method="client_credentials",
             type="client",
             user_id="engram-api",
+            org_id="test-org",
             scopes=["memory:write"],  # Missing search:read scope
             rate_limit_rpm=5000,
         )
@@ -696,6 +707,7 @@ class TestClientTokenIntegration:
             method="client_credentials",
             type="client",
             user_id="engram-memory",
+            org_id="test-org",
             scopes=["memory:read"],
             rate_limit_rpm=10000,
         )
@@ -740,6 +752,7 @@ class TestUserTokenIntegration:
             method="oauth",
             type="oauth",
             user_id="user-123",
+            org_id="test-org",
             scopes=["memory:read", "memory:write"],
             rate_limit_rpm=1000,
             user_name="Test User",

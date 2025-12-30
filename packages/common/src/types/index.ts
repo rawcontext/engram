@@ -30,6 +30,7 @@ export type {
 } from "./auth";
 
 export {
+	ADMIN_READ_SCOPE,
 	CLIENT_TOKEN_PATTERN,
 	identifyTokenType,
 	OAUTH_TOKEN_PATTERN,
@@ -37,3 +38,14 @@ export {
 	REFRESH_TOKEN_PATTERN,
 	TOKEN_PATTERNS,
 } from "./auth";
+
+export type { TenantContext } from "./tenant";
+
+export {
+	createTenantContext,
+	generateOrgSlug,
+	getTenantGraphName,
+	isValidOrgSlug,
+	TenantAccessError,
+	validateTenantAccess,
+} from "./tenant";

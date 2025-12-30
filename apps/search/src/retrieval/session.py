@@ -175,16 +175,24 @@ class SessionAwareRetriever:
             f"final_top_k={self.config.final_top_k}"
         )
 
-    async def retrieve(self, query: str) -> list[SessionAwareSearchResult]:
+    async def retrieve(self, query: str, org_id: str | None = None) -> list[SessionAwareSearchResult]:
         """Perform two-stage session-aware retrieval.
 
         Args:
                 query: The search query.
+                org_id: Organization ID for tenant isolation (required in production).
 
         Returns:
                 Array of search results with session context.
+
+        Raises:
+                ValueError: If org_id is not provided and tenant isolation is required.
         """
         import time
+
+        # CRITICAL: org_id is required for tenant isolation in production
+        if not org_id:
+            logger.warning("Session-aware retrieval called without org_id - tenant isolation disabled")
 
         start_time = time.time()
 
@@ -194,8 +202,8 @@ class SessionAwareRetriever:
         # Generate query embedding
         query_embedding = await text_embedder.embed(query, is_query=True)
 
-        # Stage 1: Retrieve relevant sessions
-        sessions = await self._retrieve_sessions(query_embedding)
+        # Stage 1: Retrieve relevant sessions (filtered by org_id)
+        sessions = await self._retrieve_sessions(query_embedding, org_id)
 
         if not sessions:
             latency_ms = (time.time() - start_time) * 1000
@@ -216,8 +224,8 @@ class SessionAwareRetriever:
             },
         )
 
-        # Stage 2: Retrieve turns within each session
-        all_turns = await self._retrieve_turns_from_sessions(query_embedding, sessions)
+        # Stage 2: Retrieve turns within each session (filtered by org_id)
+        all_turns = await self._retrieve_turns_from_sessions(query_embedding, sessions, org_id)
 
         if not all_turns:
             latency_ms = (time.time() - start_time) * 1000
@@ -262,17 +270,33 @@ class SessionAwareRetriever:
 
         return final_results
 
-    async def _retrieve_sessions(self, query_embedding: list[float]) -> list[SessionResult]:
+    async def _retrieve_sessions(
+        self, query_embedding: list[float], org_id: str | None = None
+    ) -> list[SessionResult]:
         """Stage 1: Retrieve relevant sessions based on summary embeddings.
 
         Args:
                 query_embedding: Query embedding vector.
+                org_id: Organization ID for tenant isolation.
 
         Returns:
                 Array of matched sessions.
         """
         try:
             client = self.qdrant_client.client
+
+            # Build filter with org_id for tenant isolation
+            query_filter = None
+            if org_id:
+                query_filter = models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="org_id",
+                            match=models.MatchValue(value=org_id),
+                        )
+                    ]
+                )
+
             results = await client.search(
                 collection_name=self.config.session_collection,
                 query_vector=models.NamedVector(
@@ -282,6 +306,7 @@ class SessionAwareRetriever:
                 limit=self.config.top_sessions,
                 with_payload=True,
                 score_threshold=self.config.session_score_threshold,
+                query_filter=query_filter,
             )
 
             return [
@@ -302,13 +327,14 @@ class SessionAwareRetriever:
             return []
 
     async def _retrieve_turns_from_sessions(
-        self, query_embedding: list[float], sessions: list[SessionResult]
+        self, query_embedding: list[float], sessions: list[SessionResult], org_id: str | None = None
     ) -> list[SessionAwareSearchResult]:
         """Stage 2: Retrieve turns within matched sessions.
 
         Args:
                 query_embedding: Query embedding vector.
                 sessions: Sessions from stage 1.
+                org_id: Organization ID for tenant isolation.
 
         Returns:
                 Array of turns with session context.
@@ -316,7 +342,8 @@ class SessionAwareRetriever:
         if self.config.parallel_turn_retrieval:
             # Parallel retrieval for all sessions
             tasks = [
-                self._retrieve_turns_in_session(query_embedding, session) for session in sessions
+                self._retrieve_turns_in_session(query_embedding, session, org_id)
+                for session in sessions
             ]
             results = await asyncio.gather(*tasks)
             return [turn for session_turns in results for turn in session_turns]
@@ -324,24 +351,43 @@ class SessionAwareRetriever:
         # Sequential retrieval
         all_turns: list[SessionAwareSearchResult] = []
         for session in sessions:
-            turns = await self._retrieve_turns_in_session(query_embedding, session)
+            turns = await self._retrieve_turns_in_session(query_embedding, session, org_id)
             all_turns.extend(turns)
         return all_turns
 
     async def _retrieve_turns_in_session(
-        self, query_embedding: list[float], session: SessionResult
+        self, query_embedding: list[float], session: SessionResult, org_id: str | None = None
     ) -> list[SessionAwareSearchResult]:
         """Retrieve turns within a single session.
 
         Args:
                 query_embedding: Query embedding vector.
                 session: Session to search within.
+                org_id: Organization ID for tenant isolation.
 
         Returns:
                 Array of turns from this session.
         """
         try:
             client = self.qdrant_client.client
+
+            # Build filter conditions - ALWAYS include session_id
+            filter_conditions = [
+                models.FieldCondition(
+                    key="session_id",
+                    match=models.MatchValue(value=session.session_id),
+                )
+            ]
+
+            # Add org_id filter for tenant isolation
+            if org_id:
+                filter_conditions.append(
+                    models.FieldCondition(
+                        key="org_id",
+                        match=models.MatchValue(value=org_id),
+                    )
+                )
+
             results = await client.search(
                 collection_name=self.config.turn_collection,
                 query_vector=models.NamedVector(
@@ -349,14 +395,7 @@ class SessionAwareRetriever:
                     vector=query_embedding,
                 ),
                 limit=self.config.turns_per_session,
-                query_filter=models.Filter(
-                    must=[
-                        models.FieldCondition(
-                            key="session_id",
-                            match=models.MatchValue(value=session.session_id),
-                        )
-                    ]
-                ),
+                query_filter=models.Filter(must=filter_conditions),
                 with_payload=True,
             )
 
