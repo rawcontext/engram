@@ -1,6 +1,6 @@
 {
 	"name": "@rawcontext/engram-mcp",
-	"version": "0.1.7",
+	"version": "0.1.8",
 	"description": "Engram MCP server - intelligent memory for AI agents",
 	"type": "module",
 	"bin": {
@@ -40,8 +40,6 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@engram/graph": "*",
-		"@engram/logger": "*",
 		"@modelcontextprotocol/sdk": "^1.25.1",
 		"chokidar": "^4.0.3",
 		"express": "^5.0.1",
