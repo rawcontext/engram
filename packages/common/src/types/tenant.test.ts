@@ -3,9 +3,13 @@ import type { AuthContext } from "./auth";
 import {
 	createTenantContext,
 	generateOrgSlug,
+	getTenantContext,
 	getTenantGraphName,
 	isValidOrgSlug,
+	runWithTenantContext,
 	TenantAccessError,
+	TenantContextError,
+	tryGetTenantContext,
 	validateTenantAccess,
 } from "./tenant";
 
@@ -120,5 +124,101 @@ describe("generateOrgSlug", () => {
 	it("limits to 32 characters", () => {
 		const longName = "A".repeat(50);
 		expect(generateOrgSlug(longName).length).toBeLessThanOrEqual(32);
+	});
+});
+
+describe("Runtime Context Management", () => {
+	const mockContext = {
+		orgId: "org-123",
+		orgSlug: "acme",
+		userId: "user-456",
+		isAdmin: false,
+	};
+
+	describe("getTenantContext", () => {
+		it("throws when called outside of context scope", () => {
+			expect(() => getTenantContext()).toThrow(TenantContextError);
+			expect(() => getTenantContext()).toThrow(
+				"Tenant context not available. Ensure this code runs within runWithTenantContext().",
+			);
+		});
+
+		it("returns context when called within scope", async () => {
+			await runWithTenantContext(mockContext, async () => {
+				const ctx = getTenantContext();
+				expect(ctx).toEqual(mockContext);
+			});
+		});
+
+		it("allows nested access to context", async () => {
+			await runWithTenantContext(mockContext, async () => {
+				const nested = async () => {
+					const ctx = getTenantContext();
+					return ctx.orgId;
+				};
+				const orgId = await nested();
+				expect(orgId).toBe("org-123");
+			});
+		});
+	});
+
+	describe("tryGetTenantContext", () => {
+		it("returns undefined when called outside of context scope", () => {
+			const ctx = tryGetTenantContext();
+			expect(ctx).toBeUndefined();
+		});
+
+		it("returns context when called within scope", async () => {
+			await runWithTenantContext(mockContext, async () => {
+				const ctx = tryGetTenantContext();
+				expect(ctx).toEqual(mockContext);
+			});
+		});
+	});
+
+	describe("runWithTenantContext", () => {
+		it("establishes context for async operations", async () => {
+			const result = await runWithTenantContext(mockContext, async () => {
+				await new Promise((resolve) => setTimeout(resolve, 10));
+				return getTenantContext().orgId;
+			});
+			expect(result).toBe("org-123");
+		});
+
+		it("isolates context between concurrent operations", async () => {
+			const ctx1 = { orgId: "org-1", orgSlug: "acme", userId: "u1", isAdmin: false };
+			const ctx2 = { orgId: "org-2", orgSlug: "globex", userId: "u2", isAdmin: true };
+
+			const [result1, result2] = await Promise.all([
+				runWithTenantContext(ctx1, async () => {
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					return getTenantContext();
+				}),
+				runWithTenantContext(ctx2, async () => {
+					await new Promise((resolve) => setTimeout(resolve, 5));
+					return getTenantContext();
+				}),
+			]);
+
+			expect(result1).toEqual(ctx1);
+			expect(result2).toEqual(ctx2);
+		});
+
+		it("propagates errors from inner function", async () => {
+			await expect(
+				runWithTenantContext(mockContext, async () => {
+					throw new Error("Test error");
+				}),
+			).rejects.toThrow("Test error");
+		});
+
+		it("context is not available after scope exits", async () => {
+			await runWithTenantContext(mockContext, async () => {
+				expect(getTenantContext()).toEqual(mockContext);
+			});
+
+			// Context should not be available outside the scope
+			expect(() => getTenantContext()).toThrow(TenantContextError);
+		});
 	});
 });

@@ -7,8 +7,9 @@
  * @module @engram/common/types/tenant
  */
 
-import { ADMIN_READ_SCOPE } from "./auth";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { AuthContext } from "./auth";
+import { ADMIN_READ_SCOPE } from "./auth";
 
 // =============================================================================
 // Tenant Context
@@ -115,4 +116,85 @@ export function generateOrgSlug(name: string): string {
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "")
 		.slice(0, 32);
+}
+
+// =============================================================================
+// Runtime Context Management
+// =============================================================================
+
+/**
+ * AsyncLocalStorage instance for request-scoped tenant context.
+ * Allows accessing tenant context anywhere in the call stack without explicit passing.
+ */
+const tenantContextStorage = new AsyncLocalStorage<TenantContext>();
+
+/**
+ * Error thrown when tenant context is accessed outside of a request scope.
+ */
+export class TenantContextError extends Error {
+	constructor(message: string = "Tenant context not available") {
+		super(message);
+		this.name = "TenantContextError";
+	}
+}
+
+/**
+ * Execute a function with tenant context available in AsyncLocalStorage.
+ * Used by middleware to establish request-scoped tenant context.
+ *
+ * @example
+ * ```ts
+ * // In middleware
+ * await runWithTenantContext(tenantContext, async () => {
+ *   await handleRequest();
+ * });
+ *
+ * // In any nested function
+ * const ctx = getTenantContext();
+ * console.log(ctx.orgId); // Access without passing through params
+ * ```
+ */
+export function runWithTenantContext<T>(context: TenantContext, fn: () => Promise<T>): Promise<T> {
+	return tenantContextStorage.run(context, fn);
+}
+
+/**
+ * Get the current tenant context from AsyncLocalStorage.
+ * Must be called within a runWithTenantContext scope.
+ *
+ * @throws {TenantContextError} If called outside of a tenant context scope
+ *
+ * @example
+ * ```ts
+ * // Anywhere in the call stack within runWithTenantContext
+ * const ctx = getTenantContext();
+ * const graphName = getTenantGraphName(ctx);
+ * ```
+ */
+export function getTenantContext(): TenantContext {
+	const context = tenantContextStorage.getStore();
+	if (!context) {
+		throw new TenantContextError(
+			"Tenant context not available. Ensure this code runs within runWithTenantContext().",
+		);
+	}
+	return context;
+}
+
+/**
+ * Get the current tenant context, or undefined if not available.
+ * Useful for optional tenant-scoped operations.
+ *
+ * @example
+ * ```ts
+ * const ctx = tryGetTenantContext();
+ * if (ctx) {
+ *   // Tenant-scoped operation
+ * } else {
+ *   // Global operation
+ * }
+ * ```
+ */
+export function tryGetTenantContext(): TenantContext | undefined {
+	return tenantContextStorage.getStore();
 }

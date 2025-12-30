@@ -1,4 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
+import type { TenantContext } from "@engram/common";
 import { Hono } from "hono";
 import { createMemoryRoutes } from "./memory";
 
@@ -13,6 +14,14 @@ const mockAuthContext = {
 	rateLimit: 60,
 };
 
+// Mock tenant context
+const mockTenantContext: TenantContext = {
+	orgId: "test-org-123",
+	orgSlug: "test-org",
+	userId: "user-123",
+	isAdmin: false,
+};
+
 function createApp(memoryService: any) {
 	const mockLogger = {
 		debug: mock(),
@@ -23,9 +32,10 @@ function createApp(memoryService: any) {
 
 	const app = new Hono();
 
-	// Mock auth middleware
+	// Mock auth middleware (sets both auth and tenant contexts)
 	app.use("*", async (c, next) => {
 		c.set("auth", mockAuthContext);
+		c.set("tenant", mockTenantContext);
 		await next();
 	});
 
@@ -61,11 +71,14 @@ describe("Memory Routes", () => {
 			expect(body.success).toBe(true);
 			expect(body.data.id).toBe("memory-123");
 			expect(body.data.stored).toBe(true);
-			expect(mockMemoryService.remember).toHaveBeenCalledWith({
-				content: "This is a test memory",
-				type: "fact",
-				tags: ["test"],
-			});
+			expect(mockMemoryService.remember).toHaveBeenCalledWith(
+				{
+					content: "This is a test memory",
+					type: "fact",
+					tags: ["test"],
+				},
+				mockTenantContext,
+			);
 		});
 
 		it("should return 400 for invalid request body", async () => {
@@ -139,10 +152,16 @@ describe("Memory Routes", () => {
 			expect(body.success).toBe(true);
 			expect(body.data.memories).toHaveLength(1);
 			expect(body.data.memories[0].id).toBe("m1");
-			expect(mockMemoryService.recall).toHaveBeenCalledWith("test query", 5, undefined, {
-				rerank: true,
-				rerank_tier: "fast",
-			});
+			expect(mockMemoryService.recall).toHaveBeenCalledWith(
+				"test query",
+				5,
+				undefined,
+				{
+					rerank: true,
+					rerank_tier: "fast",
+				},
+				mockTenantContext,
+			);
 		});
 
 		it("should pass filters to recall", async () => {
@@ -175,6 +194,7 @@ describe("Memory Routes", () => {
 					rerank: true,
 					rerank_tier: "fast",
 				},
+				mockTenantContext,
 			);
 		});
 
@@ -228,6 +248,7 @@ describe("Memory Routes", () => {
 			expect(mockMemoryService.query).toHaveBeenCalledWith(
 				"MATCH (n:Memory) RETURN n LIMIT 10",
 				undefined,
+				mockTenantContext,
 			);
 		});
 
@@ -246,9 +267,13 @@ describe("Memory Routes", () => {
 				}),
 			});
 
-			expect(mockMemoryService.query).toHaveBeenCalledWith("MATCH (n:Memory {id: $id}) RETURN n", {
-				id: "memory-123",
-			});
+			expect(mockMemoryService.query).toHaveBeenCalledWith(
+				"MATCH (n:Memory {id: $id}) RETURN n",
+				{
+					id: "memory-123",
+				},
+				mockTenantContext,
+			);
 		});
 
 		it("should return 400 for empty query", async () => {
@@ -288,6 +313,7 @@ describe("Memory Routes", () => {
 				"Implement feature X",
 				undefined,
 				"medium",
+				mockTenantContext,
 			);
 		});
 
@@ -303,7 +329,12 @@ describe("Memory Routes", () => {
 				body: JSON.stringify({ task: "Task", depth: "deep" }),
 			});
 
-			expect(mockMemoryService.getContext).toHaveBeenCalledWith("Task", undefined, "deep");
+			expect(mockMemoryService.getContext).toHaveBeenCalledWith(
+				"Task",
+				undefined,
+				"deep",
+				mockTenantContext,
+			);
 		});
 
 		it("should return 400 for invalid depth", async () => {
@@ -335,6 +366,7 @@ describe("Memory Routes", () => {
 				"Task",
 				["file1.ts", "file2.ts"],
 				"medium",
+				mockTenantContext,
 			);
 		});
 
@@ -368,6 +400,7 @@ describe("Memory Routes", () => {
 			const app = new Hono();
 			app.use("*", async (c, next) => {
 				c.set("auth", mockAuthContext);
+				c.set("tenant", mockTenantContext);
 				await next();
 			});
 			app.route(
@@ -405,6 +438,7 @@ describe("Memory Routes", () => {
 			const app = new Hono();
 			app.use("*", async (c, next) => {
 				c.set("auth", mockAuthContext);
+				c.set("tenant", mockTenantContext);
 				await next();
 			});
 			app.route(
@@ -442,6 +476,7 @@ describe("Memory Routes", () => {
 			const app = new Hono();
 			app.use("*", async (c, next) => {
 				c.set("auth", mockAuthContext);
+				c.set("tenant", mockTenantContext);
 				await next();
 			});
 			app.route(
@@ -479,6 +514,7 @@ describe("Memory Routes", () => {
 			const app = new Hono();
 			app.use("*", async (c, next) => {
 				c.set("auth", mockAuthContext);
+				c.set("tenant", mockTenantContext);
 				await next();
 			});
 			app.route(

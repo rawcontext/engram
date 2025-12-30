@@ -32,6 +32,8 @@ describe("OAuth Authentication Middleware", () => {
 						rateLimitRpm: 1000,
 						grantType: "authorization_code",
 						clientId: "engram-console",
+						orgId: "org-123",
+						orgSlug: "acme",
 						user: {
 							name: "Test User",
 							email: "test@example.com",
@@ -43,11 +45,13 @@ describe("OAuth Authentication Middleware", () => {
 					return {
 						id: "client-token-456",
 						accessTokenPrefix: `${validClientToken.slice(0, 20)}...`,
-						userId: null,
+						userId: "service:engram-search", // Client credentials use service identity
 						scopes: ["memory:read", "query:read"],
 						rateLimitRpm: 5000,
 						grantType: "client_credentials",
 						clientId: "engram-search",
+						orgId: "org-456",
+						orgSlug: "globex",
 					} satisfies OAuthToken;
 				}
 
@@ -155,7 +159,7 @@ describe("OAuth Authentication Middleware", () => {
 			expect(authContext).toBeDefined();
 			expect(authContext?.method).toBe("oauth");
 			expect(authContext?.type).toBe("oauth");
-			expect(authContext?.userId).toBeNull(); // Client credentials have null userId
+			expect(authContext?.userId).toBe("service:engram-search"); // Client credentials use service identity
 			expect(authContext?.clientId).toBe("engram-search");
 			expect(authContext?.scopes).toContain("memory:read");
 			expect(authContext?.grantType).toBe("client_credentials");

@@ -5,9 +5,9 @@
  * Uses a dedicated connection pool for audit logs.
  */
 
+import { randomUUID } from "node:crypto";
 import type { AuditAction, AuditLogEntry } from "@engram/common";
 import type { Logger } from "@engram/logger";
-import { randomUUID } from "node:crypto";
 import pg from "pg";
 
 const { Pool } = pg;

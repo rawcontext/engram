@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import type { TenantContext } from "@engram/common";
 import { MemoryService } from "./memory";
 
 // Mock fetch for SearchClient
@@ -13,6 +14,13 @@ describe("MemoryService", () => {
 		warn: mock(),
 		error: mock(),
 	} as any;
+
+	const mockTenantContext: TenantContext = {
+		orgId: "test-org-123",
+		orgSlug: "test-org",
+		userId: "user-123",
+		isAdmin: false,
+	};
 
 	const createMockGraphClient = () => ({
 		query: mock(),
@@ -34,11 +42,14 @@ describe("MemoryService", () => {
 				logger: mockLogger,
 			});
 
-			const result = await service.remember({
-				content: "Test memory content",
-				type: "fact",
-				tags: ["test"],
-			});
+			const result = await service.remember(
+				{
+					content: "Test memory content",
+					type: "fact",
+					tags: ["test"],
+				},
+				mockTenantContext,
+			);
 
 			expect(result.stored).toBe(true);
 			expect(result.duplicate).toBe(false);
@@ -73,7 +84,7 @@ describe("MemoryService", () => {
 				logger: mockLogger,
 			});
 
-			const result = await service.remember({ content: "Duplicate content" });
+			const result = await service.remember({ content: "Duplicate content" }, mockTenantContext);
 
 			expect(result.stored).toBe(false);
 			expect(result.duplicate).toBe(true);
@@ -94,7 +105,7 @@ describe("MemoryService", () => {
 				logger: mockLogger,
 			});
 
-			await service.remember({ content: "Test" });
+			await service.remember({ content: "Test" }, mockTenantContext);
 
 			expect(mockGraphClient.query).toHaveBeenNthCalledWith(
 				2,
@@ -114,7 +125,7 @@ describe("MemoryService", () => {
 				logger: mockLogger,
 			});
 
-			await service.remember({ content: "Test" });
+			await service.remember({ content: "Test" }, mockTenantContext);
 
 			const createCall = mockGraphClient.query.mock.calls[1][1];
 			expect(createCall.vtStart).toBeDefined();

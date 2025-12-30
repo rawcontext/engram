@@ -28,8 +28,8 @@
  * ```
  */
 
-import type { AuditAction, AuditLogEntry, AuditLogFilter } from "@engram/common";
 import { randomUUID } from "node:crypto";
+import type { AuditAction, AuditLogEntry, AuditLogFilter } from "@engram/common";
 import { pool } from "./db";
 
 /**

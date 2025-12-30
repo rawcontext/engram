@@ -1,6 +1,6 @@
 import { TOKEN_PATTERNS } from "@engram/common";
-import { createTenantContext, type TenantContext } from "@engram/common/types";
 import type { AuthContext as CommonAuthContext } from "@engram/common/types";
+import { createTenantContext } from "@engram/common/types";
 import type { Logger } from "@engram/logger";
 import type { Context, Next } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";

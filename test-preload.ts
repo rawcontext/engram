@@ -33,6 +33,24 @@ class MockFalkorClient {
 	disconnect = mockDisconnect;
 }
 
+// Mock TenantAwareFalkorClient
+const mockSelectTenantGraph = mock(async () => ({
+	query: mockQuery,
+}));
+
+const mockEnsureTenantGraph = mock(async () => ({
+	query: mockQuery,
+}));
+
+class MockTenantAwareFalkorClient {
+	constructor(_client: MockFalkorClient) {
+		// Client parameter intentionally unused in mock
+	}
+
+	selectTenantGraph = mockSelectTenantGraph;
+	ensureTenantGraph = mockEnsureTenantGraph;
+}
+
 // Create singleton factory mocks that ALWAYS return the same object
 const createFalkorClientMock = Object.assign(() => mockFalkorClient, {
 	mock: { calls: [] as unknown[][] },
@@ -44,6 +62,7 @@ const createFalkorClientMock = Object.assign(() => mockFalkorClient, {
 mock.module("@engram/storage/falkor", () => ({
 	createFalkorClient: createFalkorClientMock,
 	FalkorClient: MockFalkorClient,
+	TenantAwareFalkorClient: MockTenantAwareFalkorClient,
 }));
 
 // Also mock blob store
@@ -104,6 +123,7 @@ const createBlobStoreMock = Object.assign(() => mockBlobStore, {
 mock.module("@engram/storage", () => ({
 	createFalkorClient: createFalkorClientMock,
 	FalkorClient: MockFalkorClient,
+	TenantAwareFalkorClient: MockTenantAwareFalkorClient,
 	createBlobStore: createBlobStoreMock,
 	createNatsClient: createNatsClientMock,
 	NatsClient: MockNatsClient,

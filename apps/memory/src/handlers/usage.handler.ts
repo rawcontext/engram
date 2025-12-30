@@ -84,6 +84,7 @@ export class UsageEventHandler implements EventHandler {
 					output_tokens: turn.outputTokens,
 					timestamp: Date.now(),
 					vt_start: turn.createdAt,
+					org_id: turn.orgId, // Propagate org_id for tenant isolation
 				});
 			} catch (e) {
 				context.logger.error(

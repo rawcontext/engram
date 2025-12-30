@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { GraphClient } from "@engram/storage";
+import { FalkorMemoryRepository } from "./falkor-memory.repository";
 import { FalkorReasoningRepository } from "./falkor-reasoning.repository";
 import { FalkorSessionRepository } from "./falkor-session.repository";
 import { FalkorToolCallRepository } from "./falkor-tool-call.repository";
@@ -2089,6 +2090,386 @@ describe("FalkorToolCallRepository", () => {
 			await expect(repository.findById("tc-123")).rejects.toThrow(
 				"Invalid node: node or properties is null/undefined",
 			);
+		});
+	});
+});
+
+describe("FalkorMemoryRepository", () => {
+	let mockClient: ReturnType<typeof createMockGraphClient>;
+	let repository: FalkorMemoryRepository;
+
+	beforeEach(() => {
+		mockClient = createMockGraphClient();
+		repository = new FalkorMemoryRepository(mockClient as unknown as GraphClient);
+	});
+
+	describe("findById", () => {
+		it("should return null when memory not found", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.findById("non-existent");
+
+			expect(result).toBeNull();
+			expect(mockClient.query).toHaveBeenCalledWith(
+				expect.stringContaining("MATCH (m:Memory {id: $id})"),
+				{ id: "non-existent" },
+			);
+		});
+
+		it("should return mapped memory when found", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						id: 1,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-123",
+							content: "Remember to use tabs for indentation",
+							content_hash: "hash123",
+							type: "preference",
+							tags: ["coding-style", "formatting"],
+							source: "user",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+
+			const result = await repository.findById("mem-123");
+
+			expect(result).not.toBeNull();
+			expect(result?.content).toBe("Remember to use tabs for indentation");
+			expect(result?.type).toBe("preference");
+			expect(result?.tags).toEqual(["coding-style", "formatting"]);
+		});
+	});
+
+	describe("findByType", () => {
+		it("should find memories by type", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						id: 1,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-1",
+							content: "Decided to use Biome instead of ESLint",
+							content_hash: "hash1",
+							type: "decision",
+							tags: ["tooling"],
+							source: "user",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+
+			const result = await repository.findByType("decision");
+
+			expect(result).toHaveLength(1);
+			expect(result[0].type).toBe("decision");
+		});
+	});
+
+	describe("findByTag", () => {
+		it("should find memories by tag", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						id: 1,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-1",
+							content: "Authentication flow uses OAuth 2.1",
+							content_hash: "hash1",
+							type: "fact",
+							tags: ["authentication", "security"],
+							source: "user",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+
+			const result = await repository.findByTag("authentication");
+
+			expect(result).toHaveLength(1);
+			expect(result[0].tags).toContain("authentication");
+		});
+	});
+
+	describe("create", () => {
+		it("should create memory with required fields", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						id: 1,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-new",
+							content: "Always use async/await instead of callbacks",
+							content_hash: "hash456",
+							type: "preference",
+							tags: ["coding-style"],
+							source: "user",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+
+			const result = await repository.create({
+				content: "Always use async/await instead of callbacks",
+				contentHash: "hash456",
+				type: "preference",
+				tags: ["coding-style"],
+			});
+
+			const [query, params] = mockClient.query.mock.calls[0];
+			expect(query).toContain("CREATE (m:Memory");
+			expect(params).toMatchObject({
+				content: "Always use async/await instead of callbacks",
+				content_hash: "hash456",
+				type: "preference",
+			});
+			expect(result.type).toBe("preference");
+		});
+
+		it("should create memory with optional fields", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						id: 1,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-new",
+							content: "Bug fix for authentication race condition",
+							content_hash: "hash789",
+							type: "insight",
+							tags: ["debugging", "auth"],
+							source_session_id: "sess-123",
+							source_turn_id: "turn-456",
+							source: "user",
+							project: "engram",
+							working_dir: "/Users/user/engram",
+							embedding: [0.1, 0.2, 0.3],
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+
+			await repository.create({
+				content: "Bug fix for authentication race condition",
+				contentHash: "hash789",
+				type: "insight",
+				tags: ["debugging", "auth"],
+				sourceSessionId: "sess-123",
+				sourceTurnId: "turn-456",
+				project: "engram",
+				workingDir: "/Users/user/engram",
+				embedding: [0.1, 0.2, 0.3],
+			});
+
+			const [, params] = mockClient.query.mock.calls[0];
+			expect(params.source_session_id).toBe("sess-123");
+			expect(params.source_turn_id).toBe("turn-456");
+			expect(params.project).toBe("engram");
+			expect(params.working_dir).toBe("/Users/user/engram");
+			expect(params.embedding).toEqual([0.1, 0.2, 0.3]);
+		});
+	});
+
+	describe("update", () => {
+		it("should update memory content", async () => {
+			// First call for findById
+			mockClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						id: 1,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-123",
+							content: "Old content",
+							content_hash: "old-hash",
+							type: "fact",
+							tags: ["tag1"],
+							source: "user",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+			// Second call for closing old version
+			mockClient.query.mockResolvedValueOnce([{ count: 1 }]);
+			// Third call for creating new version
+			mockClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						id: 2,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-456",
+							content: "Updated content",
+							content_hash: "new-hash",
+							type: "fact",
+							tags: ["tag1"],
+							source: "user",
+							vt_start: 1700000100000,
+							vt_end: 253402300799000,
+							tt_start: 1700000100000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+			// Fourth call for REPLACES edge
+			mockClient.query.mockResolvedValueOnce([]);
+
+			const result = await repository.update("mem-123", {
+				content: "Updated content",
+				contentHash: "new-hash",
+			});
+
+			expect(result.content).toBe("Updated content");
+			expect(result.contentHash).toBe("new-hash");
+		});
+	});
+
+	describe("delete", () => {
+		it("should soft delete memory", async () => {
+			// First call for findById
+			mockClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						id: 1,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-123",
+							content: "To be deleted",
+							content_hash: "hash",
+							type: "context",
+							tags: [],
+							source: "user",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+			// Second call for soft delete
+			mockClient.query.mockResolvedValueOnce([]);
+
+			await repository.delete("mem-123");
+
+			const [query] = mockClient.query.mock.calls[1];
+			expect(query).toContain("SET n.tt_end");
+		});
+
+		it("should throw when memory not found", async () => {
+			mockClient.query.mockResolvedValueOnce([]);
+
+			await expect(repository.delete("non-existent")).rejects.toThrow(
+				"Memory not found: non-existent",
+			);
+		});
+	});
+
+	describe("findByProject", () => {
+		it("should find memories by project", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						id: 1,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-1",
+							content: "Project-specific memory",
+							content_hash: "hash1",
+							type: "context",
+							tags: [],
+							source: "user",
+							project: "engram",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+
+			const result = await repository.findByProject("engram");
+
+			expect(result).toHaveLength(1);
+			expect(result[0].project).toBe("engram");
+		});
+	});
+
+	describe("findActive", () => {
+		it("should find all active memories", async () => {
+			mockClient.query.mockResolvedValueOnce([
+				{
+					m: {
+						id: 1,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-1",
+							content: "Active memory 1",
+							content_hash: "hash1",
+							type: "fact",
+							tags: [],
+							source: "user",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+				{
+					m: {
+						id: 2,
+						labels: ["Memory"],
+						properties: {
+							id: "mem-2",
+							content: "Active memory 2",
+							content_hash: "hash2",
+							type: "insight",
+							tags: [],
+							source: "auto",
+							vt_start: 1700000000000,
+							vt_end: 253402300799000,
+							tt_start: 1700000000000,
+							tt_end: 253402300799000,
+						},
+					},
+				},
+			]);
+
+			const result = await repository.findActive();
+
+			expect(result).toHaveLength(2);
 		});
 	});
 });

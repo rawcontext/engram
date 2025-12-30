@@ -210,3 +210,93 @@ export interface ToolCall {
 	ttStart: number;
 	ttEnd: number;
 }
+
+// =============================================================================
+// FileTouch Repository Types
+// =============================================================================
+
+export const CreateFileTouchInputSchema = z.object({
+	toolCallId: z.string(),
+	filePath: z.string(),
+	action: z.enum(["read", "edit", "create", "delete", "list", "search"]),
+	sequenceIndex: z.number().int().optional(),
+	diffPreview: z.string().max(500).optional(),
+	linesAdded: z.number().int().optional(),
+	linesRemoved: z.number().int().optional(),
+	matchCount: z.number().int().optional(),
+	matchedFiles: z.array(z.string()).optional(),
+});
+
+export type CreateFileTouchInput = z.infer<typeof CreateFileTouchInputSchema>;
+
+/**
+ * FileTouch entity returned from repository.
+ */
+export interface FileTouch {
+	id: string;
+	toolCallId: string;
+	filePath: string;
+	action: string;
+	sequenceIndex?: number;
+	diffPreview?: string;
+	linesAdded?: number;
+	linesRemoved?: number;
+	matchCount?: number;
+	matchedFiles?: string[];
+	// Bitemporal
+	vtStart: number;
+	vtEnd: number;
+	ttStart: number;
+	ttEnd: number;
+}
+
+// =============================================================================
+// Memory Repository Types
+// =============================================================================
+
+export const CreateMemoryInputSchema = z.object({
+	content: z.string(),
+	contentHash: z.string(),
+	type: z.enum(["decision", "context", "insight", "preference", "fact", "turn"]).default("context"),
+	tags: z.array(z.string()).default([]),
+	sourceSessionId: z.string().optional(),
+	sourceTurnId: z.string().optional(),
+	source: z.enum(["user", "auto", "import"]).default("user"),
+	project: z.string().optional(),
+	workingDir: z.string().optional(),
+	embedding: z.array(z.number()).optional(),
+});
+
+export type CreateMemoryInput = z.infer<typeof CreateMemoryInputSchema>;
+
+export const UpdateMemoryInputSchema = z.object({
+	content: z.string().optional(),
+	contentHash: z.string().optional(),
+	type: z.enum(["decision", "context", "insight", "preference", "fact", "turn"]).optional(),
+	tags: z.array(z.string()).optional(),
+	embedding: z.array(z.number()).optional(),
+});
+
+export type UpdateMemoryInput = z.infer<typeof UpdateMemoryInputSchema>;
+
+/**
+ * Memory entity returned from repository.
+ */
+export interface Memory {
+	id: string;
+	content: string;
+	contentHash: string;
+	type: string;
+	tags: string[];
+	sourceSessionId?: string;
+	sourceTurnId?: string;
+	source: string;
+	project?: string;
+	workingDir?: string;
+	embedding?: number[];
+	// Bitemporal
+	vtStart: number;
+	vtEnd: number;
+	ttStart: number;
+	ttEnd: number;
+}

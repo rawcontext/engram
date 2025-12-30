@@ -34,6 +34,7 @@ type TurnNodeProps = {
 
 /**
  * FalkorDB implementation of TurnRepository.
+ * Supports both legacy (single-tenant) and multi-tenant modes via TenantContext.
  */
 export class FalkorTurnRepository extends FalkorBaseRepository implements TurnRepository {
 	async findById(id: string): Promise<Turn | null> {

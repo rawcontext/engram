@@ -114,6 +114,10 @@ export class IngestionProcessor {
 		const gitRemote = headers["x-git-remote"] || null;
 		const agentType = headers["x-agent-type"] || "unknown";
 
+		// Extract tenant context from raw event (set by HTTP endpoint from auth)
+		const orgId = rawEvent.org_id;
+		const orgSlug = rawEvent.org_slug;
+
 		// 1. Parse using registry
 		if (!defaultRegistry.has(provider)) {
 			this.logger.warn({ provider, available: defaultRegistry.providers() }, "Unknown provider");
@@ -254,6 +258,9 @@ export class IngestionProcessor {
 			original_event_id: rawEvent.event_id,
 			timestamp: rawEvent.ingest_timestamp,
 			metadata,
+			// Tenant context for multi-tenancy isolation
+			org_id: orgId,
+			org_slug: orgSlug,
 			// Preserve bitemporal fields from raw event
 			vt_start: rawEvent.vt_start,
 			vt_end: rawEvent.vt_end,
@@ -412,8 +419,8 @@ export function createIngestionServer(port = 6175, maxBodySize = 50 * 1024 * 102
 
 		if (url.pathname === "/ingest" && req.method === "POST") {
 			// Authenticate request before processing
-			const authorized = await authenticateRequest(req, res, ["memory:write", "ingest:write"]);
-			if (!authorized) {
+			const authContext = await authenticateRequest(req, res, ["memory:write", "ingest:write"]);
+			if (!authContext) {
 				return; // Response already sent by authenticateRequest
 			}
 			let rawBody: unknown;
@@ -450,7 +457,14 @@ export function createIngestionServer(port = 6175, maxBodySize = 50 * 1024 * 102
 					rawBody = JSON.parse(body);
 					const rawEvent = RawStreamEventSchema.parse(rawBody);
 
-					await processEvent(rawEvent);
+					// Attach org context from auth to the raw event
+					const enrichedEvent = {
+						...rawEvent,
+						org_id: authContext.orgId,
+						org_slug: authContext.orgSlug,
+					};
+
+					await processEvent(enrichedEvent);
 
 					res.writeHead(200, { "Content-Type": "application/json" });
 					res.end(JSON.stringify({ status: "processed" }));

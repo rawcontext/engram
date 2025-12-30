@@ -2,6 +2,8 @@
 // Repository Interfaces
 // =============================================================================
 
+export type { FileTouchRepository } from "./file-touch.repository";
+export type { MemoryRepository } from "./memory.repository";
 export type { ReasoningRepository } from "./reasoning.repository";
 export type { SessionRepository } from "./session.repository";
 export type { ToolCallRepository } from "./tool-call.repository";
@@ -12,6 +14,10 @@ export type { TurnRepository } from "./turn.repository";
 // =============================================================================
 
 export type {
+	// FileTouch types
+	CreateFileTouchInput,
+	// Memory types
+	CreateMemoryInput,
 	// Reasoning types
 	CreateReasoningInput,
 	// Session types
@@ -20,21 +26,27 @@ export type {
 	CreateToolCallInput,
 	// Turn types
 	CreateTurnInput,
+	FileTouch,
+	Memory,
 	Reasoning,
 	Session,
 	ToolCall,
 	ToolResult,
 	Turn,
+	UpdateMemoryInput,
 	UpdateSessionInput,
 	UpdateTurnInput,
 } from "./types";
 
 export {
+	CreateFileTouchInputSchema,
+	CreateMemoryInputSchema,
 	CreateReasoningInputSchema,
 	CreateSessionInputSchema,
 	CreateToolCallInputSchema,
 	CreateTurnInputSchema,
 	ToolResultSchema,
+	UpdateMemoryInputSchema,
 	UpdateSessionInputSchema,
 	UpdateTurnInputSchema,
 } from "./types";
@@ -45,6 +57,8 @@ export {
 
 export type { TimeTravelOptions } from "./falkor-base";
 export { FalkorBaseRepository } from "./falkor-base";
+export { FalkorFileTouchRepository } from "./falkor-file-touch.repository";
+export { FalkorMemoryRepository } from "./falkor-memory.repository";
 export { FalkorReasoningRepository } from "./falkor-reasoning.repository";
 export { FalkorSessionRepository } from "./falkor-session.repository";
 export { FalkorToolCallRepository } from "./falkor-tool-call.repository";

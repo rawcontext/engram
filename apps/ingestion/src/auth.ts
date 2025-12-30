@@ -131,8 +131,8 @@ function sendForbidden(res: ServerResponse, message: string): void {
 }
 
 /**
- * Authenticate incoming request. Returns true if authorized, false if rejected.
- * When false, response has already been sent.
+ * Authenticate incoming request. Returns AuthContext if authorized, null if rejected.
+ * When null, response has already been sent.
  *
  * Supports OAuth tokens only.
  */
@@ -140,22 +140,30 @@ export async function authenticateRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 	requiredScopes: string[],
-): Promise<boolean> {
-	// Skip auth if disabled
+): Promise<AuthContext | null> {
+	// Skip auth if disabled (return minimal context)
 	if (!authConfig?.enabled) {
-		return true;
+		return {
+			id: "dev",
+			prefix: "dev",
+			method: "oauth",
+			scopes: [],
+			userId: "dev-user",
+			orgId: "dev-org",
+			orgSlug: "dev",
+		};
 	}
 
 	const authHeader = req.headers.authorization;
 
 	if (!authHeader) {
 		sendUnauthorized(res, "Missing Authorization header");
-		return false;
+		return null;
 	}
 
 	if (!authHeader.startsWith("Bearer ")) {
 		sendUnauthorized(res, "Invalid Authorization header format. Use: Bearer <token>");
-		return false;
+		return null;
 	}
 
 	const token = authHeader.slice(7);
@@ -165,21 +173,21 @@ export async function authenticateRequest(
 
 		if (!authContext) {
 			sendUnauthorized(res, "Invalid or expired token");
-			return false;
+			return null;
 		}
 
 		// Check scopes
 		const hasScope = requiredScopes.some((scope) => authContext.scopes.includes(scope));
 		if (!hasScope) {
 			sendForbidden(res, `Missing required scope. Need one of: ${requiredScopes.join(", ")}`);
-			return false;
+			return null;
 		}
 
 		authConfig.logger.debug(
 			{ prefix: authContext.prefix, method: authContext.method },
 			"Request authenticated",
 		);
-		return true;
+		return authContext;
 	} catch (error) {
 		authConfig.logger.error({ error }, "Failed to validate token");
 		res.writeHead(500, { "Content-Type": "application/json" });
@@ -189,6 +197,6 @@ export async function authenticateRequest(
 				error: { code: "INTERNAL_ERROR", message: "Failed to validate token" },
 			}),
 		);
-		return false;
+		return null;
 	}
 }

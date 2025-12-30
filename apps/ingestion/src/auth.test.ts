@@ -255,7 +255,11 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(true);
+			// Returns dev context object when auth is disabled
+			expect(result).not.toBeNull();
+			expect(result?.userId).toBe("dev-user");
+			expect(result?.orgId).toBe("dev-org");
+			expect(result?.orgSlug).toBe("dev");
 			expect(writeHeadMock).not.toHaveBeenCalled();
 		});
 
@@ -274,7 +278,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
 			expect(endResMock).toHaveBeenCalledWith(
 				JSON.stringify({
@@ -301,7 +305,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
 			expect(endResMock).toHaveBeenCalledWith(
 				JSON.stringify({
@@ -331,7 +335,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
 			expect(endResMock).toHaveBeenCalledWith(
 				JSON.stringify({
@@ -361,6 +365,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["ingest:write"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
@@ -373,7 +379,10 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(true);
+			expect(result).not.toBeNull();
+			expect(result?.userId).toBe("user-123");
+			expect(result?.orgId).toBe("org-123");
+			expect(result?.orgSlug).toBe("acme");
 			expect(mockState.queryCalls.length).toBe(2); // Once for validation, once for update
 			expect(mockLogger.debug).toHaveBeenCalled();
 		});
@@ -398,6 +407,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["ingest:write", "memory:write"],
 						user_id: "client-123",
+						org_id: "org-456",
+						org_slug: "globex",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
@@ -410,7 +421,9 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(true);
+			expect(result).not.toBeNull();
+			expect(result?.userId).toBe("client-123");
+			expect(result?.orgId).toBe("org-456");
 			expect(mockState.queryCalls.length).toBe(2); // Once for validation, once for update
 			expect(mockLogger.debug).toHaveBeenCalled();
 		});
@@ -436,7 +449,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
 			expect(endResMock).toHaveBeenCalledWith(
 				JSON.stringify({
@@ -466,6 +479,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["ingest:write"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: new Date(),
 					},
@@ -478,7 +493,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
 		});
 
@@ -505,6 +520,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["ingest:write"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: yesterday,
 						revoked_at: null,
 					},
@@ -517,7 +534,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
 		});
 
@@ -544,6 +561,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["ingest:write", "memory:read"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: tomorrow,
 						revoked_at: null,
 					},
@@ -556,7 +575,8 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(true);
+			expect(result).not.toBeNull();
+			expect(result?.userId).toBe("user-123");
 		});
 
 		it("should reject OAuth token with insufficient scope", async () => {
@@ -579,6 +599,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["memory:read"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
@@ -591,7 +613,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 			expect(writeHeadMock).toHaveBeenCalledWith(403, { "Content-Type": "application/json" });
 			expect(endResMock).toHaveBeenCalledWith(
 				JSON.stringify({
@@ -624,6 +646,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["memory:read"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
@@ -636,7 +660,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write", "memory:read"],
 			);
 
-			expect(result).toBe(true);
+			expect(result).not.toBeNull();
 		});
 
 		it("should handle database errors gracefully", async () => {
@@ -661,7 +685,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 			expect(mockLogger.error).toHaveBeenCalledWith(
 				{ error: expect.any(Error) },
 				"Failed to validate token",
@@ -696,6 +720,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["ingest:write"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
@@ -735,6 +761,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["ingest:write"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
@@ -751,7 +779,7 @@ describeOrSkip("Auth", () => {
 			);
 
 			// Should still succeed since update is fire-and-forget
-			expect(result).toBe(true);
+			expect(result).not.toBeNull();
 		});
 
 		it("should reject OAuth token with wrong length", async () => {
@@ -771,7 +799,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
 		});
 
@@ -794,7 +822,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 		});
 
 		it("should accept OAuth token with lowercase hex chars only", async () => {
@@ -816,6 +844,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["ingest:write"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
@@ -828,7 +858,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(true);
+			expect(result).not.toBeNull();
 		});
 
 		it("should log with correct prefix for OAuth token", async () => {
@@ -851,6 +881,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: "prefix-123",
 						scopes: ["ingest:write"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
@@ -887,7 +919,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write"],
 			);
 
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
 		});
 
@@ -910,6 +942,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["ingest:write"],
 						user_id: "user-789",
+						org_id: "org-789",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
@@ -923,7 +957,7 @@ describeOrSkip("Auth", () => {
 			);
 
 			// With empty required scopes, any valid token should fail scope check
-			expect(result).toBe(false);
+			expect(result).toBeNull();
 		});
 
 		it("should check scopes with some() - any matching scope is sufficient", async () => {
@@ -946,6 +980,8 @@ describeOrSkip("Auth", () => {
 						access_token_prefix: validToken.slice(0, 20),
 						scopes: ["memory:write", "query:read"],
 						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
@@ -959,7 +995,7 @@ describeOrSkip("Auth", () => {
 				["ingest:write", "query:read", "admin:all"],
 			);
 
-			expect(result).toBe(true);
+			expect(result).not.toBeNull();
 		});
 	});
 });

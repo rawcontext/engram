@@ -1,8 +1,18 @@
+import type { TenantContext } from "@engram/common";
 import type { Logger } from "@engram/logger";
 import { Hono } from "hono";
 import { z } from "zod";
+import type { OAuthAuthContext } from "../middleware/auth";
 import { requireScopes } from "../middleware/scopes";
 import type { MemoryService } from "../services/memory";
+
+// Hono environment type
+type Env = {
+	Variables: {
+		auth: OAuthAuthContext;
+		tenant: TenantContext;
+	};
+};
 
 // Request schemas
 const RememberSchema = z.object({
@@ -45,7 +55,7 @@ export interface MemoryRoutesOptions {
 
 export function createMemoryRoutes(options: MemoryRoutesOptions) {
 	const { memoryService, logger } = options;
-	const app = new Hono();
+	const app = new Hono<Env>();
 
 	// POST /v1/memory/remember - Store a memory
 	app.post("/remember", requireScopes("memory:write"), async (c) => {
@@ -67,7 +77,10 @@ export function createMemoryRoutes(options: MemoryRoutesOptions) {
 				);
 			}
 
-			const result = await memoryService.remember(parsed.data);
+			// Extract tenant context from auth middleware
+			const tenantContext = c.get("tenant") as TenantContext;
+
+			const result = await memoryService.remember(parsed.data, tenantContext);
 
 			return c.json({
 				success: true,
@@ -102,6 +115,9 @@ export function createMemoryRoutes(options: MemoryRoutesOptions) {
 				);
 			}
 
+			// Extract tenant context from auth middleware
+			const tenantContext = c.get("tenant") as TenantContext;
+
 			const results = await memoryService.recall(
 				parsed.data.query,
 				parsed.data.limit,
@@ -110,6 +126,7 @@ export function createMemoryRoutes(options: MemoryRoutesOptions) {
 					rerank: parsed.data.rerank,
 					rerank_tier: parsed.data.rerank_tier,
 				},
+				tenantContext,
 			);
 
 			return c.json({
@@ -145,7 +162,14 @@ export function createMemoryRoutes(options: MemoryRoutesOptions) {
 				);
 			}
 
-			const results = await memoryService.query(parsed.data.cypher, parsed.data.params);
+			// Extract tenant context from auth middleware
+			const tenantContext = c.get("tenant") as TenantContext;
+
+			const results = await memoryService.query(
+				parsed.data.cypher,
+				parsed.data.params,
+				tenantContext,
+			);
 
 			return c.json({
 				success: true,
@@ -180,10 +204,14 @@ export function createMemoryRoutes(options: MemoryRoutesOptions) {
 				);
 			}
 
+			// Extract tenant context from auth middleware
+			const tenantContext = c.get("tenant") as TenantContext;
+
 			const context = await memoryService.getContext(
 				parsed.data.task,
 				parsed.data.files,
 				parsed.data.depth,
+				tenantContext,
 			);
 
 			return c.json({

@@ -4,6 +4,14 @@
  * @module @engram/common/types
  */
 
+// Audit logging types
+export type {
+	AuditAction,
+	AuditLogEntry,
+	AuditLogFilter,
+	AuditResourceType,
+} from "./audit";
+export { createAuditEntry, getActionSeverity, isCrossTenantAction } from "./audit";
 export type {
 	AuthContext,
 	// Auth token type
@@ -28,7 +36,6 @@ export type {
 	VerifyCodeRequest,
 	VerifyCodeResponse,
 } from "./auth";
-
 export {
 	ADMIN_READ_SCOPE,
 	CLIENT_TOKEN_PATTERN,
@@ -38,9 +45,7 @@ export {
 	REFRESH_TOKEN_PATTERN,
 	TOKEN_PATTERNS,
 } from "./auth";
-
 export type { TenantContext } from "./tenant";
-
 export {
 	createTenantContext,
 	generateOrgSlug,
@@ -53,13 +58,3 @@ export {
 	tryGetTenantContext,
 	validateTenantAccess,
 } from "./tenant";
-
-// Audit logging types
-export type {
-	AuditAction,
-	AuditLogEntry,
-	AuditLogFilter,
-	AuditResourceType,
-} from "./audit";
-
-export { createAuditEntry, getActionSeverity, isCrossTenantAction } from "./audit";

@@ -116,13 +116,11 @@
     },
     "apps/mcp": {
       "name": "@rawcontext/engram-mcp",
-      "version": "0.1.6",
+      "version": "0.1.9",
       "bin": {
         "engram-mcp": "dist/index.js",
       },
       "dependencies": {
-        "@engram/graph": "*",
-        "@engram/logger": "*",
         "@modelcontextprotocol/sdk": "^1.25.1",
         "chokidar": "^4.0.3",
         "express": "^5.0.1",

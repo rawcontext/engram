@@ -250,7 +250,7 @@ describe("Auth Middleware - Token Expiration", () => {
 				id: "token-456",
 				accessTokenHash: "hash",
 				accessTokenPrefix: "egm_client_abc...",
-				userId: null, // Client credentials have no user
+				userId: "service:engram-search", // Client credentials use service identity
 				scopes: ["memory:read", "query:read"],
 				rateLimitRpm: 1000,
 				accessTokenExpiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 days
@@ -259,6 +259,8 @@ describe("Auth Middleware - Token Expiration", () => {
 				updatedAt: new Date(),
 				clientId: "engram-search",
 				grantType: "client_credentials" as const,
+				orgId: "org-456",
+				orgSlug: "globex",
 			};
 
 			const mockRepo: OAuthTokenRepository = {

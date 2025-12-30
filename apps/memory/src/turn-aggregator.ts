@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { TenantContext } from "@engram/common/types";
 import type { ParsedStreamEvent } from "@engram/events";
 import type { Logger } from "@engram/logger";
-import { type GraphClient, type QueryParams, TenantAwareFalkorClient } from "@engram/storage";
+import type { GraphClient, QueryParams, TenantAwareFalkorClient } from "@engram/storage";
 import {
 	createDefaultHandlerRegistry,
 	type EventHandlerRegistry,

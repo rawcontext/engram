@@ -54,6 +54,8 @@ export interface MemoryIndexOptions {
 	tags?: string[];
 	project?: string;
 	source_session_id?: string;
+	/** Organization ID for multi-tenant isolation */
+	orgId?: string;
 }
 
 export interface MemoryIndexResponse {
@@ -160,6 +162,7 @@ export class SearchClient {
 			tags: options.tags ?? [],
 			project: options.project,
 			source_session_id: options.source_session_id,
+			org_id: options.orgId,
 		};
 
 		this.logger.debug({ url, id: options.id }, "Sending memory index request");

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { QdrantCollections, type TenantContext } from "@engram/common";
 import type { Logger } from "@engram/logger";
-import { type GraphClient, type QueryParams, TenantAwareFalkorClient } from "@engram/storage";
+import type { GraphClient, QueryParams, TenantAwareFalkorClient } from "@engram/storage";
 import { ulid } from "ulid";
 import { SearchClient } from "../clients/search";
 
