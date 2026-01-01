@@ -1,8 +1,9 @@
 /**
- * Example usage of the Schema DSL field primitives.
+ * Example usage of the Schema DSL for both field primitives and edge definitions.
  * This file demonstrates the API design and type inference.
  */
 
+import { edge } from "./edge";
 import { field } from "./field";
 
 // =============================================================================
@@ -92,3 +93,62 @@ const examples = {
 };
 
 console.log("Schema field examples:", examples);
+
+// =============================================================================
+// Example 5: Edge Definitions
+// =============================================================================
+
+// Simple edge without properties
+export const HasTurn = edge({
+	from: "Session",
+	to: "Turn",
+	cardinality: "one-to-many",
+	temporal: true,
+});
+
+// Edge with properties
+export const Mentions = edge({
+	from: "Memory",
+	to: "Entity",
+	temporal: true,
+	cardinality: "many-to-many",
+	properties: {
+		context: field.string().max(500).optional(),
+		confidence: field.float().min(0).max(1),
+		mentionCount: field.int().min(1).default(1),
+	},
+	description: "Links a memory to entities mentioned within it",
+});
+
+// Self-referential edge
+export const Replaces = edge({
+	from: "Memory",
+	to: "Memory",
+	temporal: true,
+	cardinality: "one-to-one",
+	description: "New version replaces old version",
+});
+
+// Causal relationship edge
+export const Triggers = edge({
+	from: "Reasoning",
+	to: "ToolCall",
+	temporal: true,
+	cardinality: "one-to-many",
+	properties: {
+		causalStrength: field.float().min(0).max(1).optional(),
+	},
+	description: "Reasoning block that triggered a tool invocation",
+});
+
+// Demonstrate edge API at runtime
+const edgeExamples = {
+	hasTurnFrom: HasTurn.getFrom(),
+	hasTurnTo: HasTurn.getTo(),
+	hasTurnCardinality: HasTurn.getCardinality(),
+	mentionsHasProps: Mentions.hasProperties(),
+	mentionsConfidence: Mentions.getProperties().confidence.config.max,
+	replacesIsTemporal: Replaces.isTemporal(),
+};
+
+console.log("Schema edge examples:", edgeExamples);

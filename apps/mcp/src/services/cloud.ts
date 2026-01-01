@@ -340,8 +340,9 @@ export class EngramCloudClient implements IEngramClient {
 							type: filters.type,
 							project: filters.project,
 							after: filters.since,
+							vtEndAfter: filters.vtEndAfter ?? Date.now(),
 						}
-					: undefined,
+					: { vtEndAfter: Date.now() },
 				tenant: filters?.tenant,
 			},
 		);

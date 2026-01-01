@@ -78,12 +78,17 @@ class SearchFilters(BaseModel):
         session_id: Filter by session ID.
         type: Filter by memory type (e.g., thought, code, doc).
         time_range: Filter by time range.
+        vt_end_after: Filter by valid time end (memories where vt_end > timestamp).
     """
 
     org_id: str = Field(description="Organization ID for tenant isolation")
     session_id: str | None = Field(default=None, description="Filter by session ID")
     type: str | None = Field(default=None, description="Filter by memory type (thought, code, doc)")
     time_range: TimeRange | None = Field(default=None, description="Filter by time range")
+    vt_end_after: int | None = Field(
+        default=None,
+        description="Filter by valid time end (memories where vt_end > timestamp in ms)",
+    )
 
 
 class SearchQuery(BaseModel):

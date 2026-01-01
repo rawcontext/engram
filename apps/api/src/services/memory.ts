@@ -57,6 +57,7 @@ export interface RecallFilters {
 	project?: string;
 	after?: string;
 	before?: string;
+	vtEndAfter?: number;
 }
 
 export type RerankTier = "fast" | "accurate" | "code" | "llm";
@@ -277,6 +278,9 @@ export class MemoryService {
 			};
 		}
 
+		// Apply vt_end filter - defaults to current time if not specified
+		searchFilters.vt_end_after = filters?.vtEndAfter ?? Date.now();
+
 		// Include org_id filter for tenant isolation in vector search
 		if (tenantContext?.orgId) {
 			searchFilters.org_id = tenantContext.orgId;
@@ -301,10 +305,11 @@ export class MemoryService {
 			);
 
 			// Also perform keyword search in graph as fallback
-			const graphConditions: string[] = ["m.vt_end > $now"];
+			const vtEndAfter = filters?.vtEndAfter ?? Date.now();
+			const graphConditions: string[] = ["m.vt_end > $vtEndAfter"];
 			const graphParams: Record<string, unknown> = {
 				query: query.toLowerCase(),
-				now: Date.now(),
+				vtEndAfter,
 				limit,
 			};
 

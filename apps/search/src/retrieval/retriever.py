@@ -517,6 +517,16 @@ class SearchRetriever:
                 )
             )
 
+        if hasattr(filters, "vt_end_after") and filters.vt_end_after is not None:
+            conditions.append(
+                models.FieldCondition(
+                    key="vt_end",
+                    range=models.Range(
+                        gt=filters.vt_end_after,
+                    ),
+                )
+            )
+
         return models.Filter(must=conditions)
 
     def _map_raw_results(self, results: list[models.ScoredPoint]) -> list[SearchResultItem]:

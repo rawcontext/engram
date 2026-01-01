@@ -41,6 +41,8 @@ export interface RecallFilters {
 	sessionId?: string;
 	rerank?: boolean;
 	rerank_tier?: RerankTier;
+	/** Filter by valid time end (returns only memories where vt_end > this timestamp in ms). Defaults to Date.now() */
+	vtEndAfter?: number;
 	/** Tenant context for multi-tenancy (optional for backwards compatibility) */
 	tenant?: TenantContext;
 }

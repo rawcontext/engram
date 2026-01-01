@@ -165,3 +165,13 @@ class MemoryIndexResponse(BaseModel):
     id: str = Field(description="Indexed memory ID")
     indexed: bool = Field(description="Whether indexing succeeded")
     took_ms: int = Field(description="Time taken in milliseconds")
+
+
+class ConflictCandidateResponse(BaseModel):
+    """Conflict candidate response for memory deduplication."""
+
+    id: str = Field(description="Memory node ID")
+    content: str = Field(description="Memory content")
+    type: str = Field(description="Memory type (decision/context/insight/preference/fact)")
+    score: float = Field(description="Similarity score")
+    vt_start: int = Field(description="Valid time start timestamp (milliseconds since epoch)")

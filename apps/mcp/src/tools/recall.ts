@@ -49,6 +49,13 @@ export function registerRecallTool(
 					.describe(
 						"Reranker model tier. 'fast': FlashRank lightweight model, good for general queries. 'accurate': BGE cross-encoder, higher quality semantic matching. 'code': Jina code-optimized model, best for code snippets and technical content. 'llm': Gemini Flash, highest quality but uses LLM inference for scoring.",
 					),
+				vtEndAfter: z
+					.number()
+					.int()
+					.optional()
+					.describe(
+						"Filter by valid time end (returns only memories where vt_end > this timestamp in ms). Defaults to current time to exclude expired memories. Set to 0 to include all memories regardless of validity.",
+					),
 				disambiguate: z
 					.boolean()
 					.optional()
@@ -71,13 +78,14 @@ export function registerRecallTool(
 				selectedId: z.string().optional(),
 			},
 		},
-		async ({ query, limit, filters, rerank, rerank_tier, disambiguate }) => {
+		async ({ query, limit, filters, rerank, rerank_tier, vtEndAfter, disambiguate }) => {
 			// Note: Don't auto-apply project filter from session context
 			// Memories may have been stored before roots were populated (with project: null)
 
 			const context = getSessionContext();
 			const memories = await memoryRetriever.recall(query, limit ?? 5, {
 				...filters,
+				vtEndAfter: vtEndAfter ?? Date.now(),
 				rerank: rerank ?? true,
 				rerank_tier: rerank_tier ?? "fast",
 				tenant:

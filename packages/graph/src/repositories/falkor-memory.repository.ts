@@ -243,6 +243,23 @@ export class FalkorMemoryRepository extends FalkorBaseRepository implements Memo
 			 RETURN m`,
 			{ id, now, replacedById },
 		);
+
+		// Create REPLACES edge if a replacement memory is specified
+		if (replacedById) {
+			await this.query(
+				`MATCH (new:Memory {id: $replacedById}), (old:Memory {id: $id})
+				 CREATE (new)-[:REPLACES {tt_start: $now, tt_end: ${this.maxDate}, vt_start: $now, vt_end: ${this.maxDate}}]->(old)`,
+				{ replacedById, id, now },
+			);
+		}
+	}
+
+	async findReplacements(id: string): Promise<Memory[]> {
+		const results = await this.query<{ m: FalkorNode<MemoryNodeProps> }>(
+			`MATCH (m:Memory)-[:REPLACES]->(:Memory {id: $targetId}) WHERE m.tt_end = ${this.maxDate} RETURN m`,
+			{ targetId: id },
+		);
+		return results.map((r) => this.mapToMemory(r.m));
 	}
 
 	/**

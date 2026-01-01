@@ -31,6 +31,7 @@ const RecallSchema = z.object({
 			project: z.string().optional(),
 			after: z.string().datetime().optional(),
 			before: z.string().datetime().optional(),
+			vtEndAfter: z.number().int().optional(),
 		})
 		.optional(),
 	rerank: z.boolean().optional().default(true),

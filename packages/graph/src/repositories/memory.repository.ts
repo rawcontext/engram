@@ -93,4 +93,12 @@ export interface MemoryRepository {
 	 * @throws Error if memory not found
 	 */
 	invalidate(id: string, replacedById?: string): Promise<void>;
+
+	/**
+	 * Find all memories that have replaced a given memory via the REPLACES relationship.
+	 * Only returns active memories (tt_end = MAX_DATE).
+	 * @param id - The ID of the target memory that was replaced
+	 * @returns Array of memories that replace the target memory
+	 */
+	findReplacements(id: string): Promise<Memory[]>;
 }
