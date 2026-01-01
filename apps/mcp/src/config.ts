@@ -56,6 +56,33 @@ export const ConfigSchema = z.object({
 export type Config = z.infer<typeof ConfigSchema>;
 
 /**
+ * Configuration for conflict detection during remember operations.
+ */
+export interface ConflictDetectionConfig {
+	/** Enable conflict detection during remember operations */
+	enabled: boolean;
+	/** Minimum similarity score to consider as potential conflict (0-1) */
+	similarityThreshold: number;
+	/** Maximum number of candidate memories to check */
+	maxCandidates: number;
+	/** Require user confirmation before resolving conflicts */
+	requireConfirmation: boolean;
+	/** Enable verbose logging for debugging */
+	verboseLogging: boolean;
+}
+
+/**
+ * Default conflict detection configuration.
+ */
+export const defaultConflictDetectionConfig: ConflictDetectionConfig = {
+	enabled: true,
+	similarityThreshold: 0.65,
+	maxCandidates: 10,
+	requireConfirmation: false,
+	verboseLogging: false,
+};
+
+/**
  * Check if a URL points to localhost
  */
 export function isLocalhostUrl(url: string): boolean {

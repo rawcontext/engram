@@ -225,6 +225,26 @@ export class FalkorMemoryRepository extends FalkorBaseRepository implements Memo
 		await this.softDelete("Memory", id);
 	}
 
+	async invalidate(id: string, replacedById?: string): Promise<void> {
+		const exists = await this.findById(id);
+		if (!exists) {
+			throw new Error(`Memory not found: ${id}`);
+		}
+
+		const now = this.now;
+		const setClause = replacedById
+			? "SET m.vt_end = $now, m.tt_end = $now, m.invalidated_at = $now, m.replaced_by = $replacedById"
+			: "SET m.vt_end = $now, m.tt_end = $now, m.invalidated_at = $now";
+
+		await this.query(
+			`MATCH (m:Memory {id: $id})
+			 WHERE m.vt_end > $now
+			 ${setClause}
+			 RETURN m`,
+			{ id, now, replacedById },
+		);
+	}
+
 	/**
 	 * Map FalkorDB node to domain Memory object.
 	 */

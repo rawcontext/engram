@@ -301,3 +301,42 @@ export const MemoryNodeSchema = BaseNodeSchema.extend({
 	embedding: z.array(z.number()).optional(), // Vector for similarity search
 });
 export type MemoryNode = z.infer<typeof MemoryNodeSchema>;
+
+// =============================================================================
+// EntityNode: Named entities extracted from conversations
+// Enables entity-based retrieval and knowledge graph construction
+// =============================================================================
+export const EntityTypeEnum = z.enum([
+	"tool", // pytest, Docker, Kubernetes, git
+	"concept", // authentication, caching, testing, dependency injection
+	"pattern", // repository pattern, CQRS, event sourcing, singleton
+	"file", // src/auth.ts - links to FileTouch nodes
+	"person", // team members, contributors, authors
+	"project", // repository, package, service name
+	"technology", // PostgreSQL, Redis, React, FastAPI
+]);
+export type EntityType = z.infer<typeof EntityTypeEnum>;
+
+export const EntityNodeSchema = BaseNodeSchema.extend({
+	labels: z.tuple([z.literal("Entity")]),
+
+	// Identity
+	name: z.string(), // Canonical name (e.g., "PostgreSQL", "repository pattern")
+	aliases: z.array(z.string()).default([]), // Alternative names (e.g., ["Postgres", "pg"])
+
+	// Classification
+	type: EntityTypeEnum,
+
+	// Content
+	description: z.string().optional(), // LLM-generated description of the entity
+
+	// Statistics
+	mention_count: z.number().int().default(1), // Number of times mentioned across sessions
+
+	// Project context (for scoping)
+	project: z.string().optional(), // Project/repo identifier
+
+	// Semantic retrieval
+	embedding: z.array(z.number()).optional(), // Vector for similarity search
+});
+export type EntityNode = z.infer<typeof EntityNodeSchema>;

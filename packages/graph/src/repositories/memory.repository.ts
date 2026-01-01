@@ -83,4 +83,14 @@ export interface MemoryRepository {
 	 * @throws Error if memory not found
 	 */
 	delete(id: string): Promise<void>;
+
+	/**
+	 * Invalidate a memory by closing its valid time window.
+	 * Sets vt_end, tt_end, and invalidated_at to now, marking the fact as no longer true.
+	 * Optionally tracks what new fact replaced this one.
+	 * @param id - The memory ID to invalidate
+	 * @param replacedById - Optional ID of the memory that replaces this one
+	 * @throws Error if memory not found
+	 */
+	invalidate(id: string, replacedById?: string): Promise<void>;
 }
