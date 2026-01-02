@@ -1,5 +1,6 @@
 export * from "./graph";
 export * from "./merger";
+export * from "./migrations/add-edge-temporality";
 export * from "./migrations/entity-indexes";
 export * from "./models/base";
 export * from "./models/conflict-decision";
