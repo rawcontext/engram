@@ -20,6 +20,8 @@
 	},
 	"scripts": {
 		"build": "echo 'Build success'",
+		"generate": "bun run src/codegen/cli.ts",
+		"generate:dry": "bun run src/codegen/cli.ts --dry-run",
 		"typecheck": "tsgo --noEmit",
 		"lint": "biome check .",
 		"format": "biome format ."

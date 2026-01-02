@@ -38,6 +38,10 @@ Caddyfile
 docker-compose.dev.yml
 .tool-versions
 
+# Generated code (regenerated on build)
+packages/graph/src/generated/
+!packages/graph/src/generated/.gitkeep
+
 # Benchmark artifacts
 packages/benchmark/results/
 packages/benchmark/*-report.md
