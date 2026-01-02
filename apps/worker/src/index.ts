@@ -85,7 +85,7 @@ export async function main() {
 	await scheduler.start();
 
 	// Start HTTP server for manual triggers and health checks
-	const app = createApi(config, natsClient, metrics, logger);
+	const app = createApi(config, natsClient, metrics, logger, scheduler);
 	const server = serve(
 		{
 			fetch: app.fetch,

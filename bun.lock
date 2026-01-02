@@ -6,6 +6,7 @@
       "name": "engram",
       "dependencies": {
         "@nats-io/jetstream": "^3.3.0",
+        "@nats-io/kv": "^3.3.0",
         "@nats-io/transport-node": "^3.3.0",
       },
       "devDependencies": {
@@ -727,6 +728,8 @@
     "@mswjs/interceptors": ["@mswjs/interceptors@0.40.0", "", { "dependencies": { "@open-draft/deferred-promise": "^2.2.0", "@open-draft/logger": "^0.3.0", "@open-draft/until": "^2.0.0", "is-node-process": "^1.2.0", "outvariant": "^1.4.3", "strict-event-emitter": "^0.5.1" } }, "sha512-EFd6cVbHsgLa6wa4RljGj6Wk75qoHxUSyc5asLyyPSyuhIcdS2Q3Phw6ImS1q+CkALthJRShiYfKANcQMuMqsQ=="],
 
     "@nats-io/jetstream": ["@nats-io/jetstream@3.3.0", "", { "dependencies": { "@nats-io/nats-core": "3.3.0" } }, "sha512-SK6lSr+Wf9nd6mffV4gdd1yDZxlhILEUJg74bAaU9yjQ2kBOPIJDHlYc2yMzcuZnQxIUcTVI3L7ow2d4qEDslQ=="],
+
+    "@nats-io/kv": ["@nats-io/kv@3.3.0", "", { "dependencies": { "@nats-io/jetstream": "3.3.0", "@nats-io/nats-core": "3.3.0" } }, "sha512-E3JBImH3OKOSf+BM6RrUeiwOAEIF3b+1UfW7Kqc0uf6r8G35kPsso2jexKYtZEisLY/wzhnDYkPWYlCJBhuSiQ=="],
 
     "@nats-io/nats-core": ["@nats-io/nats-core@3.3.0", "", { "dependencies": { "@nats-io/nkeys": "2.0.3", "@nats-io/nuid": "2.0.3" } }, "sha512-+ImSYab7NvOMvFFBSBbWl03a4s/OUXCpFFauZ4iRx8pp+5ptsaBQNpacyPXeg8jbjAMeEAWn2Zuyl7oJCUffJA=="],
 

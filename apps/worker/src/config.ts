@@ -64,6 +64,18 @@ export const IntelligenceConfigSchema = z.object({
 
 	/** Enable Prometheus metrics endpoint */
 	enableMetrics: z.boolean().default(true),
+
+	/** Enable activity-based scheduling (triggers jobs based on entity/memory creation rates) */
+	enableActivityScheduling: z.boolean().default(true),
+
+	/** Entity creation threshold to trigger community detection */
+	activityEntityThreshold: z.number().default(100),
+
+	/** Memory creation threshold to trigger community detection */
+	activityMemoryThreshold: z.number().default(500),
+
+	/** Cooldown minutes between activity-triggered jobs */
+	activityCooldownMinutes: z.number().default(60),
 });
 
 export type IntelligenceConfig = z.infer<typeof IntelligenceConfigSchema>;
@@ -99,6 +111,18 @@ export function loadConfig(): IntelligenceConfig {
 			? Number.parseInt(process.env.MIN_TURNS_FOR_SUMMARY, 10)
 			: undefined,
 		enableMetrics: process.env.ENABLE_METRICS ? process.env.ENABLE_METRICS === "true" : undefined,
+		enableActivityScheduling: process.env.ENABLE_ACTIVITY_SCHEDULING
+			? process.env.ENABLE_ACTIVITY_SCHEDULING === "true"
+			: undefined,
+		activityEntityThreshold: process.env.ACTIVITY_ENTITY_THRESHOLD
+			? Number.parseInt(process.env.ACTIVITY_ENTITY_THRESHOLD, 10)
+			: undefined,
+		activityMemoryThreshold: process.env.ACTIVITY_MEMORY_THRESHOLD
+			? Number.parseInt(process.env.ACTIVITY_MEMORY_THRESHOLD, 10)
+			: undefined,
+		activityCooldownMinutes: process.env.ACTIVITY_COOLDOWN_MINUTES
+			? Number.parseInt(process.env.ACTIVITY_COOLDOWN_MINUTES, 10)
+			: undefined,
 	};
 
 	return IntelligenceConfigSchema.parse(raw);

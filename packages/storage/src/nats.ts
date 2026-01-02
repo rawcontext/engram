@@ -93,6 +93,16 @@ export class NatsClient implements MessageClient {
 		}
 	}
 
+	/**
+	 * Get the underlying NATS connection for advanced operations (KV, Object Store, etc.)
+	 * Ensures connection is established first.
+	 */
+	async getConnection(): Promise<NatsConnection> {
+		await this.ensureConnected();
+		if (!this.nc) throw new Error("NATS not connected");
+		return this.nc;
+	}
+
 	async getProducer(): Promise<Producer> {
 		await this.ensureConnected();
 		const js = this.js;
