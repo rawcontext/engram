@@ -39,9 +39,7 @@ mock.module("@modelcontextprotocol/sdk/server/mcp.js", () => ({
 	},
 	// Include ResourceTemplate so other test files importing it don't crash when this
 	// module mock is active in Bun's parallel test runner.
-	ResourceTemplate: class {
-		constructor(_uriTemplate: string, _callbacks?: Record<string, unknown>) {}
-	},
+	ResourceTemplate: class {},
 }));
 
 mock.module("@modelcontextprotocol/sdk/server/stdio.js", () => ({

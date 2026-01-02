@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { Logger } from "@engram/logger";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
@@ -11,12 +11,8 @@ describe("ConflictDetectorService", () => {
 	let service: ConflictDetectorService;
 	let mockServer: McpServer;
 	let mockLogger: Logger;
-	let originalFetch: typeof global.fetch;
 
 	beforeEach(() => {
-		// Save original fetch to restore after tests that mock it
-		originalFetch = global.fetch;
-
 		// Mock MCP server
 		mockServer = {
 			server: {
@@ -34,11 +30,6 @@ describe("ConflictDetectorService", () => {
 		} as unknown as Logger;
 
 		service = new ConflictDetectorService(mockServer, mockLogger, "test-api-key");
-	});
-
-	afterEach(() => {
-		// Restore original fetch to not affect other test files
-		global.fetch = originalFetch;
 	});
 
 	// Note: We don't call mock.restore() because it affects module-level mocks
@@ -232,7 +223,7 @@ describe("ConflictDetectorService", () => {
 		});
 	});
 
-	describe.skip("detectConflicts - classification accuracy", () => {
+	describe("detectConflicts - classification accuracy", () => {
 		it("should classify preference change as SUPERSEDES", async () => {
 			const newMemory = { content: "User prefers tabs for indentation", type: "preference" };
 			const candidates: ConflictCandidate[] = [
@@ -246,33 +237,17 @@ describe("ConflictDetectorService", () => {
 				},
 			];
 
-			// Mock Gemini response
-			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "supersedes",
-													confidence: 0.95,
-													reasoning:
-														"User changed their indentation preference from spaces to tabs",
-													suggestedAction: "invalidate_old",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+			// Mock classifyWithGemini to return controlled response
+			service.classifyWithGemini = mock(() =>
+				Promise.resolve(
+					JSON.stringify({
+						relation: "supersedes",
+						confidence: 0.95,
+						reasoning: "User changed their indentation preference from spaces to tabs",
+						suggestedAction: "invalidate_old",
+					}),
+				),
 			);
-			global.fetch = mockFetch as any;
 
 			const results = await service.detectConflicts(newMemory, candidates);
 
@@ -298,31 +273,16 @@ describe("ConflictDetectorService", () => {
 				},
 			];
 
-			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "supersedes",
-													confidence: 0.92,
-													reasoning: "Updated rate limit replaces old value",
-													suggestedAction: "invalidate_old",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+			service.classifyWithGemini = mock(() =>
+				Promise.resolve(
+					JSON.stringify({
+						relation: "supersedes",
+						confidence: 0.92,
+						reasoning: "Updated rate limit replaces old value",
+						suggestedAction: "invalidate_old",
+					}),
+				),
 			);
-			global.fetch = mockFetch as any;
 
 			const results = await service.detectConflicts(newMemory, candidates);
 
@@ -344,31 +304,16 @@ describe("ConflictDetectorService", () => {
 				},
 			];
 
-			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "contradiction",
-													confidence: 0.98,
-													reasoning: "Enabled vs disabled are mutually exclusive states",
-													suggestedAction: "invalidate_old",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+			service.classifyWithGemini = mock(() =>
+				Promise.resolve(
+					JSON.stringify({
+						relation: "contradiction",
+						confidence: 0.98,
+						reasoning: "Enabled vs disabled are mutually exclusive states",
+						suggestedAction: "invalidate_old",
+					}),
+				),
 			);
-			global.fetch = mockFetch as any;
 
 			const results = await service.detectConflicts(newMemory, candidates);
 
@@ -393,32 +338,16 @@ describe("ConflictDetectorService", () => {
 				},
 			];
 
-			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "augments",
-													confidence: 0.88,
-													reasoning:
-														"New fact adds connection pooling details to database configuration",
-													suggestedAction: "keep_both",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+			service.classifyWithGemini = mock(() =>
+				Promise.resolve(
+					JSON.stringify({
+						relation: "augments",
+						confidence: 0.88,
+						reasoning: "New fact adds connection pooling details to database configuration",
+						suggestedAction: "keep_both",
+					}),
+				),
 			);
-			global.fetch = mockFetch as any;
 
 			const results = await service.detectConflicts(newMemory, candidates);
 
@@ -443,32 +372,16 @@ describe("ConflictDetectorService", () => {
 				},
 			];
 
-			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "duplicate",
-													confidence: 0.96,
-													reasoning:
-														"Both memories express the same preference about running tests",
-													suggestedAction: "skip_new",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+			service.classifyWithGemini = mock(() =>
+				Promise.resolve(
+					JSON.stringify({
+						relation: "duplicate",
+						confidence: 0.96,
+						reasoning: "Both memories express the same preference about running tests",
+						suggestedAction: "skip_new",
+					}),
+				),
 			);
-			global.fetch = mockFetch as any;
 
 			const results = await service.detectConflicts(newMemory, candidates);
 
@@ -493,32 +406,16 @@ describe("ConflictDetectorService", () => {
 				},
 			];
 
-			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "independent",
-													confidence: 0.99,
-													reasoning:
-														"Color preference and programming language preference are orthogonal",
-													suggestedAction: "keep_both",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+			service.classifyWithGemini = mock(() =>
+				Promise.resolve(
+					JSON.stringify({
+						relation: "independent",
+						confidence: 0.99,
+						reasoning: "Color preference and programming language preference are orthogonal",
+						suggestedAction: "keep_both",
+					}),
+				),
 			);
-			global.fetch = mockFetch as any;
 
 			const results = await service.detectConflicts(newMemory, candidates);
 
@@ -528,7 +425,7 @@ describe("ConflictDetectorService", () => {
 		});
 	});
 
-	describe.skip("detectConflicts - error handling", () => {
+	describe("detectConflicts - error handling", () => {
 		it("should return empty array for no candidates", async () => {
 			const newMemory = { content: "Test memory", type: "fact" };
 			const results = await service.detectConflicts(newMemory, []);
@@ -549,15 +446,8 @@ describe("ConflictDetectorService", () => {
 				},
 			];
 
-			// Mock Gemini failure
-			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: false,
-					status: 500,
-					text: () => Promise.resolve("Internal Server Error"),
-				}),
-			);
-			global.fetch = mockFetch as any;
+			// Mock classifyWithGemini to throw an error
+			service.classifyWithGemini = mock(() => Promise.reject(new Error("API Error")));
 
 			const results = await service.detectConflicts(newMemory, candidates);
 
@@ -590,40 +480,26 @@ describe("ConflictDetectorService", () => {
 			];
 
 			let callCount = 0;
-			const mockFetch = mock(() => {
+			const mockClassify = mock(() => {
 				callCount++;
 				const relation = callCount === 1 ? "duplicate" : "independent";
-				return Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation,
-													confidence: 0.9,
-													reasoning: `Classification ${callCount}`,
-													suggestedAction: callCount === 1 ? "skip_new" : "keep_both",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				});
+				return Promise.resolve(
+					JSON.stringify({
+						relation,
+						confidence: 0.9,
+						reasoning: `Classification ${callCount}`,
+						suggestedAction: callCount === 1 ? "skip_new" : "keep_both",
+					}),
+				);
 			});
-			global.fetch = mockFetch as any;
+			service.classifyWithGemini = mockClassify;
 
 			const results = await service.detectConflicts(newMemory, candidates);
 
 			expect(results).toHaveLength(2);
 			expect(results[0].relation).toBe(ConflictRelation.DUPLICATE);
 			expect(results[1].relation).toBe(ConflictRelation.INDEPENDENT);
-			expect(mockFetch).toHaveBeenCalledTimes(2);
+			expect(mockClassify).toHaveBeenCalledTimes(2);
 		});
 	});
 
@@ -677,52 +553,24 @@ describe("ConflictDetectorService", () => {
 		});
 	});
 
-	describe.skip("classifyWithGemini", () => {
-		// Mock headers that supports forEach (required by AI SDK)
-		const mockHeaders = new Headers({ "content-type": "application/json" });
-
-		it("should call Gemini API with correct parameters", async () => {
+	describe("classifyWithGemini", () => {
+		it("should return JSON stringified response from Gemini client", async () => {
 			const prompt = "Test classification prompt";
+			const expectedResult = {
+				relation: "independent",
+				confidence: 0.8,
+				reasoning: "Test reasoning",
+				suggestedAction: "keep_both",
+			};
 
-			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					headers: mockHeaders,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "independent",
-													confidence: 0.8,
-													reasoning: "Test reasoning",
-													suggestedAction: "keep_both",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
-			);
-			global.fetch = mockFetch as any;
+			// Access private geminiClient and mock its method
+			const geminiClient = (service as any).geminiClient;
+			geminiClient.generateStructuredOutput = mock(() => Promise.resolve(expectedResult));
 
 			const result = await service.classifyWithGemini(prompt);
 
-			expect(mockFetch).toHaveBeenCalledTimes(1);
-			const callArgs = mockFetch.mock.calls[0];
-			expect(callArgs[0]).toContain("gemini-3-flash-preview");
-
-			const body = JSON.parse(callArgs[1].body);
-			expect(body.contents[0].parts[0].text).toBe(prompt);
-			expect(body.generationConfig.responseMimeType).toBe("application/json");
-			expect(body.generationConfig.responseSchema).toBeDefined();
-
-			expect(result).toContain("independent");
+			expect(geminiClient.generateStructuredOutput).toHaveBeenCalledTimes(1);
+			expect(JSON.parse(result)).toEqual(expectedResult);
 		});
 
 		it("should throw error when API key is missing", async () => {
@@ -743,46 +591,16 @@ describe("ConflictDetectorService", () => {
 			}
 		});
 
-		it("should throw error on API failure", async () => {
+		it("should propagate errors from Gemini client", async () => {
 			const prompt = "Test prompt";
 
-			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: false,
-					status: 401,
-					headers: mockHeaders,
-					text: () => Promise.resolve("Unauthorized"),
-				}),
+			// Access private geminiClient and mock its method to throw
+			const geminiClient = (service as any).geminiClient;
+			geminiClient.generateStructuredOutput = mock(() =>
+				Promise.reject(new Error("Gemini API request failed: Unauthorized")),
 			);
-			global.fetch = mockFetch as any;
 
-			await expect(service.classifyWithGemini(prompt)).rejects.toThrow("Gemini API error");
-		});
-
-		it("should throw error when response has no text", async () => {
-			const prompt = "Test prompt";
-
-			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					headers: mockHeaders,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [{}], // No text field
-									},
-								},
-							],
-						}),
-				}),
-			);
-			global.fetch = mockFetch as any;
-
-			await expect(service.classifyWithGemini(prompt)).rejects.toThrow(
-				"No text in Gemini response",
-			);
+			await expect(service.classifyWithGemini(prompt)).rejects.toThrow("Gemini API request failed");
 		});
 	});
 });

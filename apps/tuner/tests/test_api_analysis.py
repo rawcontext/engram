@@ -10,6 +10,14 @@ from fastapi.testclient import TestClient
 from tuner.api.analysis import _get_storage, _load_study, router
 from tuner.middleware.auth import ApiKeyContext
 
+# Check if sklearn is available (required for fANOVA importance evaluator)
+try:
+    import sklearn  # noqa: F401
+
+    HAS_SKLEARN = True
+except ImportError:
+    HAS_SKLEARN = False
+
 
 @pytest.fixture
 def app_with_storage() -> FastAPI:
@@ -254,7 +262,7 @@ class TestGetParetoFront:
 class TestGetParamImportance:
     """Tests for GET /{study_name}/importance endpoint."""
 
-    @pytest.mark.skip(reason="Requires sklearn - integration test")
+    @pytest.mark.skipif(not HAS_SKLEARN, reason="Requires sklearn for fANOVA")
     @pytest.mark.asyncio
     async def test_gets_importance_with_fanova(self, client_with_auth: TestClient) -> None:
         """Test getting parameter importance using fANOVA."""
@@ -287,7 +295,7 @@ class TestGetParamImportance:
         assert data["importances"]["lr"] == 0.75
         assert data["method"] == "fanova"
 
-    @pytest.mark.skip(reason="Requires sklearn - integration test")
+    @pytest.mark.skipif(not HAS_SKLEARN, reason="Requires sklearn for fANOVA")
     @pytest.mark.asyncio
     async def test_gets_importance_with_target_idx(self, client_with_auth: TestClient) -> None:
         """Test getting parameter importance for specific objective."""
@@ -319,7 +327,7 @@ class TestGetParamImportance:
         data = response.json()
         assert data["importances"]["lr"] == 0.60
 
-    @pytest.mark.skip(reason="Requires sklearn - integration test")
+    @pytest.mark.skipif(not HAS_SKLEARN, reason="Requires sklearn for fANOVA")
     @pytest.mark.asyncio
     async def test_falls_back_to_mdi(self, client_with_auth: TestClient) -> None:
         """Test falling back to MDI when fANOVA fails."""
@@ -401,7 +409,7 @@ class TestGetParamImportance:
 
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
-    @pytest.mark.skip(reason="Requires sklearn - integration test")
+    @pytest.mark.skipif(not HAS_SKLEARN, reason="Requires sklearn for fANOVA")
     @pytest.mark.asyncio
     async def test_filters_completed_trials_only(self, client_with_auth: TestClient) -> None:
         """Test that only completed trials are used for importance."""

@@ -57,7 +57,7 @@ def test_progress_tracker_get_state() -> None:
     assert state.failed_instances == 1
 
 
-@pytest.mark.skip(reason="Requires Rich display context")
+@pytest.mark.skip(reason="Requires Rich display context - test is flaky in CI")
 def test_progress_tracker_context_manager() -> None:
     """Test progress tracker context manager."""
     tracker = ProgressTracker(total_instances=5)

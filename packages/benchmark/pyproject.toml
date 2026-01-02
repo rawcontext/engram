@@ -180,3 +180,8 @@ addopts = [
 	"--strict-config",
 	"-ra",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

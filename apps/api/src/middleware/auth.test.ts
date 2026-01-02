@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { OAuthToken, OAuthTokenRepository } from "../db/oauth-tokens";
 import { type AuthContext, auth } from "./auth";
 

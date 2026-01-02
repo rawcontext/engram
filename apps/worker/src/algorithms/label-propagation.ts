@@ -39,14 +39,6 @@ export interface LabelPropagationOptions {
 export type Communities = Record<string, string[]>;
 
 /**
- * Internal label state for a node
- */
-interface NodeLabel {
-	nodeId: string;
-	label: string;
-}
-
-/**
  * Seeded random number generator for deterministic tie-breaking
  * Uses simple Linear Congruential Generator (LCG)
  */
@@ -98,13 +90,13 @@ function getMostFrequentNeighborLabel(
 
 	// Isolated nodes keep their label
 	if (!neighbors || neighbors.size === 0) {
-		return labels.get(nodeId)!;
+		return labels.get(nodeId) ?? nodeId;
 	}
 
 	// Count label frequencies among neighbors
 	const labelCounts = new Map<string, number>();
 	for (const neighbor of neighbors) {
-		const neighborLabel = labels.get(neighbor)!;
+		const neighborLabel = labels.get(neighbor) ?? neighbor;
 		labelCounts.set(neighborLabel, (labelCounts.get(neighborLabel) || 0) + 1);
 	}
 
@@ -141,7 +133,7 @@ function getMostFrequentNeighborLabel(
  */
 function hasConverged(graph: Graph, labels: Map<string, string>): boolean {
 	for (const nodeId of graph.nodes.keys()) {
-		const currentLabel = labels.get(nodeId)!;
+		const currentLabel = labels.get(nodeId) ?? nodeId;
 		const neighbors = graph.nodes.get(nodeId);
 
 		if (!neighbors || neighbors.size === 0) {
@@ -151,7 +143,7 @@ function hasConverged(graph: Graph, labels: Map<string, string>): boolean {
 		// Count label frequencies among neighbors
 		const labelCounts = new Map<string, number>();
 		for (const neighbor of neighbors) {
-			const neighborLabel = labels.get(neighbor)!;
+			const neighborLabel = labels.get(neighbor) ?? neighbor;
 			labelCounts.set(neighborLabel, (labelCounts.get(neighborLabel) || 0) + 1);
 		}
 

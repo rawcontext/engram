@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock, type Mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, type Mock, mock } from "bun:test";
 import { SearchPyError, search } from "./search-client";
 
 // Save original fetch to restore after tests

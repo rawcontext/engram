@@ -334,14 +334,6 @@ export class EngramCloudClient implements IEngramClient {
 			tags: string[];
 			score?: number;
 			createdAt: string;
-		}
-		interface ApiMemoryResult {
-			id: string;
-			content: string;
-			type: string;
-			tags: string[];
-			score?: number;
-			createdAt: string;
 			invalidated?: boolean;
 			invalidatedAt?: number;
 			replacedBy?: string | null;

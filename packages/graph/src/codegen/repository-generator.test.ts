@@ -159,6 +159,7 @@ describe("generateRepositories", () => {
 			const code = generateRepositories(simpleSchema);
 			expect(code).toContain("async findById(id: string): Promise<Memory | null>");
 			expect(code).toContain("MATCH (n:Memory {id: $id})");
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: Testing generated code contains this literal
 			expect(code).toContain("WHERE n.tt_end = ${this.maxDate}");
 		});
 	});

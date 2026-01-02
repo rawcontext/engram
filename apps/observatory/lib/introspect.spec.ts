@@ -1,5 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock, type Mock } from "bun:test";
-import { dirname } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Only run these tests when running from the observatory directory
 // When running from root (bun test), these tests conflict with other test files
