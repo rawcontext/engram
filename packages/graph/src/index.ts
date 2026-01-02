@@ -9,4 +9,5 @@ export * from "./models/nodes";
 export * from "./pruner";
 export * from "./queries/builder";
 export * from "./repositories";
+export * from "./runtime";
 export * from "./utils/time";
