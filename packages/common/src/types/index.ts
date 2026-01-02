@@ -45,6 +45,18 @@ export {
 	REFRESH_TOKEN_PATTERN,
 	TOKEN_PATTERNS,
 } from "./auth";
+// Conflict types
+export type { ConflictRelation, ConflictSuggestedAction } from "./conflict";
+export { ConflictRelationEnum } from "./conflict";
+// Conflict audit logging types
+export type {
+	ConflictAuditEntry,
+	ConflictAuditFilter,
+	ConflictAuditStats,
+	ConflictDecisionOutcome,
+	ConflictDecisionSource,
+} from "./conflict-audit";
+export { truncateForPreview } from "./conflict-audit";
 export type { TenantContext } from "./tenant";
 export {
 	createTenantContext,

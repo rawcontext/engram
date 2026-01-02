@@ -3,6 +3,7 @@ import type { Logger } from "@engram/logger";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ElicitationService } from "../capabilities/elicitation";
+import type { ConflictAuditService } from "../services/conflict-audit";
 import type { ConflictDetectorService } from "../services/conflict-detector";
 import type { IEngramClient, IMemoryStore } from "../services/interfaces";
 
@@ -19,6 +20,7 @@ export function registerRememberTool(
 	cloudClient: IEngramClient,
 	conflictDetector: ConflictDetectorService,
 	elicitation: ElicitationService,
+	conflictAudit: ConflictAuditService,
 	logger: Logger,
 ) {
 	server.registerTool(
@@ -116,6 +118,9 @@ export function registerRememberTool(
 				// Track memories to invalidate (pending user confirmation if elicitation available)
 				const memoriesToInvalidate: string[] = [];
 
+				// Common audit params for all conflicts
+				const newMemoryForAudit = { content, type: type ?? "context" };
+
 				for (const conflict of conflicts) {
 					logger.info(
 						{
@@ -126,6 +131,12 @@ export function registerRememberTool(
 						},
 						"Conflict detected",
 					);
+
+					const conflictingMemoryForAudit = {
+						id: conflict.candidate.memoryId,
+						content: conflict.candidate.content,
+						type: conflict.candidate.type,
+					};
 
 					// Handle SUPERSEDES and CONTRADICTION by invalidating old memory
 					if (
@@ -147,11 +158,33 @@ export function registerRememberTool(
 									"User confirmed invalidation",
 								);
 								memoriesToInvalidate.push(conflict.candidate.memoryId);
+
+								// Audit: User confirmed invalidation
+								conflictAudit.logUserConfirmed({
+									newMemory: newMemoryForAudit,
+									conflictingMemory: conflictingMemoryForAudit,
+									relation: conflict.relation,
+									confidence: conflict.confidence,
+									reasoning: conflict.reasoning,
+									suggestedAction: conflict.suggestedAction,
+									elicitationAvailable: true,
+								});
 							} else {
 								logger.info(
 									{ oldMemoryId: conflict.candidate.memoryId },
 									"User declined invalidation, keeping both memories",
 								);
+
+								// Audit: User declined invalidation
+								conflictAudit.logUserDeclined({
+									newMemory: newMemoryForAudit,
+									conflictingMemory: conflictingMemoryForAudit,
+									relation: conflict.relation,
+									confidence: conflict.confidence,
+									reasoning: conflict.reasoning,
+									suggestedAction: conflict.suggestedAction,
+									elicitationAvailable: true,
+								});
 							}
 						} else {
 							// No elicitation available - auto-invalidate (original behavior)
@@ -160,12 +193,33 @@ export function registerRememberTool(
 								"Auto-invalidating old memory (no elicitation available)",
 							);
 							memoriesToInvalidate.push(conflict.candidate.memoryId);
+
+							// Audit: Auto-applied invalidation
+							conflictAudit.logAutoApplied({
+								newMemory: newMemoryForAudit,
+								conflictingMemory: conflictingMemoryForAudit,
+								relation: conflict.relation,
+								confidence: conflict.confidence,
+								reasoning: conflict.reasoning,
+								suggestedAction: conflict.suggestedAction,
+								outcome: "invalidate_old",
+							});
 						}
 					}
 
 					// Handle DUPLICATE by skipping new memory
 					if (conflict.suggestedAction === "skip_new" && conflict.relation === "duplicate") {
 						logger.info({ duplicateOf: conflict.candidate.memoryId }, "Skipping duplicate memory");
+
+						// Audit: Duplicate detected
+						conflictAudit.logDuplicateDetected({
+							newMemory: newMemoryForAudit,
+							conflictingMemory: conflictingMemoryForAudit,
+							relation: conflict.relation,
+							confidence: conflict.confidence,
+							reasoning: conflict.reasoning,
+							elicitationAvailable: elicitation.enabled,
+						});
 
 						const output = {
 							id: conflict.candidate.memoryId,
