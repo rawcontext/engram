@@ -299,6 +299,13 @@ export const MemoryNodeSchema = BaseNodeSchema.extend({
 
 	// Semantic retrieval
 	embedding: z.array(z.number()).optional(), // Vector for similarity search
+
+	// Decay metadata
+	last_accessed: z.number().optional(), // Last recall timestamp (epoch ms)
+	access_count: z.number().int().default(0), // Times returned in recall
+	decay_score: z.number().min(0).max(1).default(1.0), // 0=fully decayed, 1=fresh
+	decay_updated_at: z.number().optional(), // Last decay calculation (epoch ms)
+	pinned: z.boolean().default(false), // Exempt from decay
 });
 export type MemoryNode = z.infer<typeof MemoryNodeSchema>;
 
