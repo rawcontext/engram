@@ -1,0 +1,26 @@
+# Minimal test infrastructure for integration tests
+# Usage: docker-compose -f docker-compose.test.yml up -d
+name: engram-test
+
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    ports:
+      - "6179:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6180:6333"
+    environment:
+      - QDRANT__SERVICE__ENABLE_TLS=false
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:6333/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
