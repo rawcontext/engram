@@ -2,6 +2,7 @@ import { type MemoryType, MemoryTypeEnum } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { ElicitationService } from "../capabilities/elicitation";
 import type { ConflictDetectorService } from "../services/conflict-detector";
 import type { IEngramClient, IMemoryStore } from "../services/interfaces";
 
@@ -17,6 +18,7 @@ export function registerRememberTool(
 	},
 	cloudClient: IEngramClient,
 	conflictDetector: ConflictDetectorService,
+	elicitation: ElicitationService,
 	logger: Logger,
 ) {
 	server.registerTool(
@@ -111,6 +113,9 @@ export function registerRememberTool(
 				);
 
 				// Step 4: Process conflicts
+				// Track memories to invalidate (pending user confirmation if elicitation available)
+				const memoriesToInvalidate: string[] = [];
+
 				for (const conflict of conflicts) {
 					logger.info(
 						{
@@ -127,14 +132,35 @@ export function registerRememberTool(
 						conflict.suggestedAction === "invalidate_old" &&
 						(conflict.relation === "supersedes" || conflict.relation === "contradiction")
 					) {
-						logger.info(
-							{ oldMemoryId: conflict.candidate.memoryId, reason: conflict.relation },
-							"Invalidating old memory",
-						);
+						// If elicitation is available, ask user for confirmation
+						if (elicitation.enabled) {
+							const message = conflictDetector.formatConflictMessage(conflict);
+							const result = await elicitation.confirm(message, {
+								title: "Confirm Memory Update",
+								confirmLabel: "Update and Invalidate Old",
+								cancelLabel: "Create Without Invalidating",
+							});
 
-						// Note: We can't call repository.invalidate() directly since we only have the cloud client
-						// The invalidation will happen when we create the new memory with createMemory
-						// which should handle this in the API layer
+							if (result.accepted && result.content?.confirmed) {
+								logger.info(
+									{ oldMemoryId: conflict.candidate.memoryId, reason: conflict.relation },
+									"User confirmed invalidation",
+								);
+								memoriesToInvalidate.push(conflict.candidate.memoryId);
+							} else {
+								logger.info(
+									{ oldMemoryId: conflict.candidate.memoryId },
+									"User declined invalidation, keeping both memories",
+								);
+							}
+						} else {
+							// No elicitation available - auto-invalidate (original behavior)
+							logger.info(
+								{ oldMemoryId: conflict.candidate.memoryId, reason: conflict.relation },
+								"Auto-invalidating old memory (no elicitation available)",
+							);
+							memoriesToInvalidate.push(conflict.candidate.memoryId);
+						}
 					}
 
 					// Handle DUPLICATE by skipping new memory
@@ -156,6 +182,21 @@ export function registerRememberTool(
 							],
 							structuredContent: output,
 						};
+					}
+				}
+
+				// Step 4b: Invalidate confirmed memories before creating new one
+				for (const memoryId of memoriesToInvalidate) {
+					try {
+						await cloudClient.invalidateMemory(
+							memoryId,
+							context.orgId && context.orgSlug
+								? { orgId: context.orgId, orgSlug: context.orgSlug }
+								: undefined,
+						);
+						logger.info({ memoryId }, "Memory invalidated successfully");
+					} catch (error) {
+						logger.warn({ error, memoryId }, "Failed to invalidate memory");
 					}
 				}
 			}

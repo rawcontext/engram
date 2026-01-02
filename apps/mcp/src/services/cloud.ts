@@ -440,4 +440,22 @@ export class EngramCloudClient implements IEngramClient {
 		this.logger.debug({ count: candidates.length }, "Found conflict candidates");
 		return candidates;
 	}
+
+	async invalidateMemory(memoryId: string, tenant?: TenantContext): Promise<void> {
+		// Use the query endpoint to update vt_end on the memory
+		// This sets the valid-time end to now, marking the memory as no longer current
+		const now = Date.now();
+		await this.query(
+			`
+			MATCH (m:Memory {id: $memoryId})
+			WHERE m.tt_end > timestamp()
+			SET m.vt_end = $now
+			RETURN m.id
+			`,
+			{ memoryId, now },
+			tenant,
+		);
+
+		this.logger.info({ memoryId }, "Memory invalidated via cloud API");
+	}
 }
