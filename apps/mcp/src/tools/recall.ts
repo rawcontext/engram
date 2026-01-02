@@ -2,20 +2,27 @@ import { MemoryTypeEnum } from "@engram/graph";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ElicitationService } from "../capabilities";
-import type { IMemoryRetriever } from "../services/interfaces";
+import type { GraphExpansionService } from "../services/graph-expansion";
+import type { IMemoryRetriever, RecallResult } from "../services/interfaces";
+
+export interface RecallToolDependencies {
+	/** Graph expansion service for entity-based retrieval (optional) */
+	graphExpansion?: GraphExpansionService;
+}
 
 export function registerRecallTool(
 	server: McpServer,
 	memoryRetriever: IMemoryRetriever,
 	getSessionContext: () => { project?: string; orgId?: string; orgSlug?: string },
 	elicitationService?: ElicitationService,
+	dependencies?: RecallToolDependencies,
 ) {
 	server.registerTool(
 		"recall",
 		{
 			title: "Recall",
 			description:
-				"Search past memories using semantic similarity. Use PROACTIVELY: at session start to prime yourself with relevant prior knowledge, before making decisions to check for existing rationale, or when the user references 'before', 'last time', or 'remember when'. Returns memories ranked by relevance score.",
+				"Search past memories using semantic similarity and knowledge graph traversal. Use PROACTIVELY: at session start to prime yourself with relevant prior knowledge, before making decisions to check for existing rationale, or when the user references 'before', 'last time', or 'remember when'. Returns memories ranked by relevance score.",
 			inputSchema: {
 				query: z
 					.string()
@@ -68,6 +75,23 @@ export function registerRecallTool(
 					.optional()
 					.default(false)
 					.describe("If multiple similar memories match, ask user to select one"),
+				graphDepth: z
+					.number()
+					.int()
+					.min(0)
+					.max(3)
+					.optional()
+					.default(2)
+					.describe(
+						"Maximum hops for graph expansion through entity relationships. 0 disables graph expansion (vector-only). Default is 2, which finds memories connected through directly related entities.",
+					),
+				includeEntities: z
+					.boolean()
+					.optional()
+					.default(true)
+					.describe(
+						"Enable graph expansion via entity relationships. When true, expands search through entities extracted from the query and their relationships in the knowledge graph. Finds semantically related memories that may not match the query directly.",
+					),
 			},
 			outputSchema: {
 				memories: z.array(
@@ -80,12 +104,16 @@ export function registerRecallTool(
 						invalidated: z.boolean().optional(),
 						invalidatedAt: z.number().optional(),
 						replacedBy: z.string().nullable().optional(),
+						source: z.enum(["vector", "graph"]).optional(),
+						graphDistance: z.number().optional(),
+						sourceEntity: z.string().optional(),
 					}),
 				),
 				query: z.string(),
 				count: z.number(),
 				disambiguated: z.boolean().optional(),
 				selectedId: z.string().optional(),
+				graphExpanded: z.boolean().optional(),
 			},
 		},
 		async ({
@@ -97,6 +125,8 @@ export function registerRecallTool(
 			includeInvalidated,
 			vtEndAfter,
 			disambiguate,
+			graphDepth,
+			includeEntities,
 		}) => {
 			// Note: Don't auto-apply project filter from session context
 			// Memories may have been stored before roots were populated (with project: null)
@@ -108,7 +138,13 @@ export function registerRecallTool(
 			// Otherwise, use provided vtEndAfter or default to current time
 			const effectiveVtEndAfter = includeInvalidated ? 0 : (vtEndAfter ?? Date.now());
 
-			const memories = await memoryRetriever.recall(query, limit ?? 5, {
+			// Determine effective limit - oversample if graph expansion is enabled
+			const graphExpansionEnabled =
+				(includeEntities ?? true) && (graphDepth ?? 2) > 0 && dependencies?.graphExpansion;
+			const effectiveLimit = graphExpansionEnabled ? (limit ?? 5) * 2 : (limit ?? 5);
+
+			// Step 1: Vector search
+			let memories: RecallResult[] = await memoryRetriever.recall(query, effectiveLimit, {
 				...filters,
 				vtEndAfter: effectiveVtEndAfter,
 				rerank: rerank ?? true,
@@ -118,6 +154,41 @@ export function registerRecallTool(
 						? { orgId: context.orgId, orgSlug: context.orgSlug }
 						: undefined,
 			});
+
+			// Step 2: Graph expansion (if enabled and service available)
+			let graphExpanded = false;
+			if (graphExpansionEnabled && dependencies?.graphExpansion) {
+				const expanded = await dependencies.graphExpansion.expand(query, memories, {
+					graphDepth: graphDepth ?? 2,
+					maxQueryEntities: 5,
+					entityMatchThreshold: 0.7,
+					maxMemoriesPerEntity: 10,
+				});
+
+				// Rerank combined results
+				const reranked = dependencies.graphExpansion.rerank(expanded);
+
+				// Convert back to RecallResult format and limit
+				memories = reranked.slice(0, limit ?? 5).map((r) => ({
+					id: r.id,
+					content: r.content,
+					score: r.score,
+					type: r.type,
+					created_at: r.created_at,
+					invalidated: r.invalidated,
+					invalidatedAt: r.invalidatedAt,
+					replacedBy: r.replacedBy,
+					// Include graph metadata for transparency
+					source: r.source,
+					graphDistance: r.graphDistance,
+					sourceEntity: r.sourceEntity,
+				}));
+
+				graphExpanded = true;
+			} else {
+				// No graph expansion - just limit the results
+				memories = memories.slice(0, limit ?? 5);
+			}
 
 			// If disambiguation is requested and we have multiple similar results, ask user to select
 			let selectedId: string | undefined;
@@ -166,6 +237,7 @@ export function registerRecallTool(
 								count: 1,
 								disambiguated,
 								selectedId,
+								graphExpanded,
 							};
 
 							return {
@@ -204,6 +276,7 @@ export function registerRecallTool(
 				count: memories.length,
 				disambiguated,
 				selectedId,
+				graphExpanded,
 			};
 
 			return {

@@ -45,6 +45,10 @@ export interface RecallFilters {
 	vtEndAfter?: number;
 	/** Tenant context for multi-tenancy (optional for backwards compatibility) */
 	tenant?: TenantContext;
+	/** Max hops for graph expansion (default: 2). Set to 0 to disable graph expansion. */
+	graphDepth?: number;
+	/** Enable graph expansion via entity relationships (default: true) */
+	includeEntities?: boolean;
 }
 
 /**
@@ -56,11 +60,15 @@ export interface RecallResult {
 	score: number;
 	type: string;
 	created_at: string;
-	source?: string;
+	source?: string | "vector" | "graph";
 	project?: string;
 	invalidated?: boolean;
 	invalidatedAt?: number;
 	replacedBy?: string | null;
+	/** Graph distance from query (0 for vector results, 1+ for graph-expanded) */
+	graphDistance?: number;
+	/** Entity that led to this result (for graph-expanded results) */
+	sourceEntity?: string;
 }
 
 /**

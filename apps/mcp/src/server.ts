@@ -71,6 +71,7 @@ import { ConflictDetectorService } from "./services/conflict-detector";
 import { EntityEmbeddingService } from "./services/entity-embedding";
 import { EntityExtractorService } from "./services/entity-extractor";
 import { EntityResolverService } from "./services/entity-resolver";
+import { GraphExpansionService } from "./services/graph-expansion";
 import type { IEngramClient, IMemoryRetriever, IMemoryStore } from "./services/interfaces";
 import {
 	registerContextTool,
@@ -211,6 +212,14 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		{ useLlmConfirmation: true, geminiApiKey: process.env.GEMINI_API_KEY },
 	);
 
+	// Initialize graph expansion service for entity-aware retrieval
+	const graphExpansion = new GraphExpansionService(
+		entityExtractor,
+		entityEmbeddingService,
+		entityRepository,
+		logger,
+	);
+
 	// Initialize session context with default capabilities
 	// This will be updated when we receive client info
 	const sessionContext = createSessionContext({
@@ -261,7 +270,9 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 			resolver: entityResolver,
 		},
 	);
-	registerRecallTool(mcpServer, memoryRetriever, getSessionContext, elicitation);
+	registerRecallTool(mcpServer, memoryRetriever, getSessionContext, elicitation, {
+		graphExpansion,
+	});
 
 	// Register sampling-based tools (available when client supports sampling)
 	registerSummarizeTool(mcpServer, sampling);

@@ -27,6 +27,11 @@ export {
 	type EntityResolverConfig,
 	EntityResolverService,
 } from "./entity-resolver";
+export {
+	type GraphExpandedResult,
+	type GraphExpansionOptions,
+	GraphExpansionService,
+} from "./graph-expansion";
 export type {
 	ContextItem,
 	CreateMemoryInput,
