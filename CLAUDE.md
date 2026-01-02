@@ -298,7 +298,7 @@ All endpoints are prefixed with `/v1/search`:
 | `/v1/search/session-aware` | POST | Two-stage hierarchical retrieval across sessions |
 | `/v1/search/embed` | POST | Generate embeddings for external use |
 
-**Reranker Tiers**: `fast` (FlashRank ~10ms), `accurate` (BGE cross-encoder ~50ms), `code` (Jina ~50ms), `colbert` (late interaction ~30ms), `llm` (Gemini 3.0 Flash ~500ms)
+**Reranker Tiers**: `fast` (FlashRank ~10ms), `accurate` (BGE cross-encoder ~50ms), `code` (Jina ~50ms), `colbert` (late interaction ~30ms), `llm` (gemini-3-flash-preview ~500ms)
 
 ## Testing
 
@@ -341,6 +341,76 @@ hf auth login && hf auth whoami
 hf upload <space-name> . . --repo-type space
 hf download <repo-id>
 ```
+
+## Gastown Multi-Agent Orchestration
+
+Engram uses [Gastown](https://github.com/steveyegge/gastown) for multi-agent coordination. Configuration in `.beads/gastown.toml`.
+
+### Architecture
+
+| Role | Purpose | Branch Policy |
+|------|---------|---------------|
+| **Mayor** | HQ orchestrator at `~/gt` | N/A |
+| **Crew** | Human-controlled persistent workers | Push to main (requires approval) |
+| **Polecats** | Ephemeral workers for discrete tasks | Branch `polecat/*`, merged via Refinery |
+| **Witness** | Lifecycle monitor, detects stuck agents | N/A |
+| **Refinery** | Merge queue processor with CI gates | Auto-squash merges |
+
+### Commands
+
+```bash
+# Gastown CLI (from ~/gt)
+gt prime                          # Start Mayor agent
+gt crew add <name> engram         # Create crew workspace
+gt polecat spawn engram           # Spawn ephemeral worker
+gt convoy create <bead-ids>       # Batch related work
+gt status                         # View all agents
+
+# From rig directory
+gt wake                           # Resume suspended agent
+gt check                          # Check hook for new work
+gt mail                           # Check pending tasks
+```
+
+### Formulas (`.beads/formulas/`)
+
+| Formula | Steps |
+|---------|-------|
+| `implement-feature` | research → plan → implement → test → lint → commit |
+| `fix-bug` | reproduce → diagnose → fix → verify → commit |
+| `add-tests` | analyze → design → implement → verify → commit |
+| `research-task` | context → explore → external → synthesize → document |
+| `refactor-module` | analyze → plan → tests → refactor → verify → commit |
+| `parallel-beads` | identify → convoy → dispatch → monitor → merge |
+
+### Formula Mapping
+
+Gastown auto-selects formulas by bead type:
+
+| Bead Type | Formula |
+|-----------|---------|
+| `feature` | `implement-feature` |
+| `bug` | `fix-bug` |
+| `task` | `implement-feature` |
+| `test` | `add-tests` |
+| `research` | `research-task` |
+| `refactor` | `refactor-module` |
+
+### Engram Integration
+
+Gastown agents automatically:
+- Prime context via `engram_context` at molecule start
+- Store decisions via `engram_remember` with `type: 'decision'`
+- Store insights on completion
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `.beads/gastown.toml` | Rig configuration |
+| `.beads/formulas/*.toml` | Workflow formula definitions |
+| `~/gt/mayor/town.json` | HQ state |
+| `~/gt/rigs/engram/` | Rig directory with worktrees |
 
 ## Agent Mandates
 
