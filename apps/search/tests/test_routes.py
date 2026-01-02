@@ -903,6 +903,54 @@ class TestSearchMemoryCollection:
         call_args = mock_qdrant.client.query_points.call_args
         assert call_args.kwargs["collection_name"] == "engram_memory"
         assert call_args.kwargs["limit"] == 10
+        # Verify filter includes org_id for tenant isolation
+        assert call_args.kwargs["query_filter"] is not None
+
+    async def test_search_memory_collection_with_type_filter(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test search against engram_memory collection with type filter."""
+        # Mock embedder
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        # Mock Qdrant query_points response
+        mock_point = MagicMock()
+        mock_point.id = "memory-456"
+        mock_point.score = 0.88
+        mock_point.payload = {"content": "a decision", "type": "decision"}
+
+        mock_qdrant_result = MagicMock()
+        mock_qdrant_result.points = [mock_point]
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(return_value=mock_qdrant_result)
+
+        response = await client.post(
+            "/v1/search/query",
+            json={
+                "text": "test query",
+                "limit": 5,
+                "collection": "engram_memory",
+                "filters": {"type": "decision"},
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["results"][0]["id"] == "memory-456"
+        assert data["results"][0]["payload"]["type"] == "decision"
+
+        # Verify query_points was called with filter
+        mock_qdrant.client.query_points.assert_called_once()
+        call_args = mock_qdrant.client.query_points.call_args
+        assert call_args.kwargs["collection_name"] == "engram_memory"
+        assert call_args.kwargs["query_filter"] is not None
+        # Filter should contain conditions for both org_id and type
+        filter_obj = call_args.kwargs["query_filter"]
+        assert filter_obj.must is not None
+        assert len(filter_obj.must) == 2  # org_id and type conditions
 
     async def test_search_other_collection(
         self, client: AsyncClient, mock_search_retriever

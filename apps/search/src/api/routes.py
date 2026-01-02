@@ -181,17 +181,47 @@ async def search(
         if collection == "engram_turns":
             results = await search_retriever.search_turns(query)
         elif collection == "engram_memory":
-            # Direct Qdrant search for memory collection
+            # Direct Qdrant search for memory collection with proper filtering
+            from qdrant_client.http import models
 
             embedder_factory = getattr(request.app.state, "embedder_factory", None)
             qdrant = getattr(request.app.state, "qdrant", None)
             text_embedder = await embedder_factory.get_embedder("text")
             query_vector = await text_embedder.embed(search_request.text, is_query=True)
 
+            # Build filter conditions - ALWAYS include org_id for tenant isolation
+            conditions: list[models.Condition] = [
+                models.FieldCondition(
+                    key="org_id",
+                    match=models.MatchValue(value=api_key.org_id),
+                )
+            ]
+
+            # Add type filter if specified
+            if filters.type:
+                conditions.append(
+                    models.FieldCondition(
+                        key="type",
+                        match=models.MatchValue(value=filters.type),
+                    )
+                )
+
+            # Add session_id filter if specified
+            if filters.session_id:
+                conditions.append(
+                    models.FieldCondition(
+                        key="source_session_id",
+                        match=models.MatchValue(value=filters.session_id),
+                    )
+                )
+
+            qdrant_filter = models.Filter(must=conditions)
+
             qdrant_results = await qdrant.client.query_points(
                 collection_name="engram_memory",
                 query=query_vector,
                 using="text_dense",
+                query_filter=qdrant_filter,
                 limit=search_request.limit,
                 score_threshold=search_request.threshold,
             )
