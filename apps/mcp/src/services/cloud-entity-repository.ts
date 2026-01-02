@@ -10,6 +10,7 @@
  */
 
 import type { Entity, EntityRepository, CreateEntityInput, UpdateEntityInput, Memory } from "@engram/graph";
+import { MAX_DATE } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import { ulid } from "ulid";
 import type { IEngramClient, TenantContext } from "./interfaces";
@@ -83,7 +84,6 @@ export class CloudEntityRepository implements EntityRepository {
 	async create(input: CreateEntityInput): Promise<Entity> {
 		const id = ulid();
 		const now = Date.now();
-		const MAX_TIME = 9223372036854775807;
 
 		const cypher = `
 			CREATE (e:Entity {
@@ -113,9 +113,9 @@ export class CloudEntityRepository implements EntityRepository {
 				mentionCount: input.mentionCount ?? 1,
 				project: input.project ?? null,
 				vtStart: now,
-				vtEnd: MAX_TIME,
+				vtEnd: MAX_DATE,
 				ttStart: now,
-				ttEnd: MAX_TIME,
+				ttEnd: MAX_DATE,
 			},
 			this.tenant,
 		);
@@ -231,7 +231,6 @@ export class CloudEntityRepository implements EntityRepository {
 	// =============================================================================
 
 	async createMentionsEdge(memoryId: string, entityId: string, context?: string): Promise<void> {
-		const MAX_TIME = 9223372036854775807;
 		await this.cloudClient.query(
 			`
 			MATCH (m:Memory {id: $memoryId}), (e:Entity {id: $entityId})
@@ -244,7 +243,7 @@ export class CloudEntityRepository implements EntityRepository {
 				tt_end: $maxTime
 			}]->(e)
 			`,
-			{ memoryId, entityId, context: context ?? "", maxTime: MAX_TIME },
+			{ memoryId, entityId, context: context ?? "", maxTime: MAX_DATE },
 			this.tenant,
 		);
 		this.logger.debug({ memoryId, entityId }, "MENTIONS edge created");
@@ -256,7 +255,6 @@ export class CloudEntityRepository implements EntityRepository {
 		type: "RELATED_TO" | "DEPENDS_ON" | "IMPLEMENTS" | "PART_OF",
 		props?: Record<string, unknown>,
 	): Promise<void> {
-		const MAX_TIME = 9223372036854775807;
 		// Use dynamic relationship type via string interpolation (safe since type is validated enum)
 		await this.cloudClient.query(
 			`
@@ -265,7 +263,7 @@ export class CloudEntityRepository implements EntityRepository {
 			MERGE (e1)-[r:${type}]->(e2)
 			ON CREATE SET r.vt_start = timestamp(), r.vt_end = $maxTime, r.tt_start = timestamp(), r.tt_end = $maxTime
 			`,
-			{ fromId, toId, maxTime: MAX_TIME, ...props },
+			{ fromId, toId, maxTime: MAX_DATE, ...props },
 			this.tenant,
 		);
 		this.logger.debug({ fromId, toId, type }, "Entity relationship created");
