@@ -65,6 +65,7 @@ import {
 	registerSessionResource,
 } from "./resources";
 import { EngramCloudClient } from "./services/cloud";
+import { ConflictAuditService } from "./services/conflict-audit";
 import { ConflictDetectorService } from "./services/conflict-detector";
 import type { IEngramClient, IMemoryRetriever, IMemoryStore } from "./services/interfaces";
 import {
@@ -99,6 +100,8 @@ export interface EngramMcpServer {
 	sampling: SamplingService;
 	elicitation: ElicitationService;
 	roots: RootsService;
+	// Conflict audit
+	conflictAudit: ConflictAuditService;
 	// OAuth support
 	tokenCache?: TokenCache;
 	deviceFlowClient?: DeviceFlowClient;
@@ -184,6 +187,9 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		process.env.GEMINI_API_KEY,
 	);
 
+	// Initialize conflict audit service
+	const conflictAudit = new ConflictAuditService(logger);
+
 	// Initialize session context with default capabilities
 	// This will be updated when we receive client info
 	const sessionContext = createSessionContext({
@@ -227,6 +233,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		cloudClient,
 		conflictDetector,
 		elicitation,
+		conflictAudit,
 		logger,
 	);
 	registerRecallTool(mcpServer, memoryRetriever, getSessionContext, elicitation);
@@ -263,6 +270,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		sampling,
 		elicitation,
 		roots,
+		conflictAudit,
 		tokenCache,
 		deviceFlowClient,
 	};
@@ -299,7 +307,7 @@ export async function updateClientCapabilities(
  */
 export function updateSessionContext(
 	engramServer: EngramMcpServer,
-	context: { sessionId?: string; workingDir?: string; project?: string },
+	context: { sessionId?: string; workingDir?: string; project?: string; orgId?: string },
 ): void {
 	if (context.sessionId) {
 		engramServer.sessionContext.sessionId = context.sessionId;
@@ -316,6 +324,16 @@ export function updateSessionContext(
 	if (context.project) {
 		engramServer.sessionContext.project = context.project;
 	}
+	if (context.orgId) {
+		engramServer.sessionContext.orgId = context.orgId;
+	}
+
+	// Update conflict audit context
+	engramServer.conflictAudit.setContext({
+		sessionId: engramServer.sessionContext.sessionId,
+		project: engramServer.sessionContext.project,
+		orgId: engramServer.sessionContext.orgId,
+	});
 }
 
 /**

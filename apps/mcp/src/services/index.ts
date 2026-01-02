@@ -1,5 +1,10 @@
 export { EngramCloudClient, type EngramCloudClientOptions } from "./cloud";
 export {
+	type AuditContext,
+	ConflictAuditService,
+	type LogConflictDecisionParams,
+} from "./conflict-audit";
+export {
 	type ConflictCandidate,
 	type ConflictDetectionResult,
 	ConflictRelation,
