@@ -17,9 +17,21 @@ class SearchFilters(BaseModel):
     """Search filter parameters."""
 
     session_id: str | None = Field(default=None, description="Filter by session ID")
-    type: str | None = Field(default=None, description="Filter by memory type (thought/code/doc)")
+    type: str | None = Field(
+        default=None,
+        description="Filter by memory type (decision/context/insight/preference/fact)",
+    )
     time_range: dict[str, int] | None = Field(
         default=None, description="Time range filter with 'start' and 'end' timestamps"
+    )
+    project: str | None = Field(default=None, description="Filter by project name")
+    vt_end_after: int | None = Field(
+        default=None,
+        description="Filter by vt_end (only return memories where vt_end > timestamp in ms)",
+    )
+    org_id: str | None = Field(
+        default=None,
+        description="Organization ID for tenant isolation (injected from auth context)",
     )
 
 

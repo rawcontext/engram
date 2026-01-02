@@ -279,6 +279,121 @@ describe("MemoryService", () => {
 				}),
 			);
 		});
+
+		it("should pass type filter to vector search service", async () => {
+			mockFetch.mockClear(); // Clear previous mock calls
+			const mockGraphClient = createMockGraphClient();
+			mockGraphClient.query.mockResolvedValue([]);
+
+			mockFetch.mockResolvedValue({
+				ok: true,
+				json: async () => ({ results: [], total: 0, took_ms: 5 }),
+			});
+
+			const service = new MemoryService({
+				graphClient: mockGraphClient as any,
+				searchUrl: "http://localhost:5002",
+				logger: mockLogger,
+			});
+
+			await service.recall("test query", 5, {
+				type: "decision",
+				project: "my-project",
+			});
+
+			// Verify fetch was called with correct filters
+			expect(mockFetch).toHaveBeenCalled();
+			const fetchCall = mockFetch.mock.calls[0];
+			const requestBody = JSON.parse(fetchCall[1].body);
+
+			expect(requestBody.filters).toEqual(
+				expect.objectContaining({
+					type: "decision",
+					project: "my-project",
+				}),
+			);
+		});
+
+		it("should pass vt_end_after filter to vector search", async () => {
+			mockFetch.mockClear(); // Clear previous mock calls
+			const mockGraphClient = createMockGraphClient();
+			mockGraphClient.query.mockResolvedValue([]);
+
+			mockFetch.mockResolvedValue({
+				ok: true,
+				json: async () => ({ results: [], total: 0, took_ms: 5 }),
+			});
+
+			const service = new MemoryService({
+				graphClient: mockGraphClient as any,
+				searchUrl: "http://localhost:5002",
+				logger: mockLogger,
+			});
+
+			const customVtEndAfter = 1704067200000; // 2024-01-01
+			await service.recall("test query", 5, {
+				vtEndAfter: customVtEndAfter,
+			});
+
+			// Verify fetch was called with vt_end_after filter
+			expect(mockFetch).toHaveBeenCalled();
+			const fetchCall = mockFetch.mock.calls[0];
+			const requestBody = JSON.parse(fetchCall[1].body);
+
+			expect(requestBody.filters.vt_end_after).toBe(customVtEndAfter);
+		});
+
+		it("should filter vector results by type", async () => {
+			const mockGraphClient = createMockGraphClient();
+			mockGraphClient.query.mockResolvedValue([]);
+
+			// Return results of different types from vector search
+			mockFetch.mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					results: [
+						{
+							id: "v1",
+							score: 0.95,
+							payload: {
+								node_id: "decision-memory",
+								content: "A decision about architecture",
+								type: "decision",
+								tags: [],
+								timestamp: Date.now(),
+							},
+						},
+						{
+							id: "v2",
+							score: 0.9,
+							payload: {
+								node_id: "fact-memory",
+								content: "A random fact",
+								type: "fact",
+								tags: [],
+								timestamp: Date.now(),
+							},
+						},
+					],
+					total: 2,
+					took_ms: 15,
+				}),
+			});
+
+			const service = new MemoryService({
+				graphClient: mockGraphClient as any,
+				searchUrl: "http://localhost:5002",
+				logger: mockLogger,
+			});
+
+			// Filter for decisions only
+			const results = await service.recall("architecture", 5, {
+				type: "decision",
+			});
+
+			// Should only return decision type (post-filter catches any missed by vector search)
+			expect(results.every((r) => r.type === "decision")).toBe(true);
+		});
 	});
 
 	describe("query", () => {

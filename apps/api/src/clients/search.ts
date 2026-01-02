@@ -12,11 +12,18 @@ import type { Logger } from "@engram/logger";
 
 export interface SearchFilters {
 	session_id?: string;
-	type?: "thought" | "code" | "doc";
+	/** Memory type filter: decision/context/insight/preference/fact for memories, thought/code/doc for turns */
+	type?: string;
 	time_range?: {
 		start: number;
 		end: number;
 	};
+	/** Filter by project name */
+	project?: string;
+	/** Filter by valid time end - only return memories where vt_end > this timestamp (milliseconds) */
+	vt_end_after?: number;
+	/** Organization ID for tenant isolation (typically injected from auth context) */
+	org_id?: string;
 }
 
 export interface SearchOptions {
