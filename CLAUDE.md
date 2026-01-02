@@ -65,6 +65,48 @@ See [docs/local-oauth-setup.md](docs/local-oauth-setup.md) for full guide.
 
 IMPORTANT: Run `bun run lint` and `bun run typecheck` before committing.
 
+#### Bun Native APIs
+
+Prefer Bun's native APIs over Node.js equivalents for better performance:
+
+| Task | Bun Native | Node.js (avoid) |
+|------|------------|-----------------|
+| **HTTP Server** | `Bun.serve({ fetch })` | `http.createServer()` |
+| **WebSocket** | `Bun.serve({ websocket })` | `ws` package |
+| **File Read** | `await Bun.file(path).text()` | `fs.readFile()` |
+| **File Write** | `await Bun.write(path, data)` | `fs.writeFile()` |
+| **Hashing** | `new Bun.CryptoHasher("sha256")` | `crypto.createHash()` |
+| **UUID** | `crypto.randomUUID()` | `crypto.randomUUID()` (same) |
+| **Random Bytes** | `crypto.getRandomValues()` | `crypto.randomBytes()` |
+| **Glob** | `new Bun.Glob(pattern)` | `glob`/`fast-glob` packages |
+| **Module Path** | `import.meta.dir`, `import.meta.file` | `fileURLToPath()` |
+
+**Bun.password** (for future auth):
+```typescript
+// Hash password with Argon2id (recommended for new code)
+const hash = await Bun.password.hash("password", { algorithm: "argon2id" });
+
+// Verify password
+const valid = await Bun.password.verify("password", hash);
+
+// Also supports bcrypt for legacy compatibility
+const bcryptHash = await Bun.password.hash("password", { algorithm: "bcrypt", cost: 12 });
+```
+
+**Bun.Glob** (for file pattern matching):
+```typescript
+// Create glob instance
+const glob = new Bun.Glob("**/*.ts");
+
+// Iterate matches
+for await (const file of glob.scan({ cwd: "src" })) {
+  console.log(file); // "index.ts", "utils/helper.ts", etc.
+}
+
+// Match against string
+glob.match("src/index.ts"); // true
+```
+
 ### Python
 - **Formatter/Linter**: Ruff (88 char line width, Python 3.12+)
 - **Package Manager**: uv only (never pip/poetry/pdm)
