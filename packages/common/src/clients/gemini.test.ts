@@ -43,7 +43,7 @@ describe("GeminiClient", () => {
 	test.skipIf(!process.env.GEMINI_API_KEY)(
 		"generateStructuredOutput returns valid structured data",
 		async () => {
-			const client = createGeminiClient({ model: "gemini-2.0-flash-exp" });
+			const client = createGeminiClient({ model: "gemini-3-flash-preview" });
 
 			const PersonSchema = z.object({
 				name: z.string(),
@@ -70,7 +70,7 @@ describe("GeminiClient", () => {
 	test.skipIf(!process.env.GEMINI_API_KEY)(
 		"generateBatch processes multiple prompts",
 		async () => {
-			const client = createGeminiClient({ model: "gemini-2.0-flash-exp" });
+			const client = createGeminiClient({ model: "gemini-3-flash-preview" });
 
 			const SummarySchema = z.object({
 				summary: z.string(),

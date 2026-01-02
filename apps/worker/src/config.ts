@@ -45,7 +45,7 @@ export const IntelligenceConfigSchema = z.object({
 	llmProvider: z.enum(["gemini", "anthropic", "openai"]).default("gemini"),
 
 	/** LLM model identifier */
-	llmModel: z.string().default("gemini-2.0-flash-thinking-exp"),
+	llmModel: z.string().default("gemini-3-flash-preview"),
 
 	/** LLM temperature for creativity vs consistency (0.0-1.0) */
 	llmTemperature: z.number().min(0).max(1).default(0.3),

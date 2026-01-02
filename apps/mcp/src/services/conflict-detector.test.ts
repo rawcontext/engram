@@ -702,7 +702,7 @@ describe("ConflictDetectorService", () => {
 
 			expect(mockFetch).toHaveBeenCalledTimes(1);
 			const callArgs = mockFetch.mock.calls[0];
-			expect(callArgs[0]).toContain("gemini-2.0-flash-exp");
+			expect(callArgs[0]).toContain("gemini-3-flash-preview");
 
 			const body = JSON.parse(callArgs[1].body);
 			expect(body.contents[0].parts[0].text).toBe(prompt);

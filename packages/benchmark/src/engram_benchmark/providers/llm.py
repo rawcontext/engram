@@ -11,7 +11,7 @@ Provides:
 Supported providers (examples):
 - anthropic/claude-sonnet-4-20250514
 - openai/gpt-4o
-- gemini/gemini-2.0-flash-exp
+- gemini/gemini-3-flash-preview
 - ollama/qwen2.5:32b
 """
 

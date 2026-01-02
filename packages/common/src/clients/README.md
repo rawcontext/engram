@@ -98,7 +98,7 @@ const result = await client.generateStructuredOutput({
     age: z.number(),
     email: z.string().email()
   }),
-  model: "gemini-2.0-flash-exp", // Override default model
+  model: "gemini-3-flash-preview", // Override default model
   temperature: 0.3, // Lower temperature for more deterministic output
   systemInstruction: "Extract only the information explicitly stated in the text."
 });
@@ -133,7 +133,7 @@ Create a new Gemini client instance.
 
 **Parameters:**
 - `config.apiKey` (optional): Google AI API key. Defaults to `process.env.GEMINI_API_KEY`
-- `config.model` (optional): Default model to use. Defaults to `"gemini-2.0-flash-exp"`
+- `config.model` (optional): Default model to use. Defaults to `"gemini-3-flash-preview"`
 - `config.maxRetries` (optional): Maximum number of retry attempts. Defaults to `3`
 - `config.retryDelay` (optional): Base delay in milliseconds for exponential backoff. Defaults to `1000`
 
@@ -176,9 +176,7 @@ Generate structured outputs for multiple prompts in parallel.
 
 ## Supported Models
 
-- `gemini-2.0-flash-exp` (default) - Latest experimental flash model
-- `gemini-2.5-flash` - Stable flash model
-- `gemini-3-pro-preview` - Preview of Gemini 3 Pro
+- `gemini-3-flash-preview` (default) - Latest Gemini 3 Flash model
 
 See [Google AI documentation](https://ai.google.dev/gemini-api/docs/models) for the latest model availability.
 

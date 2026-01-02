@@ -781,7 +781,7 @@ async function generateGeminiEvents(
 				type: "init",
 				timestamp: new Date().toISOString(),
 				session_id: ctx.sessionId,
-				model: "gemini-2.0-flash",
+				model: "gemini-3-flash-preview",
 			},
 			ctx.headers,
 		),

@@ -43,7 +43,7 @@ export const ConflictReportNodeSchema = BaseNodeSchema.extend({
 	reasoning: z.string(), // LLM explanation of the conflict
 
 	// Model attribution
-	modelUsed: z.string(), // e.g., "gemini-2.0-flash", "gemini-3-flash-preview"
+	modelUsed: z.string(), // e.g., "gemini-3-flash-preview"
 
 	// Review status
 	status: ConflictReportStatusEnum.default("pending_review"),

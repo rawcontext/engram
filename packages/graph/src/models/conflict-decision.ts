@@ -42,7 +42,7 @@ export const ConflictDecisionNodeSchema = BaseNodeSchema.extend({
 	reason: z.string(), // Human-readable explanation of the decision
 
 	// Model attribution
-	modelUsed: z.string(), // e.g., "gemini-2.0-flash", "mcp-sampling"
+	modelUsed: z.string(), // e.g., "gemini-3-flash-preview", "mcp-sampling"
 
 	// User confirmation
 	userConfirmed: z.boolean(), // Whether user explicitly approved the action
