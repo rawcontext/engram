@@ -14,6 +14,7 @@ import type { Logger } from "@engram/logger";
 import type { DeviceFlowClient } from "../auth/device-flow";
 import type { TokenCache } from "../auth/token-cache";
 import type {
+	ConflictCandidate,
 	ContextItem,
 	CreateMemoryInput,
 	IEngramClient,
@@ -24,6 +25,7 @@ import type {
 
 export interface EngramCloudClientOptions {
 	baseUrl: string;
+	searchUrl?: string;
 	logger: Logger;
 	/** Static API key (takes precedence over OAuth) */
 	apiKey?: string;
@@ -49,6 +51,7 @@ interface ApiResponse<T> {
 export class EngramCloudClient implements IEngramClient {
 	private readonly apiKey?: string;
 	private readonly baseUrl: string;
+	private readonly searchUrl: string;
 	private readonly logger: Logger;
 	private readonly tokenCache?: TokenCache;
 	private readonly deviceFlowClient?: DeviceFlowClient;
@@ -56,6 +59,7 @@ export class EngramCloudClient implements IEngramClient {
 	constructor(options: EngramCloudClientOptions) {
 		this.apiKey = options.apiKey;
 		this.baseUrl = options.baseUrl.replace(/\/$/, ""); // Remove trailing slash
+		this.searchUrl = (options.searchUrl ?? "http://localhost:6176").replace(/\/$/, "");
 		this.logger = options.logger;
 		this.tokenCache = options.tokenCache;
 		this.deviceFlowClient = options.deviceFlowClient;
@@ -328,6 +332,17 @@ export class EngramCloudClient implements IEngramClient {
 			score?: number;
 			createdAt: string;
 		}
+		interface ApiMemoryResult {
+			id: string;
+			content: string;
+			type: string;
+			tags: string[];
+			score?: number;
+			createdAt: string;
+			invalidated?: boolean;
+			invalidatedAt?: number;
+			replacedBy?: string | null;
+		}
 
 		const result = await this.request<{ memories: ApiMemoryResult[] }>(
 			"POST",
@@ -355,6 +370,9 @@ export class EngramCloudClient implements IEngramClient {
 			type: m.type,
 			created_at: m.createdAt,
 			project: filters?.project,
+			invalidated: m.invalidated,
+			invalidatedAt: m.invalidatedAt,
+			replacedBy: m.replacedBy,
 		}));
 	}
 
@@ -390,5 +408,36 @@ export class EngramCloudClient implements IEngramClient {
 		});
 
 		return result.context;
+	}
+
+	async findConflictCandidates(content: string, project?: string): Promise<ConflictCandidate[]> {
+		const url = `${this.searchUrl}/v1/search/conflict-candidates`;
+		const token = await this.getAccessToken();
+		const headers: Record<string, string> = {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${token}`,
+		};
+
+		this.logger.debug(
+			{ url, content_length: content.length, project },
+			"Finding conflict candidates",
+		);
+
+		const response = await fetch(url, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ content, project }),
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			this.logger.error({ status: response.status, error: errorText }, "Conflict search failed");
+			throw new Error(`Conflict search failed: ${response.status} ${errorText}`);
+		}
+
+		const candidates = (await response.json()) as ConflictCandidate[];
+
+		this.logger.debug({ count: candidates.length }, "Found conflict candidates");
+		return candidates;
 	}
 }

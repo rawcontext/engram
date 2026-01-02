@@ -74,6 +74,9 @@ export interface MemoryResult {
 	tags: string[];
 	score?: number;
 	createdAt: string;
+	invalidated?: boolean;
+	invalidatedAt?: number;
+	replacedBy?: string | null;
 }
 
 export interface ContextItem {
@@ -342,10 +345,11 @@ export class MemoryService {
 				type: string;
 				tags: string[];
 				created_at: string;
+				vt_end: number;
 			}>(
 				`MATCH (m:Memory)
 				WHERE ${whereClause} AND toLower(m.content) CONTAINS $query
-				RETURN m.id as id, m.content as content, m.type as type, m.tags as tags, m.created_at as created_at
+				RETURN m.id as id, m.content as content, m.type as type, m.tags as tags, m.created_at as created_at, m.vt_end as vt_end
 				ORDER BY m.vt_start DESC
 				LIMIT $limit`,
 				graphParams,
@@ -354,6 +358,7 @@ export class MemoryService {
 
 			// Merge and dedupe results (prioritize vector search)
 			const resultMap = new Map<string, MemoryResult>();
+			const memoryIds = new Set<string>();
 
 			// Add vector search results (higher priority)
 			for (const result of searchResponse.results) {
@@ -364,9 +369,14 @@ export class MemoryService {
 					tags?: string[];
 					timestamp?: number;
 					project?: string;
+					vt_end?: number;
 				};
 
 				if (payload?.node_id && payload?.content) {
+					const now = Date.now();
+					const vtEnd = payload.vt_end ?? Number.MAX_SAFE_INTEGER;
+					const isInvalidated = vtEnd < now;
+
 					resultMap.set(payload.node_id, {
 						id: payload.node_id,
 						content: payload.content,
@@ -376,13 +386,20 @@ export class MemoryService {
 						createdAt: payload.timestamp
 							? new Date(payload.timestamp).toISOString()
 							: new Date().toISOString(),
+						invalidated: isInvalidated,
+						invalidatedAt: isInvalidated ? vtEnd : undefined,
+						replacedBy: undefined, // Will be filled in below
 					});
+					memoryIds.add(payload.node_id);
 				}
 			}
 
 			// Add graph results (lower priority, won't override)
 			for (const result of graphResults) {
 				if (!resultMap.has(result.id)) {
+					const now = Date.now();
+					const isInvalidated = result.vt_end < now;
+
 					resultMap.set(result.id, {
 						id: result.id,
 						content: result.content,
@@ -390,7 +407,37 @@ export class MemoryService {
 						tags: result.tags ?? [],
 						score: 0.5, // Default score for keyword matches
 						createdAt: result.created_at,
+						invalidated: isInvalidated,
+						invalidatedAt: isInvalidated ? result.vt_end : undefined,
+						replacedBy: undefined, // Will be filled in below
 					});
+					memoryIds.add(result.id);
+				}
+			}
+
+			// For invalidated memories, fetch replacement information
+			const invalidatedMemories = Array.from(resultMap.values()).filter((m) => m.invalidated);
+			if (invalidatedMemories.length > 0) {
+				const invalidatedIds = invalidatedMemories.map((m) => m.id);
+
+				// Query for REPLACES edges to find which memory replaced each invalidated one
+				const replacementResults = await this.tenantQuery<{
+					oldId: string;
+					newId: string;
+				}>(
+					`MATCH (new:Memory)-[:REPLACES]->(old:Memory)
+					WHERE old.id IN $invalidatedIds
+					RETURN old.id as oldId, new.id as newId`,
+					{ invalidatedIds },
+					tenantContext,
+				);
+
+				// Update resultMap with replacement info
+				for (const replacement of replacementResults) {
+					const memory = resultMap.get(replacement.oldId);
+					if (memory) {
+						memory.replacedBy = replacement.newId;
+					}
 				}
 			}
 
@@ -442,24 +489,57 @@ export class MemoryService {
 				type: string;
 				tags: string[];
 				created_at: string;
+				vt_end: number;
 			}>(
 				`MATCH (m:Memory)
 				WHERE ${whereClause} AND toLower(m.content) CONTAINS $query
-				RETURN m.id as id, m.content as content, m.type as type, m.tags as tags, m.created_at as created_at
+				RETURN m.id as id, m.content as content, m.type as type, m.tags as tags, m.created_at as created_at, m.vt_end as vt_end
 				ORDER BY m.vt_start DESC
 				LIMIT $limit`,
 				graphParams,
 				tenantContext,
 			);
 
-			return results.map((r, i) => ({
-				id: r.id,
-				content: r.content,
-				type: r.type,
-				tags: r.tags ?? [],
-				score: 1 - i * 0.1, // Simple rank-based scoring
-				createdAt: r.created_at,
-			}));
+			const now = Date.now();
+			const mappedResults = results.map((r, i) => {
+				const isInvalidated = r.vt_end < now;
+				return {
+					id: r.id,
+					content: r.content,
+					type: r.type,
+					tags: r.tags ?? [],
+					score: 1 - i * 0.1, // Simple rank-based scoring
+					createdAt: r.created_at,
+					invalidated: isInvalidated,
+					invalidatedAt: isInvalidated ? r.vt_end : undefined,
+					replacedBy: undefined as string | null | undefined,
+				};
+			});
+
+			// Fetch replacement information for invalidated memories
+			const invalidatedIds = mappedResults.filter((r) => r.invalidated).map((r) => r.id);
+			if (invalidatedIds.length > 0) {
+				const replacementResults = await this.tenantQuery<{
+					oldId: string;
+					newId: string;
+				}>(
+					`MATCH (new:Memory)-[:REPLACES]->(old:Memory)
+					WHERE old.id IN $invalidatedIds
+					RETURN old.id as oldId, new.id as newId`,
+					{ invalidatedIds },
+					tenantContext,
+				);
+
+				// Update results with replacement info
+				for (const replacement of replacementResults) {
+					const memory = mappedResults.find((m) => m.id === replacement.oldId);
+					if (memory) {
+						memory.replacedBy = replacement.newId;
+					}
+				}
+			}
+
+			return mappedResults;
 		}
 	}
 

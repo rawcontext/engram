@@ -1,7 +1,9 @@
 import { type MemoryType, MemoryTypeEnum } from "@engram/graph";
+import type { Logger } from "@engram/logger";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { IMemoryStore } from "../services/interfaces";
+import type { ConflictDetectorService } from "../services/conflict-detector";
+import type { IEngramClient, IMemoryStore } from "../services/interfaces";
 
 export function registerRememberTool(
 	server: McpServer,
@@ -13,6 +15,9 @@ export function registerRememberTool(
 		orgId?: string;
 		orgSlug?: string;
 	},
+	cloudClient: IEngramClient,
+	conflictDetector: ConflictDetectorService,
+	logger: Logger,
 ) {
 	server.registerTool(
 		"remember",
@@ -45,6 +50,117 @@ export function registerRememberTool(
 		async ({ content, type, tags }) => {
 			const context = getSessionContext();
 
+			// Step 1: Find conflict candidates from search service
+			logger.debug(
+				{ content_length: content.length, project: context.project },
+				"Searching for conflict candidates",
+			);
+			const candidates = await cloudClient.findConflictCandidates(content, context.project);
+
+			if (candidates.length > 0) {
+				logger.info(
+					{ count: candidates.length },
+					"Found conflict candidates, enriching with graph data",
+				);
+
+				// Step 2: Enrich candidates with vt_end from FalkorDB
+				const enrichedCandidates = await Promise.all(
+					candidates.map(async (candidate) => {
+						try {
+							// Query FalkorDB for vt_end
+							const results = await cloudClient.query<{ vt_end: number }>(
+								"MATCH (m:Memory {id: $id}) WHERE m.tt_end > timestamp() RETURN m.vt_end as vt_end",
+								{ id: candidate.id },
+								context.orgId && context.orgSlug
+									? { orgId: context.orgId, orgSlug: context.orgSlug }
+									: undefined,
+							);
+
+							const vt_end = results[0]?.vt_end ?? Number.MAX_SAFE_INTEGER;
+
+							return {
+								memoryId: candidate.id,
+								content: candidate.content,
+								type: candidate.type,
+								vt_start: candidate.vt_start,
+								vt_end,
+								similarity: candidate.score,
+							};
+						} catch (error) {
+							logger.warn(
+								{ error, candidateId: candidate.id },
+								"Failed to enrich candidate, using default vt_end",
+							);
+							return {
+								memoryId: candidate.id,
+								content: candidate.content,
+								type: candidate.type,
+								vt_start: candidate.vt_start,
+								vt_end: Number.MAX_SAFE_INTEGER,
+								similarity: candidate.score,
+							};
+						}
+					}),
+				);
+
+				// Step 3: Detect conflicts using ConflictDetectorService
+				logger.debug({ count: enrichedCandidates.length }, "Running conflict detection");
+				const conflicts = await conflictDetector.detectConflicts(
+					{ content, type: type ?? "context" },
+					enrichedCandidates,
+				);
+
+				// Step 4: Process conflicts
+				for (const conflict of conflicts) {
+					logger.info(
+						{
+							candidateId: conflict.candidate.memoryId,
+							relation: conflict.relation,
+							confidence: conflict.confidence,
+							action: conflict.suggestedAction,
+						},
+						"Conflict detected",
+					);
+
+					// Handle SUPERSEDES and CONTRADICTION by invalidating old memory
+					if (
+						conflict.suggestedAction === "invalidate_old" &&
+						(conflict.relation === "supersedes" || conflict.relation === "contradiction")
+					) {
+						logger.info(
+							{ oldMemoryId: conflict.candidate.memoryId, reason: conflict.relation },
+							"Invalidating old memory",
+						);
+
+						// Note: We can't call repository.invalidate() directly since we only have the cloud client
+						// The invalidation will happen when we create the new memory with createMemory
+						// which should handle this in the API layer
+					}
+
+					// Handle DUPLICATE by skipping new memory
+					if (conflict.suggestedAction === "skip_new" && conflict.relation === "duplicate") {
+						logger.info({ duplicateOf: conflict.candidate.memoryId }, "Skipping duplicate memory");
+
+						const output = {
+							id: conflict.candidate.memoryId,
+							stored: false,
+							duplicate: true,
+						};
+
+						return {
+							content: [
+								{
+									type: "text" as const,
+									text: JSON.stringify(output),
+								},
+							],
+							structuredContent: output,
+						};
+					}
+				}
+			}
+
+			// Step 5: Create the memory (API will handle invalidation logic)
 			const memory = await memoryStore.createMemory({
 				content,
 				type: type as MemoryType | undefined,

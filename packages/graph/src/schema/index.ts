@@ -7,6 +7,7 @@
  */
 
 export * from "./edge";
+export * from "./engram-schema";
 export * from "./field";
 export * from "./node";
 export * from "./schema";

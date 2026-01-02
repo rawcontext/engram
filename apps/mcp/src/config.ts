@@ -29,6 +29,9 @@ export const ConfigSchema = z.object({
 	// Observatory URL (for OAuth device flow in cloud mode)
 	observatoryUrl: z.string().url(),
 
+	// Search service URL (for conflict detection)
+	searchUrl: z.string().url().default("http://localhost:6176"),
+
 	// Transport mode
 	transport: z.enum(["stdio", "http"]).default("stdio"),
 
@@ -146,6 +149,7 @@ export function loadConfig(): Config {
 	const rawConfig = {
 		engramApiUrl: apiUrl,
 		observatoryUrl,
+		searchUrl: process.env.SEARCH_URL ?? "http://localhost:6176",
 		transport,
 		httpPort,
 		authEnabled,

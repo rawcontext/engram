@@ -58,6 +58,9 @@ export interface RecallResult {
 	created_at: string;
 	source?: string;
 	project?: string;
+	invalidated?: boolean;
+	invalidatedAt?: number;
+	replacedBy?: string | null;
 }
 
 /**
@@ -68,6 +71,18 @@ export interface ContextItem {
 	content: string;
 	relevance: number;
 	source: string;
+}
+
+/**
+ * Conflict candidate from search service
+ */
+export interface ConflictCandidate {
+	id: string;
+	content: string;
+	type: string;
+	score: number;
+	vt_start: number;
+	vt_end?: number;
 }
 
 /**
@@ -171,4 +186,9 @@ export interface IEngramClient extends IMemoryStore, IMemoryRetriever {
 		depth?: "shallow" | "medium" | "deep",
 		tenant?: TenantContext,
 	): Promise<ContextItem[]>;
+
+	/**
+	 * Find potential conflict candidates for a new memory
+	 */
+	findConflictCandidates(content: string, project?: string): Promise<ConflictCandidate[]>;
 }

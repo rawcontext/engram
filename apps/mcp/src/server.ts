@@ -65,6 +65,7 @@ import {
 	registerSessionResource,
 } from "./resources";
 import { EngramCloudClient } from "./services/cloud";
+import { ConflictDetectorService } from "./services/conflict-detector";
 import type { IEngramClient, IMemoryRetriever, IMemoryStore } from "./services/interfaces";
 import {
 	registerContextTool,
@@ -145,12 +146,14 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		cloudClient = new EngramCloudClient({
 			apiKey: LOCAL_DEV_API_KEY,
 			baseUrl: config.engramApiUrl,
+			searchUrl: config.searchUrl,
 			logger,
 		});
 	} else {
 		// Cloud mode: use OAuth tokens
 		cloudClient = new EngramCloudClient({
 			baseUrl: config.engramApiUrl,
+			searchUrl: config.searchUrl,
 			logger,
 			tokenCache,
 			deviceFlowClient,
@@ -173,6 +176,13 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	const sampling = new SamplingService(mcpServer, logger);
 	const elicitation = new ElicitationService(mcpServer, logger);
 	const roots = new RootsService(mcpServer, logger);
+
+	// Initialize conflict detection service
+	const conflictDetector = new ConflictDetectorService(
+		mcpServer,
+		logger,
+		process.env.GEMINI_API_KEY,
+	);
 
 	// Initialize session context with default capabilities
 	// This will be updated when we receive client info
@@ -210,7 +220,14 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	};
 
 	// Register core tools
-	registerRememberTool(mcpServer, memoryStore, getSessionContext);
+	registerRememberTool(
+		mcpServer,
+		memoryStore,
+		getSessionContext,
+		cloudClient,
+		conflictDetector,
+		logger,
+	);
 	registerRecallTool(mcpServer, memoryRetriever, getSessionContext, elicitation);
 
 	// Register sampling-based tools (available when client supports sampling)

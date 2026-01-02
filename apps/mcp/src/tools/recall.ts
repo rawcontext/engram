@@ -77,6 +77,9 @@ export function registerRecallTool(
 						score: z.number(),
 						type: z.string(),
 						created_at: z.string(),
+						invalidated: z.boolean().optional(),
+						invalidatedAt: z.number().optional(),
+						replacedBy: z.string().nullable().optional(),
 					}),
 				),
 				query: z.string(),
@@ -146,8 +149,19 @@ export function registerRecallTool(
 						// Filter to only the selected memory
 						const selectedMemory = memories.find((m) => m.id === selectedId);
 						if (selectedMemory) {
+							// Format the selected memory with strikethrough if invalidated
+							const formattedMemory = selectedMemory.invalidated
+								? {
+										...selectedMemory,
+										content: selectedMemory.content
+											.split("\n")
+											.map((line) => `~~${line}~~`)
+											.join("\n"),
+									}
+								: selectedMemory;
+
 							const output = {
-								memories: [selectedMemory],
+								memories: [formattedMemory],
 								query,
 								count: 1,
 								disambiguated,
@@ -168,8 +182,24 @@ export function registerRecallTool(
 				}
 			}
 
+			// Format memories for text output (with strikethrough for invalidated)
+			const formattedMemories = memories.map((m) => {
+				if (m.invalidated) {
+					// Wrap content in strikethrough markdown
+					const strikethroughContent = m.content
+						.split("\n")
+						.map((line) => `~~${line}~~`)
+						.join("\n");
+					return {
+						...m,
+						content: strikethroughContent,
+					};
+				}
+				return m;
+			});
+
 			const output = {
-				memories,
+				memories: formattedMemories,
 				query,
 				count: memories.length,
 				disambiguated,
