@@ -7,7 +7,7 @@
 
 import { generateOrgSlug, isValidOrgSlug } from "@engram/common";
 import { apiError, apiSuccess } from "@lib/api-response";
-import { getSession, UserRole, withRole } from "@lib/rbac";
+import { getSession, UserRole } from "@lib/rbac";
 import { Pool } from "pg";
 import { ulid } from "ulid";
 

@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import type { AuditAction, AuditLogEntry } from "@engram/common";
+import type { AuditLogEntry } from "@engram/common";
 import type { Logger } from "@engram/logger";
 import pg from "pg";
 
