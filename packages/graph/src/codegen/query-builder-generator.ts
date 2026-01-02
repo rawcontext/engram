@@ -98,7 +98,7 @@ const DEFAULT_CONFIG: Required<QueryBuilderGeneratorConfig> = {
 /**
  * Get TypeScript type string for a field kind.
  */
-function fieldKindToTsType(kind: FieldKind): string {
+function _fieldKindToTsType(kind: FieldKind): string {
 	switch (kind) {
 		case "string":
 			return "string";

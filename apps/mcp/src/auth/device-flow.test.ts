@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import type { TokenCache } from "./token-cache";
 import { DeviceFlowClient, hasValidCredentials } from "./device-flow";
+import type { TokenCache } from "./token-cache";
 
 describe("DeviceFlowClient", () => {
 	let mockLogger: any;
@@ -135,7 +135,7 @@ describe("DeviceFlowClient", () => {
 
 			client.startDeviceFlow({
 				openBrowser: false,
-				onDisplayCode: (code, url, complete) => {
+				onDisplayCode: (_code, _url, complete) => {
 					capturedComplete = complete;
 				},
 			});
@@ -160,7 +160,7 @@ describe("DeviceFlowClient", () => {
 			spyOn(mockTokenCache, "getRefreshToken").mockReturnValue("refresh-token-123");
 
 			let capturedBody: any;
-			globalThis.fetch = mock((url: string, options: RequestInit) => {
+			globalThis.fetch = mock((_url: string, options: RequestInit) => {
 				capturedBody = JSON.parse(options.body as string);
 				return Promise.resolve({
 					ok: true,

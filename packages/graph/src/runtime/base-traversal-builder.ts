@@ -24,15 +24,14 @@
  */
 
 import { MAX_DATE } from "../utils/time";
-import type { Operator, QueryClient, SortDirection } from "./types";
 import type {
-	AnyEdgeCondition,
 	BitemporalTraversalOptions,
 	EdgeDirection,
 	PathLength,
 	TraversalStep,
 } from "./traversal-types";
 import { isRawEdgeCondition } from "./traversal-types";
+import type { Operator, QueryClient, SortDirection } from "./types";
 
 /**
  * Base class for graph traversal queries.
@@ -312,10 +311,7 @@ export class BaseTraversalBuilder<TResult = unknown> {
 	 * @param options - Which parts to apply temporal constraints to
 	 * @returns This builder for chaining
 	 */
-	asOf(
-		timestamp: number,
-		options: { validTime?: boolean; transactionTime?: boolean } = {},
-	): this {
+	asOf(timestamp: number, options: { validTime?: boolean; transactionTime?: boolean } = {}): this {
 		const { validTime = true, transactionTime = true } = options;
 
 		this.bitemporalOptions = {
@@ -569,7 +565,7 @@ export class BaseTraversalBuilder<TResult = unknown> {
 	 * Finalize the current step and add it to the steps array.
 	 */
 	protected finalizeCurrentStep(): void {
-		if (this.currentStep && this.currentStep.targetAlias) {
+		if (this.currentStep?.targetAlias) {
 			this.steps.push(this.currentStep as TraversalStep);
 			this.currentStep = null;
 		}
@@ -700,9 +696,7 @@ export class BaseTraversalBuilder<TResult = unknown> {
 					if (isRawEdgeCondition(cond)) {
 						conditions.push(cond.cypher);
 					} else {
-						conditions.push(
-							`${step.edgeAlias}.${cond.field} ${cond.operator} $${cond.paramName}`,
-						);
+						conditions.push(`${step.edgeAlias}.${cond.field} ${cond.operator} $${cond.paramName}`);
 					}
 				}
 			}

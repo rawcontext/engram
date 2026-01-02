@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { mcp } from "../schema/mcp";
-import { generateMcpTools, type McpGeneratorConfig } from "./mcp-generator";
+import { generateMcpTools } from "./mcp-generator";
 
 // Test tool definitions
 const memoryTypes = ["decision", "context", "insight", "preference", "fact"] as const;

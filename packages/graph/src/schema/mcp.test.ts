@@ -1,12 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	type InferParamShape,
-	type InferParamType,
-	mcp,
-	type Param,
-	type Simplify,
-	type Tool,
-} from "./mcp";
+import { type InferParamShape, type InferParamType, mcp, type Simplify } from "./mcp";
 
 describe("mcp.param", () => {
 	describe("string", () => {
@@ -476,11 +469,7 @@ describe("real-world examples", () => {
 				query: mcp.param.string(
 					"Natural language search query. Be descriptive - 'authentication decisions' works better than 'auth'.",
 				),
-				limit: mcp.param
-					.int("Maximum number of results")
-					.min(1)
-					.max(20)
-					.default(5),
+				limit: mcp.param.int("Maximum number of results").min(1).max(20).default(5),
 				filters: mcp.param
 					.object(
 						{
@@ -491,9 +480,7 @@ describe("real-world examples", () => {
 						"Optional filters",
 					)
 					.optional(),
-				rerank: mcp.param
-					.boolean("Enable reranking to improve result relevance")
-					.default(true),
+				rerank: mcp.param.boolean("Enable reranking to improve result relevance").default(true),
 				rerank_tier: mcp.param
 					.enum(["fast", "accurate", "code", "llm"] as const, "Reranker model tier")
 					.default("fast"),

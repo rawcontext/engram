@@ -13,7 +13,7 @@
  * - LightRAG: https://github.com/HKUDS/LightRAG
  */
 
-import type { Entity, EntityRepository, Memory } from "@engram/graph";
+import type { Entity, EntityRepository } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import type { EntityEmbeddingService } from "./entity-embedding";
 import type { EntityExtractorService, ExtractedEntity } from "./entity-extractor";
@@ -124,10 +124,7 @@ export class GraphExpansionService {
 			}
 
 			// Step 2: Find matching entities in the graph by embedding similarity
-			const matchedEntities = await this.findMatchingEntities(
-				queryEntities,
-				entityMatchThreshold,
-			);
+			const matchedEntities = await this.findMatchingEntities(queryEntities, entityMatchThreshold);
 			this.logger.debug({ count: matchedEntities.length }, "Found matching entities in graph");
 
 			// Step 3: Expand through related entities (BFS)
@@ -287,10 +284,7 @@ export class GraphExpansionService {
 	/**
 	 * Expand from matched entities to related entities via BFS.
 	 */
-	private async expandRelatedEntities(
-		startEntities: Entity[],
-		depth: number,
-	): Promise<Entity[]> {
+	private async expandRelatedEntities(startEntities: Entity[], depth: number): Promise<Entity[]> {
 		if (depth === 0 || startEntities.length === 0) {
 			return [];
 		}

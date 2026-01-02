@@ -13,7 +13,7 @@
  * - Relationship Type Weights: MENTIONS = 1.0, RELATED_TO = 0.8, etc.
  */
 
-import type { Entity, EntityRepository, Memory } from "@engram/graph";
+import type { Entity, EntityRepository } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import type { EntityExtractorService, ExtractedEntity } from "./entity-extractor";
 import type { RecallResult } from "./interfaces";

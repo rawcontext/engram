@@ -9,7 +9,13 @@
  * Entity resolution falls back to exact name match, alias match, and LLM confirmation.
  */
 
-import type { Entity, EntityRepository, CreateEntityInput, UpdateEntityInput, Memory } from "@engram/graph";
+import type {
+	CreateEntityInput,
+	Entity,
+	EntityRepository,
+	Memory,
+	UpdateEntityInput,
+} from "@engram/graph";
 import { MAX_DATE } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import { ulid } from "ulid";

@@ -10,7 +10,7 @@ describe("registerWhyPrompt", () => {
 
 	beforeEach(() => {
 		mockServer = {
-			registerPrompt: mock((name, options, handler) => {
+			registerPrompt: mock((_name, _options, handler) => {
 				registeredHandler = handler;
 			}),
 		} as unknown as McpServer;

@@ -165,8 +165,8 @@ describe("generate", () => {
 
 			const typesFile = result.files.find((f) => f.path === "types.ts");
 			expect(typesFile).toBeDefined();
-			expect(typesFile!.content).toContain("Memory");
-			expect(typesFile!.content).toContain("Session");
+			expect(typesFile?.content).toContain("Memory");
+			expect(typesFile?.content).toContain("Session");
 		});
 
 		test("query builders file contains builders", async () => {
@@ -177,8 +177,8 @@ describe("generate", () => {
 
 			const qbFile = result.files.find((f) => f.path === "query-builders.ts");
 			expect(qbFile).toBeDefined();
-			expect(qbFile!.content).toContain("MemoryQueryBuilder");
-			expect(qbFile!.content).toContain("SessionQueryBuilder");
+			expect(qbFile?.content).toContain("MemoryQueryBuilder");
+			expect(qbFile?.content).toContain("SessionQueryBuilder");
 		});
 
 		test("repositories file contains repositories", async () => {
@@ -189,8 +189,8 @@ describe("generate", () => {
 
 			const repoFile = result.files.find((f) => f.path === "repositories.ts");
 			expect(repoFile).toBeDefined();
-			expect(repoFile!.content).toContain("MemoryRepository");
-			expect(repoFile!.content).toContain("SessionRepository");
+			expect(repoFile?.content).toContain("MemoryRepository");
+			expect(repoFile?.content).toContain("SessionRepository");
 		});
 
 		test("validators file contains validators", async () => {
@@ -201,8 +201,8 @@ describe("generate", () => {
 
 			const validatorsFile = result.files.find((f) => f.path === "validators.ts");
 			expect(validatorsFile).toBeDefined();
-			expect(validatorsFile!.content).toContain("MemorySchema");
-			expect(validatorsFile!.content).toContain("SessionSchema");
+			expect(validatorsFile?.content).toContain("MemorySchema");
+			expect(validatorsFile?.content).toContain("SessionSchema");
 		});
 
 		test("MCP file contains tool schemas", async () => {
@@ -214,8 +214,8 @@ describe("generate", () => {
 
 			const mcpFile = result.files.find((f) => f.path === "mcp-tools.ts");
 			expect(mcpFile).toBeDefined();
-			expect(mcpFile!.content).toContain("rememberInputSchema");
-			expect(mcpFile!.content).toContain("registerRememberTool");
+			expect(mcpFile?.content).toContain("rememberInputSchema");
+			expect(mcpFile?.content).toContain("registerRememberTool");
 		});
 	});
 
@@ -228,7 +228,7 @@ describe("generate", () => {
 
 			const indexFile = result.files.find((f) => f.path === "index.ts");
 			expect(indexFile).toBeDefined();
-			expect(indexFile!.content).toContain('export * from "./types"');
+			expect(indexFile?.content).toContain('export * from "./types"');
 		});
 
 		test("exports query-builders module", async () => {
@@ -238,7 +238,7 @@ describe("generate", () => {
 			});
 
 			const indexFile = result.files.find((f) => f.path === "index.ts");
-			expect(indexFile!.content).toContain('export * from "./query-builders"');
+			expect(indexFile?.content).toContain('export * from "./query-builders"');
 		});
 
 		test("exports repositories module", async () => {
@@ -248,7 +248,7 @@ describe("generate", () => {
 			});
 
 			const indexFile = result.files.find((f) => f.path === "index.ts");
-			expect(indexFile!.content).toContain('export * from "./repositories"');
+			expect(indexFile?.content).toContain('export * from "./repositories"');
 		});
 
 		test("exports validators module", async () => {
@@ -258,7 +258,7 @@ describe("generate", () => {
 			});
 
 			const indexFile = result.files.find((f) => f.path === "index.ts");
-			expect(indexFile!.content).toContain('export * from "./validators"');
+			expect(indexFile?.content).toContain('export * from "./validators"');
 		});
 
 		test("exports mcp-tools module when tools provided", async () => {
@@ -269,7 +269,7 @@ describe("generate", () => {
 			});
 
 			const indexFile = result.files.find((f) => f.path === "index.ts");
-			expect(indexFile!.content).toContain('export * from "./mcp-tools"');
+			expect(indexFile?.content).toContain('export * from "./mcp-tools"');
 		});
 
 		test("omits mcp-tools export when no tools", async () => {
@@ -279,7 +279,7 @@ describe("generate", () => {
 			});
 
 			const indexFile = result.files.find((f) => f.path === "index.ts");
-			expect(indexFile!.content).not.toContain('export * from "./mcp-tools"');
+			expect(indexFile?.content).not.toContain('export * from "./mcp-tools"');
 		});
 
 		test("includes auto-generated header", async () => {
@@ -289,7 +289,7 @@ describe("generate", () => {
 			});
 
 			const indexFile = result.files.find((f) => f.path === "index.ts");
-			expect(indexFile!.content).toContain("AUTO-GENERATED FILE - DO NOT EDIT");
+			expect(indexFile?.content).toContain("AUTO-GENERATED FILE - DO NOT EDIT");
 		});
 	});
 
@@ -304,7 +304,7 @@ describe("generate", () => {
 			});
 
 			const typesFile = result.files.find((f) => f.path === "types.ts");
-			expect(typesFile!.content).toContain("// Custom types header");
+			expect(typesFile?.content).toContain("// Custom types header");
 		});
 
 		test("passes queryBuilderOptions to query builder generator", async () => {
@@ -318,7 +318,7 @@ describe("generate", () => {
 
 			const qbFile = result.files.find((f) => f.path === "query-builders.ts");
 			// With comments disabled, should not contain JSDoc comments
-			expect(qbFile!.content).not.toContain("* Query builder for Memory nodes");
+			expect(qbFile?.content).not.toContain("* Query builder for Memory nodes");
 		});
 
 		test("passes repositoryOptions to repository generator", async () => {
@@ -331,7 +331,7 @@ describe("generate", () => {
 			});
 
 			const repoFile = result.files.find((f) => f.path === "repositories.ts");
-			expect(repoFile!.content).not.toContain("* Repository for Memory nodes");
+			expect(repoFile?.content).not.toContain("* Repository for Memory nodes");
 		});
 
 		test("passes validatorOptions to validator generator", async () => {
@@ -344,7 +344,7 @@ describe("generate", () => {
 			});
 
 			const validatorsFile = result.files.find((f) => f.path === "validators.ts");
-			expect(validatorsFile!.content).toContain("// Custom validators header");
+			expect(validatorsFile?.content).toContain("// Custom validators header");
 		});
 
 		test("passes mcpOptions to MCP generator", async () => {
@@ -358,7 +358,7 @@ describe("generate", () => {
 			});
 
 			const mcpFile = result.files.find((f) => f.path === "mcp-tools.ts");
-			expect(mcpFile!.content).not.toContain("* Input schema for");
+			expect(mcpFile?.content).not.toContain("* Input schema for");
 		});
 	});
 

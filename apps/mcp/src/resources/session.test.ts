@@ -11,7 +11,7 @@ describe("registerSessionResource", () => {
 
 	beforeEach(() => {
 		mockServer = {
-			registerResource: mock((name, template, options, handler) => {
+			registerResource: mock((name, _template, _options, handler) => {
 				if (name === "session-transcript") {
 					transcriptReadHandler = handler;
 				} else if (name === "session-summary") {

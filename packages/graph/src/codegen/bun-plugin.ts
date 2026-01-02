@@ -21,7 +21,7 @@ import type { BunPlugin } from "bun";
 import type { EdgeDefinition } from "../schema/edge";
 import type { NodeDefinition } from "../schema/node";
 import type { Schema } from "../schema/schema";
-import { generate, type GenerateOptions } from "./generator";
+import { type GenerateOptions, generate } from "./generator";
 
 // =============================================================================
 // Types
@@ -106,7 +106,7 @@ const RELATIONSHIP_PATTERN = /-\[\s*\w*\s*:(\w+)(?:\s*\*\s*\d*\.?\.\d*)?\s*\]-/g
  * Pattern to extract property accesses from Cypher.
  * Matches: n.propertyName, node.property
  */
-const PROPERTY_PATTERN = /(\w+)\.(\w+)/g;
+const _PROPERTY_PATTERN = /(\w+)\.(\w+)/g;
 
 /**
  * Validate a Cypher query against the schema.
@@ -121,6 +121,7 @@ function validateCypherQuery(
 
 	// Check node labels
 	let match: RegExpExecArray | null;
+	// biome-ignore lint/suspicious/noAssignInExpressions: Standard regex iteration pattern
 	while ((match = NODE_LABEL_PATTERN.exec(query)) !== null) {
 		const label = match[1];
 		if (!nodeNames.has(label)) {
@@ -135,6 +136,7 @@ function validateCypherQuery(
 	NODE_LABEL_PATTERN.lastIndex = 0;
 
 	// Check relationship types
+	// biome-ignore lint/suspicious/noAssignInExpressions: Standard regex iteration pattern
 	while ((match = RELATIONSHIP_PATTERN.exec(query)) !== null) {
 		const relType = match[1];
 		if (!edgeNames.has(relType)) {
@@ -202,7 +204,7 @@ function levenshteinDistance(a: string, b: string): number {
  */
 function validateFileQueries(
 	contents: string,
-	filePath: string,
+	_filePath: string,
 	schema: Schema<Record<string, NodeDefinition<any, any>>, Record<string, EdgeDefinition<any>>>,
 ): ValidationError[] {
 	const errors: ValidationError[] = [];
@@ -211,6 +213,7 @@ function validateFileQueries(
 	// Reset pattern state
 	CYPHER_QUERY_PATTERN.lastIndex = 0;
 
+	// biome-ignore lint/suspicious/noAssignInExpressions: Standard regex iteration pattern
 	while ((match = CYPHER_QUERY_PATTERN.exec(contents)) !== null) {
 		const query = match[1];
 		const queryErrors = validateCypherQuery(query, schema);

@@ -22,11 +22,11 @@
  */
 
 import { parseArgs } from "node:util";
-import type { Schema } from "../schema/schema";
 import type { EdgeDefinition } from "../schema/edge";
-import type { NodeDefinition } from "../schema/node";
 import type { Tool, ToolCollection } from "../schema/mcp";
-import { generate, type GenerateOptions } from "./generator";
+import type { NodeDefinition } from "../schema/node";
+import type { Schema } from "../schema/schema";
+import { type GenerateOptions, generate } from "./generator";
 
 // =============================================================================
 // CLI Configuration

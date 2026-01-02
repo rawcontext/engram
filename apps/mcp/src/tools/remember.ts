@@ -295,9 +295,7 @@ export function registerRememberTool(
 			});
 
 			// Step 6: Extract and link entities (if entity extraction is enabled)
-			let extractedEntities:
-				| Array<{ name: string; type: string; isNew: boolean }>
-				| undefined;
+			let extractedEntities: Array<{ name: string; type: string; isNew: boolean }> | undefined;
 
 			if (entityExtraction) {
 				try {
@@ -342,9 +340,7 @@ export function registerRememberTool(
 							const extractedEntity = extractionResult.entities.find(
 								(e) =>
 									e.name.toLowerCase() === result.entity.name.toLowerCase() ||
-									result.entity.aliases.some(
-										(a) => a.toLowerCase() === e.name.toLowerCase(),
-									),
+									result.entity.aliases.some((a) => a.toLowerCase() === e.name.toLowerCase()),
 							);
 
 							try {

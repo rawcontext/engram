@@ -10,7 +10,7 @@ describe("registerFileHistoryResource", () => {
 
 	beforeEach(() => {
 		mockServer = {
-			registerResource: mock((name, template, options, handler) => {
+			registerResource: mock((_name, _template, _options, handler) => {
 				registeredReadHandler = handler;
 			}),
 		} as unknown as McpServer;

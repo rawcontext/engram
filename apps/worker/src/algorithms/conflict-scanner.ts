@@ -337,7 +337,7 @@ export class ConflictScanner {
 	 */
 	private async findConflictCandidates(
 		memory: MemoryCandidate,
-		orgId: string,
+		_orgId: string,
 	): Promise<VectorCandidate[]> {
 		try {
 			const url = `${this.options.searchUrl}/v1/search/conflict-candidates`;

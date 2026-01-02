@@ -186,7 +186,7 @@ function extractCommunities(labels: Map<string, string>, minSize: number): Commu
 		if (!communities.has(label)) {
 			communities.set(label, []);
 		}
-		communities.get(label)!.push(nodeId);
+		communities.get(label)?.push(nodeId);
 	}
 
 	// Filter by minimum size and convert to record
@@ -295,8 +295,8 @@ export function graphFromEdges(edges: [string, string][]): Graph {
 		}
 
 		// Add bidirectional edges (undirected graph)
-		nodes.get(source)!.add(target);
-		nodes.get(target)!.add(source);
+		nodes.get(source)?.add(target);
+		nodes.get(target)?.add(source);
 	}
 
 	return { nodes };
@@ -335,7 +335,7 @@ export function mergeCommunities(
 	overlapThreshold = 0.5,
 ): Communities {
 	const result: Communities = { ...existing };
-	const existingValues = Object.values(existing);
+	const _existingValues = Object.values(existing);
 
 	for (const [newLabel, newMembers] of Object.entries(newCommunities)) {
 		const newSet = new Set(newMembers);

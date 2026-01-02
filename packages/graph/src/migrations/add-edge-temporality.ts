@@ -123,7 +123,10 @@ export async function migrateEdgesToBitemporal(client: GraphClient): Promise<Mig
 				{ now, maxDate },
 			);
 
-			logger.info({ edgeType, migratedCount: needsMigration, skippedCount }, "Edge type migration complete");
+			logger.info(
+				{ edgeType, migratedCount: needsMigration, skippedCount },
+				"Edge type migration complete",
+			);
 
 			results.push({
 				edgeType,

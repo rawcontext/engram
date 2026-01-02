@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
-	DeduplicationEngine,
 	computeEventHash,
-	fnv1aHash,
+	DeduplicationEngine,
 	type DeduplicationKey,
 	type EventSource,
+	fnv1aHash,
 } from "./engine";
 
 describe("fnv1aHash", () => {

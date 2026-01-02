@@ -77,9 +77,7 @@ export type AnyEdgeCondition = EdgeCondition | RawEdgeCondition;
 /**
  * Type guard for RawEdgeCondition.
  */
-export function isRawEdgeCondition(
-	condition: AnyEdgeCondition,
-): condition is RawEdgeCondition {
+export function isRawEdgeCondition(condition: AnyEdgeCondition): condition is RawEdgeCondition {
 	return "cypher" in condition;
 }
 

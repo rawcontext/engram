@@ -290,10 +290,9 @@ describe("BaseQueryBuilder", () => {
 
 			await builder.where({ name: "Alice" }).execute();
 
-			expect(client.query).toHaveBeenCalledWith(
-				"MATCH (n:TestNode) WHERE n.name = $p0 RETURN n",
-				{ p0: "Alice" },
-			);
+			expect(client.query).toHaveBeenCalledWith("MATCH (n:TestNode) WHERE n.name = $p0 RETURN n", {
+				p0: "Alice",
+			});
 		});
 
 		it("should extract properties from result", async () => {

@@ -4,11 +4,7 @@ import type { Logger } from "@engram/logger";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ElicitationService } from "../capabilities/elicitation";
 import { ConflictAuditService } from "../services/conflict-audit";
-import {
-	type ConflictCandidate,
-	ConflictDetectorService,
-	ConflictRelation,
-} from "../services/conflict-detector";
+import { ConflictDetectorService } from "../services/conflict-detector";
 import type { IEngramClient, IMemoryStore, RecallResult } from "../services/interfaces";
 import { registerRecallTool } from "./recall";
 import { registerRememberTool } from "./remember";
@@ -67,7 +63,7 @@ describe("Conflict Detection Integration", () => {
 		const registeredTools: Map<string, { handler: (args: any) => Promise<any> }> = new Map();
 
 		mockServer = {
-			registerTool: mock((name: string, schema: any, handler: (args: any) => Promise<any>) => {
+			registerTool: mock((name: string, _schema: any, handler: (args: any) => Promise<any>) => {
 				registeredTools.set(name, { handler });
 			}),
 			server: {
@@ -108,7 +104,7 @@ describe("Conflict Detection Integration", () => {
 
 		// Mock cloud client
 		mockCloudClient = {
-			findConflictCandidates: mock(async (content: string) => {
+			findConflictCandidates: mock(async (_content: string) => {
 				// Return all stored memories as potential candidates
 				const candidates: any[] = [];
 				for (const [id, memory] of memoryStorage) {
@@ -138,7 +134,7 @@ describe("Conflict Detection Integration", () => {
 				return [];
 			}),
 			createMemory: mock(async (input: any) => mockMemoryStore.createMemory(input)),
-			recall: mock(async (query: string, limit: number, filters: any) => {
+			recall: mock(async (_query: string, limit: number, filters: any) => {
 				const results: RecallResult[] = [];
 				const now = Date.now();
 

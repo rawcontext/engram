@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import type { MemoryType } from "@engram/graph/models";
 import {
-	TYPE_WEIGHTS,
 	calculateDecayBreakdown,
 	calculateDecayScore,
 	calculateDecayScores,
-	filterByDecayThreshold,
 	type DecayInput,
+	filterByDecayThreshold,
+	TYPE_WEIGHTS,
 } from "../decay";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -85,10 +85,7 @@ describe("calculateDecayScore", () => {
 			const fresh = calculateDecayScore({ ...baseInput, createdAt: NOW }, NOW);
 			const oneDay = calculateDecayScore({ ...baseInput, createdAt: NOW - MS_PER_DAY }, NOW);
 			const oneWeek = calculateDecayScore({ ...baseInput, createdAt: NOW - 7 * MS_PER_DAY }, NOW);
-			const oneMonth = calculateDecayScore(
-				{ ...baseInput, createdAt: NOW - 30 * MS_PER_DAY },
-				NOW,
-			);
+			const oneMonth = calculateDecayScore({ ...baseInput, createdAt: NOW - 30 * MS_PER_DAY }, NOW);
 
 			expect(fresh).toBeGreaterThan(oneDay);
 			expect(oneDay).toBeGreaterThan(oneWeek);

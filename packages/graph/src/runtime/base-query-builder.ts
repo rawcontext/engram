@@ -171,10 +171,7 @@ export abstract class BaseQueryBuilder<T extends BaseNode> {
 	 * builder.asOf(1640000000000, { validTime: true, transactionTime: false })
 	 * ```
 	 */
-	asOf(
-		timestamp: number,
-		options: { validTime?: boolean; transactionTime?: boolean } = {},
-	): this {
+	asOf(timestamp: number, options: { validTime?: boolean; transactionTime?: boolean } = {}): this {
 		const { validTime = true, transactionTime = true } = options;
 
 		if (validTime) {
@@ -371,11 +368,7 @@ export abstract class BaseQueryBuilder<T extends BaseNode> {
 	 * @param value - The value to compare against
 	 * @returns This builder for chaining
 	 */
-	protected addCondition(
-		field: string,
-		operator: Condition["operator"],
-		value: unknown,
-	): this {
+	protected addCondition(field: string, operator: Condition["operator"], value: unknown): this {
 		const paramName = this.nextParamName();
 		this.params[paramName] = value;
 		this.conditions.push({

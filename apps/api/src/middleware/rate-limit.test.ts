@@ -1,5 +1,4 @@
 import { describe, expect, it, mock } from "bun:test";
-import { Hono } from "hono";
 import type { AuthContext } from "./auth";
 
 // Mock redis client for testing without actual Redis connection

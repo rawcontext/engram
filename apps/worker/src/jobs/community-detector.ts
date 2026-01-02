@@ -24,7 +24,7 @@
 import type { FalkorCommunityRepository } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import type { FalkorClient, QueryParams } from "@engram/storage";
-import { type Communities, type Graph, labelPropagation } from "../algorithms/label-propagation";
+import { type Graph, labelPropagation } from "../algorithms/label-propagation";
 import { BaseJobConsumer } from "./base";
 
 // =============================================================================
@@ -252,13 +252,13 @@ export class CommunityDetectorConsumer extends BaseJobConsumer<CommunityDetectio
 			if (!nodes.has(edge.fromId)) {
 				nodes.set(edge.fromId, new Set());
 			}
-			nodes.get(edge.fromId)!.add(edge.toId);
+			nodes.get(edge.fromId)?.add(edge.toId);
 
 			// Add toId -> fromId (undirected graph for community detection)
 			if (!nodes.has(edge.toId)) {
 				nodes.set(edge.toId, new Set());
 			}
-			nodes.get(edge.toId)!.add(edge.fromId);
+			nodes.get(edge.toId)?.add(edge.fromId);
 		}
 
 		return { nodes };

@@ -30,7 +30,7 @@ describe("registerRememberTool", () => {
 
 	beforeEach(() => {
 		mockServer = {
-			registerTool: mock((name, options, handler) => {
+			registerTool: mock((_name, _options, handler) => {
 				registeredHandler = handler;
 			}),
 		} as unknown as McpServer;

@@ -3,7 +3,7 @@ import { edge } from "../schema/edge";
 import { field } from "../schema/field";
 import { node } from "../schema/node";
 import { defineSchema } from "../schema/schema";
-import { generateRepositories, type RepositoryGeneratorConfig } from "./repository-generator";
+import { generateRepositories } from "./repository-generator";
 
 // Test schemas
 const MemoryTypes = ["decision", "context", "insight", "preference", "fact"] as const;

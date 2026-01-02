@@ -60,7 +60,7 @@ export interface TypeGeneratorOptions {
 /**
  * Map schema field kind to TypeScript type string.
  */
-function fieldKindToTsType(kind: FieldKind): string {
+function _fieldKindToTsType(kind: FieldKind): string {
 	switch (kind) {
 		case "string":
 			return "string";
@@ -162,7 +162,7 @@ function generateImports(): string {
 /**
  * Convert PascalCase to SCREAMING_SNAKE_CASE for edge type names.
  */
-function toScreamingSnake(name: string): string {
+function _toScreamingSnake(name: string): string {
 	return name
 		.replace(/([A-Z])/g, "_$1")
 		.toUpperCase()

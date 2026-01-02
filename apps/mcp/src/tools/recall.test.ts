@@ -13,7 +13,7 @@ describe("registerRecallTool", () => {
 	beforeEach(() => {
 		// Capture the handler when registerTool is called
 		mockServer = {
-			registerTool: mock((name, options, handler) => {
+			registerTool: mock((_name, _options, handler) => {
 				registeredHandler = handler;
 			}),
 		} as unknown as McpServer;

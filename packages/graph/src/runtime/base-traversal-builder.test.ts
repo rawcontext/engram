@@ -63,11 +63,7 @@ describe("BaseTraversalBuilder", () => {
 			const client = createMockClient();
 			const builder = traverse(client);
 
-			const cypher = builder
-				.from("Turn")
-				.via(["INVOKES", "CONTAINS"])
-				.to("Node")
-				.toCypher();
+			const cypher = builder.from("Turn").via(["INVOKES", "CONTAINS"]).to("Node").toCypher();
 
 			expect(cypher).toContain("-[:INVOKES|CONTAINS]->");
 		});
@@ -220,12 +216,7 @@ describe("BaseTraversalBuilder", () => {
 			const client = createMockClient();
 			const builder = traverse(client);
 
-			const cypher = builder
-				.from("Session")
-				.via("HAS_TURN")
-				.to("Turn")
-				.whereCurrent()
-				.toCypher();
+			const cypher = builder.from("Session").via("HAS_TURN").to("Turn").whereCurrent().toCypher();
 
 			expect(cypher).toContain(`n0.tt_end = ${MAX_DATE}`);
 			expect(cypher).toContain(`n1.tt_end = ${MAX_DATE}`);
@@ -236,12 +227,7 @@ describe("BaseTraversalBuilder", () => {
 			const builder = traverse(client);
 			const timestamp = 1640000000000;
 
-			const cypher = builder
-				.from("Session")
-				.via("HAS_TURN")
-				.to("Turn")
-				.asOf(timestamp)
-				.toCypher();
+			const cypher = builder.from("Session").via("HAS_TURN").to("Turn").asOf(timestamp).toCypher();
 
 			expect(cypher).toContain("n0.tt_start <= $p0 AND n0.tt_end > $p0");
 			expect(cypher).toContain("n0.vt_start <= $p1 AND n0.vt_end > $p1");
@@ -269,12 +255,7 @@ describe("BaseTraversalBuilder", () => {
 			const client = createMockClient();
 			const builder = traverse(client);
 
-			const cypher = builder
-				.from("Session")
-				.via("HAS_TURN")
-				.to("Turn")
-				.limit(10)
-				.toCypher();
+			const cypher = builder.from("Session").via("HAS_TURN").to("Turn").limit(10).toCypher();
 
 			expect(cypher).toContain("LIMIT 10");
 		});
@@ -283,12 +264,7 @@ describe("BaseTraversalBuilder", () => {
 			const client = createMockClient();
 			const builder = traverse(client);
 
-			const cypher = builder
-				.from("Session")
-				.via("HAS_TURN")
-				.to("Turn")
-				.offset(5)
-				.toCypher();
+			const cypher = builder.from("Session").via("HAS_TURN").to("Turn").offset(5).toCypher();
 
 			expect(cypher).toContain("SKIP 5");
 		});
@@ -354,12 +330,7 @@ describe("BaseTraversalBuilder", () => {
 			const client = createMockClient();
 			const builder = traverse(client);
 
-			const cypher = builder
-				.from("Session")
-				.via("HAS_TURN")
-				.to("Turn")
-				.distinct()
-				.toCypher();
+			const cypher = builder.from("Session").via("HAS_TURN").to("Turn").distinct().toCypher();
 
 			expect(cypher).toContain("RETURN DISTINCT n1");
 		});
@@ -423,18 +394,11 @@ describe("BaseTraversalBuilder", () => {
 
 	describe("first", () => {
 		it("should return first result", async () => {
-			const mockData = [
-				{ n1: { properties: { id: "t1" } } },
-				{ n1: { properties: { id: "t2" } } },
-			];
+			const mockData = [{ n1: { properties: { id: "t1" } } }, { n1: { properties: { id: "t2" } } }];
 			const client = createMockClient(mockData);
 			const builder = traverse<{ id: string }>(client);
 
-			const result = await builder
-				.from("Session")
-				.via("HAS_TURN")
-				.to("Turn")
-				.first();
+			const result = await builder.from("Session").via("HAS_TURN").to("Turn").first();
 
 			expect(result?.id).toBe("t1");
 		});
@@ -467,11 +431,7 @@ describe("BaseTraversalBuilder", () => {
 			const client = createMockClient(mockData);
 			const builder = traverse(client);
 
-			const count = await builder
-				.from("Session", { id: "s1" })
-				.via("HAS_TURN")
-				.to("Turn")
-				.count();
+			const count = await builder.from("Session", { id: "s1" }).via("HAS_TURN").to("Turn").count();
 
 			expect(client.query).toHaveBeenCalledWith(
 				"MATCH (n0:Session {id: $p0})-[:HAS_TURN]->(n1:Turn) RETURN count(n1) as cnt",
@@ -494,12 +454,7 @@ describe("BaseTraversalBuilder", () => {
 			const client = createMockClient(mockData);
 			const builder = traverse(client);
 
-			await builder
-				.from("Session")
-				.via("HAS_TURN")
-				.to("Turn")
-				.distinct()
-				.count();
+			await builder.from("Session").via("HAS_TURN").to("Turn").distinct().count();
 
 			expect(client.query).toHaveBeenCalledWith(
 				expect.stringContaining("count(DISTINCT n1)"),

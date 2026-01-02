@@ -35,14 +35,7 @@
  * Discriminator for MCP parameter types.
  * Used for type narrowing and JSON Schema generation.
  */
-export type ParamKind =
-	| "string"
-	| "int"
-	| "float"
-	| "boolean"
-	| "array"
-	| "enum"
-	| "object";
+export type ParamKind = "string" | "int" | "float" | "boolean" | "array" | "enum" | "object";
 
 // =============================================================================
 // Param Configuration

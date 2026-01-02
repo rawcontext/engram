@@ -7,11 +7,7 @@ import { edge } from "../schema/edge";
 import { field } from "../schema/field";
 import { node } from "../schema/node";
 import { defineSchema } from "../schema/schema";
-import {
-	generateQueryBuilders,
-	generateQueryBuildersWithMeta,
-	type QueryBuilderGeneratorConfig,
-} from "./query-builder-generator";
+import { generateQueryBuilders, generateQueryBuildersWithMeta } from "./query-builder-generator";
 
 // =============================================================================
 // Test Schema

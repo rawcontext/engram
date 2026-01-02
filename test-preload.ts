@@ -43,10 +43,6 @@ const mockEnsureTenantGraph = mock(async () => ({
 }));
 
 class MockTenantAwareFalkorClient {
-	constructor(_client: MockFalkorClient) {
-		// Client parameter intentionally unused in mock
-	}
-
 	selectTenantGraph = mockSelectTenantGraph;
 	ensureTenantGraph = mockEnsureTenantGraph;
 }

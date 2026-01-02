@@ -1,6 +1,6 @@
+import { describe, expect, mock, test } from "bun:test";
 import type { Entity, EntityRepository, Memory } from "@engram/graph";
 import { createNodeLogger } from "@engram/logger";
-import { describe, expect, mock, test } from "bun:test";
 import type {
 	EntityExtractionResult,
 	EntityExtractorService,

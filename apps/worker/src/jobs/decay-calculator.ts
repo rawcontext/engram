@@ -116,11 +116,7 @@ export class DecayCalculatorConsumer extends BaseJobConsumer<DecayCalculationJob
 
 	private falkor: FalkorClient;
 
-	constructor(
-		logger: import("@engram/logger").Logger,
-		falkor: FalkorClient,
-		natsUrl?: string,
-	) {
+	constructor(logger: import("@engram/logger").Logger, falkor: FalkorClient, natsUrl?: string) {
 		super(logger, natsUrl);
 		this.falkor = falkor;
 	}
@@ -189,11 +185,11 @@ export class DecayCalculatorConsumer extends BaseJobConsumer<DecayCalculationJob
 		);
 
 		// Batch update to FalkorDB
-		let updated = 0;
+		let _updated = 0;
 		for (let i = 0; i < updates.length; i += BATCH_SIZE) {
 			const batch = updates.slice(i, i + BATCH_SIZE);
 			await this.batchUpdateScores(batch, now);
-			updated += batch.length;
+			_updated += batch.length;
 
 			// Log progress for large batches
 			if (updates.length > BATCH_SIZE && (i + BATCH_SIZE) % 1000 === 0) {

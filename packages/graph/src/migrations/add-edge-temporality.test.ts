@@ -36,19 +36,29 @@ describe("add-edge-temporality migration", () => {
 
 		it("should migrate edges that are missing bitemporal fields", async () => {
 			// Mock: HAS_TURN edges need migration
-			(mockClient.query as any).mockImplementation(async (cypher: string, params?: Record<string, unknown>) => {
-				queryCalls.push({ cypher, params });
-				if (cypher.includes("HAS_TURN") && cypher.includes("vt_start IS NULL") && cypher.includes("count")) {
-					return [{ cnt: 5 }]; // 5 edges need migration
-				}
-				if (cypher.includes("HAS_TURN") && cypher.includes("vt_start IS NOT NULL") && cypher.includes("count")) {
-					return [{ cnt: 2 }]; // 2 already migrated
-				}
-				if (cypher.includes("count(e)")) {
-					return [{ cnt: 0 }];
-				}
-				return [];
-			});
+			(mockClient.query as any).mockImplementation(
+				async (cypher: string, params?: Record<string, unknown>) => {
+					queryCalls.push({ cypher, params });
+					if (
+						cypher.includes("HAS_TURN") &&
+						cypher.includes("vt_start IS NULL") &&
+						cypher.includes("count")
+					) {
+						return [{ cnt: 5 }]; // 5 edges need migration
+					}
+					if (
+						cypher.includes("HAS_TURN") &&
+						cypher.includes("vt_start IS NOT NULL") &&
+						cypher.includes("count")
+					) {
+						return [{ cnt: 2 }]; // 2 already migrated
+					}
+					if (cypher.includes("count(e)")) {
+						return [{ cnt: 0 }];
+					}
+					return [];
+				},
+			);
 
 			const result = await migrateEdgesToBitemporal(mockClient);
 
@@ -69,23 +79,35 @@ describe("add-edge-temporality migration", () => {
 
 		it("should set all bitemporal fields correctly", async () => {
 			// Mock: NEXT edges need migration
-			(mockClient.query as any).mockImplementation(async (cypher: string, params?: Record<string, unknown>) => {
-				queryCalls.push({ cypher, params });
-				if (cypher.includes("NEXT") && cypher.includes("vt_start IS NULL") && cypher.includes("count")) {
-					return [{ cnt: 3 }];
-				}
-				if (cypher.includes("NEXT") && cypher.includes("vt_start IS NOT NULL") && cypher.includes("count")) {
-					return [{ cnt: 0 }];
-				}
-				if (cypher.includes("count(e)")) {
-					return [{ cnt: 0 }];
-				}
-				return [];
-			});
+			(mockClient.query as any).mockImplementation(
+				async (cypher: string, params?: Record<string, unknown>) => {
+					queryCalls.push({ cypher, params });
+					if (
+						cypher.includes("NEXT") &&
+						cypher.includes("vt_start IS NULL") &&
+						cypher.includes("count")
+					) {
+						return [{ cnt: 3 }];
+					}
+					if (
+						cypher.includes("NEXT") &&
+						cypher.includes("vt_start IS NOT NULL") &&
+						cypher.includes("count")
+					) {
+						return [{ cnt: 0 }];
+					}
+					if (cypher.includes("count(e)")) {
+						return [{ cnt: 0 }];
+					}
+					return [];
+				},
+			);
 
 			await migrateEdgesToBitemporal(mockClient);
 
-			const migrationQuery = queryCalls.find((c) => c.cypher.includes("NEXT") && c.cypher.includes("SET"));
+			const migrationQuery = queryCalls.find(
+				(c) => c.cypher.includes("NEXT") && c.cypher.includes("SET"),
+			);
 			expect(migrationQuery).toBeDefined();
 			expect(migrationQuery?.cypher).toContain("e.vt_start = $now");
 			expect(migrationQuery?.cypher).toContain("e.vt_end = $maxDate");
@@ -95,25 +117,43 @@ describe("add-edge-temporality migration", () => {
 
 		it("should return results per edge type", async () => {
 			// Mock: Different edge types need different amounts of migration
-			(mockClient.query as any).mockImplementation(async (cypher: string, params?: Record<string, unknown>) => {
-				queryCalls.push({ cypher, params });
-				if (cypher.includes("HAS_TURN") && cypher.includes("vt_start IS NULL") && cypher.includes("count")) {
-					return [{ cnt: 10 }];
-				}
-				if (cypher.includes("HAS_TURN") && cypher.includes("vt_start IS NOT NULL") && cypher.includes("count")) {
-					return [{ cnt: 5 }];
-				}
-				if (cypher.includes("NEXT") && cypher.includes("vt_start IS NULL") && cypher.includes("count")) {
-					return [{ cnt: 8 }];
-				}
-				if (cypher.includes("NEXT") && cypher.includes("vt_start IS NOT NULL") && cypher.includes("count")) {
-					return [{ cnt: 2 }];
-				}
-				if (cypher.includes("count(e)")) {
-					return [{ cnt: 0 }];
-				}
-				return [];
-			});
+			(mockClient.query as any).mockImplementation(
+				async (cypher: string, params?: Record<string, unknown>) => {
+					queryCalls.push({ cypher, params });
+					if (
+						cypher.includes("HAS_TURN") &&
+						cypher.includes("vt_start IS NULL") &&
+						cypher.includes("count")
+					) {
+						return [{ cnt: 10 }];
+					}
+					if (
+						cypher.includes("HAS_TURN") &&
+						cypher.includes("vt_start IS NOT NULL") &&
+						cypher.includes("count")
+					) {
+						return [{ cnt: 5 }];
+					}
+					if (
+						cypher.includes("NEXT") &&
+						cypher.includes("vt_start IS NULL") &&
+						cypher.includes("count")
+					) {
+						return [{ cnt: 8 }];
+					}
+					if (
+						cypher.includes("NEXT") &&
+						cypher.includes("vt_start IS NOT NULL") &&
+						cypher.includes("count")
+					) {
+						return [{ cnt: 2 }];
+					}
+					if (cypher.includes("count(e)")) {
+						return [{ cnt: 0 }];
+					}
+					return [];
+				},
+			);
 
 			const result = await migrateEdgesToBitemporal(mockClient);
 
@@ -131,16 +171,22 @@ describe("add-edge-temporality migration", () => {
 
 		it("should be idempotent - uses WHERE vt_start IS NULL", async () => {
 			// Mock: Some edges already have bitemporal fields
-			(mockClient.query as any).mockImplementation(async (cypher: string, params?: Record<string, unknown>) => {
-				queryCalls.push({ cypher, params });
-				if (cypher.includes("TOUCHES") && cypher.includes("vt_start IS NULL") && cypher.includes("count")) {
-					return [{ cnt: 3 }];
-				}
-				if (cypher.includes("count(e)")) {
-					return [{ cnt: 0 }];
-				}
-				return [];
-			});
+			(mockClient.query as any).mockImplementation(
+				async (cypher: string, params?: Record<string, unknown>) => {
+					queryCalls.push({ cypher, params });
+					if (
+						cypher.includes("TOUCHES") &&
+						cypher.includes("vt_start IS NULL") &&
+						cypher.includes("count")
+					) {
+						return [{ cnt: 3 }];
+					}
+					if (cypher.includes("count(e)")) {
+						return [{ cnt: 0 }];
+					}
+					return [];
+				},
+			);
 
 			await migrateEdgesToBitemporal(mockClient);
 
@@ -178,7 +224,9 @@ describe("add-edge-temporality migration", () => {
 		it("should propagate query errors", async () => {
 			(mockClient.query as any).mockRejectedValueOnce(new Error("Database connection failed"));
 
-			await expect(migrateEdgesToBitemporal(mockClient)).rejects.toThrow("Database connection failed");
+			await expect(migrateEdgesToBitemporal(mockClient)).rejects.toThrow(
+				"Database connection failed",
+			);
 		});
 	});
 

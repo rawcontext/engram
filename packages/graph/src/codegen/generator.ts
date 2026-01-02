@@ -23,7 +23,6 @@ import type { EdgeDefinition } from "../schema/edge";
 import type { Tool, ToolCollection } from "../schema/mcp";
 import type { NodeDefinition } from "../schema/node";
 import type { Schema } from "../schema/schema";
-import type { Field } from "../schema/types";
 import { generateMcpTools, type McpGeneratorConfig } from "./mcp-generator";
 import { generateQueryBuilders, type QueryBuilderGeneratorConfig } from "./query-builder-generator";
 import { generateRepositories, type RepositoryGeneratorConfig } from "./repository-generator";

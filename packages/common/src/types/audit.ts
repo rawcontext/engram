@@ -155,7 +155,6 @@ export function getActionSeverity(action: AuditAction): "critical" | "high" | "m
 		case "ORG_MEMBER_ADD":
 		case "ORG_ROLE_CHANGE":
 			return "medium";
-		case "TOKEN_ISSUED":
 		default:
 			return "low";
 	}
