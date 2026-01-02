@@ -373,3 +373,54 @@ export const CommunityNodeSchema = BaseNodeSchema.extend({
 	org_id: z.string().optional(), // Organization identifier
 });
 export type CommunityNode = z.infer<typeof CommunityNodeSchema>;
+
+// =============================================================================
+// ConflictReportNode: Tracks detected conflicts between memories
+// Created by ConflictDetectorService for admin review and resolution
+// =============================================================================
+export const ConflictReportRelationEnum = z.enum([
+	"CONTRADICTION", // Facts directly contradict each other
+	"SUPERSEDES", // New fact replaces old fact
+	"INDEPENDENT", // Facts are unrelated (no action required)
+]);
+export type ConflictReportRelation = z.infer<typeof ConflictReportRelationEnum>;
+
+export const ConflictReportStatusEnum = z.enum([
+	"pending_review", // Awaiting admin decision
+	"resolved", // Admin took action
+	"dismissed", // Admin dismissed without action
+]);
+export type ConflictReportStatus = z.infer<typeof ConflictReportStatusEnum>;
+
+export const ConflictResolutionActionEnum = z.enum([
+	"invalidate_source", // Invalidate the triggering memory
+	"invalidate_target", // Invalidate the conflicting memory
+	"keep_both", // Keep both memories as-is
+]);
+export type ConflictResolutionAction = z.infer<typeof ConflictResolutionActionEnum>;
+
+export const ConflictReportNodeSchema = BaseNodeSchema.extend({
+	labels: z.tuple([z.literal("ConflictReport")]),
+
+	// Memory references
+	source_memory_id: z.string(), // ULID of memory that triggered the scan
+	target_memory_id: z.string(), // ULID of the conflicting memory
+
+	// Conflict analysis
+	relation: ConflictReportRelationEnum, // Type of relationship detected
+	reason: z.string(), // LLM explanation of the conflict
+
+	// Detection metadata
+	detected_at: z.number(), // Epoch ms when conflict was detected
+
+	// Resolution status
+	status: ConflictReportStatusEnum.default("pending_review"),
+	resolved_by: z.string().optional(), // User ID who resolved
+	resolved_at: z.number().optional(), // Epoch ms when resolved
+	resolution_action: ConflictResolutionActionEnum.optional(), // Action taken on resolution
+
+	// Multi-tenancy
+	project: z.string(), // Project/repo identifier
+	org_id: z.string(), // Organization ID for multi-tenancy
+});
+export type ConflictReportNode = z.infer<typeof ConflictReportNodeSchema>;
