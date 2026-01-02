@@ -5,4 +5,6 @@
  * TypeScript code for types, query builders, repositories, and validators.
  */
 
+export * from "./query-builder-generator";
 export * from "./types-generator";
+export * from "./validators-generator";
