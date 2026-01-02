@@ -43,6 +43,13 @@ type MemoryNodeProps = {
 	project?: string;
 	working_dir?: string;
 	embedding?: number[];
+	// Decay metadata
+	last_accessed?: number;
+	access_count: number;
+	decay_score: number;
+	decay_updated_at?: number;
+	pinned: boolean;
+	// Bitemporal
 	vt_start: number;
 	vt_end: number;
 	tt_start: number;
@@ -447,6 +454,13 @@ export class FalkorEntityRepository extends FalkorBaseRepository implements Enti
 			project: props.project,
 			workingDir: props.working_dir,
 			embedding: props.embedding,
+			// Decay metadata (with defaults for existing memories without these fields)
+			lastAccessed: props.last_accessed,
+			accessCount: props.access_count ?? 0,
+			decayScore: props.decay_score ?? 1.0,
+			decayUpdatedAt: props.decay_updated_at,
+			pinned: props.pinned ?? false,
+			// Bitemporal
 			vtStart: props.vt_start,
 			vtEnd: props.vt_end,
 			ttStart: props.tt_start,

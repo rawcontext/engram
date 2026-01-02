@@ -265,6 +265,8 @@ export const CreateMemoryInputSchema = z.object({
 	project: z.string().optional(),
 	workingDir: z.string().optional(),
 	embedding: z.array(z.number()).optional(),
+	// Decay metadata (defaults set in schema, optional at creation)
+	pinned: z.boolean().default(false),
 });
 
 export type CreateMemoryInput = z.infer<typeof CreateMemoryInputSchema>;
@@ -275,6 +277,12 @@ export const UpdateMemoryInputSchema = z.object({
 	type: z.enum(["decision", "context", "insight", "preference", "fact", "turn"]).optional(),
 	tags: z.array(z.string()).optional(),
 	embedding: z.array(z.number()).optional(),
+	// Decay metadata (all optional for updates)
+	lastAccessed: z.number().optional(),
+	accessCount: z.number().int().optional(),
+	decayScore: z.number().min(0).max(1).optional(),
+	decayUpdatedAt: z.number().optional(),
+	pinned: z.boolean().optional(),
 });
 
 export type UpdateMemoryInput = z.infer<typeof UpdateMemoryInputSchema>;
@@ -294,6 +302,12 @@ export interface Memory {
 	project?: string;
 	workingDir?: string;
 	embedding?: number[];
+	// Decay metadata
+	lastAccessed?: number;
+	accessCount: number;
+	decayScore: number;
+	decayUpdatedAt?: number;
+	pinned: boolean;
 	// Bitemporal
 	vtStart: number;
 	vtEnd: number;

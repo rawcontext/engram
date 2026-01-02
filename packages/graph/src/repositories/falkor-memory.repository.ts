@@ -24,6 +24,13 @@ type MemoryNodeProps = {
 	project?: string;
 	working_dir?: string;
 	embedding?: number[];
+	// Decay metadata
+	last_accessed?: number;
+	access_count: number;
+	decay_score: number;
+	decay_updated_at?: number;
+	pinned: boolean;
+	// Bitemporal
 	vt_start: number;
 	vt_end: number;
 	tt_start: number;
@@ -103,6 +110,11 @@ export class FalkorMemoryRepository extends FalkorBaseRepository implements Memo
 			type: input.type ?? "context",
 			tags: input.tags ?? [],
 			source: input.source ?? "user",
+			// Decay metadata with defaults
+			access_count: 0,
+			decay_score: 1.0,
+			pinned: input.pinned ?? false,
+			// Bitemporal
 			vt_start: temporal.vt_start,
 			vt_end: temporal.vt_end,
 			tt_start: temporal.tt_start,
@@ -188,6 +200,13 @@ export class FalkorMemoryRepository extends FalkorBaseRepository implements Memo
 			project: existing.project,
 			working_dir: existing.workingDir,
 			embedding: updates.embedding ?? existing.embedding,
+			// Decay metadata
+			last_accessed: updates.lastAccessed ?? existing.lastAccessed,
+			access_count: updates.accessCount ?? existing.accessCount,
+			decay_score: updates.decayScore ?? existing.decayScore,
+			decay_updated_at: updates.decayUpdatedAt ?? existing.decayUpdatedAt,
+			pinned: updates.pinned ?? existing.pinned,
+			// Bitemporal
 			vt_start: newTemporal.vt_start,
 			vt_end: newTemporal.vt_end,
 			tt_start: newTemporal.tt_start,
@@ -282,6 +301,13 @@ export class FalkorMemoryRepository extends FalkorBaseRepository implements Memo
 			project: props.project,
 			workingDir: props.working_dir,
 			embedding: props.embedding,
+			// Decay metadata (with defaults for existing memories without these fields)
+			lastAccessed: props.last_accessed,
+			accessCount: props.access_count ?? 0,
+			decayScore: props.decay_score ?? 1.0,
+			decayUpdatedAt: props.decay_updated_at,
+			pinned: props.pinned ?? false,
+			// Bitemporal
 			vtStart: props.vt_start,
 			vtEnd: props.vt_end,
 			ttStart: props.tt_start,
