@@ -5,7 +5,20 @@ import { z } from "zod";
 import type { ElicitationService } from "../capabilities/elicitation";
 import type { ConflictAuditService } from "../services/conflict-audit";
 import type { ConflictDetectorService } from "../services/conflict-detector";
+import type { EntityExtractorService } from "../services/entity-extractor";
+import type { EntityResolverService } from "../services/entity-resolver";
 import type { IEngramClient, IMemoryStore } from "../services/interfaces";
+
+/**
+ * Options for entity extraction in the remember tool.
+ * If not provided, entity extraction is disabled.
+ */
+export interface EntityExtractionOptions {
+	/** Service for extracting entities from memory content */
+	extractor: EntityExtractorService;
+	/** Service for resolving extracted entities to existing or new entities */
+	resolver: EntityResolverService;
+}
 
 export function registerRememberTool(
 	server: McpServer,
@@ -22,6 +35,7 @@ export function registerRememberTool(
 	elicitation: ElicitationService,
 	conflictAudit: ConflictAuditService,
 	logger: Logger,
+	entityExtraction?: EntityExtractionOptions,
 ) {
 	server.registerTool(
 		"remember",
@@ -49,6 +63,16 @@ export function registerRememberTool(
 				id: z.string(),
 				stored: z.boolean(),
 				duplicate: z.boolean().optional(),
+				entities: z
+					.array(
+						z.object({
+							name: z.string(),
+							type: z.string(),
+							isNew: z.boolean(),
+						}),
+					)
+					.optional()
+					.describe("Entities extracted and linked from the memory content"),
 			},
 		},
 		async ({ content, type, tags }) => {
@@ -270,10 +294,144 @@ export function registerRememberTool(
 						: undefined,
 			});
 
+			// Step 6: Extract and link entities (if entity extraction is enabled)
+			let extractedEntities:
+				| Array<{ name: string; type: string; isNew: boolean }>
+				| undefined;
+
+			if (entityExtraction) {
+				try {
+					logger.debug({ memoryId: memory.id }, "Starting entity extraction");
+
+					// Extract entities from memory content
+					const extractionResult = await entityExtraction.extractor.extract(
+						content,
+						type ?? "context",
+					);
+
+					if (extractionResult.entities.length > 0) {
+						logger.info(
+							{
+								memoryId: memory.id,
+								entityCount: extractionResult.entities.length,
+								relationshipCount: extractionResult.relationships.length,
+								took_ms: extractionResult.took_ms,
+								model: extractionResult.model_used,
+							},
+							"Entities extracted from memory",
+						);
+
+						// Resolve entities (match to existing or create new)
+						const resolutionResults = await entityExtraction.resolver.resolveBatch(
+							extractionResult.entities,
+							context.project,
+						);
+
+						// Build output and create MENTIONS edges
+						extractedEntities = [];
+
+						for (const result of resolutionResults) {
+							extractedEntities.push({
+								name: result.entity.name,
+								type: result.entity.type,
+								isNew: result.isNew,
+							});
+
+							// Create MENTIONS edge from memory to entity
+							// Find the original extracted entity to get context
+							const extractedEntity = extractionResult.entities.find(
+								(e) =>
+									e.name.toLowerCase() === result.entity.name.toLowerCase() ||
+									result.entity.aliases.some(
+										(a) => a.toLowerCase() === e.name.toLowerCase(),
+									),
+							);
+
+							try {
+								await cloudClient.query(
+									`MATCH (m:Memory {id: $memoryId}), (e:Entity {id: $entityId})
+									 WHERE m.tt_end > timestamp() AND e.tt_end > timestamp()
+									 CREATE (m)-[:MENTIONS {context: $context, vt_start: timestamp(), vt_end: 9223372036854775807, tt_start: timestamp(), tt_end: 9223372036854775807}]->(e)`,
+									{
+										memoryId: memory.id,
+										entityId: result.entity.id,
+										context: extractedEntity?.context ?? "",
+									},
+									context.orgId && context.orgSlug
+										? { orgId: context.orgId, orgSlug: context.orgSlug }
+										: undefined,
+								);
+							} catch (edgeError) {
+								logger.warn(
+									{ error: edgeError, memoryId: memory.id, entityId: result.entity.id },
+									"Failed to create MENTIONS edge",
+								);
+							}
+						}
+
+						// Create relationships between entities
+						for (const relationship of extractionResult.relationships) {
+							const fromResult = resolutionResults.find(
+								(r) => r.entity.name.toLowerCase() === relationship.from.toLowerCase(),
+							);
+							const toResult = resolutionResults.find(
+								(r) => r.entity.name.toLowerCase() === relationship.to.toLowerCase(),
+							);
+
+							if (fromResult && toResult) {
+								try {
+									await cloudClient.query(
+										`MATCH (e1:Entity {id: $fromId}), (e2:Entity {id: $toId})
+										 WHERE e1.tt_end > timestamp() AND e2.tt_end > timestamp()
+										 MERGE (e1)-[r:${relationship.type}]->(e2)
+										 ON CREATE SET r.vt_start = timestamp(), r.vt_end = 9223372036854775807, r.tt_start = timestamp(), r.tt_end = 9223372036854775807`,
+										{
+											fromId: fromResult.entity.id,
+											toId: toResult.entity.id,
+										},
+										context.orgId && context.orgSlug
+											? { orgId: context.orgId, orgSlug: context.orgSlug }
+											: undefined,
+									);
+								} catch (relError) {
+									logger.warn(
+										{
+											error: relError,
+											fromEntity: fromResult.entity.name,
+											toEntity: toResult.entity.name,
+											relType: relationship.type,
+										},
+										"Failed to create entity relationship",
+									);
+								}
+							}
+						}
+
+						logger.info(
+							{
+								memoryId: memory.id,
+								newEntities: resolutionResults.filter((r) => r.isNew).length,
+								matchedEntities: resolutionResults.filter((r) => !r.isNew).length,
+							},
+							"Entity extraction and linking complete",
+						);
+					} else {
+						logger.debug({ memoryId: memory.id }, "No entities extracted from memory");
+					}
+				} catch (extractionError) {
+					// Entity extraction errors should not fail the remember operation
+					logger.warn(
+						{ error: extractionError, memoryId: memory.id },
+						"Entity extraction failed, memory stored without entities",
+					);
+				}
+			}
+
 			const output = {
 				id: memory.id,
 				stored: true,
 				duplicate: false,
+				entities: extractedEntities,
 			};
 
 			return {

@@ -40,7 +40,7 @@ export async function runWithIngestion(options: RunWithIngestionOptions): Promis
 			};
 
 			if (authToken) {
-				headers["Authorization"] = `Bearer ${authToken}`;
+				headers.Authorization = `Bearer ${authToken}`;
 			}
 
 			const response = await fetch(`${ingestionUrl}/ingest`, {

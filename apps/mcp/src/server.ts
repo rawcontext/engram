@@ -64,9 +64,13 @@ import {
 	registerMemoryResource,
 	registerSessionResource,
 } from "./resources";
+import { CloudEntityRepository } from "./services/cloud-entity-repository";
 import { EngramCloudClient } from "./services/cloud";
 import { ConflictAuditService } from "./services/conflict-audit";
 import { ConflictDetectorService } from "./services/conflict-detector";
+import { EntityEmbeddingService } from "./services/entity-embedding";
+import { EntityExtractorService } from "./services/entity-extractor";
+import { EntityResolverService } from "./services/entity-resolver";
 import type { IEngramClient, IMemoryRetriever, IMemoryStore } from "./services/interfaces";
 import {
 	registerContextTool,
@@ -190,6 +194,23 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	// Initialize conflict audit service
 	const conflictAudit = new ConflictAuditService(logger);
 
+	// Initialize entity extraction services
+	// These enable automatic entity extraction and linking when memories are stored
+	const entityExtractor = new EntityExtractorService(
+		mcpServer,
+		logger,
+		process.env.GEMINI_API_KEY,
+	);
+	const entityEmbeddingService = new EntityEmbeddingService(config.searchUrl, logger);
+	const entityRepository = new CloudEntityRepository(cloudClient, logger);
+	const entityResolver = new EntityResolverService(
+		entityRepository,
+		entityEmbeddingService,
+		mcpServer,
+		logger,
+		{ useLlmConfirmation: true, geminiApiKey: process.env.GEMINI_API_KEY },
+	);
+
 	// Initialize session context with default capabilities
 	// This will be updated when we receive client info
 	const sessionContext = createSessionContext({
@@ -235,6 +256,10 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		elicitation,
 		conflictAudit,
 		logger,
+		{
+			extractor: entityExtractor,
+			resolver: entityResolver,
+		},
 	);
 	registerRecallTool(mcpServer, memoryRetriever, getSessionContext, elicitation);
 

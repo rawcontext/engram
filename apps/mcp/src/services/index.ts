@@ -1,3 +1,4 @@
+export { CloudEntityRepository } from "./cloud-entity-repository";
 export { EngramCloudClient, type EngramCloudClientOptions } from "./cloud";
 export {
 	type AuditContext,
