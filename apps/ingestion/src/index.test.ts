@@ -1252,7 +1252,6 @@ describeOrSkip("Ingestion Service", () => {
 	describe.skipIf(process.env.CI === "true")("HTTP Server", () => {
 		// Mock auth module to allow tests to pass
 		beforeEach(async () => {
-			const authModule = await import("./auth");
 			mock.module("./auth", () => ({
 				authenticateRequest: mock(async () => true),
 				initAuth: mock(() => {}),
@@ -1262,39 +1261,33 @@ describeOrSkip("Ingestion Service", () => {
 
 		it("should respond to /health endpoint", async () => {
 			const server = (await import("./index")).createIngestionServer(5555);
-			const address = await new Promise<string>((resolve) => {
-				server.listen(5555, () => resolve("http://localhost:5555"));
-			});
+			const address = server.url.origin;
 
 			try {
 				const response = await fetch(`${address}/health`);
 				expect(response.status).toBe(200);
 				expect(await response.text()).toBe("OK");
 			} finally {
-				server.close();
+				server.stop();
 			}
 		});
 
 		it("should handle 404 for unknown paths", async () => {
 			const server = (await import("./index")).createIngestionServer(5556);
-			const address = await new Promise<string>((resolve) => {
-				server.listen(5556, () => resolve("http://localhost:5556"));
-			});
+			const address = server.url.origin;
 
 			try {
 				const response = await fetch(`${address}/unknown`);
 				expect(response.status).toBe(404);
 				expect(await response.text()).toBe("Not Found");
 			} finally {
-				server.close();
+				server.stop();
 			}
 		});
 
 		it("should process valid events on /ingest", async () => {
 			const server = (await import("./index")).createIngestionServer(5557);
-			const address = await new Promise<string>((resolve) => {
-				server.listen(5557, () => resolve("http://localhost:5557"));
-			});
+			const address = server.url.origin;
 
 			try {
 				const event = {
@@ -1320,15 +1313,13 @@ describeOrSkip("Ingestion Service", () => {
 				const result = await response.json();
 				expect(result.status).toBe("processed");
 			} finally {
-				server.close();
+				server.stop();
 			}
 		});
 
 		it("should reject invalid events with 400", async () => {
 			const server = (await import("./index")).createIngestionServer(5558);
-			const address = await new Promise<string>((resolve) => {
-				server.listen(5558, () => resolve("http://localhost:5558"));
-			});
+			const address = server.url.origin;
 
 			try {
 				const response = await fetch(`${address}/ingest`, {
@@ -1341,61 +1332,38 @@ describeOrSkip("Ingestion Service", () => {
 				const result = await response.json();
 				expect(result.error).toBeDefined();
 			} finally {
-				server.close();
+				server.stop();
 			}
 		});
 
 		it("should reject requests exceeding body size limit", async () => {
 			const maxBodySize = 100; // Very small limit for testing
 			const server = (await import("./index")).createIngestionServer(5559, maxBodySize);
-			const address = await new Promise<string>((resolve) => {
-				server.listen(5559, () => resolve("http://localhost:5559"));
-			});
+			const address = server.url.origin;
 
 			try {
-				const largeBody = "x".repeat(maxBodySize + 1);
+				const largeBody = JSON.stringify({ data: "x".repeat(maxBodySize + 1) });
 
-				// Use native http module to send request as fetch may have its own limits
-				const http = await import("node:http");
-				const response = await new Promise<{ status: number; body: string }>((resolve) => {
-					const req = http.request(
-						`${address}/ingest`,
-						{
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-						},
-						(res) => {
-							let body = "";
-							res.on("data", (chunk) => {
-								body += chunk.toString();
-							});
-							res.on("end", () => resolve({ status: res.statusCode || 0, body }));
-							res.on("error", () =>
-								resolve({ status: 413, body: JSON.stringify({ error: "Request body too large" }) }),
-							);
-						},
-					);
-					// Socket hang up is expected when request is destroyed
-					req.on("error", () =>
-						resolve({ status: 413, body: JSON.stringify({ error: "Request body too large" }) }),
-					);
-					req.write(largeBody);
-					req.end();
+				const response = await fetch(`${address}/ingest`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"Content-Length": String(largeBody.length),
+					},
+					body: largeBody,
 				});
 
 				expect(response.status).toBe(413);
-				const result = JSON.parse(response.body);
+				const result = await response.json();
 				expect(result.error).toBe("Request body too large");
 			} finally {
-				server.close();
+				server.stop();
 			}
 		});
 
 		it("should handle malformed JSON", async () => {
 			const server = (await import("./index")).createIngestionServer(5560);
-			const address = await new Promise<string>((resolve) => {
-				server.listen(5560, () => resolve("http://localhost:5560"));
-			});
+			const address = server.url.origin;
 
 			try {
 				const response = await fetch(`${address}/ingest`, {
@@ -1408,16 +1376,14 @@ describeOrSkip("Ingestion Service", () => {
 				const result = await response.json();
 				expect(result.error).toBeDefined();
 			} finally {
-				server.close();
+				server.stop();
 			}
 		});
 
 		it("should handle DLQ send failure in HTTP endpoint", async () => {
 			// This test ensures the DLQ error handler in the HTTP endpoint is covered
 			const server = (await import("./index")).createIngestionServer(5561);
-			const address = await new Promise<string>((resolve) => {
-				server.listen(5561, () => resolve("http://localhost:5561"));
-			});
+			const address = server.url.origin;
 
 			try {
 				// Send invalid event that will fail validation
@@ -1432,15 +1398,13 @@ describeOrSkip("Ingestion Service", () => {
 				const result = await response.json();
 				expect(result.error).toBeDefined();
 			} finally {
-				server.close();
+				server.stop();
 			}
 		});
 
 		it("should handle non-POST requests to /ingest", async () => {
 			const server = (await import("./index")).createIngestionServer(5563);
-			const address = await new Promise<string>((resolve) => {
-				server.listen(5563, () => resolve("http://localhost:5563"));
-			});
+			const address = server.url.origin;
 
 			try {
 				const response = await fetch(`${address}/ingest`, {
@@ -1450,7 +1414,7 @@ describeOrSkip("Ingestion Service", () => {
 				expect(response.status).toBe(404);
 				expect(await response.text()).toBe("Not Found");
 			} finally {
-				server.close();
+				server.stop();
 			}
 		});
 	});

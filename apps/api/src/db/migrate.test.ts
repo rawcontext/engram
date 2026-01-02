@@ -1,5 +1,4 @@
 import { describe, expect, it, mock, spyOn } from "bun:test";
-import * as fs from "node:fs/promises";
 import { runMigrations } from "./migrate";
 
 describe("runMigrations", () => {
@@ -12,17 +11,17 @@ describe("runMigrations", () => {
 			error: mock(() => {}),
 		};
 
-		// Mock readFile to return a simple SQL schema
-		const readFileSpy = spyOn(fs, "readFile").mockResolvedValue(
-			"CREATE TABLE IF NOT EXISTS test (id TEXT);",
-		);
+		// Mock Bun.file to return a mock BunFile with text() method
+		const bunFileSpy = spyOn(Bun, "file").mockReturnValue({
+			text: () => Promise.resolve("CREATE TABLE IF NOT EXISTS test (id TEXT);"),
+		} as any);
 
 		await runMigrations(mockDb as any, mockLogger as any);
 
 		expect(mockLogger.info).toHaveBeenCalledTimes(2);
 		expect(mockDb.query).toHaveBeenCalled();
 
-		readFileSpy.mockRestore();
+		bunFileSpy.mockRestore();
 	});
 
 	it("should throw and log error if migration fails", async () => {
@@ -34,13 +33,15 @@ describe("runMigrations", () => {
 			error: mock(() => {}),
 		};
 
-		const readFileSpy = spyOn(fs, "readFile").mockResolvedValue("INVALID SQL;");
+		const bunFileSpy = spyOn(Bun, "file").mockReturnValue({
+			text: () => Promise.resolve("INVALID SQL;"),
+		} as any);
 
 		await expect(runMigrations(mockDb as any, mockLogger as any)).rejects.toThrow("Database error");
 
 		expect(mockLogger.error).toHaveBeenCalled();
 
-		readFileSpy.mockRestore();
+		bunFileSpy.mockRestore();
 	});
 
 	it("should throw if schema file cannot be read", async () => {
@@ -52,12 +53,14 @@ describe("runMigrations", () => {
 			error: mock(() => {}),
 		};
 
-		const readFileSpy = spyOn(fs, "readFile").mockRejectedValue(new Error("File not found"));
+		const bunFileSpy = spyOn(Bun, "file").mockReturnValue({
+			text: () => Promise.reject(new Error("File not found")),
+		} as any);
 
 		await expect(runMigrations(mockDb as any, mockLogger as any)).rejects.toThrow("File not found");
 
 		expect(mockLogger.error).toHaveBeenCalled();
 
-		readFileSpy.mockRestore();
+		bunFileSpy.mockRestore();
 	});
 });
