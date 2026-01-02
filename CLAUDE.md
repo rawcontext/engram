@@ -83,14 +83,11 @@ Prefer Bun's native APIs over Node.js equivalents for better performance:
 
 **Bun.password** (for future auth):
 ```typescript
-// Hash password with Argon2id (recommended for new code)
+// Hash password with Argon2id
 const hash = await Bun.password.hash("password", { algorithm: "argon2id" });
 
 // Verify password
 const valid = await Bun.password.verify("password", hash);
-
-// Also supports bcrypt for legacy compatibility
-const bcryptHash = await Bun.password.hash("password", { algorithm: "bcrypt", cost: 12 });
 ```
 
 **Bun.Glob** (for file pattern matching):

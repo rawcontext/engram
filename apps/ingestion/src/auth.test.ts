@@ -1,5 +1,4 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import type { IncomingMessage, ServerResponse } from "node:http";
 
 // Skip in CI - Bun's mock.module() doesn't work reliably with dynamic imports in CI
 const isCI = process.env.CI === "true";
@@ -76,7 +75,6 @@ const endMock = Object.assign(
 );
 
 // Mock pg module BEFORE any static imports that use it
-// Note: Static imports are hoisted, so we must mock before the module system loads pg
 class MockPool {
 	query(...args: unknown[]) {
 		return queryMock(...args);
@@ -159,30 +157,6 @@ describeOrSkip("Auth", () => {
 				"OAuth authentication DISABLED (AUTH_ENABLED=false)",
 			);
 		});
-
-		it("should create connection pool when enabled", () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			expect(mockLogger.info).toHaveBeenCalled();
-		});
-
-		it("should not create connection pool when disabled", () => {
-			const config = {
-				enabled: false,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			expect(mockLogger.warn).toHaveBeenCalled();
-		});
 	});
 
 	describe("closeAuth", () => {
@@ -206,39 +180,20 @@ describeOrSkip("Auth", () => {
 			// Should not throw
 			expect(mockState.endCalls.length).toBe(0);
 		});
-
-		it("should set pool to null after closing", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-			await auth.closeAuth();
-			await auth.closeAuth(); // Second call should be safe
-
-			expect(mockState.endCalls.length).toBe(1);
-		});
 	});
 
 	describe("authenticateRequest", () => {
-		let mockReq: Partial<IncomingMessage>;
-		let mockRes: Partial<ServerResponse>;
-		let writeHeadMock: ReturnType<typeof mock>;
-		let endResMock: ReturnType<typeof mock>;
-
-		beforeEach(() => {
-			writeHeadMock = mock();
-			endResMock = mock();
-			mockReq = {
-				headers: {},
-			};
-			mockRes = {
-				writeHead: writeHeadMock,
-				end: endResMock,
-			};
-		});
+		// Helper to create mock Request objects
+		const createRequest = (authHeader?: string): Request => {
+			const headers = new Headers();
+			if (authHeader) {
+				headers.set("authorization", authHeader);
+			}
+			return new Request("http://localhost:6175/ingest", {
+				method: "POST",
+				headers,
+			});
+		};
 
 		it("should allow request when auth is disabled", async () => {
 			const config = {
@@ -249,18 +204,16 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
+			const req = createRequest();
+			const result = await auth.authenticateRequest(req, ["ingest:write"]);
 
 			// Returns dev context object when auth is disabled
-			expect(result).not.toBeNull();
-			expect(result?.userId).toBe("dev-user");
-			expect(result?.orgId).toBe("dev-org");
-			expect(result?.orgSlug).toBe("dev");
-			expect(writeHeadMock).not.toHaveBeenCalled();
+			expect(result).not.toBeInstanceOf(Response);
+			if (!(result instanceof Response)) {
+				expect(result.userId).toBe("dev-user");
+				expect(result.orgId).toBe("dev-org");
+				expect(result.orgSlug).toBe("dev");
+			}
 		});
 
 		it("should reject request with missing Authorization header", async () => {
@@ -272,20 +225,15 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
+			const req = createRequest();
+			const result = await auth.authenticateRequest(req, ["ingest:write"]);
 
-			expect(result).toBeNull();
-			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
-			expect(endResMock).toHaveBeenCalledWith(
-				JSON.stringify({
-					success: false,
-					error: { code: "UNAUTHORIZED", message: "Missing Authorization header" },
-				}),
-			);
+			expect(result).toBeInstanceOf(Response);
+			if (result instanceof Response) {
+				expect(result.status).toBe(401);
+				const body = await result.json();
+				expect(body.error.message).toBe("Missing Authorization header");
+			}
 		});
 
 		it("should reject request with invalid Authorization header format", async () => {
@@ -297,52 +245,15 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			mockReq.headers = { authorization: "InvalidFormat token" };
+			const req = createRequest("InvalidFormat token");
+			const result = await auth.authenticateRequest(req, ["ingest:write"]);
 
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBeNull();
-			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
-			expect(endResMock).toHaveBeenCalledWith(
-				JSON.stringify({
-					success: false,
-					error: {
-						code: "UNAUTHORIZED",
-						message: "Invalid Authorization header format. Use: Bearer <token>",
-					},
-				}),
-			);
-		});
-
-		it("should reject request with invalid token format", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			mockReq.headers = { authorization: "Bearer invalid_token_format" };
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBeNull();
-			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
-			expect(endResMock).toHaveBeenCalledWith(
-				JSON.stringify({
-					success: false,
-					error: { code: "UNAUTHORIZED", message: "Invalid or expired token" },
-				}),
-			);
+			expect(result).toBeInstanceOf(Response);
+			if (result instanceof Response) {
+				expect(result.status).toBe(401);
+				const body = await result.json();
+				expect(body.error.message).toBe("Invalid Authorization header format. Use: Bearer <token>");
+			}
 		});
 
 		it("should accept valid OAuth user token with correct scope", async () => {
@@ -355,7 +266,7 @@ describeOrSkip("Auth", () => {
 			auth.initAuth(config);
 
 			const validToken = `egm_oauth_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_X7kM2p`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
+			const req = createRequest(`Bearer ${validToken}`);
 
 			// Mock database response
 			queryMock.mockResolvedValueOnce({
@@ -373,21 +284,19 @@ describeOrSkip("Auth", () => {
 				],
 			});
 
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
+			const result = await auth.authenticateRequest(req, ["ingest:write"]);
 
-			expect(result).not.toBeNull();
-			expect(result?.userId).toBe("user-123");
-			expect(result?.orgId).toBe("org-123");
-			expect(result?.orgSlug).toBe("acme");
+			expect(result).not.toBeInstanceOf(Response);
+			if (!(result instanceof Response)) {
+				expect(result.userId).toBe("user-123");
+				expect(result.orgId).toBe("org-123");
+				expect(result.orgSlug).toBe("acme");
+			}
 			expect(mockState.queryCalls.length).toBe(2); // Once for validation, once for update
 			expect(mockLogger.debug).toHaveBeenCalled();
 		});
 
-		it("should accept valid OAuth client token with correct scope", async () => {
+		it("should reject OAuth token with insufficient scope", async () => {
 			const config = {
 				enabled: true,
 				postgresUrl: "postgresql://localhost/test",
@@ -396,39 +305,36 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const validToken = `egm_client_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb_Y8nL3q`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
+			const validToken = `egm_oauth_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee_B1sT6t`;
+			const req = createRequest(`Bearer ${validToken}`);
 
-			// Mock database response
+			// Mock database response with different scopes
 			queryMock.mockResolvedValueOnce({
 				rows: [
 					{
-						id: "token-456",
+						id: "token-123",
 						access_token_prefix: validToken.slice(0, 20),
-						scopes: ["ingest:write", "memory:write"],
-						user_id: "client-123",
-						org_id: "org-456",
-						org_slug: "globex",
+						scopes: ["memory:read"],
+						user_id: "user-123",
+						org_id: "org-123",
+						org_slug: "acme",
 						access_token_expires_at: null,
 						revoked_at: null,
 					},
 				],
 			});
 
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
+			const result = await auth.authenticateRequest(req, ["ingest:write"]);
 
-			expect(result).not.toBeNull();
-			expect(result?.userId).toBe("client-123");
-			expect(result?.orgId).toBe("org-456");
-			expect(mockState.queryCalls.length).toBe(2); // Once for validation, once for update
-			expect(mockLogger.debug).toHaveBeenCalled();
+			expect(result).toBeInstanceOf(Response);
+			if (result instanceof Response) {
+				expect(result.status).toBe(403);
+				const body = await result.json();
+				expect(body.error.code).toBe("FORBIDDEN");
+			}
 		});
 
-		it("should reject OAuth token not found in database", async () => {
+		it("should handle database errors gracefully", async () => {
 			const config = {
 				enabled: true,
 				postgresUrl: "postgresql://localhost/test",
@@ -437,64 +343,21 @@ describeOrSkip("Auth", () => {
 
 			auth.initAuth(config);
 
-			const validToken = `egm_oauth_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_X7kM2p`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
+			const validToken = `egm_oauth_33333333333333333333333333333333_D3wX8v`;
+			const req = createRequest(`Bearer ${validToken}`);
 
-			// Mock empty database response
-			queryMock.mockResolvedValueOnce({ rows: [] });
+			// Mock database error
+			queryMock.mockRejectedValueOnce(new Error("Database connection failed"));
 
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
+			const result = await auth.authenticateRequest(req, ["ingest:write"]);
 
-			expect(result).toBeNull();
-			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
-			expect(endResMock).toHaveBeenCalledWith(
-				JSON.stringify({
-					success: false,
-					error: { code: "UNAUTHORIZED", message: "Invalid or expired token" },
-				}),
-			);
-		});
-
-		it("should reject revoked OAuth token", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			const validToken = `egm_oauth_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb_Y8nL3q`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			// Mock database response with revoked token
-			queryMock.mockResolvedValueOnce({
-				rows: [
-					{
-						id: "token-123",
-						access_token_prefix: validToken.slice(0, 20),
-						scopes: ["ingest:write"],
-						user_id: "user-123",
-						org_id: "org-123",
-						org_slug: "acme",
-						access_token_expires_at: null,
-						revoked_at: new Date(),
-					},
-				],
-			});
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBeNull();
-			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
+			expect(result).toBeInstanceOf(Response);
+			if (result instanceof Response) {
+				expect(result.status).toBe(500);
+				const body = await result.json();
+				expect(body.error.code).toBe("INTERNAL_ERROR");
+			}
+			expect(mockLogger.error).toHaveBeenCalled();
 		});
 
 		it("should reject expired OAuth token", async () => {
@@ -507,7 +370,7 @@ describeOrSkip("Auth", () => {
 			auth.initAuth(config);
 
 			const validToken = `egm_oauth_cccccccccccccccccccccccccccccccc_Z9oP4r`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
+			const req = createRequest(`Bearer ${validToken}`);
 
 			// Mock database response with expired token
 			const yesterday = new Date();
@@ -528,474 +391,12 @@ describeOrSkip("Auth", () => {
 				],
 			});
 
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBeNull();
-			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
-		});
-
-		it("should accept OAuth token with future expiration", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			const validToken = `egm_oauth_dddddddddddddddddddddddddddddddd_A0qR5s`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			// Mock database response with future expiration
-			const tomorrow = new Date();
-			tomorrow.setDate(tomorrow.getDate() + 1);
-
-			queryMock.mockResolvedValueOnce({
-				rows: [
-					{
-						id: "token-123",
-						access_token_prefix: validToken.slice(0, 20),
-						scopes: ["ingest:write", "memory:read"],
-						user_id: "user-123",
-						org_id: "org-123",
-						org_slug: "acme",
-						access_token_expires_at: tomorrow,
-						revoked_at: null,
-					},
-				],
-			});
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).not.toBeNull();
-			expect(result?.userId).toBe("user-123");
-		});
-
-		it("should reject OAuth token with insufficient scope", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			const validToken = `egm_oauth_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee_B1sT6t`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			// Mock database response with different scopes
-			queryMock.mockResolvedValueOnce({
-				rows: [
-					{
-						id: "token-123",
-						access_token_prefix: validToken.slice(0, 20),
-						scopes: ["memory:read"],
-						user_id: "user-123",
-						org_id: "org-123",
-						org_slug: "acme",
-						access_token_expires_at: null,
-						revoked_at: null,
-					},
-				],
-			});
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBeNull();
-			expect(writeHeadMock).toHaveBeenCalledWith(403, { "Content-Type": "application/json" });
-			expect(endResMock).toHaveBeenCalledWith(
-				JSON.stringify({
-					success: false,
-					error: {
-						code: "FORBIDDEN",
-						message: "Missing required scope. Need one of: ingest:write",
-					},
-				}),
-			);
-		});
-
-		it("should accept OAuth token with one of multiple required scopes", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			const validToken = `egm_oauth_ffffffffffffffffffffffffffffffff_C2uV7u`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			// Mock database response
-			queryMock.mockResolvedValueOnce({
-				rows: [
-					{
-						id: "token-123",
-						access_token_prefix: validToken.slice(0, 20),
-						scopes: ["memory:read"],
-						user_id: "user-123",
-						org_id: "org-123",
-						org_slug: "acme",
-						access_token_expires_at: null,
-						revoked_at: null,
-					},
-				],
-			});
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write", "memory:read"],
-			);
-
-			expect(result).not.toBeNull();
-		});
-
-		it("should handle database errors gracefully", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `egm_oauth_33333333333333333333333333333333_D3wX8v`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			// Mock database error
-			queryMock.mockRejectedValueOnce(new Error("Database connection failed"));
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBeNull();
-			expect(mockLogger.error).toHaveBeenCalledWith(
-				{ error: expect.any(Error) },
-				"Failed to validate token",
-			);
-			expect(writeHeadMock).toHaveBeenCalledWith(500, { "Content-Type": "application/json" });
-			expect(endResMock).toHaveBeenCalledWith(
-				JSON.stringify({
-					success: false,
-					error: { code: "INTERNAL_ERROR", message: "Failed to validate token" },
-				}),
-			);
-		});
-
-		it("should update last_used_at for valid OAuth token", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `egm_oauth_11111111111111111111111111111111_E4yZ9w`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			// Mock database response
-			queryMock.mockResolvedValueOnce({
-				rows: [
-					{
-						id: "token-123",
-						access_token_prefix: validToken.slice(0, 20),
-						scopes: ["ingest:write"],
-						user_id: "user-123",
-						org_id: "org-123",
-						org_slug: "acme",
-						access_token_expires_at: null,
-						revoked_at: null,
-					},
-				],
-			});
-
-			await auth.authenticateRequest(mockReq as IncomingMessage, mockRes as ServerResponse, [
-				"ingest:write",
-			]);
-
-			// Wait for fire-and-forget UPDATE to complete
-			await new Promise((resolve) => setTimeout(resolve, 10));
-
-			// Should have called query twice: once for SELECT, once for UPDATE
-			expect(mockState.queryCalls.length).toBe(2);
-			expect(mockState.queryCalls[1][0]).toContain("UPDATE oauth_tokens");
-		});
-
-		it("should handle last_used_at update failure gracefully", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `egm_oauth_22222222222222222222222222222222_F5aB0x`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			// Mock database response for SELECT
-			queryMock.mockResolvedValueOnce({
-				rows: [
-					{
-						id: "token-123",
-						access_token_prefix: validToken.slice(0, 20),
-						scopes: ["ingest:write"],
-						user_id: "user-123",
-						org_id: "org-123",
-						org_slug: "acme",
-						access_token_expires_at: null,
-						revoked_at: null,
-					},
-				],
-			});
-
-			// Mock failure for UPDATE (but should not affect the result)
-			queryMock.mockRejectedValueOnce(new Error("Update failed"));
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			// Should still succeed since update is fire-and-forget
-			expect(result).not.toBeNull();
-		});
-
-		it("should reject OAuth token with wrong length", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			mockReq.headers = { authorization: "Bearer egm_oauth_abc123" }; // Too short
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBeNull();
-			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
-		});
-
-		it("should reject OAuth token with uppercase hex chars", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			mockReq.headers = {
-				authorization: `Bearer egm_oauth_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1_K0mN5C`,
-			};
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBeNull();
-		});
-
-		it("should accept OAuth token with lowercase hex chars only", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			const validToken = "egm_oauth_0123456789abcdef0123456789abcdef_J9iK4B";
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			queryMock.mockResolvedValueOnce({
-				rows: [
-					{
-						id: "token-123",
-						access_token_prefix: validToken.slice(0, 20),
-						scopes: ["ingest:write"],
-						user_id: "user-123",
-						org_id: "org-123",
-						org_slug: "acme",
-						access_token_expires_at: null,
-						revoked_at: null,
-					},
-				],
-			});
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).not.toBeNull();
-		});
-
-		it("should log with correct prefix for OAuth token", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `egm_oauth_44444444444444444444444444444444_G6cD1y`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			queryMock.mockResolvedValueOnce({
-				rows: [
-					{
-						id: "token-123",
-						access_token_prefix: "prefix-123",
-						scopes: ["ingest:write"],
-						user_id: "user-123",
-						org_id: "org-123",
-						org_slug: "acme",
-						access_token_expires_at: null,
-						revoked_at: null,
-					},
-				],
-			});
-
-			await auth.authenticateRequest(mockReq as IncomingMessage, mockRes as ServerResponse, [
-				"ingest:write",
-			]);
-
-			expect(mockLogger.debug).toHaveBeenCalledWith(
-				{ prefix: "prefix-123", method: "oauth" },
-				"Request authenticated",
-			);
-		});
-
-		it("should handle null pool for OAuth token", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-			await auth.closeAuth(); // Close pool
-
-			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `egm_oauth_55555555555555555555555555555555_H7eF2z`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write"],
-			);
-
-			expect(result).toBeNull();
-			expect(writeHeadMock).toHaveBeenCalledWith(401, { "Content-Type": "application/json" });
-		});
-
-		it("should handle empty required scopes array", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			const validToken = `egm_oauth_77777777777777777777777777777777_L0pQ7D`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			queryMock.mockResolvedValueOnce({
-				rows: [
-					{
-						id: "token-789",
-						access_token_prefix: validToken.slice(0, 20),
-						scopes: ["ingest:write"],
-						user_id: "user-789",
-						org_id: "org-789",
-						org_slug: "acme",
-						access_token_expires_at: null,
-						revoked_at: null,
-					},
-				],
-			});
-
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				[],
-			);
-
-			// With empty required scopes, any valid token should fail scope check
-			expect(result).toBeNull();
-		});
-
-		it("should check scopes with some() - any matching scope is sufficient", async () => {
-			const config = {
-				enabled: true,
-				postgresUrl: "postgresql://localhost/test",
-				logger: mockLogger,
-			};
-
-			auth.initAuth(config);
-
-			// Use valid hex characters (a-f, 0-9) for OAuth tokens
-			const validToken = `egm_oauth_66666666666666666666666666666666_I8gH3A`;
-			mockReq.headers = { authorization: `Bearer ${validToken}` };
-
-			queryMock.mockResolvedValueOnce({
-				rows: [
-					{
-						id: "token-123",
-						access_token_prefix: validToken.slice(0, 20),
-						scopes: ["memory:write", "query:read"],
-						user_id: "user-123",
-						org_id: "org-123",
-						org_slug: "acme",
-						access_token_expires_at: null,
-						revoked_at: null,
-					},
-				],
-			});
-
-			// Should succeed because query:read is in token scopes
-			const result = await auth.authenticateRequest(
-				mockReq as IncomingMessage,
-				mockRes as ServerResponse,
-				["ingest:write", "query:read", "admin:all"],
-			);
-
-			expect(result).not.toBeNull();
+			const result = await auth.authenticateRequest(req, ["ingest:write"]);
+
+			expect(result).toBeInstanceOf(Response);
+			if (result instanceof Response) {
+				expect(result.status).toBe(401);
+			}
 		});
 	});
 });

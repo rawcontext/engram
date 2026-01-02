@@ -3,8 +3,17 @@ import {
 	createNatsPubSubSubscriber,
 	type SessionUpdate,
 } from "@engram/storage/nats";
-import { WebSocket } from "ws";
+import type { ServerWebSocket } from "bun";
 import { getSessionLineage, getSessionsForWebSocket, getSessionTimeline } from "./graph-queries";
+
+interface WebSocketData {
+	type: "sessions" | "consumers" | "session";
+	sessionId?: string;
+	unsubscribe?: () => Promise<void>;
+	messageHandler?: (message: string | Buffer) => void;
+}
+
+type WSConnection = ServerWebSocket<WebSocketData>;
 
 const natsSubscriber = createNatsPubSubSubscriber();
 
@@ -14,10 +23,10 @@ const consumerStatusSubscriber = createNatsPubSubSubscriber();
 // Global subject for session list updates (NATS uses dot notation)
 const SESSIONS_SUBJECT = "observatory.sessions.updates";
 
-export async function handleSessionConnection(ws: WebSocket, sessionId: string) {
+export async function handleSessionConnection(ws: WSConnection, sessionId: string) {
 	// Subscribe to NATS subject for real-time updates
 	const unsubscribe = await natsSubscriber.subscribe(sessionId, (update: SessionUpdate) => {
-		if (ws.readyState !== WebSocket.OPEN) return;
+		if (ws.readyState !== 1) return; // 1 = OPEN
 
 		// Forward the update to the WebSocket client
 		ws.send(
@@ -27,6 +36,9 @@ export async function handleSessionConnection(ws: WebSocket, sessionId: string) 
 			}),
 		);
 	});
+
+	// Store cleanup callback
+	ws.data.unsubscribe = unsubscribe;
 
 	// Send initial data
 	try {
@@ -43,11 +55,8 @@ export async function handleSessionConnection(ws: WebSocket, sessionId: string) 
 		// Initial fetch failed - client will retry via refresh
 	}
 
-	ws.on("close", async () => {
-		await unsubscribe();
-	});
-
-	ws.on("message", async (message) => {
+	// Store message handler
+	ws.data.messageHandler = async (message: string | Buffer) => {
 		try {
 			const data = JSON.parse(message.toString());
 
@@ -61,13 +70,13 @@ export async function handleSessionConnection(ws: WebSocket, sessionId: string) 
 		} catch {
 			// Invalid message - ignore
 		}
-	});
+	};
 }
 
-export async function handleSessionsConnection(ws: WebSocket) {
+export async function handleSessionsConnection(ws: WSConnection) {
 	// Subscribe to global sessions subject for real-time updates
 	const unsubscribe = await natsSubscriber.subscribe(SESSIONS_SUBJECT, (update: SessionUpdate) => {
-		if (ws.readyState !== WebSocket.OPEN) return;
+		if (ws.readyState !== 1) return; // 1 = OPEN
 
 		ws.send(
 			JSON.stringify({
@@ -77,6 +86,9 @@ export async function handleSessionsConnection(ws: WebSocket) {
 		);
 	});
 
+	// Store cleanup callback
+	ws.data.unsubscribe = unsubscribe;
+
 	// Send initial session list
 	try {
 		const sessionsData = await getSessionsForWebSocket();
@@ -85,11 +97,8 @@ export async function handleSessionsConnection(ws: WebSocket) {
 		ws.send(JSON.stringify({ type: "error", message: "Failed to fetch sessions" }));
 	}
 
-	ws.on("close", async () => {
-		await unsubscribe();
-	});
-
-	ws.on("message", async (message) => {
+	// Store message handler
+	ws.data.messageHandler = async (message: string | Buffer) => {
 		try {
 			const data = JSON.parse(message.toString());
 
@@ -100,7 +109,7 @@ export async function handleSessionsConnection(ws: WebSocket) {
 		} catch {
 			// Invalid message - ignore
 		}
-	});
+	};
 }
 
 // =============================================================================
@@ -160,7 +169,7 @@ interface ConsumerState {
 
 const consumerStates = new Map<string, ConsumerState>();
 const HEARTBEAT_TIMEOUT_MS = 30_000; // 30 seconds without heartbeat = offline
-const connectedConsumerClients = new Set<WebSocket>();
+const connectedConsumerClients = new Set<WSConnection>();
 
 /**
  * Build current status response from in-memory state.
@@ -199,7 +208,8 @@ function broadcastConsumerStatus() {
 	const message = JSON.stringify({ type: "status", data: status });
 
 	for (const client of connectedConsumerClients) {
-		if (client.readyState === WebSocket.OPEN) {
+		if (client.readyState === 1) {
+			// 1 = OPEN
 			client.send(message);
 		}
 	}
@@ -284,7 +294,7 @@ export function cleanupWebSocketServer(): void {
  * Handle WebSocket connection for consumer status streaming.
  * Uses NATS pub/sub for true event-driven updates (no polling).
  */
-export async function handleConsumerStatusConnection(ws: WebSocket) {
+export async function handleConsumerStatusConnection(ws: WSConnection) {
 	// Track this client
 	connectedConsumerClients.add(ws);
 
@@ -299,11 +309,13 @@ export async function handleConsumerStatusConnection(ws: WebSocket) {
 		// Background subscription failed - status updates won't be real-time
 	});
 
-	ws.on("close", () => {
+	// Store cleanup callback
+	ws.data.unsubscribe = async () => {
 		connectedConsumerClients.delete(ws);
-	});
+	};
 
-	ws.on("message", async (message) => {
+	// Store message handler
+	ws.data.messageHandler = async (message: string | Buffer) => {
 		try {
 			const data = JSON.parse(message.toString());
 			if (data.type === "refresh") {
@@ -314,5 +326,5 @@ export async function handleConsumerStatusConnection(ws: WebSocket) {
 		} catch {
 			// Invalid message - ignore
 		}
-	});
+	};
 }

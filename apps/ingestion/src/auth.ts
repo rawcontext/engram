@@ -6,8 +6,6 @@
  * - Client tokens: egm_client_{random32}_{crc6}
  */
 
-import { createHash } from "node:crypto";
-import type { IncomingMessage, ServerResponse } from "node:http";
 import { TOKEN_PATTERNS } from "@engram/common";
 import type { Logger } from "@engram/logger";
 import pg from "pg";
@@ -68,7 +66,9 @@ export async function closeAuth(): Promise<void> {
 async function validateOAuthToken(token: string): Promise<AuthContext | null> {
 	if (!pool) return null;
 
-	const tokenHash = createHash("sha256").update(token).digest("hex");
+	const hasher = new Bun.CryptoHasher("sha256");
+	hasher.update(token);
+	const tokenHash = hasher.digest("hex");
 
 	const result = await pool.query<OAuthTokenRow>(
 		`SELECT id, access_token_prefix, scopes, user_id, org_id, org_slug, access_token_expires_at, revoked_at
@@ -110,37 +110,42 @@ async function validateToken(token: string): Promise<AuthContext | null> {
 	return validateOAuthToken(token);
 }
 
-function sendUnauthorized(res: ServerResponse, message: string): void {
-	res.writeHead(401, { "Content-Type": "application/json" });
-	res.end(
+function createUnauthorizedResponse(message: string): Response {
+	return new Response(
 		JSON.stringify({
 			success: false,
 			error: { code: "UNAUTHORIZED", message },
 		}),
+		{
+			status: 401,
+			headers: { "Content-Type": "application/json" },
+		},
 	);
 }
 
-function sendForbidden(res: ServerResponse, message: string): void {
-	res.writeHead(403, { "Content-Type": "application/json" });
-	res.end(
+function createForbiddenResponse(message: string): Response {
+	return new Response(
 		JSON.stringify({
 			success: false,
 			error: { code: "FORBIDDEN", message },
 		}),
+		{
+			status: 403,
+			headers: { "Content-Type": "application/json" },
+		},
 	);
 }
 
 /**
- * Authenticate incoming request. Returns AuthContext if authorized, null if rejected.
- * When null, response has already been sent.
+ * Authenticate incoming request. Returns AuthContext if authorized, Response if rejected.
+ * When Response is returned, it should be sent to the client.
  *
  * Supports OAuth tokens only.
  */
 export async function authenticateRequest(
-	req: IncomingMessage,
-	res: ServerResponse,
+	req: Request,
 	requiredScopes: string[],
-): Promise<AuthContext | null> {
+): Promise<AuthContext | Response> {
 	// Skip auth if disabled (return minimal context)
 	if (!authConfig?.enabled) {
 		return {
@@ -154,16 +159,14 @@ export async function authenticateRequest(
 		};
 	}
 
-	const authHeader = req.headers.authorization;
+	const authHeader = req.headers.get("authorization");
 
 	if (!authHeader) {
-		sendUnauthorized(res, "Missing Authorization header");
-		return null;
+		return createUnauthorizedResponse("Missing Authorization header");
 	}
 
 	if (!authHeader.startsWith("Bearer ")) {
-		sendUnauthorized(res, "Invalid Authorization header format. Use: Bearer <token>");
-		return null;
+		return createUnauthorizedResponse("Invalid Authorization header format. Use: Bearer <token>");
 	}
 
 	const token = authHeader.slice(7);
@@ -172,15 +175,15 @@ export async function authenticateRequest(
 		const authContext = await validateToken(token);
 
 		if (!authContext) {
-			sendUnauthorized(res, "Invalid or expired token");
-			return null;
+			return createUnauthorizedResponse("Invalid or expired token");
 		}
 
 		// Check scopes
 		const hasScope = requiredScopes.some((scope) => authContext.scopes.includes(scope));
 		if (!hasScope) {
-			sendForbidden(res, `Missing required scope. Need one of: ${requiredScopes.join(", ")}`);
-			return null;
+			return createForbiddenResponse(
+				`Missing required scope. Need one of: ${requiredScopes.join(", ")}`,
+			);
 		}
 
 		authConfig.logger.debug(
@@ -190,13 +193,15 @@ export async function authenticateRequest(
 		return authContext;
 	} catch (error) {
 		authConfig.logger.error({ error }, "Failed to validate token");
-		res.writeHead(500, { "Content-Type": "application/json" });
-		res.end(
+		return new Response(
 			JSON.stringify({
 				success: false,
 				error: { code: "INTERNAL_ERROR", message: "Failed to validate token" },
 			}),
+			{
+				status: 500,
+				headers: { "Content-Type": "application/json" },
+			},
 		);
-		return null;
 	}
 }

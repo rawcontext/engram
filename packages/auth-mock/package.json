@@ -15,8 +15,7 @@
 		"@engram/common": "*"
 	},
 	"devDependencies": {
-		"@engram/tsconfig": "*",
-		"@types/node": "^25.0.3"
+		"@engram/tsconfig": "*"
 	},
 	"turbo": {
 		"build": {

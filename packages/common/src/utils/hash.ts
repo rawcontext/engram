@@ -6,8 +6,6 @@
  * @module @engram/common/utils/hash
  */
 
-import { createHash } from "node:crypto";
-
 /**
  * Generate a SHA-256 hash of the given content.
  *
@@ -23,7 +21,9 @@ import { createHash } from "node:crypto";
  * ```
  */
 export function sha256Hash(content: string | Buffer): string {
-	return createHash("sha256").update(content).digest("hex");
+	const hasher = new Bun.CryptoHasher("sha256");
+	hasher.update(content);
+	return hasher.digest("hex");
 }
 
 /**

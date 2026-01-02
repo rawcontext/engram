@@ -1,4 +1,3 @@
-import { createHash, randomUUID } from "node:crypto";
 import type { ParsedStreamEvent } from "@engram/events";
 import type {
 	EventHandler,
@@ -57,9 +56,11 @@ export class ThoughtEventHandler implements EventHandler {
 		thought: string,
 		context: HandlerContext,
 	): Promise<string> {
-		const reasoningId = randomUUID();
+		const reasoningId = crypto.randomUUID();
 		const now = Date.now();
-		const contentHash = createHash("sha256").update(thought).digest("hex");
+		const hasher = new Bun.CryptoHasher("sha256");
+		hasher.update(thought);
+		const contentHash = hasher.digest("hex");
 		const sequenceIndex = turn.contentBlockIndex;
 
 		const query = `

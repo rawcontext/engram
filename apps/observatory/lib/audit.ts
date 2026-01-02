@@ -28,7 +28,6 @@
  * ```
  */
 
-import { randomUUID } from "node:crypto";
 import type { AuditAction, AuditLogEntry, AuditLogFilter } from "@engram/common";
 import { pool } from "./db";
 
@@ -82,7 +81,7 @@ export async function auditLog(entry: AuditLogEntry): Promise<AuditLogEntry> {
 		tableCreated = true;
 	}
 
-	const id = entry.id || randomUUID();
+	const id = entry.id || crypto.randomUUID();
 	const timestamp = entry.timestamp || new Date();
 
 	const insertQuery = `

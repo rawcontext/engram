@@ -7,7 +7,6 @@
  * @see https://modelcontextprotocol.io/docs/tutorials/security/authorization
  */
 
-import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
 import type { Logger } from "@engram/logger";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -112,7 +111,9 @@ export async function createHttpTransport(
 			}
 		} else if (isInitializeRequest(req.body)) {
 			// New session initialization
-			const newSessionId = auth?.userId ? `${auth.userId}:${randomUUID()}` : randomUUID();
+			const newSessionId = auth?.userId
+				? `${auth.userId}:${crypto.randomUUID()}`
+				: crypto.randomUUID();
 
 			const newTransport = new StreamableHTTPServerTransport({
 				sessionIdGenerator: () => newSessionId,

@@ -6,7 +6,6 @@
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { RawStreamEvent, StreamDelta, StreamWrapperOptions } from "./types";
 
@@ -169,7 +168,7 @@ export class ClaudeCodeStreamWrapper extends EventEmitter {
 
 	constructor(options: ClaudeCodeStreamWrapperOptions = {}) {
 		super();
-		this.sessionId = randomUUID();
+		this.sessionId = crypto.randomUUID();
 		this.options = options;
 	}
 
@@ -268,7 +267,7 @@ export class ClaudeCodeStreamWrapper extends EventEmitter {
 		}
 
 		const event: RawStreamEvent = {
-			event_id: randomUUID(),
+			event_id: crypto.randomUUID(),
 			ingest_timestamp: new Date().toISOString(),
 			provider: "claude_code",
 			payload,

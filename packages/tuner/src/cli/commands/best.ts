@@ -2,7 +2,6 @@
  * Best command - Get best parameters from a study
  */
 
-import { writeFileSync } from "node:fs";
 import { TunerClient } from "../../client/tuner-client.js";
 
 interface BestOptions {
@@ -50,7 +49,7 @@ export async function bestCommand(studyName: string, options: BestOptions): Prom
 				console.log(content);
 
 				if (options.export) {
-					writeFileSync(options.export, `${content}\n`);
+					await Bun.write(options.export, `${content}\n`);
 					console.log(`\nExported to: ${options.export}`);
 				}
 				break;
@@ -83,7 +82,7 @@ export async function bestCommand(studyName: string, options: BestOptions): Prom
 						lines.push(`${envVar}=${value}`);
 					}
 
-					writeFileSync(options.export, `${lines.join("\n")}\n`);
+					await Bun.write(options.export, `${lines.join("\n")}\n`);
 					console.log(`Exported to: ${options.export}`);
 				}
 				break;

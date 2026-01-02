@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { ParsedStreamEvent } from "@engram/events";
 import type { EventHandler, HandlerContext, HandlerResult, TurnState } from "./handler.interface";
 
@@ -107,7 +106,7 @@ export class DiffEventHandler implements EventHandler {
 		originalLineEnd: number,
 		context: HandlerContext,
 	): Promise<void> {
-		const diffHunkId = randomUUID();
+		const diffHunkId = crypto.randomUUID();
 		const now = Date.now();
 
 		const query = `

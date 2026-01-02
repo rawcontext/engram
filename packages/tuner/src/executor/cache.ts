@@ -9,8 +9,7 @@
  * @module @engram/tuner/executor
  */
 
-import { createHash } from "node:crypto";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { TrialMetrics } from "./trial-runner.js";
 
@@ -96,7 +95,9 @@ export class EvaluationCache {
 		);
 
 		const json = JSON.stringify(sorted);
-		return createHash("md5").update(json).digest("hex");
+		const hasher = new Bun.CryptoHasher("md5");
+		hasher.update(json);
+		return hasher.digest("hex");
 	}
 
 	/**
@@ -117,7 +118,7 @@ export class EvaluationCache {
 		const path = this.getPath(key);
 
 		try {
-			const data = await readFile(path, "utf-8");
+			const data = await Bun.file(path).text();
 			const entry: CacheEntry = JSON.parse(data);
 
 			// Validate cache version
@@ -153,7 +154,7 @@ export class EvaluationCache {
 		};
 
 		const path = this.getPath(key);
-		await writeFile(path, JSON.stringify(entry, null, 2));
+		await Bun.write(path, JSON.stringify(entry, null, 2));
 	}
 
 	/**
@@ -164,7 +165,7 @@ export class EvaluationCache {
 		const path = this.getPath(key);
 
 		try {
-			const data = await readFile(path, "utf-8");
+			const data = await Bun.file(path).text();
 			const entry: CacheEntry = JSON.parse(data);
 			return entry.version === CACHE_VERSION;
 		} catch {

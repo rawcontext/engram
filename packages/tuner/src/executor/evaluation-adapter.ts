@@ -168,7 +168,7 @@ export async function evaluateWithBenchmark(
 	options: EvaluationAdapterOptions,
 ): Promise<TrialMetrics> {
 	const { spawn } = await import("node:child_process");
-	const { mkdtemp, readFile, rm } = await import("node:fs/promises");
+	const { mkdtemp, rm } = await import("node:fs/promises");
 	const { tmpdir } = await import("node:os");
 	const { join } = await import("node:path");
 
@@ -265,7 +265,7 @@ export async function evaluateWithBenchmark(
 		}
 
 		const reportPath = join(outputDir, jsonFile);
-		const reportJson = await readFile(reportPath, "utf-8");
+		const reportJson = await Bun.file(reportPath).text();
 
 		// Parse and validate JSON structure
 		let parsedData: unknown;

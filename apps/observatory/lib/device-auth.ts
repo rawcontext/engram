@@ -7,7 +7,6 @@
  * @see docs/design/oauth-device-flow.md
  */
 
-import { createHash, randomBytes } from "node:crypto";
 import { crc32 } from "node:zlib";
 import type {
 	DeviceCodeRecord,
@@ -35,7 +34,11 @@ const pool = new Pool({
  * Generate a cryptographically secure device code (32 hex chars).
  */
 export function generateDeviceCode(): string {
-	return randomBytes(16).toString("hex");
+	const randomArray = new Uint8Array(16);
+	crypto.getRandomValues(randomArray);
+	return Array.from(randomArray)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 }
 
 /**
@@ -46,7 +49,8 @@ export function generateUserCode(): string {
 	const chars = OAuthConfig.USER_CODE_CHARS;
 	let code = "";
 
-	const bytes = randomBytes(8);
+	const bytes = new Uint8Array(8);
+	crypto.getRandomValues(bytes);
 	for (let i = 0; i < 8; i++) {
 		code += chars[bytes[i] % chars.length];
 		if (i === 3) code += "-";
@@ -126,7 +130,11 @@ export function normalizeUserCode(code: string): string {
  * @see https://github.blog/engineering/platform-security/behind-githubs-new-authentication-token-formats/
  */
 export function generateAccessToken(): string {
-	const random = randomBytes(16).toString("hex");
+	const randomArray = new Uint8Array(16);
+	crypto.getRandomValues(randomArray);
+	const random = Array.from(randomArray)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 	const payload = `egm_oauth_${random}`;
 	const checksum = computeTokenChecksum(payload);
 	return `${payload}_${checksum}`;
@@ -144,7 +152,11 @@ export function generateAccessToken(): string {
  * Example: egm_refresh_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4_X7kM2p
  */
 export function generateRefreshToken(): string {
-	const random = randomBytes(16).toString("hex");
+	const randomArray = new Uint8Array(16);
+	crypto.getRandomValues(randomArray);
+	const random = Array.from(randomArray)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 	const payload = `egm_refresh_${random}`;
 	const checksum = computeTokenChecksum(payload);
 	return `${payload}_${checksum}`;
@@ -165,7 +177,11 @@ export function generateRefreshToken(): string {
  * @see https://tools.ietf.org/html/rfc6749#section-4.4
  */
 function generateClientAccessToken(): string {
-	const random = randomBytes(16).toString("hex");
+	const randomArray = new Uint8Array(16);
+	crypto.getRandomValues(randomArray);
+	const random = Array.from(randomArray)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 	const payload = `egm_client_${random}`;
 	const checksum = computeTokenChecksum(payload);
 	return `${payload}_${checksum}`;
@@ -175,7 +191,9 @@ function generateClientAccessToken(): string {
  * Hash a token using SHA-256 (same as API keys).
  */
 export function hashToken(token: string): string {
-	return createHash("sha256").update(token).digest("hex");
+	const hasher = new Bun.CryptoHasher("sha256");
+	hasher.update(token);
+	return hasher.digest("hex");
 }
 
 // =============================================================================

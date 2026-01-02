@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-import { createServer } from "node:http";
 import { ParsedStreamEventSchema, type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
 import { createNodeLogger, type Logger } from "@engram/logger";
 import {
@@ -247,7 +245,7 @@ export class IngestionProcessor {
 
 		// 6. Construct and validate ParsedStreamEvent
 		const parsedEvent = {
-			event_id: randomUUID(), // Generate unique event_id
+			event_id: crypto.randomUUID(), // Generate unique event_id
 			type: eventType,
 			role: delta.role,
 			content: delta.content,
@@ -404,56 +402,53 @@ export async function startConsumer() {
 /* v8 ignore stop */
 
 /**
- * Create and configure the HTTP server.
+ * Create and configure the HTTP server using Bun.serve().
  * Exported for testing purposes.
  */
 export function createIngestionServer(port = 6175, maxBodySize = 50 * 1024 * 1024) {
-	const server = createServer(async (req, res) => {
-		const url = new URL(req.url || "", `http://localhost:${port}`);
+	const server = Bun.serve({
+		port,
+		async fetch(req) {
+			const url = new URL(req.url);
 
-		if (url.pathname === "/health") {
-			res.writeHead(200);
-			res.end("OK");
-			return;
-		}
-
-		if (url.pathname === "/ingest" && req.method === "POST") {
-			// Authenticate request before processing
-			const authContext = await authenticateRequest(req, res, ["memory:write", "ingest:write"]);
-			if (!authContext) {
-				return; // Response already sent by authenticateRequest
+			if (url.pathname === "/health") {
+				return new Response("OK", { status: 200 });
 			}
-			let rawBody: unknown;
-			let body = "";
-			let bodySize = 0;
 
-			req.on("error", (err) => {
-				logger.error({ err }, "Request stream error");
-				if (!res.headersSent) {
-					res.writeHead(500, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: "Request stream error" }));
+			if (url.pathname === "/ingest" && req.method === "POST") {
+				// Authenticate request before processing
+				const authResult = await authenticateRequest(req, ["memory:write", "ingest:write"]);
+				if (authResult instanceof Response) {
+					// Authentication failed, return error response
+					return authResult;
 				}
-			});
+				const authContext = authResult;
 
-			let aborted = false;
-			req.on("data", (chunk) => {
-				bodySize += chunk.length;
-				if (bodySize > maxBodySize && !aborted) {
-					aborted = true;
-					req.destroy();
-					res.writeHead(413, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: "Request body too large" }));
-					return;
-				}
-				if (!aborted) {
-					body += chunk.toString();
-				}
-			});
+				let rawBody: unknown;
+				let body: string;
 
-			req.on("end", async () => {
-				// Abort if body was too large (response already sent)
-				if (aborted) return;
 				try {
+					// Read body with size limit
+					const contentLength = req.headers.get("content-length");
+					if (contentLength && Number.parseInt(contentLength, 10) > maxBodySize) {
+						return new Response(JSON.stringify({ error: "Request body too large" }), {
+							status: 413,
+							headers: { "Content-Type": "application/json" },
+						});
+					}
+
+					// Read entire body as text
+					body = await req.text();
+
+					// Check actual size after reading
+					const bodyBytes = new TextEncoder().encode(body).length;
+					if (bodyBytes > maxBodySize) {
+						return new Response(JSON.stringify({ error: "Request body too large" }), {
+							status: 413,
+							headers: { "Content-Type": "application/json" },
+						});
+					}
+
 					rawBody = JSON.parse(body);
 					const rawEvent = RawStreamEventSchema.parse(rawBody);
 
@@ -466,8 +461,10 @@ export function createIngestionServer(port = 6175, maxBodySize = 50 * 1024 * 102
 
 					await processEvent(enrichedEvent);
 
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ status: "processed" }));
+					return new Response(JSON.stringify({ status: "processed" }), {
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					});
 				} catch (e: unknown) {
 					const message = e instanceof Error ? e.message : String(e);
 					logger.error({ err: e }, "Ingestion Error");
@@ -492,15 +489,15 @@ export function createIngestionServer(port = 6175, maxBodySize = 50 * 1024 * 102
 						logger.error({ err: dlqError }, "Failed to send to DLQ");
 					}
 
-					res.writeHead(400, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: message }));
+					return new Response(JSON.stringify({ error: message }), {
+						status: 400,
+						headers: { "Content-Type": "application/json" },
+					});
 				}
-			});
-			return;
-		}
+			}
 
-		res.writeHead(404);
-		res.end("Not Found");
+			return new Response("Not Found", { status: 404 });
+		},
 	});
 
 	return server;
@@ -525,9 +522,7 @@ if (isMainModule) {
 	// Start HTTP Server
 	const PORT = 6175;
 	const server = createIngestionServer(PORT);
-	server.listen(PORT, () => {
-		logger.info({ port: PORT }, "Ingestion Service running");
-	});
+	logger.info({ port: PORT, hostname: server.hostname }, "Ingestion Service running");
 
 	// Handle shutdown
 	const handleShutdown = async (signal: string) => {

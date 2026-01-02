@@ -7,7 +7,6 @@
  * @module @engram/auth-mock/tokens
  */
 
-import { createHash, randomBytes } from "node:crypto";
 import { crc32 } from "node:zlib";
 import type { DeviceCodeResponse, TokenResponse } from "@engram/common/types";
 import { OAuthConfig } from "@engram/common/types";
@@ -50,7 +49,11 @@ function computeTokenChecksum(payload: string): string {
  * Format: egm_oauth_{random32}_{crc6}
  */
 export function generateMockAccessToken(): string {
-	const random = randomBytes(16).toString("hex");
+	const randomArray = new Uint8Array(16);
+	crypto.getRandomValues(randomArray);
+	const random = Array.from(randomArray)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 	const payload = `egm_oauth_${random}`;
 	const checksum = computeTokenChecksum(payload);
 	return `${payload}_${checksum}`;
@@ -61,7 +64,11 @@ export function generateMockAccessToken(): string {
  * Format: egm_refresh_{random32}_{crc6}
  */
 export function generateMockRefreshToken(): string {
-	const random = randomBytes(16).toString("hex");
+	const randomArray = new Uint8Array(16);
+	crypto.getRandomValues(randomArray);
+	const random = Array.from(randomArray)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 	const payload = `egm_refresh_${random}`;
 	const checksum = computeTokenChecksum(payload);
 	return `${payload}_${checksum}`;
@@ -72,7 +79,11 @@ export function generateMockRefreshToken(): string {
  * Format: egm_client_{random32}_{crc6}
  */
 export function generateMockClientToken(): string {
-	const random = randomBytes(16).toString("hex");
+	const randomArray = new Uint8Array(16);
+	crypto.getRandomValues(randomArray);
+	const random = Array.from(randomArray)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 	const payload = `egm_client_${random}`;
 	const checksum = computeTokenChecksum(payload);
 	return `${payload}_${checksum}`;
@@ -85,7 +96,8 @@ export function generateMockUserCode(): string {
 	const chars = OAuthConfig.USER_CODE_CHARS;
 	let code = "";
 
-	const bytes = randomBytes(8);
+	const bytes = new Uint8Array(8);
+	crypto.getRandomValues(bytes);
 	for (let i = 0; i < 8; i++) {
 		code += chars[bytes[i] % chars.length];
 		if (i === 3) code += "-";
@@ -98,14 +110,20 @@ export function generateMockUserCode(): string {
  * Generate a device code (32 hex chars).
  */
 export function generateMockDeviceCode(): string {
-	return randomBytes(16).toString("hex");
+	const randomArray = new Uint8Array(16);
+	crypto.getRandomValues(randomArray);
+	return Array.from(randomArray)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 }
 
 /**
  * Hash a token using SHA-256.
  */
 export function hashToken(token: string): string {
-	return createHash("sha256").update(token).digest("hex");
+	const hasher = new Bun.CryptoHasher("sha256");
+	hasher.update(token);
+	return hasher.digest("hex");
 }
 
 // =============================================================================

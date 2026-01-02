@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 export const ProviderEnum = z.enum([
@@ -18,7 +17,7 @@ export const ProviderEnum = z.enum([
  * Use this to ensure all events have properly formatted IDs.
  */
 export function generateEventId(): string {
-	return randomUUID();
+	return crypto.randomUUID();
 }
 
 /** Maximum timestamp for bitemporal fields (year 9999) */

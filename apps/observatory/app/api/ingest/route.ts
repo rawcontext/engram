@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { RawStreamEventSchema } from "@engram/events";
 import { createNatsClient } from "@engram/storage";
 import { apiError, apiSuccess } from "@lib/api-response";
@@ -21,7 +20,9 @@ export const _IngestBody = RawStreamEventSchema;
  * Hash a token for database lookup (same as device-auth.ts)
  */
 function hashToken(token: string): string {
-	return createHash("sha256").update(token).digest("hex");
+	const hasher = new Bun.CryptoHasher("sha256");
+	hasher.update(token);
+	return hasher.digest("hex");
 }
 
 /**

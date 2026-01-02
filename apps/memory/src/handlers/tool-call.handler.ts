@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { ParsedStreamEvent } from "@engram/events";
 import { ToolCallType, type ToolCallTypeValue } from "@engram/graph";
 import type {
@@ -82,9 +81,9 @@ export class ToolCallEventHandler implements EventHandler {
 		filePath?: string,
 		fileAction?: string,
 	): Promise<ToolCallState> {
-		const toolCallId = randomUUID();
+		const toolCallId = crypto.randomUUID();
 		const now = Date.now();
-		const callId = toolCall.id || `call_${randomUUID().slice(0, 8)}`;
+		const callId = toolCall.id || `call_${crypto.randomUUID().slice(0, 8)}`;
 		const toolType = this.inferToolType(toolCall.name);
 		const argumentsJson = toolCall.arguments_delta || "{}";
 		const argumentsPreview = argumentsJson.slice(0, 500);

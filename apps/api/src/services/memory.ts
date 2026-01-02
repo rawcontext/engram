@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { QdrantCollections, type TenantContext } from "@engram/common";
 import type { Logger } from "@engram/logger";
 import type { GraphClient, QueryParams, TenantAwareFalkorClient } from "@engram/storage";
@@ -172,7 +171,9 @@ export class MemoryService {
 		stored: boolean;
 		duplicate: boolean;
 	}> {
-		const contentHash = createHash("sha256").update(input.content).digest("hex");
+		const hasher = new Bun.CryptoHasher("sha256");
+		hasher.update(input.content);
+		const contentHash = hasher.digest("hex");
 
 		// Check for duplicates (tenant-scoped)
 		const existing = await this.tenantQuery<{ id: string }>(

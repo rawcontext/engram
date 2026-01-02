@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { rm } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import { EvaluationCache } from "../src/executor/cache.js";
 import type { TrialMetrics } from "../src/executor/trial-runner.js";
 
@@ -240,13 +240,12 @@ describe("EvaluationCache", () => {
 
 			// Corrupt the cache file by writing invalid JSON
 			const { join } = await import("node:path");
-			const { writeFile } = await import("node:fs/promises");
 			const { createHash } = await import("node:crypto");
 
 			const key = createHash("md5").update(JSON.stringify(params)).digest("hex");
 			const corruptedPath = join(TEST_CACHE_DIR, `${key}.json`);
 
-			await writeFile(corruptedPath, "{ corrupt json");
+			await Bun.write(corruptedPath, "{ corrupt json");
 
 			// has should return false for corrupted files
 			const result = await cache.has(params);
@@ -258,7 +257,6 @@ describe("EvaluationCache", () => {
 
 			// Write cache entry with wrong version
 			const { join } = await import("node:path");
-			const { writeFile, mkdir } = await import("node:fs/promises");
 			const { createHash } = await import("node:crypto");
 
 			await mkdir(TEST_CACHE_DIR, { recursive: true });
@@ -266,7 +264,7 @@ describe("EvaluationCache", () => {
 			const key = createHash("md5").update(JSON.stringify(params)).digest("hex");
 			const cachePath = join(TEST_CACHE_DIR, `${key}.json`);
 
-			await writeFile(
+			await Bun.write(
 				cachePath,
 				JSON.stringify({
 					params,

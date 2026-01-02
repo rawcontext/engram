@@ -1,4 +1,3 @@
-import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { ErrorCodes, StorageError } from "@engram/common";
@@ -15,7 +14,9 @@ export class FileSystemBlobStore implements BlobStore {
 	}
 
 	async save(content: string | Buffer): Promise<string> {
-		const hash = crypto.createHash("sha256").update(content).digest("hex");
+		const hasher = new Bun.CryptoHasher("sha256");
+		hasher.update(content);
+		const hash = hasher.digest("hex");
 		const filePath = path.join(this.basePath, hash);
 		// Ensure directory exists
 		await fs.mkdir(this.basePath, { recursive: true });
@@ -110,7 +111,9 @@ export class GCSBlobStore implements BlobStore {
 	}
 
 	async save(content: string | Buffer): Promise<string> {
-		const hash = crypto.createHash("sha256").update(content).digest("hex");
+		const hasher = new Bun.CryptoHasher("sha256");
+		hasher.update(content);
+		const hash = hasher.digest("hex");
 		const fileName = hash;
 		const contentStr = typeof content === "string" ? content : content.toString("utf-8");
 		const uri = `gs://${this.bucket}/${fileName}`;

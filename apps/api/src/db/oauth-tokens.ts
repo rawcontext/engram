@@ -5,7 +5,6 @@
  * Tokens are stored with SHA-256 hashes (same as API keys).
  */
 
-import { createHash } from "node:crypto";
 import type { PostgresClient } from "@engram/storage";
 
 export type GrantType = "device_code" | "client_credentials" | "refresh_token";
@@ -60,7 +59,9 @@ interface DbOAuthToken {
  * Hash a token using SHA-256
  */
 export function hashToken(token: string): string {
-	return createHash("sha256").update(token).digest("hex");
+	const hasher = new Bun.CryptoHasher("sha256");
+	hasher.update(token);
+	return hasher.digest("hex");
 }
 
 /**

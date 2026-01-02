@@ -8,7 +8,6 @@
  * @see https://www.rfc-editor.org/rfc/rfc7591.html
  */
 
-import { createHash, randomBytes } from "node:crypto";
 import type {
 	ClientRegistrationError,
 	ClientRegistrationRequest,
@@ -57,7 +56,12 @@ const ALLOWED_SCOPES = ["mcp:tools", "mcp:resources", "mcp:prompts"];
  * Format: engram_{random_hex}
  */
 export function generateClientId(): string {
-	return `engram_${randomBytes(12).toString("hex")}`;
+	const randomArray = new Uint8Array(12);
+	crypto.getRandomValues(randomArray);
+	const hex = Array.from(randomArray)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
+	return `engram_${hex}`;
 }
 
 /**
@@ -65,14 +69,21 @@ export function generateClientId(): string {
  * Format: engram_secret_{random_hex}
  */
 export function generateClientSecret(): string {
-	return `engram_secret_${randomBytes(24).toString("hex")}`;
+	const randomArray = new Uint8Array(24);
+	crypto.getRandomValues(randomArray);
+	const hex = Array.from(randomArray)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
+	return `engram_secret_${hex}`;
 }
 
 /**
  * Hash a client secret using SHA-256.
  */
 export function hashClientSecret(secret: string): string {
-	return createHash("sha256").update(secret).digest("hex");
+	const hasher = new Bun.CryptoHasher("sha256");
+	hasher.update(secret);
+	return hasher.digest("hex");
 }
 
 // =============================================================================

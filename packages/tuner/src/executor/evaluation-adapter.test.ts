@@ -397,6 +397,12 @@ describe("evaluateWithBenchmark", () => {
 	};
 
 	it("should successfully run benchmark and return metrics", async () => {
+		const tmpDir = "/tmp/engram-benchmark-test123";
+		const reportPath = `${tmpDir}/report_2025-01-01.json`;
+
+		// Create tmp dir and write report file
+		await Bun.write(reportPath, JSON.stringify(mockReport));
+
 		// Mock child_process.spawn
 		const mockSpawn = mock((_cmd: string, _args: string[], _options: any) => {
 			// Simulate successful process
@@ -423,9 +429,8 @@ describe("evaluateWithBenchmark", () => {
 		});
 
 		// Mock fs promises
-		const mockMkdtemp = mock((_prefix: string) => Promise.resolve("/tmp/engram-benchmark-test123"));
+		const mockMkdtemp = mock((_prefix: string) => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_2025-01-01.json"]));
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockReport)));
 		const mockRm = mock(() => Promise.resolve());
 
 		// Mock modules
@@ -436,7 +441,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 
@@ -682,9 +686,14 @@ describe("evaluateWithBenchmark", () => {
 			return mockProc;
 		});
 
-		const mockMkdtemp = mock(() => Promise.resolve("/tmp/test"));
+		const tmpDir = "/tmp/test";
+		const reportPath = `${tmpDir}/report_test.json`;
+
+		// Write test report file
+		await Bun.write(reportPath, "invalid json{{{");
+
+		const mockMkdtemp = mock(() => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_test.json"]));
-		const mockReadFile = mock(() => Promise.resolve("invalid json{{{"));
 		const mockRm = mock(() => Promise.resolve());
 
 		mock.module("node:child_process", () => ({
@@ -694,7 +703,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 
@@ -731,9 +739,14 @@ describe("evaluateWithBenchmark", () => {
 			return mockProc;
 		});
 
-		const mockMkdtemp = mock(() => Promise.resolve("/tmp/test"));
+		const tmpDir = "/tmp/test";
+		const reportPath = `${tmpDir}/report_test.json`;
+
+		// Write test report file
+		await Bun.write(reportPath, JSON.stringify("just a string"));
+
+		const mockMkdtemp = mock(() => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_test.json"]));
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify("just a string")));
 		const mockRm = mock(() => Promise.resolve());
 
 		mock.module("node:child_process", () => ({
@@ -743,7 +756,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 
@@ -780,9 +792,14 @@ describe("evaluateWithBenchmark", () => {
 			return mockProc;
 		});
 
-		const mockMkdtemp = mock(() => Promise.resolve("/tmp/test"));
+		const tmpDir = "/tmp/test";
+		const reportPath = `${tmpDir}/report_test.json`;
+
+		// Write test report file
+		await Bun.write(reportPath, JSON.stringify(null));
+
+		const mockMkdtemp = mock(() => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_test.json"]));
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(null)));
 		const mockRm = mock(() => Promise.resolve());
 
 		mock.module("node:child_process", () => ({
@@ -792,7 +809,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 
@@ -834,9 +850,14 @@ describe("evaluateWithBenchmark", () => {
 			return mockProc;
 		});
 
-		const mockMkdtemp = mock(() => Promise.resolve("/tmp/test"));
+		const tmpDir = "/tmp/test";
+		const reportPath = `${tmpDir}/report_test.json`;
+
+		// Write test report file
+		await Bun.write(reportPath, JSON.stringify(mockReport));
+
+		const mockMkdtemp = mock(() => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_test.json"]));
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockReport)));
 		const mockRm = mock(() => Promise.resolve());
 
 		mock.module("node:child_process", () => ({
@@ -846,7 +867,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 
@@ -890,9 +910,14 @@ describe("evaluateWithBenchmark", () => {
 			return mockProc;
 		});
 
-		const mockMkdtemp = mock(() => Promise.resolve("/tmp/test"));
+		const tmpDir = "/tmp/test";
+		const reportPath = `${tmpDir}/report_test.json`;
+
+		// Write test report file
+		await Bun.write(reportPath, JSON.stringify(mockReport));
+
+		const mockMkdtemp = mock(() => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_test.json"]));
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockReport)));
 		const mockRm = mock(() => Promise.resolve());
 
 		mock.module("node:child_process", () => ({
@@ -902,7 +927,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 
@@ -938,9 +962,14 @@ describe("evaluateWithBenchmark", () => {
 			return mockProc;
 		});
 
-		const mockMkdtemp = mock(() => Promise.resolve("/tmp/test"));
+		const tmpDir = "/tmp/test";
+		const reportPath = `${tmpDir}/report_test.json`;
+
+		// Write test report file
+		await Bun.write(reportPath, JSON.stringify(mockReport));
+
+		const mockMkdtemp = mock(() => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_test.json"]));
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockReport)));
 		const mockRm = mock(() => Promise.resolve());
 
 		mock.module("node:child_process", () => ({
@@ -950,7 +979,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 
@@ -987,9 +1015,14 @@ describe("evaluateWithBenchmark", () => {
 			return mockProc;
 		});
 
-		const mockMkdtemp = mock(() => Promise.resolve("/tmp/test"));
+		const tmpDir = "/tmp/test";
+		const reportPath = `${tmpDir}/report_test.json`;
+
+		// Write test report file
+		await Bun.write(reportPath, JSON.stringify(mockReport));
+
+		const mockMkdtemp = mock(() => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_test.json"]));
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockReport)));
 		const mockRm = mock(() => Promise.resolve());
 
 		mock.module("node:child_process", () => ({
@@ -999,7 +1032,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 
@@ -1036,9 +1068,14 @@ describe("evaluateWithBenchmark", () => {
 			return mockProc;
 		});
 
-		const mockMkdtemp = mock(() => Promise.resolve("/tmp/test"));
+		const tmpDir = "/tmp/test";
+		const reportPath = `${tmpDir}/report_test.json`;
+
+		// Write test report file
+		await Bun.write(reportPath, JSON.stringify(mockReport));
+
+		const mockMkdtemp = mock(() => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_test.json"]));
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockReport)));
 		const mockRm = mock(() => Promise.resolve());
 
 		mock.module("node:child_process", () => ({
@@ -1048,7 +1085,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 
@@ -1087,9 +1123,14 @@ describe("evaluateWithBenchmark", () => {
 			return mockProc;
 		});
 
-		const mockMkdtemp = mock(() => Promise.resolve("/tmp/test"));
+		const tmpDir = "/tmp/test";
+		const reportPath = `${tmpDir}/report_test.json`;
+
+		// Write test report file
+		await Bun.write(reportPath, JSON.stringify(mockReport));
+
+		const mockMkdtemp = mock(() => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_test.json"]));
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockReport)));
 		const mockRm = mock(() => Promise.resolve());
 
 		mock.module("node:child_process", () => ({
@@ -1099,7 +1140,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 
@@ -1145,9 +1185,14 @@ describe("evaluateWithBenchmark", () => {
 			return mockProc;
 		});
 
-		const mockMkdtemp = mock(() => Promise.resolve("/tmp/test"));
+		const tmpDir = "/tmp/test";
+		const reportPath = `${tmpDir}/report_test.json`;
+
+		// Write test report file
+		await Bun.write(reportPath, JSON.stringify(mockReport));
+
+		const mockMkdtemp = mock(() => Promise.resolve(tmpDir));
 		const mockReaddir = mock(() => Promise.resolve(["report_test.json"]));
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockReport)));
 		const mockRm = mock(() => Promise.resolve());
 
 		mock.module("node:child_process", () => ({
@@ -1157,7 +1202,6 @@ describe("evaluateWithBenchmark", () => {
 		mock.module("node:fs/promises", () => ({
 			mkdtemp: mockMkdtemp,
 			readdir: mockReaddir,
-			readFile: mockReadFile,
 			rm: mockRm,
 		}));
 

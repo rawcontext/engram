@@ -17,7 +17,6 @@
  *   --delay      Delay between events in ms (default: 100)
  */
 
-import { randomUUID } from "node:crypto";
 import { generateEventId, type RawStreamEvent, RawStreamEventSchema } from "@engram/events";
 import { createNatsClient } from "@engram/storage";
 
@@ -300,7 +299,7 @@ async function generateOpenAIEvents(
 		createBaseEvent(
 			"openai",
 			{
-				id: `chatcmpl-${randomUUID().slice(0, 8)}`,
+				id: `chatcmpl-${crypto.randomUUID().slice(0, 8)}`,
 				object: "chat.completion.chunk",
 				created: Math.floor(Date.now() / 1000),
 				model: "gpt-4o",
@@ -318,7 +317,7 @@ async function generateOpenAIEvents(
 			createBaseEvent(
 				"openai",
 				{
-					id: `chatcmpl-${randomUUID().slice(0, 8)}`,
+					id: `chatcmpl-${crypto.randomUUID().slice(0, 8)}`,
 					object: "chat.completion.chunk",
 					created: Math.floor(Date.now() / 1000),
 					model: "gpt-4o",
@@ -336,7 +335,7 @@ async function generateOpenAIEvents(
 			createBaseEvent(
 				"openai",
 				{
-					id: `chatcmpl-${randomUUID().slice(0, 8)}`,
+					id: `chatcmpl-${crypto.randomUUID().slice(0, 8)}`,
 					object: "chat.completion.chunk",
 					created: Math.floor(Date.now() / 1000),
 					model: "gpt-4o",
@@ -347,7 +346,7 @@ async function generateOpenAIEvents(
 								tool_calls: [
 									{
 										index: 0,
-										id: `call_${randomUUID().slice(0, 12)}`,
+										id: `call_${crypto.randomUUID().slice(0, 12)}`,
 										type: "function",
 										function: {
 											name: tool.name,
@@ -371,7 +370,7 @@ async function generateOpenAIEvents(
 		createBaseEvent(
 			"openai",
 			{
-				id: `chatcmpl-${randomUUID().slice(0, 8)}`,
+				id: `chatcmpl-${crypto.randomUUID().slice(0, 8)}`,
 				object: "chat.completion.chunk",
 				created: Math.floor(Date.now() / 1000),
 				model: "gpt-4o",
@@ -401,7 +400,7 @@ async function generateAnthropicEvents(
 			{
 				type: "message_start",
 				message: {
-					id: `msg_${randomUUID().slice(0, 12)}`,
+					id: `msg_${crypto.randomUUID().slice(0, 12)}`,
 					type: "message",
 					role: "assistant",
 					model: "claude-sonnet-4-20250514",
@@ -472,7 +471,7 @@ async function generateAnthropicEvents(
 					index: turn.thinking.length + 2 + i,
 					content_block: {
 						type: "tool_use",
-						id: `toolu_${randomUUID().slice(0, 12)}`,
+						id: `toolu_${crypto.randomUUID().slice(0, 12)}`,
 						name: tool.name,
 					},
 				},
@@ -568,7 +567,7 @@ async function generateClaudeCodeEvents(
 				{
 					type: "tool_use",
 					tool_use: {
-						tool_use_id: `toolu_${randomUUID().slice(0, 12)}`,
+						tool_use_id: `toolu_${crypto.randomUUID().slice(0, 12)}`,
 						name: tool.name,
 						input: tool.args,
 					},
@@ -585,7 +584,7 @@ async function generateClaudeCodeEvents(
 				{
 					type: "tool_result",
 					tool_result: {
-						tool_use_id: `toolu_${randomUUID().slice(0, 12)}`,
+						tool_use_id: `toolu_${crypto.randomUUID().slice(0, 12)}`,
 						content:
 							tool.name === "Read"
 								? "// File contents here..."
@@ -658,7 +657,7 @@ async function generateXAIEvents(
 		createBaseEvent(
 			"xai",
 			{
-				id: `chatcmpl-${randomUUID().slice(0, 8)}`,
+				id: `chatcmpl-${crypto.randomUUID().slice(0, 8)}`,
 				object: "chat.completion.chunk",
 				created: Math.floor(Date.now() / 1000),
 				model: "grok-3",
@@ -675,7 +674,7 @@ async function generateXAIEvents(
 			createBaseEvent(
 				"xai",
 				{
-					id: `chatcmpl-${randomUUID().slice(0, 8)}`,
+					id: `chatcmpl-${crypto.randomUUID().slice(0, 8)}`,
 					object: "chat.completion.chunk",
 					created: Math.floor(Date.now() / 1000),
 					model: "grok-3",
@@ -699,7 +698,7 @@ async function generateXAIEvents(
 			createBaseEvent(
 				"xai",
 				{
-					id: `chatcmpl-${randomUUID().slice(0, 8)}`,
+					id: `chatcmpl-${crypto.randomUUID().slice(0, 8)}`,
 					object: "chat.completion.chunk",
 					created: Math.floor(Date.now() / 1000),
 					model: "grok-3",
@@ -710,7 +709,7 @@ async function generateXAIEvents(
 								tool_calls: [
 									{
 										index: 0,
-										id: `call_${randomUUID().slice(0, 12)}`,
+										id: `call_${crypto.randomUUID().slice(0, 12)}`,
 										type: "function",
 										function: { name: tool.name, arguments: JSON.stringify(tool.args) },
 									},
@@ -733,7 +732,7 @@ async function generateXAIEvents(
 			createBaseEvent(
 				"xai",
 				{
-					id: `chatcmpl-${randomUUID().slice(0, 8)}`,
+					id: `chatcmpl-${crypto.randomUUID().slice(0, 8)}`,
 					object: "chat.completion.chunk",
 					created: Math.floor(Date.now() / 1000),
 					model: "grok-3",
@@ -750,7 +749,7 @@ async function generateXAIEvents(
 		createBaseEvent(
 			"xai",
 			{
-				id: `chatcmpl-${randomUUID().slice(0, 8)}`,
+				id: `chatcmpl-${crypto.randomUUID().slice(0, 8)}`,
 				object: "chat.completion.chunk",
 				created: Math.floor(Date.now() / 1000),
 				model: "grok-3",
@@ -806,7 +805,7 @@ async function generateGeminiEvents(
 
 	// Tool uses
 	for (const tool of turn.tools) {
-		const toolId = `tool_${randomUUID().slice(0, 8)}`;
+		const toolId = `tool_${crypto.randomUUID().slice(0, 8)}`;
 		await sendRawEvent(
 			createBaseEvent(
 				"gemini",
@@ -891,7 +890,7 @@ async function generateCodexEvents(
 	ctx: EventContext,
 	turn: (typeof SCENARIOS)[0]["turns"][0],
 ): Promise<void> {
-	const threadId = `thread_${randomUUID().slice(0, 12)}`;
+	const threadId = `thread_${crypto.randomUUID().slice(0, 12)}`;
 
 	// Thread started
 	await sendRawEvent(
@@ -920,7 +919,7 @@ async function generateCodexEvents(
 
 	// Reasoning item
 	for (const thought of turn.thinking) {
-		const itemId = `item_${randomUUID().slice(0, 8)}`;
+		const itemId = `item_${crypto.randomUUID().slice(0, 8)}`;
 		await sendRawEvent(
 			createBaseEvent(
 				"codex",
@@ -957,7 +956,7 @@ async function generateCodexEvents(
 
 	// Command execution items (for tools)
 	for (const tool of turn.tools) {
-		const itemId = `item_${randomUUID().slice(0, 8)}`;
+		const itemId = `item_${crypto.randomUUID().slice(0, 8)}`;
 		const command =
 			tool.name === "Bash"
 				? (tool.args as { command?: string }).command || "echo 'done'"
@@ -1000,7 +999,7 @@ async function generateCodexEvents(
 	}
 
 	// Agent message (final response)
-	const messageItemId = `item_${randomUUID().slice(0, 8)}`;
+	const messageItemId = `item_${crypto.randomUUID().slice(0, 8)}`;
 	await sendRawEvent(
 		createBaseEvent(
 			"codex",
@@ -1077,7 +1076,7 @@ async function runSession(
 	const provider = PROVIDERS[providerKey];
 	if (!provider) throw new Error(`Unknown provider: ${providerKey}`);
 
-	const sessionId = randomUUID();
+	const sessionId = crypto.randomUUID();
 	const headers = {
 		"x-session-id": sessionId,
 		"x-working-dir": projectContext.working_dir,

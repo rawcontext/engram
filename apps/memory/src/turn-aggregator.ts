@@ -1,4 +1,3 @@
-import { createHash, randomUUID } from "node:crypto";
 import type { TenantContext } from "@engram/common/types";
 import type { ParsedStreamEvent } from "@engram/events";
 import type { Logger } from "@engram/logger";
@@ -55,7 +54,9 @@ export interface StreamEventInput {
  */
 
 function sha256(content: string): string {
-	return createHash("sha256").update(content).digest("hex");
+	const hasher = new Bun.CryptoHasher("sha256");
+	hasher.update(content);
+	return hasher.digest("hex");
 }
 
 // Callback type for node creation events (for real-time WebSocket updates)
@@ -191,7 +192,7 @@ export class TurnAggregator {
 	 * Provides default values for required fields.
 	 */
 	private normalizeEvent(input: StreamEventInput | ParsedStreamEvent): ParsedStreamEvent {
-		const eventId = input.event_id || randomUUID();
+		const eventId = input.event_id || crypto.randomUUID();
 		const originalEventId = input.original_event_id || eventId;
 		const timestamp = input.timestamp || new Date().toISOString();
 		const eventType = (input.type || "content") as ParsedStreamEvent["type"];
@@ -206,7 +207,7 @@ export class TurnAggregator {
 			thought: input.thought,
 			tool_call: input.tool_call
 				? {
-						id: input.tool_call.id || `call_${randomUUID().slice(0, 8)}`,
+						id: input.tool_call.id || `call_${crypto.randomUUID().slice(0, 8)}`,
 						name: input.tool_call.name || "unknown_tool",
 						arguments_delta: input.tool_call.arguments_delta || "{}",
 						index: input.tool_call.index ?? 0,
@@ -342,7 +343,7 @@ export class TurnAggregator {
 		this.sessionSequence.set(sessionId, nextSeq);
 
 		const turn: TurnState = {
-			turnId: randomUUID(),
+			turnId: crypto.randomUUID(),
 			sessionId,
 			userContent,
 			assistantContent: "",

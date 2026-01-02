@@ -3,7 +3,6 @@
  * Transforms history entries to RawStreamEvent and handles deduplication.
  */
 
-import { randomUUID } from "node:crypto";
 import { ClaudeJSONLWatcher, type ClaudeJSONLWatcherOptions } from "./jsonl-watcher";
 import type { ClaudeHistoryEntry } from "./types";
 
@@ -102,7 +101,7 @@ export class WatcherIngestionBridge {
 
 		// Transform to RawStreamEvent
 		const event: RawStreamEvent = {
-			event_id: randomUUID(),
+			event_id: crypto.randomUUID(),
 			ingest_timestamp: new Date().toISOString(),
 			provider: "claude_code",
 			payload: {

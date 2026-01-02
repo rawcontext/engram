@@ -5,7 +5,6 @@
  * Uses a dedicated connection pool for audit logs.
  */
 
-import { randomUUID } from "node:crypto";
 import type { AuditLogEntry } from "@engram/common";
 import type { Logger } from "@engram/logger";
 import pg from "pg";
@@ -87,7 +86,7 @@ export class AuditClient {
 		try {
 			await this.ensureTable();
 
-			const id = entry.id || randomUUID();
+			const id = entry.id || crypto.randomUUID();
 			const timestamp = entry.timestamp || new Date();
 
 			await this.pool.query(

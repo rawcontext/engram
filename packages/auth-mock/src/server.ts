@@ -12,8 +12,8 @@
  * @module @engram/auth-mock/server
  */
 
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { OAuthConfig } from "@engram/common/types";
+import type { Server } from "bun";
 import {
 	buildMockClientTokenResponse,
 	buildMockDeviceCodeResponse,
@@ -63,30 +63,28 @@ const deviceCodeStore = new Map<
 /**
  * Parse JSON request body.
  */
-async function parseBody(req: IncomingMessage): Promise<Record<string, unknown>> {
-	return new Promise((resolve, reject) => {
-		let body = "";
-		req.on("data", (chunk) => {
-			body += chunk;
-		});
-		req.on("end", () => {
-			try {
-				resolve(body ? JSON.parse(body) : {});
-			} catch (err) {
-				reject(err);
-			}
-		});
-		req.on("error", reject);
-	});
+async function parseBody(req: Request): Promise<Record<string, unknown>> {
+	try {
+		const text = await req.text();
+		return text ? JSON.parse(text) : {};
+	} catch {
+		return {};
+	}
 }
 
 /**
- * Send JSON response.
+ * Create JSON response.
  */
-function sendJson(res: ServerResponse, status: number, data: unknown): void {
-	res.statusCode = status;
-	res.setHeader("Content-Type", "application/json");
-	res.end(JSON.stringify(data));
+function jsonResponse(status: number, data: unknown): Response {
+	return new Response(JSON.stringify(data), {
+		status,
+		headers: {
+			"Content-Type": "application/json",
+			"Access-Control-Allow-Origin": "*",
+			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+			"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		},
+	});
 }
 
 /**
@@ -114,7 +112,7 @@ function storeToken(
  * POST /token - Token endpoint (RFC 6749)
  * Handles client_credentials and device_code grants.
  */
-async function handleTokenEndpoint(req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handleTokenEndpoint(req: Request): Promise<Response> {
 	try {
 		const body = await parseBody(req);
 		const grantType = body.grant_type as string;
@@ -136,8 +134,7 @@ async function handleTokenEndpoint(req: IncomingMessage, res: ServerResponse): P
 				sub: clientId,
 			});
 
-			sendJson(res, 200, response);
-			return;
+			return jsonResponse(200, response);
 		}
 
 		// Device Code Grant (RFC 8628)
@@ -146,33 +143,30 @@ async function handleTokenEndpoint(req: IncomingMessage, res: ServerResponse): P
 			const clientId = (body.client_id as string) || "mcp";
 
 			if (!deviceCode) {
-				sendJson(res, 400, {
+				return jsonResponse(400, {
 					error: "invalid_request",
 					error_description: "device_code is required",
 				});
-				return;
 			}
 
 			const device = deviceCodeStore.get(deviceCode);
 
 			// For mock server, auto-authorize after 1 second for testing
 			if (!device) {
-				sendJson(res, 400, {
+				return jsonResponse(400, {
 					error: "authorization_pending",
 					error_description: "The authorization request is still pending.",
 				});
-				return;
 			}
 
 			if (device.status === "pending") {
 				// Auto-authorize if more than 1 second has passed
 				const elapsed = Date.now() - device.createdAt;
 				if (elapsed < 1000) {
-					sendJson(res, 400, {
+					return jsonResponse(400, {
 						error: "authorization_pending",
 						error_description: "The authorization request is still pending.",
 					});
-					return;
 				}
 				device.status = "authorized";
 			}
@@ -191,8 +185,7 @@ async function handleTokenEndpoint(req: IncomingMessage, res: ServerResponse): P
 			// Remove device code (one-time use)
 			deviceCodeStore.delete(deviceCode);
 
-			sendJson(res, 200, response);
-			return;
+			return jsonResponse(200, response);
 		}
 
 		// Refresh Token Grant (RFC 6749 §6)
@@ -207,24 +200,23 @@ async function handleTokenEndpoint(req: IncomingMessage, res: ServerResponse): P
 				sub: MOCK_USER.id,
 			});
 
-			sendJson(res, 200, response);
-			return;
+			return jsonResponse(200, response);
 		}
 
-		sendJson(res, 400, {
+		return jsonResponse(400, {
 			error: "unsupported_grant_type",
 			error_description: `Grant type "${grantType}" not supported`,
 		});
 	} catch (err) {
 		console.error("Error in /token:", err);
-		sendJson(res, 500, { error: "server_error" });
+		return jsonResponse(500, { error: "server_error" });
 	}
 }
 
 /**
  * POST /device - Device authorization endpoint (RFC 8628)
  */
-async function handleDeviceEndpoint(req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handleDeviceEndpoint(req: Request): Promise<Response> {
 	try {
 		const body = await parseBody(req);
 		const clientId = (body.client_id as string) || "mcp";
@@ -240,55 +232,52 @@ async function handleDeviceEndpoint(req: IncomingMessage, res: ServerResponse): 
 			createdAt: Date.now(),
 		});
 
-		sendJson(res, 200, response);
+		return jsonResponse(200, response);
 	} catch (err) {
 		console.error("Error in /device:", err);
-		sendJson(res, 500, { error: "server_error" });
+		return jsonResponse(500, { error: "server_error" });
 	}
 }
 
 /**
  * POST /introspect - Token introspection endpoint (RFC 7662)
  */
-async function handleIntrospectEndpoint(req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handleIntrospectEndpoint(req: Request): Promise<Response> {
 	try {
 		const body = await parseBody(req);
 		const token = body.token as string;
 
 		if (!token) {
-			sendJson(res, 200, { active: false });
-			return;
+			return jsonResponse(200, { active: false });
 		}
 
 		const hash = hashToken(token);
 		const metadata = tokenStore.get(hash);
 
 		if (!metadata) {
-			sendJson(res, 200, { active: false });
-			return;
+			return jsonResponse(200, { active: false });
 		}
 
 		// Check expiration
 		if (metadata.exp < Math.floor(Date.now() / 1000)) {
 			tokenStore.delete(hash);
-			sendJson(res, 200, { active: false });
-			return;
+			return jsonResponse(200, { active: false });
 		}
 
-		sendJson(res, 200, metadata);
+		return jsonResponse(200, metadata);
 	} catch (err) {
 		console.error("Error in /introspect:", err);
-		sendJson(res, 500, { error: "server_error" });
+		return jsonResponse(500, { error: "server_error" });
 	}
 }
 
 /**
  * GET /.well-known/oauth-authorization-server - Server metadata (RFC 8414)
  */
-function handleMetadataEndpoint(_req: IncomingMessage, res: ServerResponse): void {
+function handleMetadataEndpoint(): Response {
 	const baseUrl = process.env.MOCK_AUTH_BASE_URL || "http://localhost:3010";
 
-	sendJson(res, 200, {
+	return jsonResponse(200, {
 		issuer: baseUrl,
 		token_endpoint: `${baseUrl}/token`,
 		device_authorization_endpoint: `${baseUrl}/device`,
@@ -311,43 +300,59 @@ function handleMetadataEndpoint(_req: IncomingMessage, res: ServerResponse): voi
 /**
  * Create and start the mock OAuth server.
  */
-export function createMockAuthServer(port = 3010): ReturnType<typeof createServer> {
-	const server = createServer((req, res) => {
-		const url = req.url || "/";
-		const method = req.method || "GET";
+export function createMockAuthServer(port = 3010): Server<undefined> {
+	const server = Bun.serve({
+		port,
+		async fetch(req) {
+			const url = new URL(req.url);
+			const method = req.method;
 
-		// CORS headers for browser testing
-		res.setHeader("Access-Control-Allow-Origin", "*");
-		res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-		res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+			// Handle CORS preflight
+			if (method === "OPTIONS") {
+				return new Response(null, {
+					status: 204,
+					headers: {
+						"Access-Control-Allow-Origin": "*",
+						"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+						"Access-Control-Allow-Headers": "Content-Type, Authorization",
+					},
+				});
+			}
 
-		if (method === "OPTIONS") {
-			res.statusCode = 204;
-			res.end();
-			return;
-		}
+			// Route handling
+			if (url.pathname === "/token" && method === "POST") {
+				return handleTokenEndpoint(req);
+			}
 
-		// Route handling
-		if (url === "/token" && method === "POST") {
-			handleTokenEndpoint(req, res);
-		} else if (url === "/device" && method === "POST") {
-			handleDeviceEndpoint(req, res);
-		} else if (url === "/introspect" && method === "POST") {
-			handleIntrospectEndpoint(req, res);
-		} else if (url === "/.well-known/oauth-authorization-server" && method === "GET") {
-			handleMetadataEndpoint(req, res);
-		} else if (url === "/health" && method === "GET") {
-			sendJson(res, 200, { status: "ok" });
-		} else {
-			res.statusCode = 404;
-			res.end("Not Found");
-		}
+			if (url.pathname === "/device" && method === "POST") {
+				return handleDeviceEndpoint(req);
+			}
+
+			if (url.pathname === "/introspect" && method === "POST") {
+				return handleIntrospectEndpoint(req);
+			}
+
+			if (url.pathname === "/.well-known/oauth-authorization-server" && method === "GET") {
+				return handleMetadataEndpoint();
+			}
+
+			if (url.pathname === "/health" && method === "GET") {
+				return jsonResponse(200, { status: "ok" });
+			}
+
+			return new Response("Not Found", {
+				status: 404,
+				headers: {
+					"Access-Control-Allow-Origin": "*",
+					"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+					"Access-Control-Allow-Headers": "Content-Type, Authorization",
+				},
+			});
+		},
 	});
 
-	server.listen(port, () => {
-		console.log(`Mock OAuth server listening on http://localhost:${port}`);
-		console.log(`Metadata: http://localhost:${port}/.well-known/oauth-authorization-server`);
-	});
+	console.log(`Mock OAuth server listening on http://localhost:${port}`);
+	console.log(`Metadata: http://localhost:${port}/.well-known/oauth-authorization-server`);
 
 	return server;
 }

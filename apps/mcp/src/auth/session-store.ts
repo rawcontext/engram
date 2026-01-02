@@ -329,6 +329,5 @@ export function createSessionStore(options: SessionStoreOptions): SessionStore {
  * This binds the session to the user's identity, preventing session hijacking.
  */
 export function generateSecureSessionId(userId: string): string {
-	const { randomUUID } = require("node:crypto");
-	return `${userId}:${randomUUID()}`;
+	return `${userId}:${crypto.randomUUID()}`;
 }
