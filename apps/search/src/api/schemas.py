@@ -167,6 +167,13 @@ class MemoryIndexResponse(BaseModel):
     took_ms: int = Field(description="Time taken in milliseconds")
 
 
+class ConflictCandidateRequest(BaseModel):
+    """Conflict candidate search request payload."""
+
+    content: str = Field(description="Memory content to check for conflicts")
+    project: str | None = Field(default=None, description="Optional project filter")
+
+
 class ConflictCandidateResponse(BaseModel):
     """Conflict candidate response for memory deduplication."""
 

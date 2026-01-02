@@ -1,0 +1,29 @@
+{
+	"name": "@engram/worker",
+	"version": "0.0.0",
+	"type": "module",
+	"description": "Intelligence Layer worker service - cron jobs and LLM-driven graph algorithms",
+	"dependencies": {
+		"@engram/common": "*",
+		"@engram/graph": "*",
+		"@engram/logger": "*",
+		"@engram/storage": "*",
+		"@hono/node-server": "^1.19.7",
+		"croner": "^9.0.0",
+		"hono": "^4.11.1",
+		"prom-client": "^15.1.3",
+		"zod": "^4.2.1"
+	},
+	"devDependencies": {
+		"@engram/tsconfig": "*",
+		"@types/node": "^25.0.3"
+	},
+	"scripts": {
+		"dev": "tsx --env-file=.env src/index.ts",
+		"build": "tsgo",
+		"typecheck": "tsgo --noEmit",
+		"start": "bun dist/index.js",
+		"lint": "biome check .",
+		"format": "biome format ."
+	}
+}

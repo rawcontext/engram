@@ -49,6 +49,13 @@ export function registerRecallTool(
 					.describe(
 						"Reranker model tier. 'fast': FlashRank lightweight model, good for general queries. 'accurate': BGE cross-encoder, higher quality semantic matching. 'code': Jina code-optimized model, best for code snippets and technical content. 'llm': Gemini Flash, highest quality but uses LLM inference for scoring.",
 					),
+				includeInvalidated: z
+					.boolean()
+					.optional()
+					.default(false)
+					.describe(
+						"Include invalidated (expired) memories in results. When true, shows all memories including those that have been superseded or deleted. When false (default), only shows currently valid memories.",
+					),
 				vtEndAfter: z
 					.number()
 					.int()
@@ -78,14 +85,29 @@ export function registerRecallTool(
 				selectedId: z.string().optional(),
 			},
 		},
-		async ({ query, limit, filters, rerank, rerank_tier, vtEndAfter, disambiguate }) => {
+		async ({
+			query,
+			limit,
+			filters,
+			rerank,
+			rerank_tier,
+			includeInvalidated,
+			vtEndAfter,
+			disambiguate,
+		}) => {
 			// Note: Don't auto-apply project filter from session context
 			// Memories may have been stored before roots were populated (with project: null)
 
 			const context = getSessionContext();
+
+			// Determine vtEndAfter based on includeInvalidated flag
+			// If includeInvalidated is true, set to 0 to skip filtering
+			// Otherwise, use provided vtEndAfter or default to current time
+			const effectiveVtEndAfter = includeInvalidated ? 0 : (vtEndAfter ?? Date.now());
+
 			const memories = await memoryRetriever.recall(query, limit ?? 5, {
 				...filters,
-				vtEndAfter: vtEndAfter ?? Date.now(),
+				vtEndAfter: effectiveVtEndAfter,
 				rerank: rerank ?? true,
 				rerank_tier: rerank_tier ?? "fast",
 				tenant:

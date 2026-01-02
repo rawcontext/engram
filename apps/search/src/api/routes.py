@@ -6,6 +6,8 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from src.api.schemas import (
+    ConflictCandidateRequest,
+    ConflictCandidateResponse,
     EmbedRequest,
     EmbedResponse,
     HealthResponse,
@@ -654,6 +656,115 @@ async def index_memory(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Memory indexing failed: {str(e)}",
+        ) from e
+
+
+@router.post("/conflict-candidates", response_model=list[ConflictCandidateResponse])
+async def get_conflict_candidates(
+    request: Request,
+    conflict_request: ConflictCandidateRequest,
+    api_key: ApiKeyContext = search_auth,
+) -> list[ConflictCandidateResponse]:
+    """Find potential duplicate memories for deduplication.
+
+    Embeds the provided content and searches for similar memories to detect
+    potential conflicts before storing a new memory.
+
+    Args:
+        request: FastAPI request object with app state.
+        conflict_request: Content to check for conflicts and optional project filter.
+        api_key: Authenticated API key context with org_id.
+
+    Returns:
+        List of top 10 conflict candidates with similarity scores.
+
+    Raises:
+        HTTPException: If search fails.
+    """
+    start_time = time.time()
+
+    logger.info(
+        f"Conflict candidate search: content_len={len(conflict_request.content)}, "
+        f"project={conflict_request.project}, key={api_key.prefix}"
+    )
+
+    # Verify embedder factory and Qdrant are available
+    embedder_factory = getattr(request.app.state, "embedder_factory", None)
+    qdrant = getattr(request.app.state, "qdrant", None)
+
+    if embedder_factory is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Conflict search unavailable: embedder factory not initialized",
+        )
+
+    if qdrant is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Conflict search unavailable: Qdrant not initialized",
+        )
+
+    try:
+        from qdrant_client.http import models
+
+        # Generate embedding for the content
+        text_embedder = await embedder_factory.get_embedder("text")
+        query_vector = await text_embedder.embed(conflict_request.content, is_query=True)
+
+        # Build filter conditions - ALWAYS include org_id for tenant isolation
+        conditions: list[models.Condition] = [
+            models.FieldCondition(
+                key="org_id",
+                match=models.MatchValue(value=api_key.org_id),
+            )
+        ]
+
+        # Add optional project filter
+        if conflict_request.project:
+            conditions.append(
+                models.FieldCondition(
+                    key="project",
+                    match=models.MatchValue(value=conflict_request.project),
+                )
+            )
+
+        qdrant_filter = models.Filter(must=conditions)
+
+        # Query Qdrant with score_threshold=0.65 to find similar memories
+        results = await qdrant.client.query_points(
+            collection_name="engram_memory",
+            query=query_vector,
+            using="text_dense",
+            query_filter=qdrant_filter,
+            limit=10,
+            score_threshold=0.65,
+            with_payload=True,
+        )
+
+        took_ms = int((time.time() - start_time) * 1000)
+
+        # Map results to response schema
+        candidates = [
+            ConflictCandidateResponse(
+                id=p.payload.get("node_id", str(p.id)),
+                content=p.payload.get("content", ""),
+                type=p.payload.get("type", "context"),
+                score=p.score,
+                vt_start=p.payload.get("vt_start", 0),
+            )
+            for p in results.points
+        ]
+
+        logger.info(f"Conflict search completed: candidates={len(candidates)}, took_ms={took_ms}")
+
+        return candidates
+
+    except Exception as e:
+        took_ms = int((time.time() - start_time) * 1000)
+        logger.error(f"Conflict candidate search failed after {took_ms}ms: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Conflict candidate search failed: {str(e)}",
         ) from e
 
 

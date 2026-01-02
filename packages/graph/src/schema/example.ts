@@ -1,10 +1,9 @@
 /**
- * Example usage of the Schema DSL for both field primitives and edge definitions.
+ * Example usage of the Schema DSL for nodes, edges, and complete schema composition.
  * This file demonstrates the API design and type inference.
  */
 
-import { edge } from "./edge";
-import { field } from "./field";
+import { defineSchema, edge, field, node } from "./index";
 
 // =============================================================================
 // Example 1: User Schema
@@ -152,3 +151,96 @@ const edgeExamples = {
 };
 
 console.log("Schema edge examples:", edgeExamples);
+
+// =============================================================================
+// Example 6: Complete Schema Composition
+// =============================================================================
+
+// Define nodes
+export const MemoryNode = node({
+	content: field.string(),
+	content_hash: field.string(),
+	type: field.enum(["decision", "context", "insight", "preference", "fact", "turn"] as const),
+	tags: field.array(field.string()),
+	project: field.string().optional(),
+	embedding: field.vector(1024).optional(),
+});
+
+export const SessionNode = node({
+	id: field.string(),
+	agent_type: field.string(),
+	working_dir: field.string(),
+	summary: field.string().optional(),
+});
+
+export const TurnNode = node({
+	id: field.string(),
+	user_content: field.string().optional(),
+	assistant_preview: field.string().optional(),
+});
+
+export const EntityNode = node({
+	name: field.string(),
+	type: field.string(),
+});
+
+// Define edges
+export const HasTurnEdge = edge({
+	from: "Session",
+	to: "Turn",
+	cardinality: "one-to-many",
+});
+
+export const HasMemoryEdge = edge({
+	from: "Session",
+	to: "Memory",
+	cardinality: "one-to-many",
+});
+
+export const MentionsEdge = edge({
+	from: "Memory",
+	to: "Entity",
+	cardinality: "many-to-many",
+	properties: {
+		confidence: field.float().min(0).max(1),
+	},
+});
+
+export const ReplacesEdge = edge({
+	from: "Memory",
+	to: "Memory",
+	cardinality: "one-to-one",
+});
+
+// Compose complete schema
+export const engramSchema = defineSchema({
+	nodes: {
+		Memory: MemoryNode,
+		Session: SessionNode,
+		Turn: TurnNode,
+		Entity: EntityNode,
+	},
+	edges: {
+		HAS_TURN: HasTurnEdge,
+		HAS_MEMORY: HasMemoryEdge,
+		MENTIONS: MentionsEdge,
+		REPLACES: ReplacesEdge,
+	},
+});
+
+// Type inference examples
+export type Memory = typeof MemoryNode.$inferSelect;
+export type Session = typeof SessionNode.$inferSelect;
+export type NodeLabels = keyof typeof engramSchema.nodes;
+export type EdgeTypes = keyof typeof engramSchema.edges;
+
+// Runtime schema introspection
+const schemaInfo = {
+	isValid: engramSchema.isValid(),
+	nodeLabels: engramSchema.getNodeLabels(),
+	edgeTypes: engramSchema.getEdgeTypes(),
+	sessionEdges: engramSchema.getEdgesFrom("Session").map((e) => e.type),
+	memoryEdges: engramSchema.getEdgesFor("Memory").map((e) => e.type),
+};
+
+console.log("Complete schema info:", schemaInfo);

@@ -10,11 +10,14 @@
 		"./errors": "./src/errors/index.ts",
 		"./constants": "./src/constants/index.ts",
 		"./testing": "./src/testing/index.ts",
-		"./types": "./src/types/index.ts"
+		"./types": "./src/types/index.ts",
+		"./clients": "./src/clients/index.ts"
 	},
 	"dependencies": {
+		"@engram/graph": "*",
 		"@engram/storage": "*",
-		"@engram/graph": "*"
+		"@google/generative-ai": "^0.24.1",
+		"zod-to-json-schema": "^3.25.1"
 	},
 	"devDependencies": {
 		"@engram/tsconfig": "*",

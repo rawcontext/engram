@@ -9,4 +9,5 @@
 export * from "./edge";
 export * from "./field";
 export * from "./node";
+export * from "./schema";
 export * from "./types";
