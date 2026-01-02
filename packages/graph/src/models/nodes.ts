@@ -340,3 +340,29 @@ export const EntityNodeSchema = BaseNodeSchema.extend({
 	embedding: z.array(z.number()).optional(), // Vector for similarity search
 });
 export type EntityNode = z.infer<typeof EntityNodeSchema>;
+
+// =============================================================================
+// CommunityNode: Entity clusters discovered via graph community detection
+// Groups related entities for hierarchical retrieval and context assembly
+// =============================================================================
+export const CommunityNodeSchema = BaseNodeSchema.extend({
+	labels: z.tuple([z.literal("Community")]),
+
+	// Identity and content
+	name: z.string(), // LLM-generated name (2-4 words)
+	summary: z.string(), // LLM-generated summary (2-3 sentences)
+	keywords: z.array(z.string()).default([]), // 3-5 keywords for search
+
+	// Statistics
+	member_count: z.number().int().default(0), // Number of member entities
+	memory_count: z.number().int().default(0), // Total memories mentioning members
+	last_updated: z.number(), // When summary was last regenerated (epoch ms)
+
+	// Semantic retrieval
+	embedding: z.array(z.number()).optional(), // Vector for similarity search
+
+	// Multi-tenancy and scoping
+	project: z.string().optional(), // Project/repo identifier
+	org_id: z.string().optional(), // Organization identifier
+});
+export type CommunityNode = z.infer<typeof CommunityNodeSchema>;

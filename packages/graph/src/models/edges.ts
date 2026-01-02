@@ -133,6 +133,15 @@ export const PartOfEdgeSchema = BaseEdgeSchema.extend({
 });
 
 // =============================================================================
+// Community relationships
+// =============================================================================
+
+// Entity -[MEMBER_OF]-> Community (community membership)
+export const MemberOfEdgeSchema = BaseEdgeSchema.extend({
+	type: z.literal("MEMBER_OF"),
+});
+
+// =============================================================================
 // Edge type constants for use in queries
 // =============================================================================
 export const EdgeTypes = {
@@ -168,6 +177,9 @@ export const EdgeTypes = {
 	DEPENDS_ON: "DEPENDS_ON",
 	IMPLEMENTS: "IMPLEMENTS",
 	PART_OF: "PART_OF",
+
+	// Community relationships
+	MEMBER_OF: "MEMBER_OF",
 } as const;
 
 // Union of all edge types
@@ -189,6 +201,7 @@ export const EdgeSchema = z.union([
 	DependsOnEdgeSchema,
 	ImplementsEdgeSchema,
 	PartOfEdgeSchema,
+	MemberOfEdgeSchema,
 ]);
 
 export type Edge = z.infer<typeof EdgeSchema>;
