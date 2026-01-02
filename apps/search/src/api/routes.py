@@ -156,6 +156,7 @@ async def search(
             session_id=search_request.filters.session_id if search_request.filters else None,
             type=search_request.filters.type if search_request.filters else None,
             time_range=time_range,
+            vt_end_after=search_request.filters.vt_end_after if search_request.filters else None,
         )
 
         # Convert string strategy/tier to enums if provided
@@ -181,17 +182,72 @@ async def search(
         if collection == "engram_turns":
             results = await search_retriever.search_turns(query)
         elif collection == "engram_memory":
-            # Direct Qdrant search for memory collection
+            # Direct Qdrant search for memory collection with filters
+            from qdrant_client.http import models as qdrant_models
 
             embedder_factory = getattr(request.app.state, "embedder_factory", None)
             qdrant = getattr(request.app.state, "qdrant", None)
             text_embedder = await embedder_factory.get_embedder("text")
             query_vector = await text_embedder.embed(search_request.text, is_query=True)
 
+            # Build filter conditions for memory collection
+            conditions: list[qdrant_models.Condition] = []
+
+            # CRITICAL: org_id is mandatory for tenant isolation
+            if filters.org_id:
+                conditions.append(
+                    qdrant_models.FieldCondition(
+                        key="org_id",
+                        match=qdrant_models.MatchValue(value=filters.org_id),
+                    )
+                )
+
+            # Filter by memory type (decision, context, insight, preference, fact)
+            if filters.type:
+                conditions.append(
+                    qdrant_models.FieldCondition(
+                        key="type",
+                        match=qdrant_models.MatchValue(value=filters.type),
+                    )
+                )
+
+            # Filter by valid time end (exclude expired memories)
+            if filters.vt_end_after is not None:
+                conditions.append(
+                    qdrant_models.FieldCondition(
+                        key="vt_end",
+                        range=qdrant_models.Range(gt=filters.vt_end_after),
+                    )
+                )
+
+            # Filter by project if specified
+            if search_request.filters and search_request.filters.project:
+                conditions.append(
+                    qdrant_models.FieldCondition(
+                        key="project",
+                        match=qdrant_models.MatchValue(value=search_request.filters.project),
+                    )
+                )
+
+            # Filter by time range if specified
+            if filters.time_range:
+                conditions.append(
+                    qdrant_models.FieldCondition(
+                        key="timestamp",
+                        range=qdrant_models.Range(
+                            gte=filters.time_range.start,
+                            lte=filters.time_range.end,
+                        ),
+                    )
+                )
+
+            query_filter = qdrant_models.Filter(must=conditions) if conditions else None
+
             qdrant_results = await qdrant.client.query_points(
                 collection_name="engram_memory",
                 query=query_vector,
                 using="text_dense",
+                query_filter=query_filter,
                 limit=search_request.limit,
                 score_threshold=search_request.threshold,
             )

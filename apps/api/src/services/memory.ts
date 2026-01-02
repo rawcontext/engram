@@ -264,12 +264,13 @@ export class MemoryService {
 		rerankOptions?: RerankOptions,
 		tenantContext?: TenantContext,
 	): Promise<MemoryResult[]> {
-		// Note: Qdrant search filters use semantic types (thought/code/doc),
-		// not memory types (decision/context/insight/preference/fact).
-		// Memory type filtering is applied post-search via resultMap filtering.
-
-		// Build search filters for Qdrant
+		// Build search filters for Qdrant vector search
 		const searchFilters: Record<string, unknown> = {};
+
+		// Filter by memory type (decision/context/insight/preference/fact)
+		if (filters?.type) {
+			searchFilters.type = filters.type;
+		}
 
 		if (filters?.project) {
 			searchFilters.project = filters.project;
@@ -293,9 +294,10 @@ export class MemoryService {
 
 		try {
 			// Perform hybrid vector search via search service
+			// Type filtering is now applied at the Qdrant level for efficiency
 			const searchResponse = await this.searchClient.search({
 				text: query,
-				limit: limit * 2, // Oversample for better recall
+				limit: limit + 5, // Small oversample for graph fallback deduplication
 				threshold: 0.5,
 				strategy: "hybrid",
 				rerank: rerankOptions?.rerank ?? true,
@@ -478,7 +480,8 @@ export class MemoryService {
 				}
 			}
 
-			// Apply type filter post-merge (Qdrant doesn't filter by memory type)
+			// Type filtering is now done at Qdrant level, but apply post-filter as safety check
+			// (graph fallback results may need filtering if they came from keyword search)
 			let results = Array.from(resultMap.values());
 			if (filters?.type) {
 				results = results.filter((r) => r.type === filters.type);

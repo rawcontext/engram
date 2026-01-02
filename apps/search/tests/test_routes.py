@@ -972,3 +972,164 @@ class TestMultiQueryWithTimeRange:
         assert query_arg.filters.time_range is not None
         assert query_arg.filters.time_range.start == 1000000
         assert query_arg.filters.time_range.end == 2000000
+
+
+class TestMemoryCollectionTypeFiltering:
+    """Tests for type filtering in engram_memory collection."""
+
+    async def test_search_memory_with_type_filter(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test that type filter is applied to memory collection search."""
+        from qdrant_client.http import models
+
+        # Mock embedder
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        # Mock Qdrant query_points response
+        mock_point = MagicMock()
+        mock_point.id = "decision-memory-123"
+        mock_point.score = 0.95
+        mock_point.payload = {"content": "test decision", "type": "decision"}
+
+        mock_qdrant_result = MagicMock()
+        mock_qdrant_result.points = [mock_point]
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(return_value=mock_qdrant_result)
+
+        response = await client.post(
+            "/v1/search/query",
+            json={
+                "text": "architecture decisions",
+                "limit": 10,
+                "collection": "engram_memory",
+                "filters": {
+                    "type": "decision",
+                },
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+
+        # Verify query_points was called with type filter
+        mock_qdrant.client.query_points.assert_called_once()
+        call_args = mock_qdrant.client.query_points.call_args
+
+        # Check that query_filter was passed with type condition
+        query_filter = call_args.kwargs.get("query_filter")
+        assert query_filter is not None
+        assert isinstance(query_filter, models.Filter)
+        assert query_filter.must is not None
+
+        # Find the type filter condition
+        type_condition_found = False
+        for condition in query_filter.must:
+            if isinstance(condition, models.FieldCondition) and condition.key == "type":
+                assert condition.match.value == "decision"
+                type_condition_found = True
+
+        assert type_condition_found, "Type filter condition not found in query"
+
+    async def test_search_memory_with_vt_end_after_filter(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test that vt_end_after filter is applied to memory collection search."""
+        from qdrant_client.http import models
+
+        # Mock embedder
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        mock_qdrant_result = MagicMock()
+        mock_qdrant_result.points = []
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(return_value=mock_qdrant_result)
+
+        vt_end_timestamp = 1704067200000  # 2024-01-01
+
+        response = await client.post(
+            "/v1/search/query",
+            json={
+                "text": "test query",
+                "limit": 10,
+                "collection": "engram_memory",
+                "filters": {
+                    "vt_end_after": vt_end_timestamp,
+                },
+            },
+        )
+
+        assert response.status_code == 200
+
+        # Verify query_points was called with vt_end filter
+        mock_qdrant.client.query_points.assert_called_once()
+        call_args = mock_qdrant.client.query_points.call_args
+
+        query_filter = call_args.kwargs.get("query_filter")
+        assert query_filter is not None
+
+        # Find the vt_end filter condition
+        vt_end_condition_found = False
+        for condition in query_filter.must:
+            if isinstance(condition, models.FieldCondition) and condition.key == "vt_end":
+                assert condition.range.gt == vt_end_timestamp
+                vt_end_condition_found = True
+
+        assert vt_end_condition_found, "vt_end filter condition not found in query"
+
+    async def test_search_memory_with_all_filters(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test memory collection search with multiple filters combined."""
+        from qdrant_client.http import models
+
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        mock_qdrant_result = MagicMock()
+        mock_qdrant_result.points = []
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(return_value=mock_qdrant_result)
+
+        response = await client.post(
+            "/v1/search/query",
+            json={
+                "text": "architecture",
+                "limit": 10,
+                "collection": "engram_memory",
+                "filters": {
+                    "type": "decision",
+                    "project": "engram",
+                    "vt_end_after": 1704067200000,
+                    "time_range": {"start": 1704000000000, "end": 1705000000000},
+                },
+            },
+        )
+
+        assert response.status_code == 200
+
+        # Verify query was called with all filters
+        mock_qdrant.client.query_points.assert_called_once()
+        call_args = mock_qdrant.client.query_points.call_args
+
+        query_filter = call_args.kwargs.get("query_filter")
+        assert query_filter is not None
+
+        # Count the filter conditions (should have org_id, type, project, vt_end, timestamp)
+        condition_keys = set()
+        for condition in query_filter.must:
+            if isinstance(condition, models.FieldCondition):
+                condition_keys.add(condition.key)
+
+        # org_id is always added from auth context
+        assert "org_id" in condition_keys, "org_id filter missing"
+        assert "type" in condition_keys, "type filter missing"
+        assert "vt_end" in condition_keys, "vt_end filter missing"
+        assert "project" in condition_keys, "project filter missing"
+        assert "timestamp" in condition_keys, "timestamp filter missing"
