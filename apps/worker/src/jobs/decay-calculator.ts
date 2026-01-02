@@ -17,7 +17,7 @@
  * - Skip memories where |old_score - new_score| < 0.01 (no meaningful change)
  */
 
-import type { FalkorClient } from "@engram/storage";
+import type { FalkorClient, QueryParams } from "@engram/storage";
 import { calculateDecayScore, type DecayInput } from "../algorithms/decay";
 import { BaseJobConsumer } from "./base";
 
@@ -243,7 +243,7 @@ export class DecayCalculatorConsumer extends BaseJobConsumer<DecayCalculationJob
 				m.project AS project
 		`;
 
-		const params: Record<string, unknown> = { maxDate: MAX_DATE };
+		const params: QueryParams = { maxDate: MAX_DATE };
 		if (project) {
 			params.project = project;
 		}
