@@ -448,7 +448,19 @@ export class MemoryService {
 			}
 
 			// Sort by score and limit
-			return results.toSorted((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, limit);
+			const finalResults = results
+				.toSorted((a, b) => (b.score ?? 0) - (a.score ?? 0))
+				.slice(0, limit);
+
+			// Batch update access tracking for returned memories (non-blocking)
+			if (finalResults.length > 0) {
+				const memoryIds = finalResults.map((r) => r.id);
+				this.updateAccessTracking(memoryIds, tenantContext).catch((error) => {
+					this.logger.warn({ error, count: memoryIds.length }, "Failed to update access tracking");
+				});
+			}
+
+			return finalResults;
 		} catch (error) {
 			// Fallback to keyword search if vector search fails
 			this.logger.warn({ error }, "Vector search failed, falling back to keyword search");
@@ -539,8 +551,38 @@ export class MemoryService {
 				}
 			}
 
+			// Batch update access tracking for returned memories (non-blocking)
+			if (mappedResults.length > 0) {
+				const memoryIds = mappedResults.map((r) => r.id);
+				this.updateAccessTracking(memoryIds, tenantContext).catch((error) => {
+					this.logger.warn({ error, count: memoryIds.length }, "Failed to update access tracking");
+				});
+			}
+
 			return mappedResults;
 		}
+	}
+
+	/**
+	 * Update access tracking for a batch of memories.
+	 * Sets last_accessed to now and increments access_count.
+	 */
+	private async updateAccessTracking(
+		memoryIds: string[],
+		tenantContext?: TenantContext,
+	): Promise<void> {
+		if (memoryIds.length === 0) return;
+
+		const now = Date.now();
+		await this.tenantQuery(
+			`MATCH (m:Memory)
+			WHERE m.id IN $memoryIds AND m.vt_end > $now
+			SET m.last_accessed = $now, m.access_count = COALESCE(m.access_count, 0) + 1`,
+			{ memoryIds, now },
+			tenantContext,
+		);
+
+		this.logger.debug({ count: memoryIds.length }, "Updated access tracking for memories");
 	}
 
 	/**
