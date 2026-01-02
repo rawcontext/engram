@@ -5,6 +5,8 @@
  */
 
 export { BaseJobConsumer } from "./base";
-export { DecayCalculatorConsumer } from "./decay-calculator";
+export type { CommunityDetectionJob } from "./community-detector";
+export { CommunityDetectorConsumer } from "./community-detector";
 export type { DecayCalculationJob } from "./decay-calculator";
+export { DecayCalculatorConsumer } from "./decay-calculator";
 export { ExampleJobConsumer } from "./example-consumer";
