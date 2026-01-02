@@ -22,6 +22,36 @@ export const DEFAULT_OBSERVATORY_URL = "http://localhost:6178";
  */
 export const PRODUCTION_OBSERVATORY_URL = "https://observatory.engram.rawcontext.com";
 
+/**
+ * Entity extraction configuration schema.
+ */
+export const EntityConfigSchema = z.object({
+	/** Enable entity extraction during remember operations */
+	enabled: z.boolean().default(true),
+	/** Embedding similarity threshold for entity resolution (0-1) */
+	resolutionThreshold: z.number().min(0).max(1).default(0.9),
+	/** Maximum entities to extract per memory */
+	maxEntitiesPerMemory: z.number().int().min(1).default(10),
+	/** Enable extraction of inter-entity relationships */
+	detectRelationships: z.boolean().default(true),
+});
+
+export type EntityConfig = z.infer<typeof EntityConfigSchema>;
+
+/**
+ * Graph-aware retrieval configuration schema.
+ */
+export const GraphRetrievalConfigSchema = z.object({
+	/** Enable graph-aware retrieval during recall operations */
+	enabled: z.boolean().default(true),
+	/** Maximum BFS traversal depth for graph expansion */
+	maxDepth: z.number().int().min(1).max(5).default(2),
+	/** Weight for graph-based results vs vector results (0-1) */
+	graphWeight: z.number().min(0).max(1).default(0.3),
+});
+
+export type GraphRetrievalConfig = z.infer<typeof GraphRetrievalConfigSchema>;
+
 export const ConfigSchema = z.object({
 	// API URL - localhost = local mode, remote = cloud mode (OAuth required)
 	engramApiUrl: z.string().url(),
@@ -51,6 +81,12 @@ export const ConfigSchema = z.object({
 	// Session configuration
 	sessionTtlSeconds: z.number().int().min(60).default(3600),
 	maxSessionsPerUser: z.number().int().min(1).default(10),
+
+	// Entity extraction configuration
+	entityExtraction: EntityConfigSchema,
+
+	// Graph retrieval configuration
+	graphRetrieval: GraphRetrievalConfigSchema,
 
 	// Logging
 	logLevel: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
@@ -167,6 +203,36 @@ export function loadConfig(): Config {
 		maxSessionsPerUser: process.env.MAX_SESSIONS_PER_USER
 			? Number.parseInt(process.env.MAX_SESSIONS_PER_USER, 10)
 			: 10,
+		// Entity extraction configuration
+		entityExtraction: {
+			enabled:
+				process.env.ENTITY_EXTRACTION_ENABLED !== undefined
+					? process.env.ENTITY_EXTRACTION_ENABLED === "true"
+					: true,
+			resolutionThreshold: process.env.ENTITY_RESOLUTION_THRESHOLD
+				? Number.parseFloat(process.env.ENTITY_RESOLUTION_THRESHOLD)
+				: 0.9,
+			maxEntitiesPerMemory: process.env.ENTITY_MAX_PER_MEMORY
+				? Number.parseInt(process.env.ENTITY_MAX_PER_MEMORY, 10)
+				: 10,
+			detectRelationships:
+				process.env.ENTITY_DETECT_RELATIONSHIPS !== undefined
+					? process.env.ENTITY_DETECT_RELATIONSHIPS === "true"
+					: true,
+		},
+		// Graph retrieval configuration
+		graphRetrieval: {
+			enabled:
+				process.env.GRAPH_RETRIEVAL_ENABLED !== undefined
+					? process.env.GRAPH_RETRIEVAL_ENABLED === "true"
+					: true,
+			maxDepth: process.env.GRAPH_RETRIEVAL_MAX_DEPTH
+				? Number.parseInt(process.env.GRAPH_RETRIEVAL_MAX_DEPTH, 10)
+				: 2,
+			graphWeight: process.env.GRAPH_RETRIEVAL_WEIGHT
+				? Number.parseFloat(process.env.GRAPH_RETRIEVAL_WEIGHT)
+				: 0.3,
+		},
 		logLevel: process.env.LOG_LEVEL ?? "info",
 	};
 

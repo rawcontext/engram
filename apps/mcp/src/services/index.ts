@@ -4,6 +4,14 @@ export {
 	type ConflictDetectionResult,
 	ConflictRelation,
 } from "./conflict-detector";
+export {
+	type EntityExtractionResult,
+	EntityExtractorService,
+	EntityType,
+	type ExtractedEntity,
+	type ExtractedRelationship,
+	RelationshipType,
+} from "./entity-extractor";
 export type {
 	ContextItem,
 	CreateMemoryInput,

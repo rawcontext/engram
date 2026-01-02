@@ -300,3 +300,51 @@ export interface Memory {
 	ttStart: number;
 	ttEnd: number;
 }
+
+// =============================================================================
+// Entity Repository Types
+// =============================================================================
+
+export const CreateEntityInputSchema = z.object({
+	name: z.string(),
+	aliases: z.array(z.string()).default([]),
+	type: z.enum(["tool", "concept", "pattern", "file", "person", "project", "technology"]),
+	description: z.string().optional(),
+	mentionCount: z.number().int().default(1),
+	project: z.string().optional(),
+	embedding: z.array(z.number()).optional(),
+});
+
+export type CreateEntityInput = z.infer<typeof CreateEntityInputSchema>;
+
+export const UpdateEntityInputSchema = z.object({
+	name: z.string().optional(),
+	aliases: z.array(z.string()).optional(),
+	type: z
+		.enum(["tool", "concept", "pattern", "file", "person", "project", "technology"])
+		.optional(),
+	description: z.string().optional(),
+	mentionCount: z.number().int().optional(),
+	embedding: z.array(z.number()).optional(),
+});
+
+export type UpdateEntityInput = z.infer<typeof UpdateEntityInputSchema>;
+
+/**
+ * Entity entity returned from repository.
+ */
+export interface Entity {
+	id: string;
+	name: string;
+	aliases: string[];
+	type: string;
+	description?: string;
+	mentionCount: number;
+	project?: string;
+	embedding?: number[];
+	// Bitemporal
+	vtStart: number;
+	vtEnd: number;
+	ttStart: number;
+	ttEnd: number;
+}

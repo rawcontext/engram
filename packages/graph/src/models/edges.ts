@@ -98,6 +98,41 @@ export const SelfInvokesEdgeSchema = BaseEdgeSchema.extend({
 });
 
 // =============================================================================
+// Entity relationships
+// =============================================================================
+
+// Memory -[MENTIONS]-> Entity (entity references in memory content)
+export const MentionsEdgeSchema = BaseEdgeSchema.extend({
+	type: z.literal("MENTIONS"),
+	context: z.string(), // how entity appears in memory
+});
+
+// Entity -[RELATED_TO]-> Entity (semantic relationships between entities)
+export const RelatedToEdgeSchema = BaseEdgeSchema.extend({
+	type: z.literal("RELATED_TO"),
+	relationship: z.string(), // nature of relationship
+	strength: z.number().min(0).max(1), // confidence score
+});
+
+// Entity -[DEPENDS_ON]-> Entity (dependency relationships)
+export const DependsOnEdgeSchema = BaseEdgeSchema.extend({
+	type: z.literal("DEPENDS_ON"),
+	dependency_type: z.enum(["runtime", "build", "optional"]),
+});
+
+// Entity -[IMPLEMENTS]-> Entity (implementation relationships)
+export const ImplementsEdgeSchema = BaseEdgeSchema.extend({
+	type: z.literal("IMPLEMENTS"),
+	implementation_type: z.string(), // e.g., 'pattern', 'interface'
+});
+
+// Entity -[PART_OF]-> Entity (containment relationships)
+export const PartOfEdgeSchema = BaseEdgeSchema.extend({
+	type: z.literal("PART_OF"),
+	containment_type: z.string(), // e.g., 'package', 'module', 'project'
+});
+
+// =============================================================================
 // Edge type constants for use in queries
 // =============================================================================
 export const EdgeTypes = {
@@ -126,6 +161,13 @@ export const EdgeTypes = {
 
 	// MCP Self-Instrumentation
 	SELF_INVOKES: "SELF_INVOKES",
+
+	// Entity relationships
+	MENTIONS: "MENTIONS",
+	RELATED_TO: "RELATED_TO",
+	DEPENDS_ON: "DEPENDS_ON",
+	IMPLEMENTS: "IMPLEMENTS",
+	PART_OF: "PART_OF",
 } as const;
 
 // Union of all edge types
@@ -142,6 +184,11 @@ export const EdgeSchema = z.union([
 	SameAsEdgeSchema,
 	TriggersEdgeSchema,
 	SelfInvokesEdgeSchema,
+	MentionsEdgeSchema,
+	RelatedToEdgeSchema,
+	DependsOnEdgeSchema,
+	ImplementsEdgeSchema,
+	PartOfEdgeSchema,
 ]);
 
 export type Edge = z.infer<typeof EdgeSchema>;

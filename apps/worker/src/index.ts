@@ -21,6 +21,7 @@ import type { CronOptions } from "croner";
 import { Cron } from "croner";
 import { Hono } from "hono";
 import { type IntelligenceConfig, loadConfig } from "./config";
+import { metrics } from "./metrics";
 
 /**
  * Dependencies for Intelligence Worker construction.
@@ -84,20 +85,44 @@ export function initializeCronJobs(
 
 	// Session summarization job
 	const sessionSummary = new Cron(config.sessionSummaryCron, cronOptions, async () => {
-		logger.info("Starting session summarization job");
-		// TODO: Implement session summarization logic
+		const timer = metrics.recordJobStart("session-summary");
+		try {
+			logger.info("Starting session summarization job");
+			// TODO: Implement session summarization logic
+			timer.end("success");
+		} catch (err) {
+			logger.error({ err }, "Session summarization job failed");
+			timer.end("error");
+			throw err;
+		}
 	});
 
 	// Graph compaction job
 	const graphCompaction = new Cron(config.graphCompactionCron, cronOptions, async () => {
-		logger.info("Starting graph compaction job");
-		// TODO: Implement graph compaction logic
+		const timer = metrics.recordJobStart("graph-compaction");
+		try {
+			logger.info("Starting graph compaction job");
+			// TODO: Implement graph compaction logic
+			timer.end("success");
+		} catch (err) {
+			logger.error({ err }, "Graph compaction job failed");
+			timer.end("error");
+			throw err;
+		}
 	});
 
 	// Insight extraction job
 	const insightExtraction = new Cron(config.insightExtractionCron, cronOptions, async () => {
-		logger.info("Starting insight extraction job");
-		// TODO: Implement insight extraction logic
+		const timer = metrics.recordJobStart("insight-extraction");
+		try {
+			logger.info("Starting insight extraction job");
+			// TODO: Implement insight extraction logic
+			timer.end("success");
+		} catch (err) {
+			logger.error({ err }, "Insight extraction job failed");
+			timer.end("error");
+			throw err;
+		}
 	});
 
 	logger.info(
@@ -128,10 +153,10 @@ export function createHttpServer(config: IntelligenceConfig, logger: Logger): Ho
 		return c.json({ status: "ready" });
 	});
 
-	// Metrics endpoint (placeholder)
-	app.get("/metrics", (c) => {
-		// TODO: Implement Prometheus metrics
-		return c.text("# Metrics placeholder\n");
+	// Metrics endpoint - Prometheus scraping
+	app.get("/metrics", async (c) => {
+		const metricsText = await metrics.getMetrics();
+		return c.text(metricsText);
 	});
 
 	// Manual trigger endpoints (placeholders)
