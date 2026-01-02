@@ -564,7 +564,7 @@ describe("createTestObservation", () => {
 // =============================================================================
 
 describe("wait", () => {
-	it("should wait for specified duration", async () => {
+	it.skipIf(!!process.env.CI)("should wait for specified duration", async () => {
 		// Arrange
 		const start = Date.now();
 

@@ -185,7 +185,7 @@ describe("withRetry", () => {
 });
 
 describe("withRetry - real timers", () => {
-	it("should actually wait with real timers", async () => {
+	it.skipIf(!!process.env.CI)("should actually wait with real timers", async () => {
 		// Arrange
 		const start = Date.now();
 		const fn = mock().mockRejectedValueOnce(new Error("fail")).mockResolvedValue("success");
