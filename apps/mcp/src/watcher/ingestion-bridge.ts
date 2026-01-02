@@ -131,7 +131,7 @@ export class WatcherIngestionBridge {
 			};
 
 			if (this.authToken) {
-				headers["Authorization"] = `Bearer ${this.authToken}`;
+				headers.Authorization = `Bearer ${this.authToken}`;
 			}
 
 			const response = await fetch(`${this.ingestionUrl}/ingest`, {
