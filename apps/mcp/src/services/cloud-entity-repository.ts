@@ -61,7 +61,7 @@ export class CloudEntityRepository implements EntityRepository {
 		cypher += ` RETURN e ORDER BY e.mention_count DESC`;
 
 		const results = await this.cloudClient.query<Entity>(cypher, { type, project }, this.tenant);
-		return results.map((r) => this.mapEntity(r)!).filter(Boolean);
+		return results.map((r) => this.mapEntity(r)).filter((e): e is Entity => e !== null);
 	}
 
 	async findByAlias(alias: string, project?: string): Promise<Entity | null> {
@@ -282,7 +282,7 @@ export class CloudEntityRepository implements EntityRepository {
 			RETURN DISTINCT related
 		`;
 		const results = await this.cloudClient.query<Entity>(cypher, { id }, this.tenant);
-		return results.map((r) => this.mapEntity(r)!).filter(Boolean);
+		return results.map((r) => this.mapEntity(r)).filter((e): e is Entity => e !== null);
 	}
 
 	async findMentioningMemories(id: string): Promise<Memory[]> {
@@ -302,7 +302,7 @@ export class CloudEntityRepository implements EntityRepository {
 			RETURN e ORDER BY e.mention_count DESC
 		`;
 		const results = await this.cloudClient.query<Entity>(cypher, { project }, this.tenant);
-		return results.map((r) => this.mapEntity(r)!).filter(Boolean);
+		return results.map((r) => this.mapEntity(r)).filter((e): e is Entity => e !== null);
 	}
 
 	// =============================================================================
