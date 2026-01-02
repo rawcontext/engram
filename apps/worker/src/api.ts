@@ -14,6 +14,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { IntelligenceConfig } from "./config";
 import type { WorkerMetrics } from "./metrics";
+import type { Scheduler } from "./scheduler";
 
 /**
  * Middleware for OAuth authentication.
@@ -90,6 +91,8 @@ async function authMiddleware(
  * Endpoints:
  * - GET /health - Health check (public)
  * - GET /metrics - Prometheus metrics (public)
+ * - GET /activity/:project - Get activity stats for a project (admin:read)
+ * - POST /activity/:project/reset - Reset activity counters (admin:write)
  * - POST /jobs/decay - Trigger decay calculation (admin:write)
  * - POST /jobs/community-detection - Trigger community detection (admin:write)
  * - POST /jobs/conflict-scan - Trigger conflict scanning (admin:write)
@@ -99,6 +102,7 @@ export function createApi(
 	nats: NatsClient,
 	metrics: WorkerMetrics,
 	logger: Logger,
+	scheduler?: Scheduler,
 ): Hono {
 	const app = new Hono();
 
@@ -124,6 +128,125 @@ export function createApi(
 		return c.text(metricsText, 200, {
 			"Content-Type": "text/plain; version=0.0.4",
 		});
+	});
+
+	// =============================================================================
+	// Activity Tracking Endpoints
+	// =============================================================================
+
+	// GET /activity/:project - Get activity stats for a project
+	app.get("/activity/:project", async (c) => {
+		const authResult = await authMiddleware(c, () => {}, logger, ["admin:read"]);
+		if (authResult) return authResult;
+
+		const project = c.req.param("project");
+
+		if (!scheduler?.isActivityTrackingEnabled()) {
+			return c.json(
+				{
+					success: false,
+					error: {
+						code: "ACTIVITY_TRACKING_DISABLED",
+						message: "Activity-based scheduling is not enabled",
+					},
+				},
+				400,
+			);
+		}
+
+		try {
+			const stats = await scheduler.getActivityStats(project);
+
+			if (!stats) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "STATS_UNAVAILABLE",
+							message: "Activity stats unavailable",
+						},
+					},
+					500,
+				);
+			}
+
+			return c.json({
+				success: true,
+				data: {
+					project,
+					entityCount: stats.entityCount,
+					memoryCount: stats.memoryCount,
+					lastTriggerTime: stats.lastTriggerTime,
+					lastTriggerTimeIso: stats.lastTriggerTime
+						? new Date(stats.lastTriggerTime).toISOString()
+						: null,
+					thresholds: stats.thresholds,
+				},
+			});
+		} catch (error) {
+			logger.error({ error, project }, "Failed to get activity stats");
+
+			return c.json(
+				{
+					success: false,
+					error: {
+						code: "STATS_ERROR",
+						message: "Failed to get activity stats",
+						details: error instanceof Error ? error.message : String(error),
+					},
+				},
+				500,
+			);
+		}
+	});
+
+	// POST /activity/:project/reset - Reset activity counters for a project
+	app.post("/activity/:project/reset", async (c) => {
+		const authResult = await authMiddleware(c, () => {}, logger, ["admin:write"]);
+		if (authResult) return authResult;
+
+		const project = c.req.param("project");
+
+		if (!scheduler?.isActivityTrackingEnabled()) {
+			return c.json(
+				{
+					success: false,
+					error: {
+						code: "ACTIVITY_TRACKING_DISABLED",
+						message: "Activity-based scheduling is not enabled",
+					},
+				},
+				400,
+			);
+		}
+
+		try {
+			await scheduler.resetActivityCounters(project);
+
+			logger.info({ project }, "Activity counters reset via API");
+
+			return c.json({
+				success: true,
+				data: {
+					project,
+					message: "Activity counters reset successfully",
+				},
+			});
+		} catch (error) {
+			logger.error({ error, project }, "Failed to reset activity counters");
+
+			return c.json(
+				{
+					success: false,
+					error: {
+						code: "RESET_ERROR",
+						message: "Failed to reset activity counters",
+						details: error instanceof Error ? error.message : String(error),
+					},
+				},
+				500,
+			);
+		}
 	});
 
 	// =============================================================================

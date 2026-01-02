@@ -3,11 +3,13 @@
  *
  * Cron job scheduling using Croner library with NATS integration.
  * Manages scheduled intelligence tasks and publishes triggers to NATS.
+ * Supports activity-based scheduling for adaptive job triggering.
  */
 
 import type { Logger } from "@engram/logger";
 import type { NatsClient } from "@engram/storage";
 import { Cron } from "croner";
+import { type ActivityThresholds, ActivityTracker } from "./activity-tracker";
 import type { IntelligenceConfig } from "./config";
 
 /**
@@ -31,7 +33,7 @@ export interface JobNextRun {
 }
 
 /**
- * Scheduler manages cron jobs and publishes triggers to NATS
+ * Scheduler manages cron jobs, activity-based triggers, and publishes to NATS
  */
 export class Scheduler {
 	private jobs: Map<string, Cron> = new Map();
@@ -39,6 +41,7 @@ export class Scheduler {
 	private logger: Logger;
 	private natsClient: NatsClient;
 	private config: IntelligenceConfig;
+	private activityTracker: ActivityTracker | null = null;
 
 	constructor(config: IntelligenceConfig, natsClient: NatsClient, logger: Logger) {
 		this.config = config;
@@ -66,19 +69,50 @@ export class Scheduler {
 				description: "Scan for conflicting memories and create ConflictReport nodes for review",
 			},
 		];
+
+		// Initialize activity tracker if enabled
+		if (config.enableActivityScheduling) {
+			const thresholds: ActivityThresholds = {
+				entityCreationThreshold: config.activityEntityThreshold,
+				memoryCreationThreshold: config.activityMemoryThreshold,
+				cooldownMinutes: config.activityCooldownMinutes,
+			};
+
+			this.activityTracker = new ActivityTracker(
+				logger,
+				async (project, reason) => {
+					await this.triggerCommunityDetection(project, reason);
+				},
+				thresholds,
+			);
+		}
 	}
 
 	/**
-	 * Start all scheduled cron jobs
+	 * Start all scheduled cron jobs and activity tracking
 	 */
 	async start(): Promise<void> {
+		// Connect to NATS if not already connected
+		await this.natsClient.connect();
+
+		// Initialize activity tracker connection
+		if (this.activityTracker) {
+			const nc = await this.natsClient.getConnection();
+			await this.activityTracker.connect(nc);
+			this.logger.info(
+				{
+					entityThreshold: this.config.activityEntityThreshold,
+					memoryThreshold: this.config.activityMemoryThreshold,
+					cooldownMinutes: this.config.activityCooldownMinutes,
+				},
+				"Activity-based scheduling enabled",
+			);
+		}
+
 		if (!this.config.enableCron) {
 			this.logger.info("Cron jobs disabled via configuration");
 			return;
 		}
-
-		// Connect to NATS if not already connected
-		await this.natsClient.connect();
 
 		for (const jobConfig of this.schedules) {
 			const job = new Cron(
@@ -114,7 +148,7 @@ export class Scheduler {
 	}
 
 	/**
-	 * Stop all running cron jobs
+	 * Stop all running cron jobs and activity tracking
 	 */
 	async stop(): Promise<void> {
 		this.logger.info({ jobCount: this.jobs.size }, "Stopping scheduler");
@@ -125,6 +159,13 @@ export class Scheduler {
 		}
 
 		this.jobs.clear();
+
+		// Disconnect activity tracker
+		if (this.activityTracker) {
+			await this.activityTracker.disconnect();
+			this.logger.debug("Activity tracker disconnected");
+		}
+
 		this.logger.info("Scheduler stopped");
 	}
 
@@ -197,5 +238,91 @@ export class Scheduler {
 				`Failed to publish job trigger`,
 			);
 		}
+	}
+
+	/**
+	 * Trigger community detection for a specific project.
+	 * Called by activity tracker when thresholds are exceeded.
+	 */
+	private async triggerCommunityDetection(project: string, reason: string): Promise<void> {
+		const startTime = Date.now();
+		const executionId = `community-detection-activity-${project}-${startTime}`;
+
+		this.logger.info(
+			{
+				project,
+				reason,
+				executionId,
+				triggeredBy: "activity",
+			},
+			"Triggering community detection due to activity threshold",
+		);
+
+		await this.natsClient.sendEvent("engram.jobs.community-detection", executionId, {
+			job: "community-detection",
+			executionId,
+			timestamp: startTime,
+			triggeredBy: "activity",
+			project,
+			reason,
+		});
+	}
+
+	/**
+	 * Track entity creation for activity-based scheduling.
+	 * Call this when new entities are created in the graph.
+	 * @param project - Project identifier (e.g., git remote or working directory)
+	 * @param count - Number of entities created (default: 1)
+	 */
+	async trackEntityCreation(project: string, count = 1): Promise<void> {
+		if (!this.activityTracker) {
+			return;
+		}
+		await this.activityTracker.trackEntityCreation(project, count);
+	}
+
+	/**
+	 * Track memory creation for activity-based scheduling.
+	 * Call this when new memories are created.
+	 * @param project - Project identifier
+	 * @param count - Number of memories created (default: 1)
+	 */
+	async trackMemoryCreation(project: string, count = 1): Promise<void> {
+		if (!this.activityTracker) {
+			return;
+		}
+		await this.activityTracker.trackMemoryCreation(project, count);
+	}
+
+	/**
+	 * Get activity statistics for a project (for monitoring/debugging)
+	 */
+	async getActivityStats(project: string): Promise<{
+		entityCount: number;
+		memoryCount: number;
+		lastTriggerTime: number;
+		thresholds: ActivityThresholds;
+	} | null> {
+		if (!this.activityTracker) {
+			return null;
+		}
+		return this.activityTracker.getStats(project);
+	}
+
+	/**
+	 * Reset activity counters for a project (e.g., after manual community detection)
+	 */
+	async resetActivityCounters(project: string): Promise<void> {
+		if (!this.activityTracker) {
+			return;
+		}
+		await this.activityTracker.resetCounters(project);
+	}
+
+	/**
+	 * Check if activity-based scheduling is enabled
+	 */
+	isActivityTrackingEnabled(): boolean {
+		return this.activityTracker !== null;
 	}
 }
