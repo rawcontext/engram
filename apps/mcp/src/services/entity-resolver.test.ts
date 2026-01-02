@@ -5,6 +5,18 @@ import type { EntityEmbeddingService } from "./entity-embedding";
 import type { ExtractedEntity } from "./entity-extractor";
 import { EntityResolverService } from "./entity-resolver";
 
+/**
+ * Creates a mock Gemini API response with proper Response object
+ * The AI SDK requires a proper Response with headers.forEach()
+ */
+function createMockGeminiResponse(geminiResponseData: object): Response {
+	const body = JSON.stringify(geminiResponseData);
+	return new Response(body, {
+		status: 200,
+		headers: { "Content-Type": "application/json" },
+	});
+}
+
 // =============================================================================
 // Test Fixtures
 // =============================================================================
@@ -446,13 +458,11 @@ describe("EntityResolverService", () => {
 			// Sampling unavailable
 			spyOn(mockServer.server, "getClientCapabilities").mockReturnValue({ sampling: false });
 
-			// Mock Gemini API response
-			global.fetch = mock(async () => ({
-				ok: true,
-				json: async () => ({
-					candidates: [{ content: { parts: [{ text: "YES" }] } }],
-				}),
-			})) as any;
+			// Mock Gemini API response with proper Response object
+			const geminiResponse = {
+				candidates: [{ content: { parts: [{ text: "YES" }] } }],
+			};
+			global.fetch = mock(async () => createMockGeminiResponse(geminiResponse)) as any;
 
 			// Service with Gemini API key
 			const serviceWithGemini = new EntityResolverService(
@@ -506,77 +516,79 @@ describe("EntityResolverService", () => {
 			expect(createSpy).toHaveBeenCalled();
 		});
 
-		it("should handle LLM confirmation failure by creating new entity", async () => {
-			// Use vectors that give moderate similarity (between 0.9 and 0.95)
-			const embedding1 = [1, 0, 0, 0];
-			const embedding2 = [0.92, 0.39, 0, 0]; // ~0.92 similarity
-			const existingEntity = createMockEntity({
-				name: "PostgreSQL",
-				embedding: embedding2,
-			});
+		it(
+			"should handle LLM confirmation failure by creating new entity",
+			async () => {
+				// Use vectors that give moderate similarity (between 0.9 and 0.95)
+				const embedding1 = [1, 0, 0, 0];
+				const embedding2 = [0.92, 0.39, 0, 0]; // ~0.92 similarity
+				const existingEntity = createMockEntity({
+					name: "PostgreSQL",
+					embedding: embedding2,
+				});
 
-			// Mock fetch to prevent real Gemini API calls
-			const originalFetch = global.fetch;
-			global.fetch = mock(async () => ({
-				ok: false,
-				status: 500,
-				text: async () => "Internal Server Error",
-			})) as any;
+				// Mock fetch to throw to prevent real Gemini API calls
+				const originalFetch = global.fetch;
+				global.fetch = mock(async () => {
+					throw new Error("Network error");
+				}) as any;
 
-			// Create completely fresh mocks for this test
-			const freshRepo: EntityRepository = {
-				findById: mock(async () => null),
-				findByName: mock(async () => null),
-				findByType: mock(async () => []),
-				findByAlias: mock(async () => null),
-				create: mock(async () => createMockEntity({ id: "new-entity", name: "Test" })),
-				update: mock(async () => existingEntity),
-				delete: mock(async () => {}),
-				incrementMentionCount: mock(async () => {}),
-				findByEmbedding: mock(async () => [existingEntity]),
-				findSimilarEntities: mock(async () => []),
-				createMentionsEdge: mock(async () => {}),
-				createRelationship: mock(async () => {}),
-				findRelatedEntities: mock(async () => []),
-				findMentioningMemories: mock(async () => []),
-				findByProject: mock(async () => []),
-			};
+				// Create completely fresh mocks for this test
+				const freshRepo: EntityRepository = {
+					findById: mock(async () => null),
+					findByName: mock(async () => null),
+					findByType: mock(async () => []),
+					findByAlias: mock(async () => null),
+					create: mock(async () => createMockEntity({ id: "new-entity", name: "Test" })),
+					update: mock(async () => existingEntity),
+					delete: mock(async () => {}),
+					incrementMentionCount: mock(async () => {}),
+					findByEmbedding: mock(async () => [existingEntity]),
+					findSimilarEntities: mock(async () => []),
+					createMentionsEdge: mock(async () => {}),
+					createRelationship: mock(async () => {}),
+					findRelatedEntities: mock(async () => []),
+					findMentioningMemories: mock(async () => []),
+					findByProject: mock(async () => []),
+				};
 
-			const freshEmbedService = {
-				embed: mock(async () => embedding1),
-				embedBatch: mock(async () => [embedding1]),
-			} as unknown as EntityEmbeddingService;
+				const freshEmbedService = {
+					embed: mock(async () => embedding1),
+					embedBatch: mock(async () => [embedding1]),
+				} as unknown as EntityEmbeddingService;
 
-			const freshServer = {
-				server: {
-					getClientCapabilities: mock(() => ({ sampling: true })),
-					createMessage: mock(async () => {
-						throw new Error("Sampling failed");
-					}),
-				},
-			} as unknown as McpServer;
+				const freshServer = {
+					server: {
+						getClientCapabilities: mock(() => ({ sampling: true })),
+						createMessage: mock(async () => {
+							throw new Error("Sampling failed");
+						}),
+					},
+				} as unknown as McpServer;
 
-			// Create fresh service with fresh mocks
-			const freshService = new EntityResolverService(
-				freshRepo,
-				freshEmbedService,
-				freshServer,
-				mockLogger as any,
-			);
+				// Create fresh service with fresh mocks
+				const freshService = new EntityResolverService(
+					freshRepo,
+					freshEmbedService,
+					freshServer,
+					mockLogger as any,
+				);
 
-			try {
-				const extracted = createExtractedEntity({ name: "Test" });
-				const result = await freshService.resolve(extracted);
+				try {
+					const extracted = createExtractedEntity({ name: "Test" });
+					const result = await freshService.resolve(extracted);
 
-				// When sampling fails, tryLlmConfirmWithSampling catches and returns null.
-				// Falls back to Gemini which also fails, so confirmation returns false.
-				// This should result in creating a new entity.
-				expect(result.isNew).toBe(true);
-				expect(result.resolutionMethod).toBe("created");
-			} finally {
-				global.fetch = originalFetch;
-			}
-		});
+					// When sampling fails, tryLlmConfirmWithSampling catches and returns null.
+					// Falls back to Gemini which also fails, so confirmation returns false.
+					// This should result in creating a new entity.
+					expect(result.isNew).toBe(true);
+					expect(result.resolutionMethod).toBe("created");
+				} finally {
+					global.fetch = originalFetch;
+				}
+			},
+			{ timeout: 15000 },
+		);
 
 		it("should parse YES/NO responses correctly", async () => {
 			const embedding1 = [1, 0, 0, 0];
@@ -1051,71 +1063,75 @@ describe("EntityResolverService", () => {
 			expect(result.similarityScore).toBe(1);
 		});
 
-		it("should return 0 for orthogonal vectors", async () => {
-			const embedding1 = [1, 0, 0];
-			const embedding2 = [0, 1, 0]; // Orthogonal = similarity 0
-			const existingEntity = createMockEntity({ embedding: embedding2 });
+		it(
+			"should return 0 for orthogonal vectors",
+			async () => {
+				const embedding1 = [1, 0, 0];
+				const embedding2 = [0, 1, 0]; // Orthogonal = similarity 0
+				const existingEntity = createMockEntity({ embedding: embedding2 });
 
-			// Mock fetch to prevent real Gemini API calls (GEMINI_API_KEY may be set in env)
-			const originalFetch = global.fetch;
-			global.fetch = mock(async () => ({
-				ok: false,
-				status: 500,
-				text: async () => "Internal Server Error",
-			})) as any;
+				// Mock fetch to throw to prevent real Gemini API calls (GEMINI_API_KEY may be set in env)
+				const originalFetch = global.fetch;
+				global.fetch = mock(async () => {
+					throw new Error("Network error");
+				}) as any;
 
-			// Directly replace mock functions
-			mockEntityRepo.findByName = mock(async () => null);
-			mockEntityRepo.findByAlias = mock(async () => null);
-			mockEntityRepo.findByEmbedding = mock(async () => [existingEntity]);
-			mockEmbeddingService.embed = mock(async () => embedding1) as any;
-			mockEntityRepo.create = mock(async () => createMockEntity({ id: "new-created" }));
+				// Directly replace mock functions
+				mockEntityRepo.findByName = mock(async () => null);
+				mockEntityRepo.findByAlias = mock(async () => null);
+				mockEntityRepo.findByEmbedding = mock(async () => [existingEntity]);
+				mockEmbeddingService.embed = mock(async () => embedding1) as any;
+				mockEntityRepo.create = mock(async () => createMockEntity({ id: "new-created" }));
 
-			try {
-				const result = await service.resolve(createExtractedEntity());
+				try {
+					const result = await service.resolve(createExtractedEntity());
 
-				// Orthogonal vectors have similarity 0, which is below threshold 0.9.
-				// Implementation falls back to threshold score 0.9, then requires LLM confirmation.
-				// Gemini API call fails, so confirmation returns false, creating new entity.
-				expect(result.isNew).toBe(true);
-				expect(result.resolutionMethod).toBe("created");
-			} finally {
-				global.fetch = originalFetch;
-			}
-		});
+					// Orthogonal vectors have similarity 0, which is below threshold 0.9.
+					// Implementation falls back to threshold score 0.9, then requires LLM confirmation.
+					// Gemini API call fails, so confirmation returns false, creating new entity.
+					expect(result.isNew).toBe(true);
+					expect(result.resolutionMethod).toBe("created");
+				} finally {
+					global.fetch = originalFetch;
+				}
+			},
+			{ timeout: 15000 },
+		);
 
-		it("should handle zero vectors gracefully", async () => {
-			const embedding1 = [0, 0, 0]; // Zero vector
-			const embedding2 = [1, 0, 0];
-			const existingEntity = createMockEntity({ embedding: embedding2 });
+		it(
+			"should handle zero vectors gracefully",
+			async () => {
+				const embedding1 = [0, 0, 0]; // Zero vector
+				const embedding2 = [1, 0, 0];
+				const existingEntity = createMockEntity({ embedding: embedding2 });
 
-			// Mock fetch to prevent real Gemini API calls
-			const originalFetch = global.fetch;
-			global.fetch = mock(async () => ({
-				ok: false,
-				status: 500,
-				text: async () => "Internal Server Error",
-			})) as any;
+				// Mock fetch to throw to prevent real Gemini API calls
+				const originalFetch = global.fetch;
+				global.fetch = mock(async () => {
+					throw new Error("Network error");
+				}) as any;
 
-			// Directly replace mock functions
-			mockEntityRepo.findByName = mock(async () => null);
-			mockEntityRepo.findByAlias = mock(async () => null);
-			mockEntityRepo.findByEmbedding = mock(async () => [existingEntity]);
-			mockEmbeddingService.embed = mock(async () => embedding1) as any;
-			mockEntityRepo.create = mock(async () => createMockEntity({ id: "new-created" }));
+				// Directly replace mock functions
+				mockEntityRepo.findByName = mock(async () => null);
+				mockEntityRepo.findByAlias = mock(async () => null);
+				mockEntityRepo.findByEmbedding = mock(async () => [existingEntity]);
+				mockEmbeddingService.embed = mock(async () => embedding1) as any;
+				mockEntityRepo.create = mock(async () => createMockEntity({ id: "new-created" }));
 
-			try {
-				const result = await service.resolve(createExtractedEntity());
+				try {
+					const result = await service.resolve(createExtractedEntity());
 
-				// Zero vector has undefined similarity (returns 0 in implementation).
-				// Falls back to threshold score 0.9, requires LLM confirmation.
-				// Gemini API call fails, so confirmation returns false, creating new entity.
-				expect(result.isNew).toBe(true);
-				expect(result.resolutionMethod).toBe("created");
-			} finally {
-				global.fetch = originalFetch;
-			}
-		});
+					// Zero vector has undefined similarity (returns 0 in implementation).
+					// Falls back to threshold score 0.9, requires LLM confirmation.
+					// Gemini API call fails, so confirmation returns false, creating new entity.
+					expect(result.isNew).toBe(true);
+					expect(result.resolutionMethod).toBe("created");
+				} finally {
+					global.fetch = originalFetch;
+				}
+			},
+			{ timeout: 15000 },
+		);
 	});
 
 	// ===========================================================================

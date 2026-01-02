@@ -11,8 +11,12 @@ describe("ConflictDetectorService", () => {
 	let service: ConflictDetectorService;
 	let mockServer: McpServer;
 	let mockLogger: Logger;
+	let originalFetch: typeof global.fetch;
 
 	beforeEach(() => {
+		// Save original fetch to restore after tests that mock it
+		originalFetch = global.fetch;
+
 		// Mock MCP server
 		mockServer = {
 			server: {
@@ -33,8 +37,13 @@ describe("ConflictDetectorService", () => {
 	});
 
 	afterEach(() => {
-		mock.restore();
+		// Restore original fetch to not affect other test files
+		global.fetch = originalFetch;
 	});
+
+	// Note: We don't call mock.restore() because it affects module-level mocks
+	// from the preload and can break parallel test files. Each beforeEach creates
+	// fresh mocks, so cleanup isn't needed for test isolation within this file.
 
 	describe("parseResponse", () => {
 		const newMemory = { content: "User prefers tabs", type: "preference" };

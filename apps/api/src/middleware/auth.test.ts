@@ -60,9 +60,9 @@ describe("OAuth Authentication Middleware", () => {
 		} as OAuthTokenRepository;
 	});
 
-	afterEach(() => {
-		mock.restore();
-	});
+	// Note: We don't call mock.restore() because it affects module-level mocks
+	// from the preload and can break parallel test files. Each beforeEach creates
+	// fresh mocks, so cleanup isn't needed for test isolation within this file.
 
 	describe("User Token (egm_oauth_*) Validation", () => {
 		it("should accept valid user token with correct scopes", async () => {

@@ -10,6 +10,40 @@ import { registerRecallTool } from "./recall";
 import { registerRememberTool } from "./remember";
 
 /**
+ * Creates a mock Gemini API response with proper Response object
+ * The AI SDK requires a proper Response with headers
+ */
+function createMockGeminiResponse(
+	relation: string,
+	confidence: number,
+	reasoning: string,
+	suggestedAction: string,
+): Response {
+	const body = JSON.stringify({
+		candidates: [
+			{
+				content: {
+					parts: [
+						{
+							text: JSON.stringify({
+								relation,
+								confidence,
+								reasoning,
+								suggestedAction,
+							}),
+						},
+					],
+				},
+			},
+		],
+	});
+	return new Response(body, {
+		status: 200,
+		headers: { "Content-Type": "application/json" },
+	});
+}
+
+/**
  * Integration tests for end-to-end conflict detection flow
  *
  * Tests the complete conflict detection pipeline:
@@ -26,6 +60,7 @@ describe("Conflict Detection Integration", () => {
 	let conflictDetector: ConflictDetectorService;
 	let elicitation: ElicitationService;
 	let conflictAudit: ConflictAuditService;
+	let originalFetch: typeof global.fetch;
 
 	// Tool handlers captured from registerTool calls
 	let rememberHandler: (args: any) => Promise<any>;
@@ -55,6 +90,9 @@ describe("Conflict Detection Integration", () => {
 	});
 
 	beforeEach(() => {
+		// Save original fetch to restore after tests
+		originalFetch = global.fetch;
+
 		// Reset storage
 		memoryStorage = new Map();
 		invalidatedMemories = new Set();
@@ -205,8 +243,13 @@ describe("Conflict Detection Integration", () => {
 	});
 
 	afterEach(() => {
-		mock.restore();
+		// Restore original fetch to not affect other test files
+		global.fetch = originalFetch;
 	});
+
+	// Note: We don't call mock.restore() because it affects module-level mocks
+	// from the preload and can break parallel test files. Each beforeEach creates
+	// fresh mocks, so cleanup isn't needed for test isolation within this file.
 
 	describe("Preference conflict scenario: dark mode → light mode", () => {
 		it("should invalidate old preference when user confirms via elicitation", async () => {
@@ -215,28 +258,14 @@ describe("Conflict Detection Integration", () => {
 
 			// Mock Gemini to return SUPERSEDES for preference conflict
 			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "supersedes",
-													confidence: 0.95,
-													reasoning: "User changed theme preference from dark to light mode",
-													suggestedAction: "invalidate_old",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+				Promise.resolve(
+					createMockGeminiResponse(
+						"supersedes",
+						0.95,
+						"User changed theme preference from dark to light mode",
+						"invalidate_old",
+					),
+				),
 			);
 			global.fetch = mockFetch as any;
 
@@ -279,28 +308,9 @@ describe("Conflict Detection Integration", () => {
 
 			// Mock Gemini to return SUPERSEDES
 			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "supersedes",
-													confidence: 0.9,
-													reasoning: "Theme preference update",
-													suggestedAction: "invalidate_old",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+				Promise.resolve(
+					createMockGeminiResponse("supersedes", 0.9, "Theme preference update", "invalidate_old"),
+				),
 			);
 			global.fetch = mockFetch as any;
 
@@ -336,28 +346,9 @@ describe("Conflict Detection Integration", () => {
 
 			// Mock Gemini to return SUPERSEDES
 			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "supersedes",
-													confidence: 0.95,
-													reasoning: "Theme preference update",
-													suggestedAction: "invalidate_old",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+				Promise.resolve(
+					createMockGeminiResponse("supersedes", 0.95, "Theme preference update", "invalidate_old"),
+				),
 			);
 			global.fetch = mockFetch as any;
 
@@ -445,28 +436,9 @@ describe("Conflict Detection Integration", () => {
 		it("should skip duplicate memories and return existing ID", async () => {
 			// Mock Gemini to return DUPLICATE
 			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "duplicate",
-													confidence: 0.98,
-													reasoning: "Semantically identical content",
-													suggestedAction: "skip_new",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+				Promise.resolve(
+					createMockGeminiResponse("duplicate", 0.98, "Semantically identical content", "skip_new"),
+				),
 			);
 			global.fetch = mockFetch as any;
 
@@ -496,28 +468,14 @@ describe("Conflict Detection Integration", () => {
 
 			// Mock Gemini to return CONTRADICTION
 			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "contradiction",
-													confidence: 0.97,
-													reasoning: "Enabled vs disabled are mutually exclusive",
-													suggestedAction: "invalidate_old",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+				Promise.resolve(
+					createMockGeminiResponse(
+						"contradiction",
+						0.97,
+						"Enabled vs disabled are mutually exclusive",
+						"invalidate_old",
+					),
+				),
 			);
 			global.fetch = mockFetch as any;
 
@@ -551,28 +509,14 @@ describe("Conflict Detection Integration", () => {
 		it("should keep both independent memories", async () => {
 			// Mock Gemini to return INDEPENDENT
 			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "independent",
-													confidence: 0.95,
-													reasoning: "Facts are about unrelated topics",
-													suggestedAction: "keep_both",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+				Promise.resolve(
+					createMockGeminiResponse(
+						"independent",
+						0.95,
+						"Facts are about unrelated topics",
+						"keep_both",
+					),
+				),
 			);
 			global.fetch = mockFetch as any;
 
@@ -600,28 +544,14 @@ describe("Conflict Detection Integration", () => {
 		it("should keep both augmenting memories (complementary info)", async () => {
 			// Mock Gemini to return AUGMENTS
 			const mockFetch = mock(() =>
-				Promise.resolve({
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							candidates: [
-								{
-									content: {
-										parts: [
-											{
-												text: JSON.stringify({
-													relation: "augments",
-													confidence: 0.88,
-													reasoning: "New info complements existing database fact",
-													suggestedAction: "keep_both",
-												}),
-											},
-										],
-									},
-								},
-							],
-						}),
-				}),
+				Promise.resolve(
+					createMockGeminiResponse(
+						"augments",
+						0.88,
+						"New info complements existing database fact",
+						"keep_both",
+					),
+				),
 			);
 			global.fetch = mockFetch as any;
 

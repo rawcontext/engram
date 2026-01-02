@@ -22,10 +22,10 @@ import {
 	thinkingExtractors,
 } from "./index";
 
-// Reset shared mocks at the start of this test file
+// Clear mock call history at the start of this test file
+// Use mockClear instead of mockReset to preserve implementations across parallel tests
 beforeAll(() => {
-	mockSendEvent.mockReset();
-	mockSendEvent.mockImplementation(async () => {});
+	mockSendEvent.mockClear();
 });
 
 describeOrSkip("Ingestion Service", () => {

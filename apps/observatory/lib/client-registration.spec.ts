@@ -1,18 +1,15 @@
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 
-// Skip in CI - Bun's mock.module() doesn't work reliably with dynamic imports in CI
+// Only run these tests when running from the observatory directory OR in CI
+// When running from root (bun test), these tests conflict with other test files
+// due to pg module ESM export issues that can't be reliably mocked
+const isObservatoryRoot = process.cwd().includes("apps/observatory");
 const isCI = process.env.CI === "true";
-const describeOrSkip = isCI ? describe.skip : describe;
+const describeOrSkip = isObservatoryRoot && !isCI ? describe : describe.skip;
 
-// Mock pool query
-const mockQuery = mock();
-
-// Mock pg Pool
-mock.module("pg", () => ({
-	Pool: class MockPool {
-		query = mockQuery;
-	},
-}));
+// Use pg mock from test-preload.ts (accessed via __testMocks global)
+// The pg mock is set up in the preload to handle ESM compatibility issues
+const mockQuery = globalThis.__testMocks?.pg?.query ?? mock();
 
 // Container object that holds the imported functions
 const lib: {

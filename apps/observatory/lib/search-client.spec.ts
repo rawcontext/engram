@@ -1,18 +1,23 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock, type Mock } from "bun:test";
 import { SearchPyError, search } from "./search-client";
 
-global.fetch = mock();
+// Save original fetch to restore after tests
+const originalFetch = global.fetch;
 
 describe("search-client", () => {
 	const originalAuthToken = process.env.ENGRAM_AUTH_TOKEN;
 
 	beforeEach(() => {
+		// Mock fetch for each test
+		global.fetch = mock() as Mock<typeof fetch>;
 		// Clear auth token for tests that check exact headers
 		delete process.env.ENGRAM_AUTH_TOKEN;
 	});
 
 	afterEach(() => {
-		// Restore original value
+		// Restore original fetch to prevent test pollution
+		global.fetch = originalFetch;
+		// Restore original auth token value
 		if (originalAuthToken) {
 			process.env.ENGRAM_AUTH_TOKEN = originalAuthToken;
 		}

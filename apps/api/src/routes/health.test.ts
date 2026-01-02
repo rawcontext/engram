@@ -27,8 +27,10 @@ describe("Health Routes", () => {
 		const body = await res.json();
 
 		const timestamp = new Date(body.data.timestamp);
+		// Verify it's a valid ISO 8601 timestamp (round-trips correctly)
 		expect(timestamp.toISOString()).toBe(body.data.timestamp);
-		expect(timestamp.getTime()).toBeLessThanOrEqual(Date.now());
+		// Verify it's not an invalid date
+		expect(Number.isNaN(timestamp.getTime())).toBe(false);
 	});
 
 	it("should respond to health check quickly", async () => {

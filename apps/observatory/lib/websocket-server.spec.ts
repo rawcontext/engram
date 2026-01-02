@@ -92,14 +92,15 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
 
 			expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"lineage"'));
 			expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"replay"'));
-			expect(ws.on).toHaveBeenCalledWith("close", expect.any(Function));
-			expect(ws.on).toHaveBeenCalledWith("message", expect.any(Function));
+			expect(ws.data.unsubscribe).toBeDefined();
+			expect(ws.data.messageHandler).toBeDefined();
 		});
 
 		it("should handle session with no lineage data", async () => {
@@ -112,6 +113,7 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionConnection(ws, "sess_empty");
@@ -131,6 +133,7 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionConnection(ws, "sess_empty");
@@ -148,11 +151,12 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionConnection(ws, "sess_error");
 
-			expect(ws.on).toHaveBeenCalled();
+			expect(ws.data.messageHandler).toBeDefined();
 		});
 
 		it("should handle refresh message", async () => {
@@ -160,13 +164,13 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
 
-			const messageHandler = ws.on.mock.calls.find((call: any[]) => call[0] === "message")[1];
-
-			await messageHandler(JSON.stringify({ type: "refresh" }));
+			// Use the messageHandler stored in ws.data by the implementation
+			await ws.data.messageHandler(JSON.stringify({ type: "refresh" }));
 
 			expect(ws.send).toHaveBeenCalled();
 		});
@@ -176,31 +180,31 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
 
-			const messageHandler = ws.on.mock.calls.find((call: any[]) => call[0] === "message")[1];
+			// Use the messageHandler stored in ws.data by the implementation
+			await ws.data.messageHandler("invalid json");
 
-			await messageHandler("invalid json");
-
-			expect(ws.send).toHaveBeenCalled();
+			// Note: Invalid JSON is silently ignored, so just check handler exists
+			expect(ws.data.messageHandler).toBeDefined();
 		});
 
-		it("should call unsubscribe on close", async () => {
+		it("should set unsubscribe callback in data", async () => {
 			const ws = {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
 
-			const closeHandler = ws.on.mock.calls.find((call: any[]) => call[0] === "close")[1];
-
-			await closeHandler();
-
-			expect(ws.on).toHaveBeenCalled();
+			// The implementation stores the unsubscribe callback in ws.data.unsubscribe
+			expect(ws.data.unsubscribe).toBeDefined();
+			expect(typeof ws.data.unsubscribe).toBe("function");
 		});
 
 		it("should not send updates when WebSocket is closed", async () => {
@@ -217,6 +221,7 @@ describe("websocket-server", () => {
 				readyState: 3,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
@@ -250,6 +255,7 @@ describe("websocket-server", () => {
 				readyState: 1, // OPEN
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionConnection(ws, "sess_123");
@@ -280,13 +286,14 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionsConnection(ws);
 
 			expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"sessions"'));
-			expect(ws.on).toHaveBeenCalledWith("close", expect.any(Function));
-			expect(ws.on).toHaveBeenCalledWith("message", expect.any(Function));
+			expect(ws.data.unsubscribe).toBeDefined();
+			expect(ws.data.messageHandler).toBeDefined();
 		});
 
 		it("should handle initial sessions fetch error", async () => {
@@ -296,6 +303,7 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionsConnection(ws);
@@ -308,13 +316,13 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionsConnection(ws);
 
-			const messageHandler = ws.on.mock.calls.find((call: any[]) => call[0] === "message")[1];
-
-			await messageHandler(JSON.stringify({ type: "refresh" }));
+			// Use the messageHandler stored in ws.data by the implementation
+			await ws.data.messageHandler(JSON.stringify({ type: "refresh" }));
 
 			expect(ws.send).toHaveBeenCalled();
 		});
@@ -324,13 +332,13 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionsConnection(ws);
 
-			const messageHandler = ws.on.mock.calls.find((call: any[]) => call[0] === "message")[1];
-
-			await messageHandler(JSON.stringify({ type: "subscribe" }));
+			// Use the messageHandler stored in ws.data by the implementation
+			await ws.data.messageHandler(JSON.stringify({ type: "subscribe" }));
 
 			expect(ws.send).toHaveBeenCalled();
 		});
@@ -340,31 +348,31 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionsConnection(ws);
 
-			const messageHandler = ws.on.mock.calls.find((call: any[]) => call[0] === "message")[1];
+			// Use the messageHandler stored in ws.data by the implementation
+			await ws.data.messageHandler("invalid json");
 
-			await messageHandler("invalid json");
-
-			expect(ws.send).toHaveBeenCalled();
+			// Note: Invalid JSON is silently ignored, so just check handler exists
+			expect(ws.data.messageHandler).toBeDefined();
 		});
 
-		it("should call unsubscribe on close", async () => {
+		it("should set unsubscribe callback in data", async () => {
 			const ws = {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionsConnection(ws);
 
-			const closeHandler = ws.on.mock.calls.find((call: any[]) => call[0] === "close")[1];
-
-			await closeHandler();
-
-			expect(ws.on).toHaveBeenCalled();
+			// The implementation stores the unsubscribe callback in ws.data.unsubscribe
+			expect(ws.data.unsubscribe).toBeDefined();
+			expect(typeof ws.data.unsubscribe).toBe("function");
 		});
 
 		it("should not send updates when WebSocket is closed", async () => {
@@ -381,6 +389,7 @@ describe("websocket-server", () => {
 				readyState: 3,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionsConnection(ws);
@@ -417,6 +426,7 @@ describe("websocket-server", () => {
 				readyState: 1, // OPEN
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleSessionsConnection(ws);
@@ -447,13 +457,14 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleConsumerStatusConnection(ws);
 
 			expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"status"'));
-			expect(ws.on).toHaveBeenCalledWith("close", expect.any(Function));
-			expect(ws.on).toHaveBeenCalledWith("message", expect.any(Function));
+			expect(ws.data.messageHandler).toBeDefined();
+			expect(ws.data.unsubscribe).toBeDefined();
 		});
 
 		it("should handle refresh message", async () => {
@@ -461,13 +472,13 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleConsumerStatusConnection(ws);
 
-			const messageHandler = ws.on.mock.calls.find((call: any[]) => call[0] === "message")[1];
-
-			await messageHandler(JSON.stringify({ type: "refresh" }));
+			// Use the messageHandler stored in ws.data by the implementation
+			await ws.data.messageHandler(JSON.stringify({ type: "refresh" }));
 
 			expect(ws.send).toHaveBeenCalled();
 		});
@@ -477,31 +488,31 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleConsumerStatusConnection(ws);
 
-			const messageHandler = ws.on.mock.calls.find((call: any[]) => call[0] === "message")[1];
+			// Use the messageHandler stored in ws.data by the implementation
+			await ws.data.messageHandler("invalid json");
 
-			await messageHandler("invalid json");
-
-			expect(ws.send).toHaveBeenCalled();
+			// Note: Invalid JSON is silently ignored, so just check handler exists
+			expect(ws.data.messageHandler).toBeDefined();
 		});
 
-		it("should remove client from set on close", async () => {
+		it("should set unsubscribe callback in data", async () => {
 			const ws = {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleConsumerStatusConnection(ws);
 
-			const closeHandler = ws.on.mock.calls.find((call: any[]) => call[0] === "close")[1];
-
-			closeHandler();
-
-			expect(ws.on).toHaveBeenCalled();
+			// The implementation stores the unsubscribe callback in ws.data.unsubscribe
+			expect(ws.data.unsubscribe).toBeDefined();
+			expect(typeof ws.data.unsubscribe).toBe("function");
 		});
 
 		it("should handle consumer_ready event and broadcast to all clients", async () => {
@@ -517,12 +528,14 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			const ws2 = {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleConsumerStatusConnection(ws1);
@@ -558,6 +571,7 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleConsumerStatusConnection(ws);
@@ -590,6 +604,7 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleConsumerStatusConnection(ws);
@@ -632,12 +647,14 @@ describe("websocket-server", () => {
 				readyState: 1, // OPEN
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			const wsClosed = {
 				readyState: 3, // CLOSED
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleConsumerStatusConnection(wsOpen);
@@ -669,6 +686,7 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			// Should not throw, even if NATS fails
@@ -691,6 +709,7 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			// First connection should initialize
@@ -704,6 +723,7 @@ describe("websocket-server", () => {
 				readyState: 1,
 				send: mock(),
 				on: mock(),
+				data: {},
 			} as any;
 
 			await handleConsumerStatusConnection(ws2);

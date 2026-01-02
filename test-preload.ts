@@ -10,6 +10,25 @@
 import { mock } from "bun:test";
 
 // =============================================================================
+// PostgreSQL Mocks (for Observatory OAuth tests)
+// =============================================================================
+
+// Mock pg Pool for ESM compatibility
+// The pg package doesn't export Pool from its ESM entry point, so we mock it here
+const mockPgQuery = mock(async () => ({ rows: [] }));
+
+mock.module("pg", () => ({
+	Pool: class MockPool {
+		query = mockPgQuery;
+	},
+	default: {
+		Pool: class MockPool {
+			query = mockPgQuery;
+		},
+	},
+}));
+
+// =============================================================================
 // FalkorDB Mocks
 // =============================================================================
 
@@ -245,6 +264,9 @@ mock.module("@lib/client-registration", () => ({
 
 declare global {
 	var __testMocks: {
+		pg: {
+			query: typeof mockPgQuery;
+		};
 		falkor: {
 			client: typeof mockFalkorClient;
 			query: typeof mockQuery;
@@ -272,6 +294,9 @@ declare global {
 }
 
 globalThis.__testMocks = {
+	pg: {
+		query: mockPgQuery,
+	},
 	falkor: {
 		client: mockFalkorClient,
 		query: mockQuery,

@@ -1,14 +1,40 @@
-import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { EntityExtractorService, EntityType, RelationshipType } from "./entity-extractor";
+
+/**
+ * Creates a mock Gemini API response with proper Response object
+ * The AI SDK requires a proper Response with headers.forEach()
+ */
+function createMockGeminiResponse(geminiResponseData: object): Response {
+	const body = JSON.stringify(geminiResponseData);
+	return new Response(body, {
+		status: 200,
+		headers: { "Content-Type": "application/json" },
+	});
+}
+
+/**
+ * Creates an error Response for testing error handling
+ */
+function createMockGeminiErrorResponse(status: number, message: string): Response {
+	return new Response(message, {
+		status,
+		headers: { "Content-Type": "text/plain" },
+	});
+}
 
 describe("EntityExtractorService", () => {
 	let mockServer: McpServer;
 	let mockLogger: any;
 	let service: EntityExtractorService;
+	let originalFetch: typeof global.fetch;
 	const mockGeminiApiKey = "test-gemini-api-key";
 
 	beforeEach(() => {
+		// Save original fetch to restore after tests
+		originalFetch = global.fetch;
+
 		// Mock logger
 		mockLogger = {
 			debug: mock(() => {}),
@@ -26,6 +52,11 @@ describe("EntityExtractorService", () => {
 		} as unknown as McpServer;
 
 		service = new EntityExtractorService(mockServer, mockLogger, mockGeminiApiKey);
+	});
+
+	afterEach(() => {
+		// Restore original fetch to not affect other test files
+		global.fetch = originalFetch;
 	});
 
 	describe("extract - sampling mode", () => {
@@ -415,10 +446,7 @@ describe("EntityExtractorService", () => {
 				],
 			};
 
-			global.fetch = mock(async () => ({
-				ok: true,
-				json: async () => geminiResponse,
-			})) as any;
+			global.fetch = mock(async () => createMockGeminiResponse(geminiResponse)) as any;
 
 			const result = await service.extract(content, memoryType);
 
@@ -460,10 +488,7 @@ describe("EntityExtractorService", () => {
 				],
 			};
 
-			global.fetch = mock(async () => ({
-				ok: true,
-				json: async () => geminiResponse,
-			})) as any;
+			global.fetch = mock(async () => createMockGeminiResponse(geminiResponse)) as any;
 
 			const result = await service.extract(content, memoryType);
 
@@ -475,39 +500,53 @@ describe("EntityExtractorService", () => {
 		});
 
 		it("should return empty result when Gemini API key is not configured", async () => {
-			const serviceWithoutKey = new EntityExtractorService(mockServer, mockLogger, undefined);
-			const content = "Test content";
-			const memoryType = "context";
+			// Temporarily clear the environment variable
+			const originalKey = process.env.GEMINI_API_KEY;
+			delete process.env.GEMINI_API_KEY;
 
-			spyOn(mockServer.server, "getClientCapabilities").mockReturnValue({ sampling: false });
+			try {
+				const serviceWithoutKey = new EntityExtractorService(mockServer, mockLogger, undefined);
+				const content = "Test content";
+				const memoryType = "context";
 
-			const result = await serviceWithoutKey.extract(content, memoryType);
+				spyOn(mockServer.server, "getClientCapabilities").mockReturnValue({ sampling: false });
 
-			expect(result.entities).toEqual([]);
-			expect(result.relationships).toEqual([]);
-			expect(result.model_used).toBe("gemini");
-			expect(mockLogger.warn).toHaveBeenCalled();
+				const result = await serviceWithoutKey.extract(content, memoryType);
+
+				expect(result.entities).toEqual([]);
+				expect(result.relationships).toEqual([]);
+				expect(result.model_used).toBe("gemini");
+				expect(mockLogger.warn).toHaveBeenCalled();
+			} finally {
+				// Restore the environment variable
+				if (originalKey) {
+					process.env.GEMINI_API_KEY = originalKey;
+				}
+			}
 		});
 
-		it("should handle Gemini API errors gracefully", async () => {
-			const content = "Test content";
-			const memoryType = "context";
+		it(
+			"should handle Gemini API errors gracefully",
+			async () => {
+				const content = "Test content";
+				const memoryType = "context";
 
-			spyOn(mockServer.server, "getClientCapabilities").mockReturnValue({ sampling: false });
+				spyOn(mockServer.server, "getClientCapabilities").mockReturnValue({ sampling: false });
 
-			global.fetch = mock(async () => ({
-				ok: false,
-				status: 500,
-				text: async () => "Internal Server Error",
-			})) as any;
+				// Make fetch throw immediately to avoid retry delays
+				global.fetch = mock(async () => {
+					throw new Error("Network error");
+				}) as any;
 
-			const result = await service.extract(content, memoryType);
+				const result = await service.extract(content, memoryType);
 
-			expect(result.entities).toEqual([]);
-			expect(result.relationships).toEqual([]);
-			expect(result.model_used).toBe("gemini");
-			expect(mockLogger.warn).toHaveBeenCalled();
-		});
+				expect(result.entities).toEqual([]);
+				expect(result.relationships).toEqual([]);
+				expect(result.model_used).toBe("gemini");
+				expect(mockLogger.warn).toHaveBeenCalled();
+			},
+			{ timeout: 15000 },
+		);
 	});
 
 	describe("extract - edge cases", () => {
@@ -693,10 +732,7 @@ describe("EntityExtractorService", () => {
 				],
 			};
 
-			global.fetch = mock(async () => ({
-				ok: true,
-				json: async () => geminiResponse,
-			})) as any;
+			global.fetch = mock(async () => createMockGeminiResponse(geminiResponse)) as any;
 
 			const result = await service.extract(content, memoryType);
 

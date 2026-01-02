@@ -2,12 +2,31 @@
  * Test preload file for Observatory.
  *
  * This file is loaded before any test files via bunfig.toml preload.
- * It mocks module-level singletons (NATS, FalkorDB) BEFORE test files import them,
+ * It mocks module-level singletons (NATS, FalkorDB, pg) BEFORE test files import them,
  * solving the Bun mock.module singleton interception limitation.
  *
  * @see https://bun.sh/docs/test/mocks#preload
  */
 import { mock } from "bun:test";
+
+// =============================================================================
+// PostgreSQL Mocks (for OAuth tests)
+// =============================================================================
+
+// Mock pg Pool for ESM compatibility
+// The pg package doesn't export Pool from its ESM entry point, so we mock it here
+const mockPgQuery = mock(async () => ({ rows: [] }));
+
+mock.module("pg", () => ({
+	Pool: class MockPool {
+		query = mockPgQuery;
+	},
+	default: {
+		Pool: class MockPool {
+			query = mockPgQuery;
+		},
+	},
+}));
 
 // =============================================================================
 // FalkorDB Mocks
@@ -73,6 +92,9 @@ mock.module("@engram/storage/nats", () => ({
 // Expose mocks globally so test files can configure and assert on them
 declare global {
 	var __testMocks: {
+		pg: {
+			query: typeof mockPgQuery;
+		};
 		falkor: {
 			client: typeof mockFalkorClient;
 			query: typeof mockQuery;
@@ -91,6 +113,9 @@ declare global {
 }
 
 globalThis.__testMocks = {
+	pg: {
+		query: mockPgQuery,
+	},
 	falkor: {
 		client: mockFalkorClient,
 		query: mockQuery,
