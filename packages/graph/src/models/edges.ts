@@ -142,6 +142,16 @@ export const MemberOfEdgeSchema = BaseEdgeSchema.extend({
 });
 
 // =============================================================================
+// Conflict report relationships
+// =============================================================================
+
+// ConflictReport -[CONFLICTS_WITH]-> Memory (links report to both conflicting memories)
+export const ConflictsWithEdgeSchema = BaseEdgeSchema.extend({
+	type: z.literal("CONFLICTS_WITH"),
+	role: z.enum(["memory_a", "memory_b"]), // Which memory in the conflict pair
+});
+
+// =============================================================================
 // Edge type constants for use in queries
 // =============================================================================
 export const EdgeTypes = {
@@ -180,6 +190,9 @@ export const EdgeTypes = {
 
 	// Community relationships
 	MEMBER_OF: "MEMBER_OF",
+
+	// Conflict report relationships
+	CONFLICTS_WITH: "CONFLICTS_WITH",
 } as const;
 
 // Union of all edge types
@@ -202,6 +215,7 @@ export const EdgeSchema = z.union([
 	ImplementsEdgeSchema,
 	PartOfEdgeSchema,
 	MemberOfEdgeSchema,
+	ConflictsWithEdgeSchema,
 ]);
 
 export type Edge = z.infer<typeof EdgeSchema>;

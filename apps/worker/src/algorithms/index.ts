@@ -1,13 +1,21 @@
 /**
- * Graph algorithms for community detection and analysis
+ * Graph algorithms for community detection, analysis, and conflict scanning
  */
 
 export {
-	labelPropagation,
-	graphFromEdges,
-	getCommunityForNode,
-	mergeCommunities,
-	type Graph,
-	type LabelPropagationOptions,
+	type ConflictClassification,
+	ConflictScanner,
+	type ConflictScannerOptions,
+	type ConflictScanResult,
+	type MemoryCandidate,
+	type VectorCandidate,
+} from "./conflict-scanner";
+export {
 	type Communities,
+	type Graph,
+	getCommunityForNode,
+	graphFromEdges,
+	type LabelPropagationOptions,
+	labelPropagation,
+	mergeCommunities,
 } from "./label-propagation";

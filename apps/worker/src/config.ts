@@ -38,6 +38,9 @@ export const IntelligenceConfigSchema = z.object({
 	/** Cron schedule for insight extraction (default: every 4 hours) */
 	insightExtractionCron: z.string().default("0 */4 * * *"),
 
+	/** Cron schedule for conflict scanning (default: weekly on Sunday at 4 AM UTC) */
+	conflictScanCron: z.string().default("0 4 * * 0"),
+
 	/** LLM provider for intelligence tasks (gemini, anthropic, openai) */
 	llmProvider: z.enum(["gemini", "anthropic", "openai"]).default("gemini"),
 
@@ -79,6 +82,7 @@ export function loadConfig(): IntelligenceConfig {
 		sessionSummaryCron: process.env.SESSION_SUMMARY_CRON,
 		graphCompactionCron: process.env.GRAPH_COMPACTION_CRON,
 		insightExtractionCron: process.env.INSIGHT_EXTRACTION_CRON,
+		conflictScanCron: process.env.CONFLICT_SCAN_CRON,
 		llmProvider: process.env.LLM_PROVIDER,
 		llmModel: process.env.LLM_MODEL,
 		llmTemperature: process.env.LLM_TEMPERATURE

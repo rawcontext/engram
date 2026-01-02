@@ -61,9 +61,9 @@ export class Scheduler {
 			},
 			{
 				name: "conflict-scan",
-				schedule: config.insightExtractionCron, // Default: "0 4 * * 0" (Sunday at 4am UTC)
+				schedule: config.conflictScanCron, // Default: "0 4 * * 0" (Sunday at 4am UTC)
 				natsSubject: "engram.jobs.conflict-scan",
-				description: "Scan for conflicting memories and schema violations",
+				description: "Scan for conflicting memories and create ConflictReport nodes for review",
 			},
 		];
 	}
