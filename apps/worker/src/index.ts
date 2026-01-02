@@ -17,11 +17,10 @@
 import { createNodeLogger, type Logger } from "@engram/logger";
 import { createFalkorClient, createNatsClient, type GraphClient } from "@engram/storage";
 import { serve } from "@hono/node-server";
-import type { CronOptions } from "croner";
-import { Cron } from "croner";
-import { Hono } from "hono";
+import { createApi } from "./api";
 import { type IntelligenceConfig, loadConfig } from "./config";
 import { metrics } from "./metrics";
+import { Scheduler } from "./scheduler";
 
 /**
  * Dependencies for Intelligence Worker construction.
@@ -67,125 +66,10 @@ export function createIntelligenceWorkerDeps(
 }
 
 /**
- * Initialize scheduled cron jobs for intelligence tasks
- */
-export function initializeCronJobs(
-	config: IntelligenceConfig,
-	logger: Logger,
-): { sessionSummary: Cron; graphCompaction: Cron; insightExtraction: Cron } {
-	if (!config.enableCron) {
-		logger.info("Cron jobs disabled via configuration");
-		return {} as any; // Return empty object if cron is disabled
-	}
-
-	const cronOptions: CronOptions = {
-		timezone: "UTC",
-		protect: true, // Prevent overlapping executions
-	};
-
-	// Session summarization job
-	const sessionSummary = new Cron(config.sessionSummaryCron, cronOptions, async () => {
-		const timer = metrics.recordJobStart("session-summary");
-		try {
-			logger.info("Starting session summarization job");
-			// TODO: Implement session summarization logic
-			timer.end("success");
-		} catch (err) {
-			logger.error({ err }, "Session summarization job failed");
-			timer.end("error");
-			throw err;
-		}
-	});
-
-	// Graph compaction job
-	const graphCompaction = new Cron(config.graphCompactionCron, cronOptions, async () => {
-		const timer = metrics.recordJobStart("graph-compaction");
-		try {
-			logger.info("Starting graph compaction job");
-			// TODO: Implement graph compaction logic
-			timer.end("success");
-		} catch (err) {
-			logger.error({ err }, "Graph compaction job failed");
-			timer.end("error");
-			throw err;
-		}
-	});
-
-	// Insight extraction job
-	const insightExtraction = new Cron(config.insightExtractionCron, cronOptions, async () => {
-		const timer = metrics.recordJobStart("insight-extraction");
-		try {
-			logger.info("Starting insight extraction job");
-			// TODO: Implement insight extraction logic
-			timer.end("success");
-		} catch (err) {
-			logger.error({ err }, "Insight extraction job failed");
-			timer.end("error");
-			throw err;
-		}
-	});
-
-	logger.info(
-		{
-			sessionSummaryCron: config.sessionSummaryCron,
-			graphCompactionCron: config.graphCompactionCron,
-			insightExtractionCron: config.insightExtractionCron,
-		},
-		"Cron jobs initialized",
-	);
-
-	return { sessionSummary, graphCompaction, insightExtraction };
-}
-
-/**
- * Create HTTP server for manual job triggers and health checks
- */
-export function createHttpServer(config: IntelligenceConfig, logger: Logger): Hono {
-	const app = new Hono();
-
-	// Health check endpoint
-	app.get("/health", (c) => {
-		return c.json({ status: "healthy", service: config.serviceName });
-	});
-
-	// Kubernetes readiness probe
-	app.get("/ready", (c) => {
-		return c.json({ status: "ready" });
-	});
-
-	// Metrics endpoint - Prometheus scraping
-	app.get("/metrics", async (c) => {
-		const metricsText = await metrics.getMetrics();
-		return c.text(metricsText);
-	});
-
-	// Manual trigger endpoints (placeholders)
-	app.post("/api/jobs/session-summary", async (c) => {
-		logger.info("Manual session summary triggered");
-		// TODO: Trigger session summary job
-		return c.json({ status: "started", job: "session-summary" });
-	});
-
-	app.post("/api/jobs/graph-compaction", async (c) => {
-		logger.info("Manual graph compaction triggered");
-		// TODO: Trigger graph compaction job
-		return c.json({ status: "started", job: "graph-compaction" });
-	});
-
-	app.post("/api/jobs/insight-extraction", async (c) => {
-		logger.info("Manual insight extraction triggered");
-		// TODO: Trigger insight extraction job
-		return c.json({ status: "started", job: "insight-extraction" });
-	});
-
-	return app;
-}
-
-/**
  * Main entry point for the Intelligence Worker service
  */
 export async function main() {
-	const { config, logger, graphClient } = createIntelligenceWorkerDeps();
+	const { config, logger, graphClient, natsClient } = createIntelligenceWorkerDeps();
 
 	logger.info({ config }, "Intelligence Worker starting");
 
@@ -193,11 +77,15 @@ export async function main() {
 	await graphClient.connect();
 	logger.info("Connected to FalkorDB");
 
-	// Initialize cron jobs
-	const cronJobs = config.enableCron ? initializeCronJobs(config, logger) : null;
+	await natsClient.connect();
+	logger.info("Connected to NATS");
 
-	// Start HTTP server for manual triggers
-	const app = createHttpServer(config, logger);
+	// Initialize scheduler for cron jobs
+	const scheduler = new Scheduler(config, natsClient, logger);
+	await scheduler.start();
+
+	// Start HTTP server for manual triggers and health checks
+	const app = createApi(config, natsClient, metrics, logger);
 	const server = serve(
 		{
 			fetch: app.fetch,
@@ -212,13 +100,9 @@ export async function main() {
 	const shutdown = async (signal: string) => {
 		logger.info({ signal }, "Shutting down gracefully...");
 
-		// Stop cron jobs
-		if (cronJobs) {
-			cronJobs.sessionSummary?.stop();
-			cronJobs.graphCompaction?.stop();
-			cronJobs.insightExtraction?.stop();
-			logger.info("Stopped cron jobs");
-		}
+		// Stop scheduler
+		await scheduler.stop();
+		logger.info("Stopped scheduler");
 
 		// Close HTTP server
 		server.close(() => {
@@ -231,6 +115,13 @@ export async function main() {
 			logger.info("FalkorDB disconnected");
 		} catch (e) {
 			logger.error({ err: e }, "Error disconnecting from FalkorDB");
+		}
+
+		try {
+			await natsClient.disconnect();
+			logger.info("NATS disconnected");
+		} catch (e) {
+			logger.error({ err: e }, "Error disconnecting from NATS");
 		}
 
 		process.exit(0);

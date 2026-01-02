@@ -5,6 +5,10 @@ export {
 	ConflictRelation,
 } from "./conflict-detector";
 export {
+	EntityEmbeddingService,
+	type EntityInput,
+} from "./entity-embedding";
+export {
 	type EntityExtractionResult,
 	EntityExtractorService,
 	EntityType,
