@@ -1,5 +1,5 @@
-export { CloudEntityRepository } from "./cloud-entity-repository";
 export { EngramCloudClient, type EngramCloudClientOptions } from "./cloud";
+export { CloudEntityRepository } from "./cloud-entity-repository";
 export {
 	type AuditContext,
 	ConflictAuditService,
@@ -32,6 +32,11 @@ export {
 	type GraphExpansionOptions,
 	GraphExpansionService,
 } from "./graph-expansion";
+export {
+	type GraphRerankerConfig,
+	GraphRerankerService,
+	type GraphScoredResult,
+} from "./graph-reranker";
 export type {
 	ContextItem,
 	CreateMemoryInput,

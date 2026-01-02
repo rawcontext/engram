@@ -49,6 +49,10 @@ export interface RecallFilters {
 	graphDepth?: number;
 	/** Enable graph expansion via entity relationships (default: true) */
 	includeEntities?: boolean;
+	/** Enable graph-based reranking using entity relationships (default: true) */
+	graphRerank?: boolean;
+	/** Weight for graph scoring (0-1, default: 0.3) */
+	graphWeight?: number;
 }
 
 /**
@@ -69,6 +73,10 @@ export interface RecallResult {
 	graphDistance?: number;
 	/** Entity that led to this result (for graph-expanded results) */
 	sourceEntity?: string;
+	/** Calculated graph score (0-1, if graph reranked) */
+	graphScore?: number;
+	/** Entity IDs that connected this memory to the query */
+	connectingEntities?: string[];
 }
 
 /**

@@ -3,11 +3,14 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ElicitationService } from "../capabilities";
 import type { GraphExpansionService } from "../services/graph-expansion";
+import type { GraphRerankerService } from "../services/graph-reranker";
 import type { IMemoryRetriever, RecallResult } from "../services/interfaces";
 
-export interface RecallToolDependencies {
+export interface RecallToolOptions {
 	/** Graph expansion service for entity-based retrieval (optional) */
 	graphExpansion?: GraphExpansionService;
+	/** Graph reranker service for entity-based scoring (optional) */
+	graphReranker?: GraphRerankerService;
 }
 
 export function registerRecallTool(
@@ -15,8 +18,10 @@ export function registerRecallTool(
 	memoryRetriever: IMemoryRetriever,
 	getSessionContext: () => { project?: string; orgId?: string; orgSlug?: string },
 	elicitationService?: ElicitationService,
-	dependencies?: RecallToolDependencies,
+	options?: RecallToolOptions,
 ) {
+	const graphExpansion = options?.graphExpansion;
+	const graphReranker = options?.graphReranker;
 	server.registerTool(
 		"recall",
 		{
@@ -92,6 +97,22 @@ export function registerRecallTool(
 					.describe(
 						"Enable graph expansion via entity relationships. When true, expands search through entities extracted from the query and their relationships in the knowledge graph. Finds semantically related memories that may not match the query directly.",
 					),
+				graphRerank: z
+					.boolean()
+					.optional()
+					.default(true)
+					.describe(
+						"Enable graph-based reranking using entity relationships. When enabled, results are boosted based on their connection to entities mentioned in the query. Disable for pure vector-based ranking.",
+					),
+				graphWeight: z
+					.number()
+					.min(0)
+					.max(1)
+					.optional()
+					.default(0.3)
+					.describe(
+						"Weight for graph-based scoring (0-1). Higher values give more influence to entity relationships. Formula: finalScore = vectorScore * (1 - weight) + graphScore * weight",
+					),
 			},
 			outputSchema: {
 				memories: z.array(
@@ -107,6 +128,8 @@ export function registerRecallTool(
 						source: z.enum(["vector", "graph"]).optional(),
 						graphDistance: z.number().optional(),
 						sourceEntity: z.string().optional(),
+						graphScore: z.number().optional(),
+						connectingEntities: z.array(z.string()).optional(),
 					}),
 				),
 				query: z.string(),
@@ -114,6 +137,7 @@ export function registerRecallTool(
 				disambiguated: z.boolean().optional(),
 				selectedId: z.string().optional(),
 				graphExpanded: z.boolean().optional(),
+				graphReranked: z.boolean().optional(),
 			},
 		},
 		async ({
@@ -127,6 +151,8 @@ export function registerRecallTool(
 			disambiguate,
 			graphDepth,
 			includeEntities,
+			graphRerank,
+			graphWeight,
 		}) => {
 			// Note: Don't auto-apply project filter from session context
 			// Memories may have been stored before roots were populated (with project: null)
@@ -140,7 +166,7 @@ export function registerRecallTool(
 
 			// Determine effective limit - oversample if graph expansion is enabled
 			const graphExpansionEnabled =
-				(includeEntities ?? true) && (graphDepth ?? 2) > 0 && dependencies?.graphExpansion;
+				(includeEntities ?? true) && (graphDepth ?? 2) > 0 && graphExpansion;
 			const effectiveLimit = graphExpansionEnabled ? (limit ?? 5) * 2 : (limit ?? 5);
 
 			// Step 1: Vector search
@@ -157,8 +183,8 @@ export function registerRecallTool(
 
 			// Step 2: Graph expansion (if enabled and service available)
 			let graphExpanded = false;
-			if (graphExpansionEnabled && dependencies?.graphExpansion) {
-				const expanded = await dependencies.graphExpansion.expand(query, memories, {
+			if (graphExpansionEnabled && graphExpansion) {
+				const expanded = await graphExpansion.expand(query, memories, {
 					graphDepth: graphDepth ?? 2,
 					maxQueryEntities: 5,
 					entityMatchThreshold: 0.7,
@@ -166,7 +192,7 @@ export function registerRecallTool(
 				});
 
 				// Rerank combined results
-				const reranked = dependencies.graphExpansion.rerank(expanded);
+				const reranked = graphExpansion.rerank(expanded);
 
 				// Convert back to RecallResult format and limit
 				memories = reranked.slice(0, limit ?? 5).map((r) => ({
@@ -188,6 +214,40 @@ export function registerRecallTool(
 			} else {
 				// No graph expansion - just limit the results
 				memories = memories.slice(0, limit ?? 5);
+			}
+
+			// Step 3: Graph reranking (if enabled and service is available)
+			const shouldGraphRerank = (graphRerank ?? true) && graphReranker && memories.length > 0;
+			let graphReranked = false;
+
+			if (shouldGraphRerank) {
+				try {
+					// Update graph weight if specified
+					if (graphWeight !== undefined) {
+						graphReranker.updateConfig({ graphWeight });
+					}
+
+					// Apply graph reranking
+					const graphScoredResults = await graphReranker.rerank(
+						query,
+						memories,
+						filters?.project ?? context.project,
+					);
+
+					// Map back to RecallResult format with graph metadata
+					memories = graphScoredResults.map((r) => ({
+						...r,
+						source: r.source,
+						graphDistance: r.graphDistance,
+						graphScore: r.graphScore,
+						connectingEntities: r.connectingEntities,
+					}));
+
+					graphReranked = true;
+				} catch (error) {
+					// Graph reranking is optional - log and continue with vector results
+					console.error("Graph reranking failed, using vector results:", error);
+				}
 			}
 
 			// If disambiguation is requested and we have multiple similar results, ask user to select
@@ -238,6 +298,7 @@ export function registerRecallTool(
 								disambiguated,
 								selectedId,
 								graphExpanded,
+								graphReranked,
 							};
 
 							return {
@@ -277,6 +338,7 @@ export function registerRecallTool(
 				disambiguated,
 				selectedId,
 				graphExpanded,
+				graphReranked,
 			};
 
 			return {

@@ -64,14 +64,15 @@ import {
 	registerMemoryResource,
 	registerSessionResource,
 } from "./resources";
-import { CloudEntityRepository } from "./services/cloud-entity-repository";
 import { EngramCloudClient } from "./services/cloud";
+import { CloudEntityRepository } from "./services/cloud-entity-repository";
 import { ConflictAuditService } from "./services/conflict-audit";
 import { ConflictDetectorService } from "./services/conflict-detector";
 import { EntityEmbeddingService } from "./services/entity-embedding";
 import { EntityExtractorService } from "./services/entity-extractor";
 import { EntityResolverService } from "./services/entity-resolver";
 import { GraphExpansionService } from "./services/graph-expansion";
+import { GraphRerankerService } from "./services/graph-reranker";
 import type { IEngramClient, IMemoryRetriever, IMemoryStore } from "./services/interfaces";
 import {
 	registerContextTool,
@@ -197,11 +198,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 
 	// Initialize entity extraction services
 	// These enable automatic entity extraction and linking when memories are stored
-	const entityExtractor = new EntityExtractorService(
-		mcpServer,
-		logger,
-		process.env.GEMINI_API_KEY,
-	);
+	const entityExtractor = new EntityExtractorService(mcpServer, logger, process.env.GEMINI_API_KEY);
 	const entityEmbeddingService = new EntityEmbeddingService(config.searchUrl, logger);
 	const entityRepository = new CloudEntityRepository(cloudClient, logger);
 	const entityResolver = new EntityResolverService(
@@ -219,6 +216,9 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		entityRepository,
 		logger,
 	);
+
+	// Initialize graph reranker for entity-based recall scoring
+	const graphReranker = new GraphRerankerService(entityRepository, entityExtractor, logger);
 
 	// Initialize session context with default capabilities
 	// This will be updated when we receive client info
@@ -272,6 +272,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	);
 	registerRecallTool(mcpServer, memoryRetriever, getSessionContext, elicitation, {
 		graphExpansion,
+		graphReranker,
 	});
 
 	// Register sampling-based tools (available when client supports sampling)
