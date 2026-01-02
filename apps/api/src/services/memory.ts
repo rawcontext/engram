@@ -73,6 +73,8 @@ export interface MemoryResult {
 	type: string;
 	tags: string[];
 	score?: number;
+	decayScore?: number;
+	weightedScore?: number;
 	createdAt: string;
 	invalidated?: boolean;
 	invalidatedAt?: number;
@@ -415,6 +417,41 @@ export class MemoryService {
 				}
 			}
 
+			// Fetch decay scores for all memories from graph
+			const allMemoryIds = Array.from(memoryIds);
+			if (allMemoryIds.length > 0) {
+				const decayResults = await this.tenantQuery<{
+					id: string;
+					decay_score: number;
+					pinned: boolean;
+				}>(
+					`MATCH (m:Memory)
+					WHERE m.id IN $memoryIds
+					RETURN m.id as id, m.decay_score as decay_score, m.pinned as pinned`,
+					{ memoryIds: allMemoryIds },
+					tenantContext,
+				);
+
+				// Apply decay weighting to results
+				for (const decay of decayResults) {
+					const memory = resultMap.get(decay.id);
+					if (memory) {
+						// Pinned memories get full weight (decay_score = 1.0)
+						const effectiveDecayScore = decay.pinned ? 1.0 : (decay.decay_score ?? 1.0);
+						memory.decayScore = effectiveDecayScore;
+						memory.weightedScore = (memory.score ?? 0) * effectiveDecayScore;
+					}
+				}
+
+				// Set defaults for memories without decay info (new memories default to 1.0)
+				for (const memory of resultMap.values()) {
+					if (memory.decayScore === undefined) {
+						memory.decayScore = 1.0;
+						memory.weightedScore = memory.score ?? 0;
+					}
+				}
+			}
+
 			// For invalidated memories, fetch replacement information
 			const invalidatedMemories = Array.from(resultMap.values()).filter((m) => m.invalidated);
 			if (invalidatedMemories.length > 0) {
@@ -447,8 +484,10 @@ export class MemoryService {
 				results = results.filter((r) => r.type === filters.type);
 			}
 
-			// Sort by score and limit
-			return results.toSorted((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, limit);
+			// Sort by weighted score (decay-adjusted) and limit
+			return results
+				.toSorted((a, b) => (b.weightedScore ?? b.score ?? 0) - (a.weightedScore ?? a.score ?? 0))
+				.slice(0, limit);
 		} catch (error) {
 			// Fallback to keyword search if vector search fails
 			this.logger.warn({ error }, "Vector search failed, falling back to keyword search");
@@ -457,7 +496,7 @@ export class MemoryService {
 			const graphParams: Record<string, unknown> = {
 				query: query.toLowerCase(),
 				now: Date.now(),
-				limit,
+				limit: limit * 2, // Oversample by 2x for decay filtering
 			};
 
 			if (filters?.type) {
@@ -482,7 +521,7 @@ export class MemoryService {
 
 			const whereClause = graphConditions.join(" AND ");
 
-			// Query tenant-specific graph for keyword fallback
+			// Query tenant-specific graph for keyword fallback (include decay fields)
 			const results = await this.tenantQuery<{
 				id: string;
 				content: string;
@@ -490,10 +529,14 @@ export class MemoryService {
 				tags: string[];
 				created_at: string;
 				vt_end: number;
+				decay_score: number | null;
+				pinned: boolean | null;
 			}>(
 				`MATCH (m:Memory)
 				WHERE ${whereClause} AND toLower(m.content) CONTAINS $query
-				RETURN m.id as id, m.content as content, m.type as type, m.tags as tags, m.created_at as created_at, m.vt_end as vt_end
+				RETURN m.id as id, m.content as content, m.type as type, m.tags as tags,
+				       m.created_at as created_at, m.vt_end as vt_end,
+				       m.decay_score as decay_score, m.pinned as pinned
 				ORDER BY m.vt_start DESC
 				LIMIT $limit`,
 				graphParams,
@@ -503,12 +546,17 @@ export class MemoryService {
 			const now = Date.now();
 			const mappedResults = results.map((r, i) => {
 				const isInvalidated = r.vt_end < now;
+				const baseScore = 1 - i * 0.1; // Simple rank-based scoring
+				// Pinned memories get full weight, otherwise use decay_score (default 1.0)
+				const effectiveDecayScore = r.pinned ? 1.0 : (r.decay_score ?? 1.0);
 				return {
 					id: r.id,
 					content: r.content,
 					type: r.type,
 					tags: r.tags ?? [],
-					score: 1 - i * 0.1, // Simple rank-based scoring
+					score: baseScore,
+					decayScore: effectiveDecayScore,
+					weightedScore: baseScore * effectiveDecayScore,
 					createdAt: r.created_at,
 					invalidated: isInvalidated,
 					invalidatedAt: isInvalidated ? r.vt_end : undefined,
@@ -539,7 +587,10 @@ export class MemoryService {
 				}
 			}
 
-			return mappedResults;
+			// Sort by weighted score and limit
+			return mappedResults
+				.toSorted((a, b) => (b.weightedScore ?? b.score ?? 0) - (a.weightedScore ?? a.score ?? 0))
+				.slice(0, limit);
 		}
 	}
 
