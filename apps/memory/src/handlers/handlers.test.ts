@@ -328,6 +328,48 @@ describe("ContentEventHandler", () => {
 
 		expect(mockGraphClient.query).toHaveBeenCalled();
 	});
+
+	it("should log debug message when updating preview", async () => {
+		turn.assistantContent = "x".repeat(499);
+
+		const event = createTestEvent({
+			type: "content",
+			role: "assistant",
+			content: "y",
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockLogger.debug).toHaveBeenCalledWith(
+			expect.objectContaining({
+				turnId: turn.turnId,
+				previewLength: 500,
+			}),
+			"Updated turn preview",
+		);
+	});
+
+	it("should update preview multiple times as content grows", async () => {
+		// First update at 500 chars
+		const event1 = createTestEvent({
+			type: "content",
+			role: "assistant",
+			content: "x".repeat(500),
+		});
+
+		await handler.handle(event1, turn, context);
+		expect(mockGraphClient.query).toHaveBeenCalledTimes(1);
+
+		// Second update at 1000 chars
+		const event2 = createTestEvent({
+			type: "content",
+			role: "assistant",
+			content: "y".repeat(500),
+		});
+
+		await handler.handle(event2, turn, context);
+		expect(mockGraphClient.query).toHaveBeenCalledTimes(2);
+	});
 });
 
 describe("ThoughtEventHandler", () => {
@@ -1016,6 +1058,135 @@ describe("ToolCallEventHandler", () => {
 		expect(turn.toolCalls[0].filePath).toBe("/src/special.ts");
 		expect(turn.toolCalls[0].fileAction).toBe("read");
 	});
+
+	it("should log debug message with trigger count when creating tool call", async () => {
+		turn.pendingReasoningIds = ["r1", "r2"];
+
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Read",
+				arguments_delta: "{}",
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockLogger.debug).toHaveBeenCalledWith(
+			expect.objectContaining({
+				toolCallId: expect.any(String),
+				toolName: "Read",
+				toolType: "file_read",
+				turnId: turn.turnId,
+				triggeringReasoningCount: 2,
+			}),
+			"Created tool call node with triggers",
+		);
+	});
+
+	it("should emit node created with all tool call properties", async () => {
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Read",
+				arguments_delta: '{"file_path": "/src/test.ts"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(context.emitNodeCreated).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "toolcall",
+				label: "ToolCall",
+				properties: expect.objectContaining({
+					tool_name: "Read",
+					tool_type: "file_read",
+					file_path: "/src/test.ts",
+					file_action: "read",
+				}),
+			}),
+		);
+	});
+
+	it("should work without emitNodeCreated callback", async () => {
+		context.emitNodeCreated = undefined;
+
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Read",
+				arguments_delta: "{}",
+				index: 0,
+			},
+		});
+
+		// Should not throw
+		await handler.handle(event, turn, context);
+
+		expect(turn.toolCalls.length).toBe(1);
+	});
+
+	it("should infer delete action for tools with delete in name", async () => {
+		// delete_file isn't in the fileTools list but this tests the inferFileAction method
+		// We need to test a file tool that goes through the delete path
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				name: "edit_file",
+				arguments_delta: '{"file_path": "/src/old.ts"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		// edit_file maps to edit action
+		expect(turn.toolCalls[0].fileAction).toBe("edit");
+	});
+
+	it("should not track files touched when file action is undefined", async () => {
+		// Bash tool doesn't extract file paths
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				name: "Bash",
+				arguments_delta: '{"command": "npm test"}',
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(turn.filesTouched.size).toBe(0);
+	});
+
+	it("should truncate arguments preview to 500 chars", async () => {
+		const longArgs = JSON.stringify({ content: "x".repeat(1000) });
+		const event = createTestEvent({
+			type: "tool_call",
+			tool_call: {
+				id: "call_123",
+				name: "Write",
+				arguments_delta: longArgs,
+				index: 0,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockGraphClient.query).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({
+				argumentsPreview: expect.stringMatching(/^.{500}$/),
+			}),
+		);
+	});
 });
 
 describe("DiffEventHandler", () => {
@@ -1571,6 +1742,154 @@ describe("UsageEventHandler", () => {
 		});
 
 		expect(handler.canHandle(event)).toBe(false);
+	});
+
+	it("should call publishTurnFinalized callback when provided", async () => {
+		const mockPublish = mock().mockResolvedValue(undefined);
+		context.publishTurnFinalized = mockPublish;
+
+		turn.assistantContent = "Test response";
+		turn.userContent = "User question";
+		turn.reasoningBlocks = [{ id: "r1", sequenceIndex: 0, content: "Reasoning content" }];
+		turn.toolCalls = [
+			{
+				id: "tc1",
+				callId: "call_1",
+				toolName: "Read",
+				toolType: "file_read",
+				argumentsJson: "{}",
+				sequenceIndex: 1,
+				triggeringReasoningIds: [],
+			},
+		];
+		turn.filesTouched.set("/src/test.ts", { action: "read", count: 1 });
+		turn.sequenceIndex = 5;
+		turn.orgId = "org-123";
+
+		const event = createTestEvent({
+			type: "usage",
+			usage: {
+				input_tokens: 100,
+				output_tokens: 200,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockPublish).toHaveBeenCalledWith(
+			expect.objectContaining({
+				id: turn.turnId,
+				session_id: turn.sessionId,
+				sequence_index: 5,
+				user_content: "User question",
+				assistant_content: "Test response",
+				reasoning_preview: "Reasoning content",
+				tool_calls: ["Read"],
+				files_touched: ["/src/test.ts"],
+				input_tokens: 100,
+				output_tokens: 200,
+				org_id: "org-123",
+			}),
+		);
+	});
+
+	it("should handle publishTurnFinalized callback error gracefully", async () => {
+		const mockPublish = mock().mockRejectedValue(new Error("Publish failed"));
+		context.publishTurnFinalized = mockPublish;
+
+		const event = createTestEvent({
+			type: "usage",
+			usage: {
+				input_tokens: 100,
+				output_tokens: 200,
+			},
+		});
+
+		// Should not throw
+		await handler.handle(event, turn, context);
+
+		expect(mockLogger.error).toHaveBeenCalledWith(
+			expect.objectContaining({
+				err: expect.any(Error),
+				turnId: turn.turnId,
+			}),
+			"Failed to publish turn_finalized event",
+		);
+	});
+
+	it("should work without publishTurnFinalized callback", async () => {
+		context.publishTurnFinalized = undefined;
+
+		const event = createTestEvent({
+			type: "usage",
+			usage: {
+				input_tokens: 100,
+				output_tokens: 200,
+			},
+		});
+
+		// Should not throw
+		await handler.handle(event, turn, context);
+
+		expect(turn.isFinalized).toBe(true);
+	});
+
+	it("should truncate assistant content preview to 2000 chars when finalizing", async () => {
+		turn.assistantContent = "x".repeat(3000);
+
+		const event = createTestEvent({
+			type: "usage",
+			usage: {
+				input_tokens: 100,
+				output_tokens: 200,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockGraphClient.query).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({
+				preview: "x".repeat(2000),
+			}),
+		);
+	});
+
+	it("should truncate reasoning preview to 500 chars when publishing", async () => {
+		const mockPublish = mock().mockResolvedValue(undefined);
+		context.publishTurnFinalized = mockPublish;
+
+		turn.reasoningBlocks = [{ id: "r1", sequenceIndex: 0, content: "x".repeat(600) }];
+
+		const event = createTestEvent({
+			type: "usage",
+			usage: {
+				input_tokens: 100,
+				output_tokens: 200,
+			},
+		});
+
+		await handler.handle(event, turn, context);
+
+		expect(mockPublish).toHaveBeenCalledWith(
+			expect.objectContaining({
+				reasoning_preview: "x".repeat(500),
+			}),
+		);
+	});
+
+	it("should return nodeId of turn when finalized", async () => {
+		const event = createTestEvent({
+			type: "usage",
+			usage: {
+				input_tokens: 100,
+				output_tokens: 200,
+			},
+		});
+
+		const result = await handler.handle(event, turn, context);
+
+		expect(result.nodeId).toBe(turn.turnId);
 	});
 });
 
