@@ -9,6 +9,7 @@
 export * from "./edge";
 export * from "./engram-schema";
 export * from "./field";
+export * from "./mcp";
 export * from "./node";
 export * from "./schema";
 export * from "./types";
