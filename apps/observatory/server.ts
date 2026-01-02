@@ -1,5 +1,4 @@
 import { createServer } from "node:http";
-import { parse } from "node:url";
 import { createNodeLogger } from "@engram/logger";
 import next from "next";
 import { WebSocketServer } from "ws";
@@ -18,14 +17,14 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
 	const server = createServer((req, res) => {
-		const parsedUrl = parse(req.url ?? "", true);
-		handle(req, res, parsedUrl);
+		const url = new URL(req.url ?? "", `http://localhost:${port}`);
+		handle(req, res, { pathname: url.pathname, query: Object.fromEntries(url.searchParams) });
 	});
 
 	const wss = new WebSocketServer({ noServer: true });
 
 	server.on("upgrade", (request, socket, head) => {
-		const { pathname } = parse(request.url || "", true);
+		const { pathname } = new URL(request.url || "", `http://localhost:${port}`);
 
 		// Match /api/ws/sessions (global sessions list)
 		if (pathname === "/api/ws/sessions") {

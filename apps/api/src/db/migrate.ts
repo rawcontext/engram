@@ -1,11 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import type { Logger } from "@engram/logger";
 import type { PostgresClient } from "@engram/storage";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 /**
  * Run database migrations
@@ -15,8 +10,8 @@ export async function runMigrations(db: PostgresClient, logger: Logger): Promise
 
 	try {
 		// Read and execute schema
-		const schemaPath = join(__dirname, "schema.sql");
-		const schema = await readFile(schemaPath, "utf-8");
+		const schemaPath = join(import.meta.dir, "schema.sql");
+		const schema = await Bun.file(schemaPath).text();
 
 		await db.query(schema);
 
