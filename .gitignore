@@ -21,12 +21,17 @@ __pycache__/
 htmlcov/
 
 # Local configs (all local-only files organized here)
-configs/
+configs/*
 !configs/Caddyfile
+!configs/beads/
+configs/beads/*.db*
+configs/beads/daemon.*
+configs/beads/*.log
+configs/beads/.local_version
+configs/beads/plans/
 
 # Symlinks to local configs
 .env*
-.beads
 docs/
 apps/*/.env
 Caddyfile

@@ -1,0 +1,78 @@
+# add-tests.toml
+# Test writing workflow for Engram
+#
+# Usage: gt mol pour add-tests <bead-id>
+
+[formula]
+name = "add-tests"
+description = "Add comprehensive tests: analyze → design → implement → verify"
+version = "1.0.0"
+
+# Step 1: Analyze code to test
+[[steps]]
+id = "analyze"
+name = "Analyze Target Code"
+description = """
+1. Read the source file(s) to be tested
+2. Identify public API surface (exports, methods)
+3. Map out code paths and branches
+4. Note dependencies that need mocking
+5. Check existing test patterns in the codebase
+"""
+estimated_minutes = 10
+
+# Step 2: Design test cases
+[[steps]]
+id = "design"
+name = "Design Test Cases"
+description = """
+1. List happy path scenarios
+2. Identify edge cases (empty inputs, boundaries, nulls)
+3. Plan error condition tests
+4. Consider integration test needs
+5. Estimate coverage targets
+"""
+depends_on = ["analyze"]
+estimated_minutes = 10
+
+# Step 3: Implement tests
+[[steps]]
+id = "implement"
+name = "Write Tests"
+description = """
+1. Create test file: <module>.test.ts
+2. Use Bun test runner: describe/it/expect
+3. Mock external dependencies with mock()/spyOn()
+4. Group tests by functionality (describe blocks)
+5. Write clear test names describing behavior
+"""
+depends_on = ["design"]
+estimated_minutes = 25
+
+# Step 4: Verify and refine
+[[steps]]
+id = "verify"
+name = "Verify Coverage"
+description = """
+1. Run: bun test <test-file>
+2. Check all tests pass
+3. Run: bun run lint (fix any issues)
+4. Review test quality - are edge cases covered?
+5. Add missing tests if needed
+"""
+depends_on = ["implement"]
+estimated_minutes = 10
+
+# Step 5: Commit
+[[steps]]
+id = "commit"
+name = "Commit Tests"
+description = """
+1. git add <test-file>
+2. bd sync
+3. git commit -m "test: add tests for <module>"
+4. bd sync && git push
+5. bd close <bead-id>
+"""
+depends_on = ["verify"]
+estimated_minutes = 5

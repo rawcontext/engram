@@ -1,0 +1,126 @@
+# gastown.toml
+# Gastown Multi-Agent Orchestration Configuration for Engram
+#
+# This file configures how Gastown manages agents working on this project.
+# See: https://github.com/steveyegge/gastown
+
+[rig]
+name = "engram"
+description = "Bitemporal graph-backed intelligent agent memory system"
+remote = "https://github.com/rawcontext/engram.git"
+default_branch = "main"
+
+# Workspace settings
+[rig.workspace]
+# Use worktrees for parallel agent work
+use_worktrees = true
+worktree_base = ".gt/worktrees"
+
+# Maximum concurrent agents
+max_workers = 10
+
+# Agent identity configuration
+[identity]
+# Attribution format for commits
+format = "gastown/{role}/{agent}"
+# Preserve identity across worktrees
+preserve_across_worktrees = true
+
+# Formula locations
+[formulas]
+# Path to formula definitions
+path = ".beads/formulas"
+
+# Default formula for new issues
+default = "implement-feature"
+
+# Formula mappings by issue type
+[formulas.by_type]
+feature = "implement-feature"
+bug = "fix-bug"
+task = "implement-feature"
+test = "add-tests"
+research = "research-task"
+refactor = "refactor-module"
+
+# Agent role configuration
+[agents]
+
+# Crew: Persistent workers for exploratory/long-running work
+[agents.crew]
+enabled = true
+max_count = 3
+# Crew pushes directly to main
+push_to_main = true
+# Human-controlled, requires approval
+requires_approval = true
+
+# Polecats: Ephemeral workers for discrete tasks
+[agents.polecats]
+enabled = true
+max_count = 10
+# Polecats work on branches, merged via Refinery
+push_to_main = false
+branch_prefix = "polecat/"
+# Auto-managed by Witness
+auto_managed = true
+
+# Witness: Lifecycle monitor
+[agents.witness]
+enabled = true
+# Check interval for stuck agents
+check_interval_seconds = 60
+# Max time before escalation
+stuck_threshold_minutes = 30
+
+# Refinery: Merge queue processor
+[agents.refinery]
+enabled = true
+# Require passing CI before merge
+require_ci = true
+# Auto-merge when ready
+auto_merge = true
+# Squash commits on merge
+squash = true
+
+# Convoy settings for batch work
+[convoys]
+# Auto-create convoy for related beads
+auto_group = true
+# Track convoy metrics
+track_metrics = true
+
+# Hook configuration
+[hooks]
+# Check hook on agent wake
+check_on_wake = true
+# Escalate if no work found
+escalate_on_empty = true
+# Mail fallback when hook is empty
+check_mail_fallback = true
+
+# Integration with Engram's memory system
+[integrations.engram]
+# Use engram_context at start of each molecule
+prime_context = true
+# Store decisions with engram_remember
+store_decisions = true
+# Store insights on completion
+store_insights = true
+
+# Logging and metrics
+[logging]
+level = "info"
+# Log to .gt/logs/
+log_dir = ".gt/logs"
+# Retain logs for N days
+retention_days = 30
+
+[metrics]
+# Export Prometheus metrics
+prometheus_enabled = true
+prometheus_port = 9090
+# Track per-agent completion rates
+track_completion_rates = true
+# Track formula step durations
+track_step_durations = true

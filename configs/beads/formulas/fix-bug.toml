@@ -1,0 +1,76 @@
+# fix-bug.toml
+# Bug fix workflow for Engram
+#
+# Usage: gt mol pour fix-bug <bead-id>
+
+[formula]
+name = "fix-bug"
+description = "Bug investigation and fix: reproduce → diagnose → fix → verify → commit"
+version = "1.0.0"
+
+# Step 1: Reproduce the bug
+[[steps]]
+id = "reproduce"
+name = "Reproduce Issue"
+description = """
+1. Read bug description and any error logs
+2. Identify reproduction steps
+3. Run the failing code/test to confirm the bug
+4. Document expected vs actual behavior
+"""
+estimated_minutes = 10
+
+# Step 2: Diagnose root cause
+[[steps]]
+id = "diagnose"
+name = "Diagnose Root Cause"
+description = """
+1. Use engram_recall to check for past insights about this area
+2. Add logging/debugging to narrow down the issue
+3. Read relevant source files with Read tool
+4. Trace the execution path
+5. Identify the root cause (not just symptoms)
+"""
+depends_on = ["reproduce"]
+estimated_minutes = 15
+
+# Step 3: Implement fix
+[[steps]]
+id = "fix"
+name = "Implement Fix"
+description = """
+1. Make minimal changes to fix the root cause
+2. Avoid over-engineering or scope creep
+3. Don't refactor unrelated code
+4. Update any affected tests
+"""
+depends_on = ["diagnose"]
+estimated_minutes = 15
+
+# Step 4: Verify fix
+[[steps]]
+id = "verify"
+name = "Verify Fix"
+description = """
+1. Run the reproduction steps - bug should be fixed
+2. Run: bun test (all tests should pass)
+3. Run: bun run lint && bun run typecheck
+4. Check for regressions in related functionality
+"""
+depends_on = ["fix"]
+estimated_minutes = 10
+
+# Step 5: Document and commit
+[[steps]]
+id = "commit"
+name = "Document & Commit"
+description = """
+1. Store insight about the bug cause with engram_remember(type='insight')
+2. git add <files>
+3. bd sync
+4. git commit -m "fix: <description of what was fixed>"
+5. bd sync && git push
+6. bd close <bead-id> --reason="Bug fixed and verified"
+"""
+depends_on = ["verify"]
+estimated_minutes = 5

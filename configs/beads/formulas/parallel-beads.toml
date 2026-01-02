@@ -1,0 +1,72 @@
+# parallel-beads.toml
+# Workflow for processing multiple independent beads in parallel
+#
+# Usage: gt convoy create "batch-name" <bead-1> <bead-2> ... && gt swarm spawn <n>
+
+[formula]
+name = "parallel-beads"
+description = "Orchestrate parallel execution of independent beads via convoy"
+version = "1.0.0"
+
+# Step 1: Identify ready work
+[[steps]]
+id = "identify"
+name = "Identify Ready Beads"
+description = """
+1. Run: bd ready
+2. Filter to beads with no blockers
+3. Group by epic/theme if applicable
+4. Estimate total work scope
+"""
+estimated_minutes = 5
+
+# Step 2: Create convoy
+[[steps]]
+id = "convoy"
+name = "Create Convoy"
+description = """
+1. gt convoy create "<batch-name>" <bead-ids...>
+2. Verify all beads are properly grouped
+3. Check convoy status: gt convoy show <name>
+"""
+depends_on = ["identify"]
+estimated_minutes = 2
+
+# Step 3: Dispatch to agents
+[[steps]]
+id = "dispatch"
+name = "Dispatch to Agents"
+description = """
+1. gt sling <bead-1> worker-1
+2. gt sling <bead-2> worker-2
+3. ... (one bead per available worker)
+4. Or: gt swarm spawn <n> for automatic dispatch
+"""
+depends_on = ["convoy"]
+estimated_minutes = 5
+
+# Step 4: Monitor progress
+[[steps]]
+id = "monitor"
+name = "Monitor Progress"
+description = """
+1. gt convoy show <name> (track completion)
+2. Watch for stuck agents via Witness
+3. Handle escalations if any
+4. Reassign failed work if needed
+"""
+depends_on = ["dispatch"]
+estimated_minutes = 30
+
+# Step 5: Merge and close
+[[steps]]
+id = "merge"
+name = "Merge & Close"
+description = """
+1. Refinery handles merge queue
+2. Resolve any merge conflicts
+3. Verify all beads closed
+4. bd sync && git push
+"""
+depends_on = ["monitor"]
+estimated_minutes = 10

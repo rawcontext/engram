@@ -1,0 +1,74 @@
+# research-task.toml
+# Research and exploration workflow for Engram
+#
+# Usage: gt mol pour research-task <bead-id>
+
+[formula]
+name = "research-task"
+description = "Research task: explore → analyze → document → report"
+version = "1.0.0"
+
+# Step 1: Gather context
+[[steps]]
+id = "context"
+name = "Gather Context"
+description = """
+1. Call engram_context(task) to check institutional memory
+2. Review the research question/goal
+3. Identify relevant areas of the codebase
+4. List specific questions to answer
+"""
+estimated_minutes = 5
+
+# Step 2: Explore codebase
+[[steps]]
+id = "explore"
+name = "Explore Codebase"
+description = """
+1. Use Task(subagent_type='Explore') for broad searches
+2. Use Glob/Grep for specific patterns
+3. Read key files with Read tool
+4. Map out architecture and data flow
+5. Note dependencies and integrations
+"""
+depends_on = ["context"]
+estimated_minutes = 20
+
+# Step 3: External research
+[[steps]]
+id = "external"
+name = "External Research"
+description = """
+1. Use Context7 MCP for library documentation
+2. Use WebSearch for recent best practices
+3. Use WebFetch for specific documentation pages
+4. Compare approaches and trade-offs
+"""
+depends_on = ["explore"]
+estimated_minutes = 15
+
+# Step 4: Synthesize findings
+[[steps]]
+id = "synthesize"
+name = "Synthesize Findings"
+description = """
+1. Organize findings by topic
+2. Identify patterns and insights
+3. Note decisions and rationale
+4. Highlight open questions or risks
+"""
+depends_on = ["external"]
+estimated_minutes = 10
+
+# Step 5: Document and store
+[[steps]]
+id = "document"
+name = "Document & Store"
+description = """
+1. Store key insights with engram_remember(type='insight')
+2. Store decisions with engram_remember(type='decision')
+3. Report findings to user
+4. bd close <bead-id> --reason="Research complete"
+"""
+depends_on = ["synthesize"]
+estimated_minutes = 10

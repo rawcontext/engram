@@ -1,0 +1,91 @@
+# refactor-module.toml
+# Refactoring workflow for Engram
+#
+# Usage: gt mol pour refactor-module <bead-id>
+
+[formula]
+name = "refactor-module"
+description = "Safe refactoring: analyze → plan → refactor → verify → commit"
+version = "1.0.0"
+
+# Step 1: Analyze current state
+[[steps]]
+id = "analyze"
+name = "Analyze Current State"
+description = """
+1. Read the module(s) to be refactored
+2. Identify all consumers/dependents
+3. Map current API surface
+4. Note technical debt and pain points
+5. Check for existing tests
+"""
+estimated_minutes = 15
+
+# Step 2: Plan refactoring
+[[steps]]
+id = "plan"
+name = "Plan Refactoring"
+description = """
+1. Define target architecture
+2. Plan incremental steps (small, safe changes)
+3. Identify breaking changes
+4. Plan backwards compatibility if needed
+5. Get user approval on approach
+"""
+depends_on = ["analyze"]
+estimated_minutes = 10
+
+# Step 3: Ensure test coverage
+[[steps]]
+id = "tests"
+name = "Ensure Test Coverage"
+description = """
+1. Run existing tests: bun test <module>
+2. Add missing tests for current behavior
+3. Tests must pass before refactoring
+4. These tests will catch regressions
+"""
+depends_on = ["plan"]
+estimated_minutes = 15
+
+# Step 4: Refactor incrementally
+[[steps]]
+id = "refactor"
+name = "Refactor Code"
+description = """
+1. Make small, focused changes
+2. Run tests after each change
+3. Avoid changing behavior (only structure)
+4. Update imports in consumers
+5. Remove dead code
+"""
+depends_on = ["tests"]
+estimated_minutes = 30
+
+# Step 5: Verify and lint
+[[steps]]
+id = "verify"
+name = "Verify Changes"
+description = """
+1. Run full test suite: bun test
+2. Run: bun run lint && bun run typecheck
+3. Manual smoke test if applicable
+4. Verify no regressions
+"""
+depends_on = ["refactor"]
+estimated_minutes = 10
+
+# Step 6: Commit
+[[steps]]
+id = "commit"
+name = "Commit Refactoring"
+description = """
+1. Store decision with engram_remember(type='decision')
+2. git add <files>
+3. bd sync
+4. git commit -m "refactor: <description>"
+5. bd sync && git push
+6. bd close <bead-id>
+"""
+depends_on = ["verify"]
+estimated_minutes = 5

@@ -1,0 +1,93 @@
+# implement-feature.toml
+# Standard feature implementation workflow for Engram
+#
+# Usage: gt mol pour implement-feature <bead-id>
+
+[formula]
+name = "implement-feature"
+description = "Full feature implementation: research → implement → test → lint → commit"
+version = "1.0.0"
+
+# Step 1: Research and understand the codebase
+[[steps]]
+id = "research"
+name = "Research & Context"
+description = """
+1. Call engram_context(task) to prime with institutional knowledge
+2. Use Context7 MCP to fetch current library documentation
+3. Explore codebase with Task(subagent_type='Explore')
+4. Check for existing patterns with Grep/Glob
+5. Review CLAUDE.md for project conventions
+"""
+estimated_minutes = 15
+
+# Step 2: Plan the implementation
+[[steps]]
+id = "plan"
+name = "Design & Plan"
+description = """
+1. Create implementation plan with EnterPlanMode if non-trivial
+2. Break down into subtasks with TodoWrite
+3. Identify files to create/modify
+4. Consider edge cases and error handling
+5. Get user approval on approach if needed
+"""
+depends_on = ["research"]
+estimated_minutes = 10
+
+# Step 3: Implement the feature
+[[steps]]
+id = "implement"
+name = "Implement Code"
+description = """
+1. Write code following project conventions (Biome, TypeScript strict)
+2. Use Edit tool for existing files, Write for new files
+3. Preserve bitemporal fields in graph operations
+4. Use @engram packages, never create direct DB connections
+5. Mark TodoWrite items as completed as you go
+"""
+depends_on = ["plan"]
+estimated_minutes = 30
+
+# Step 4: Write tests
+[[steps]]
+id = "test"
+name = "Write Tests"
+description = """
+1. Create unit tests using Bun's native test runner
+2. Use mock/spyOn for external dependencies
+3. Test happy path, edge cases, and error conditions
+4. Run: bun test <test-file>
+5. Ensure all tests pass before proceeding
+"""
+depends_on = ["implement"]
+estimated_minutes = 20
+
+# Step 5: Lint and typecheck
+[[steps]]
+id = "lint"
+name = "Lint & Typecheck"
+description = """
+1. Run: bun run lint
+2. Run: bun run typecheck
+3. Fix any errors or warnings
+4. For Python: uv run ruff check && uv run ruff format
+"""
+depends_on = ["test"]
+estimated_minutes = 5
+
+# Step 6: Commit and push
+[[steps]]
+id = "commit"
+name = "Commit & Push"
+description = """
+1. git status (check changes)
+2. git add <relevant-files>
+3. bd sync (sync beads)
+4. git commit with descriptive message
+5. bd sync (capture any new changes)
+6. git push
+7. bd close <bead-id> --reason="Implementation complete"
+"""
+depends_on = ["lint"]
+estimated_minutes = 5
