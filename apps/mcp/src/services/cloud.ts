@@ -249,6 +249,9 @@ export class EngramCloudClient implements IEngramClient {
 			vt_end: 253402300799000,
 			tt_start: now,
 			tt_end: 253402300799000,
+			access_count: 0,
+			decay_score: 1.0,
+			pinned: false,
 		};
 
 		this.logger.info(
