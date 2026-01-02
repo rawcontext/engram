@@ -362,3 +362,53 @@ export interface Entity {
 	ttStart: number;
 	ttEnd: number;
 }
+
+// =============================================================================
+// Community Repository Types
+// =============================================================================
+
+export const CreateCommunityInputSchema = z.object({
+	name: z.string(), // LLM-generated name (2-4 words)
+	summary: z.string(), // LLM-generated summary (2-3 sentences)
+	keywords: z.array(z.string()).default([]), // 3-5 keywords for search
+	memberCount: z.number().int().default(0),
+	memoryCount: z.number().int().default(0),
+	project: z.string().optional(),
+	orgId: z.string().optional(),
+	embedding: z.array(z.number()).optional(),
+});
+
+export type CreateCommunityInput = z.infer<typeof CreateCommunityInputSchema>;
+
+export const UpdateCommunityInputSchema = z.object({
+	name: z.string().optional(),
+	summary: z.string().optional(),
+	keywords: z.array(z.string()).optional(),
+	memberCount: z.number().int().optional(),
+	memoryCount: z.number().int().optional(),
+	embedding: z.array(z.number()).optional(),
+});
+
+export type UpdateCommunityInput = z.infer<typeof UpdateCommunityInputSchema>;
+
+/**
+ * Community entity returned from repository.
+ * Represents entity clusters discovered via graph community detection.
+ */
+export interface Community {
+	id: string;
+	name: string;
+	summary: string;
+	keywords: string[];
+	memberCount: number;
+	memoryCount: number;
+	lastUpdated: number;
+	project?: string;
+	orgId?: string;
+	embedding?: number[];
+	// Bitemporal
+	vtStart: number;
+	vtEnd: number;
+	ttStart: number;
+	ttEnd: number;
+}

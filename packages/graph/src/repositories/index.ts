@@ -2,6 +2,7 @@
 // Repository Interfaces
 // =============================================================================
 
+export type { CommunityRepository } from "./community.repository";
 export type { EntityRepository } from "./entity.repository";
 export type { FileTouchRepository } from "./file-touch.repository";
 export type { MemoryRepository } from "./memory.repository";
@@ -15,6 +16,9 @@ export type { TurnRepository } from "./turn.repository";
 // =============================================================================
 
 export type {
+	// Community types
+	Community,
+	CreateCommunityInput,
 	// Entity types
 	CreateEntityInput,
 	// FileTouch types
@@ -37,6 +41,7 @@ export type {
 	ToolCall,
 	ToolResult,
 	Turn,
+	UpdateCommunityInput,
 	UpdateEntityInput,
 	UpdateMemoryInput,
 	UpdateSessionInput,
@@ -44,6 +49,7 @@ export type {
 } from "./types";
 
 export {
+	CreateCommunityInputSchema,
 	CreateEntityInputSchema,
 	CreateFileTouchInputSchema,
 	CreateMemoryInputSchema,
@@ -52,6 +58,7 @@ export {
 	CreateToolCallInputSchema,
 	CreateTurnInputSchema,
 	ToolResultSchema,
+	UpdateCommunityInputSchema,
 	UpdateEntityInputSchema,
 	UpdateMemoryInputSchema,
 	UpdateSessionInputSchema,
@@ -64,6 +71,7 @@ export {
 
 export type { TimeTravelOptions } from "./falkor-base";
 export { FalkorBaseRepository } from "./falkor-base";
+export { FalkorCommunityRepository } from "./falkor-community.repository";
 export { FalkorEntityRepository } from "./falkor-entity.repository";
 export { FalkorFileTouchRepository } from "./falkor-file-touch.repository";
 export { FalkorMemoryRepository } from "./falkor-memory.repository";
