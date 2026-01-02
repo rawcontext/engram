@@ -289,6 +289,30 @@ export class ConflictDetectorService {
 	}
 
 	/**
+	 * Format a conflict detection result as a human-readable message.
+	 * Used for elicitation prompts to help users understand what will change.
+	 */
+	formatConflictMessage(result: ConflictDetectionResult): string {
+		const { candidate, relation, reasoning } = result;
+		const oldDate = new Date(candidate.vt_start).toLocaleDateString();
+		const relationLabel =
+			relation === "supersedes"
+				? "supersedes"
+				: relation === "contradiction"
+					? "contradicts"
+					: relation;
+
+		return `The new memory ${relationLabel} an existing memory from ${oldDate}:
+
+**Existing memory (${candidate.type}):**
+${candidate.content}
+
+**Reason:** ${reasoning}
+
+If you proceed, the old memory will be marked as no longer valid (invalidated), and the new memory will be stored as the current truth.`;
+	}
+
+	/**
 	 * Build the classification prompt for LLM.
 	 */
 	buildPrompt(newMemory: { content: string; type: string }, candidate: ConflictCandidate): string {

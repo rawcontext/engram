@@ -191,4 +191,10 @@ export interface IEngramClient extends IMemoryStore, IMemoryRetriever {
 	 * Find potential conflict candidates for a new memory
 	 */
 	findConflictCandidates(content: string, project?: string): Promise<ConflictCandidate[]>;
+
+	/**
+	 * Invalidate a memory by setting its vt_end to now
+	 * Used when a newer memory supersedes or contradicts an older one
+	 */
+	invalidateMemory(memoryId: string, tenant?: TenantContext): Promise<void>;
 }

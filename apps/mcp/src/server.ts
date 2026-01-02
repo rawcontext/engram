@@ -226,6 +226,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 		getSessionContext,
 		cloudClient,
 		conflictDetector,
+		elicitation,
 		logger,
 	);
 	registerRecallTool(mcpServer, memoryRetriever, getSessionContext, elicitation);
