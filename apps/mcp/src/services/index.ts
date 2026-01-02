@@ -16,6 +16,11 @@ export {
 	type ExtractedRelationship,
 	RelationshipType,
 } from "./entity-extractor";
+export {
+	type EntityResolutionResult,
+	type EntityResolverConfig,
+	EntityResolverService,
+} from "./entity-resolver";
 export type {
 	ContextItem,
 	CreateMemoryInput,
