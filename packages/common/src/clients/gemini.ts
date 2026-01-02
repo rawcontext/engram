@@ -2,11 +2,8 @@
  * @fileoverview Gemini API client with structured output support
  *
  * This module provides a type-safe interface for generating structured JSON
- * responses from Google's Gemini models using Zod schemas. The client handles:
- * - Automatic Zod-to-JSON schema conversion
- * - Response validation and parsing
- * - Retry logic with exponential backoff
- * - Batch request processing
+ * responses from Google's Gemini models using Zod schemas. Built on the
+ * Vercel AI SDK for standardized LLM interactions.
  *
  * @example
  * ```typescript
@@ -15,7 +12,7 @@
  *
  * const client = createGeminiClient({
  *   apiKey: process.env.GEMINI_API_KEY,
- *   model: "gemini-2.0-flash-exp"
+ *   model: "gemini-3-flash-preview"
  * });
  *
  * const RecipeSchema = z.object({
@@ -33,10 +30,9 @@
  * @module clients/gemini
  */
 
-import type { GenerateContentRequest, Schema } from "@google/generative-ai";
-import { type GenerativeModel, GoogleGenerativeAI } from "@google/generative-ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generateObject, generateText } from "ai";
 import type { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { EngramError } from "../errors";
 import { withRetry } from "../utils";
 
@@ -52,7 +48,7 @@ export interface GeminiClientConfig {
 
 	/**
 	 * Default model to use for generation
-	 * @default "gemini-2.0-flash-exp"
+	 * @default "gemini-3-flash-preview"
 	 */
 	model?: string;
 
@@ -96,9 +92,39 @@ export interface GenerateStructuredOutputOptions<T> {
 	/**
 	 * Temperature for response generation (0.0-2.0)
 	 * Lower values are more deterministic
-	 * @default 0.7
 	 */
 	temperature?: number;
+}
+
+/**
+ * Options for generating plain text output
+ */
+export interface GenerateTextOptions {
+	/**
+	 * The prompt to send to the model
+	 */
+	prompt: string;
+
+	/**
+	 * Override the default model for this request
+	 */
+	model?: string;
+
+	/**
+	 * System instruction to guide model behavior
+	 */
+	systemInstruction?: string;
+
+	/**
+	 * Temperature for response generation (0.0-2.0)
+	 * Lower values are more deterministic
+	 */
+	temperature?: number;
+
+	/**
+	 * Maximum number of tokens in the response
+	 */
+	maxTokens?: number;
 }
 
 /**
@@ -127,7 +153,6 @@ export interface GenerateBatchOptions<T> {
 
 	/**
 	 * Temperature for response generation (0.0-2.0)
-	 * @default 0.7
 	 */
 	temperature?: number;
 
@@ -149,10 +174,10 @@ export class GeminiError extends EngramError {
 }
 
 /**
- * Gemini client for generating structured outputs
+ * Gemini client for generating structured outputs using Vercel AI SDK
  */
 export class GeminiClient {
-	private readonly ai: GoogleGenerativeAI;
+	private readonly google: ReturnType<typeof createGoogleGenerativeAI>;
 	private readonly defaultModel: string;
 	private readonly maxRetries: number;
 	private readonly retryDelay: number;
@@ -165,8 +190,8 @@ export class GeminiClient {
 			);
 		}
 
-		this.ai = new GoogleGenerativeAI(apiKey);
-		this.defaultModel = config.model ?? "gemini-2.0-flash-exp";
+		this.google = createGoogleGenerativeAI({ apiKey });
+		this.defaultModel = config.model ?? "gemini-3-flash-preview";
 		this.maxRetries = config.maxRetries ?? 3;
 		this.retryDelay = config.retryDelay ?? 1000;
 	}
@@ -189,48 +214,67 @@ export class GeminiClient {
 	 * ```
 	 */
 	async generateStructuredOutput<T>(options: GenerateStructuredOutputOptions<T>): Promise<T> {
-		const model = this.getModel(options.model);
-		const jsonSchema = this.convertSchema(options.schema);
+		const modelName = options.model ?? this.defaultModel;
 
 		return withRetry(
 			async () => {
 				try {
-					const request: GenerateContentRequest = {
-						contents: [{ role: "user", parts: [{ text: options.prompt }] }],
-						generationConfig: {
-							responseMimeType: "application/json",
-							responseSchema: jsonSchema as unknown as Schema,
-							temperature: options.temperature ?? 0.7,
-						},
-					};
+					const result = await generateObject({
+						model: this.google(modelName),
+						schema: options.schema,
+						prompt: options.prompt,
+						system: options.systemInstruction,
+						temperature: options.temperature,
+					});
 
-					if (options.systemInstruction) {
-						request.systemInstruction = options.systemInstruction;
-					}
-
-					const result = await model.generateContent(request);
-					const response = result.response;
-					const text = response.text();
-
-					if (!text) {
-						throw new GeminiError("Empty response from Gemini API");
-					}
-
-					// Parse JSON response
-					let parsed: unknown;
-					try {
-						parsed = JSON.parse(text);
-					} catch (error) {
-						throw new GeminiError(`Failed to parse JSON response: ${text}`, error);
-					}
-
-					// Validate against schema
-					const validated = options.schema.parse(parsed);
-					return validated;
+					return result.object;
 				} catch (error) {
-					if (error instanceof GeminiError) {
-						throw error;
-					}
+					throw new GeminiError(
+						`Gemini API request failed: ${error instanceof Error ? error.message : String(error)}`,
+						error,
+					);
+				}
+			},
+			{
+				maxRetries: this.maxRetries,
+				initialDelayMs: this.retryDelay,
+				onRetry: (error, attempt) => {
+					console.warn(
+						`[GeminiClient] Retry attempt ${attempt}/${this.maxRetries} after error:`,
+						error,
+					);
+				},
+			},
+		);
+	}
+
+	/**
+	 * Generate plain text output (for simple yes/no confirmations, etc.)
+	 *
+	 * @example
+	 * ```typescript
+	 * const response = await client.generateText({
+	 *   prompt: "Is the sky blue? Reply YES or NO.",
+	 *   maxTokens: 10
+	 * });
+	 * ```
+	 */
+	async generateText(options: GenerateTextOptions): Promise<string> {
+		const modelName = options.model ?? this.defaultModel;
+
+		return withRetry(
+			async () => {
+				try {
+					const result = await generateText({
+						model: this.google(modelName),
+						prompt: options.prompt,
+						system: options.systemInstruction,
+						temperature: options.temperature,
+						maxTokens: options.maxTokens,
+					});
+
+					return result.text;
+				} catch (error) {
 					throw new GeminiError(
 						`Gemini API request failed: ${error instanceof Error ? error.message : String(error)}`,
 						error,
@@ -312,34 +356,6 @@ export class GeminiClient {
 
 		return results;
 	}
-
-	/**
-	 * Get a model instance
-	 */
-	private getModel(modelName?: string): GenerativeModel {
-		return this.ai.getGenerativeModel({
-			model: modelName ?? this.defaultModel,
-		});
-	}
-
-	/**
-	 * Convert Zod schema to JSON Schema format for Gemini API
-	 */
-	private convertSchema(schema: any): Record<string, unknown> {
-		const jsonSchema = zodToJsonSchema(schema, {
-			// Use strict mode to ensure compatibility with Gemini
-			$refStrategy: "none",
-			// Remove $schema property as Gemini doesn't expect it
-			removeAdditionalStrategy: "strict",
-		});
-
-		// Remove top-level $schema property if present
-		const { $schema, ...rest } = jsonSchema as Record<string, unknown> & {
-			$schema?: string;
-		};
-
-		return rest;
-	}
 }
 
 /**
@@ -349,7 +365,7 @@ export class GeminiClient {
  * ```typescript
  * const client = createGeminiClient({
  *   apiKey: process.env.GEMINI_API_KEY,
- *   model: "gemini-2.0-flash-exp"
+ *   model: "gemini-3-flash-preview"
  * });
  * ```
  */

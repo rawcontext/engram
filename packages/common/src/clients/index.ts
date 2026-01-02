@@ -13,4 +13,5 @@ export {
 	GeminiError,
 	type GenerateBatchOptions,
 	type GenerateStructuredOutputOptions,
+	type GenerateTextOptions,
 } from "./gemini";

@@ -1,5 +1,7 @@
+import { createGeminiClient, type GeminiClient } from "@engram/common/clients";
 import type { Logger } from "@engram/logger";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 
 /**
  * Types and interfaces for entity extraction from memory content
@@ -83,65 +85,29 @@ export interface EntityExtractionResult {
 }
 
 /**
- * JSON schema for entity extraction LLM response
+ * Zod schema for entity extraction LLM response
  */
-const ENTITY_EXTRACTION_SCHEMA = {
-	type: "object",
-	properties: {
-		entities: {
-			type: "array",
-			items: {
-				type: "object",
-				properties: {
-					name: {
-						type: "string",
-						description: "Canonical name of the entity",
-					},
-					type: {
-						type: "string",
-						enum: ["tool", "concept", "pattern", "file", "person", "project", "technology"],
-						description: "Type of entity",
-					},
-					context: {
-						type: "string",
-						description: "How this entity appears in the memory",
-					},
-					confidence: {
-						type: "number",
-						minimum: 0,
-						maximum: 1,
-						description: "Confidence score for this entity",
-					},
-				},
-				required: ["name", "type", "context", "confidence"],
-			},
-		},
-		relationships: {
-			type: "array",
-			items: {
-				type: "object",
-				properties: {
-					from: {
-						type: "string",
-						description: "Source entity name",
-					},
-					to: {
-						type: "string",
-						description: "Target entity name",
-					},
-					type: {
-						type: "string",
-						enum: ["RELATED_TO", "DEPENDS_ON", "IMPLEMENTS", "PART_OF"],
-						description: "Type of relationship",
-					},
-				},
-				required: ["from", "to", "type"],
-			},
-		},
-	},
-	required: ["entities", "relationships"],
-	additionalProperties: false,
-} as const;
+const EntityExtractionSchema = z.object({
+	entities: z.array(
+		z.object({
+			name: z.string().describe("Canonical name of the entity"),
+			type: z
+				.enum(["tool", "concept", "pattern", "file", "person", "project", "technology"])
+				.describe("Type of entity"),
+			context: z.string().describe("How this entity appears in the memory"),
+			confidence: z.number().min(0).max(1).describe("Confidence score for this entity"),
+		}),
+	),
+	relationships: z.array(
+		z.object({
+			from: z.string().describe("Source entity name"),
+			to: z.string().describe("Target entity name"),
+			type: z
+				.enum(["RELATED_TO", "DEPENDS_ON", "IMPLEMENTS", "PART_OF"])
+				.describe("Type of relationship"),
+		}),
+	),
+});
 
 /**
  * Service for extracting entities and relationships from memory content.
@@ -152,12 +118,15 @@ const ENTITY_EXTRACTION_SCHEMA = {
 export class EntityExtractorService {
 	private server: McpServer;
 	private logger: Logger;
-	private geminiApiKey?: string;
+	private geminiClient?: GeminiClient;
 
 	constructor(server: McpServer, logger: Logger, geminiApiKey?: string) {
 		this.server = server;
 		this.logger = logger;
-		this.geminiApiKey = geminiApiKey || process.env.GEMINI_API_KEY;
+		const apiKey = geminiApiKey || process.env.GEMINI_API_KEY;
+		if (apiKey) {
+			this.geminiClient = createGeminiClient({ apiKey });
+		}
 	}
 
 	/**
@@ -269,53 +238,23 @@ export class EntityExtractorService {
 	}
 
 	/**
-	 * Extract entities using Gemini API.
-	 * Uses JSON schema response_format for structured output.
+	 * Extract entities using Gemini API via Vercel AI SDK.
+	 * Uses Zod schema for structured output.
 	 */
 	async extractWithGemini(prompt: string): Promise<string> {
-		if (!this.geminiApiKey) {
+		if (!this.geminiClient) {
 			throw new Error("GEMINI_API_KEY not configured for entity extraction");
 		}
 
 		this.logger.debug("Extracting entities via Gemini");
 
-		// Use Gemini API endpoint
-		const response = await fetch(
-			"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"x-goog-api-key": this.geminiApiKey,
-				},
-				body: JSON.stringify({
-					contents: [
-						{
-							parts: [{ text: prompt }],
-						},
-					],
-					generationConfig: {
-						responseMimeType: "application/json",
-						responseSchema: ENTITY_EXTRACTION_SCHEMA,
-					},
-				}),
-			},
-		);
+		const result = await this.geminiClient.generateStructuredOutput({
+			prompt,
+			schema: EntityExtractionSchema,
+		});
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`Gemini API error: ${response.status} ${errorText}`);
-		}
-
-		const data = await response.json();
-
-		// Extract text from Gemini response format
-		const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-		if (!text) {
-			throw new Error("No text in Gemini response");
-		}
-
-		return text;
+		// Return as JSON string to maintain compatibility with parseResponse
+		return JSON.stringify(result);
 	}
 
 	/**

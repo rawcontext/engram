@@ -22,7 +22,7 @@ dependencies = [
     # Lightweight sparse embeddings (ONNX, no PyTorch)
     "fastembed>=0.5.3",
     # LLM reranking
-    "litellm>=1.80.10",
+    "litellm>=1.80.11",
     # Logging
     "structlog>=25.5.0",
     # Metrics

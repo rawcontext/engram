@@ -48,7 +48,7 @@ dependencies = [
 	"pyyaml>=6.0.3",
 
 	# LLM
-	"litellm>=1.80.10",
+	"litellm>=1.80.11",
 	"anthropic>=0.75.0",
 	"openai>=2.14.0",
 

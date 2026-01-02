@@ -15,10 +15,12 @@
  * @see https://arxiv.org/abs/2501.13956 - Zep temporal knowledge graphs
  */
 
+import { createGeminiClient, type GeminiClient } from "@engram/common/clients";
 import type { ConflictRelationValue } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import type { GraphClient } from "@engram/storage";
 import { ulid } from "ulid";
+import { z } from "zod";
 
 // =============================================================================
 // Types
@@ -70,7 +72,7 @@ export interface ConflictScannerOptions {
 	maxCandidatesPerMemory?: number;
 	/** Batch size for LLM classification (default: 20) */
 	llmBatchSize?: number;
-	/** LLM model to use (default: gemini-2.0-flash-exp) */
+	/** LLM model to use (default: gemini-3-flash-preview) */
 	llmModel?: string;
 	/** Gemini API key */
 	geminiApiKey?: string;
@@ -97,34 +99,21 @@ export interface ConflictScanResult {
 // Constants
 // =============================================================================
 
-const CONFLICT_CLASSIFICATION_SCHEMA = {
-	type: "object",
-	properties: {
-		relation: {
-			type: "string",
-			enum: ["contradiction", "supersedes", "augments", "duplicate", "independent"],
-			description: "Type of relationship between memories",
-		},
-		confidence: {
-			type: "number",
-			minimum: 0,
-			maximum: 1,
-			description: "Confidence score in the classification",
-		},
-		reasoning: {
-			type: "string",
-			description: "Human-readable explanation of the relationship",
-		},
-		suggestedAction: {
-			type: "string",
-			enum: ["invalidate_a", "invalidate_b", "keep_both", "merge"],
-			description:
-				"Recommended action: invalidate_a (older), invalidate_b (newer), keep_both, or merge",
-		},
-	},
-	required: ["relation", "confidence", "reasoning", "suggestedAction"],
-	additionalProperties: false,
-} as const;
+/**
+ * Zod schema for conflict classification LLM response
+ */
+const ConflictClassificationSchema = z.object({
+	relation: z
+		.enum(["contradiction", "supersedes", "augments", "duplicate", "independent"])
+		.describe("Type of relationship between memories"),
+	confidence: z.number().min(0).max(1).describe("Confidence score in the classification"),
+	reasoning: z.string().describe("Human-readable explanation of the relationship"),
+	suggestedAction: z
+		.enum(["invalidate_a", "invalidate_b", "keep_both", "merge"])
+		.describe(
+			"Recommended action: invalidate_a (older), invalidate_b (newer), keep_both, or merge",
+		),
+});
 
 // =============================================================================
 // ConflictScanner Class
@@ -137,6 +126,7 @@ export class ConflictScanner {
 	private graphClient: GraphClient;
 	private logger: Logger;
 	private options: Required<ConflictScannerOptions>;
+	private geminiClient?: GeminiClient;
 
 	constructor(graphClient: GraphClient, logger: Logger, options?: ConflictScannerOptions) {
 		this.graphClient = graphClient;
@@ -145,11 +135,17 @@ export class ConflictScanner {
 			similarityThreshold: options?.similarityThreshold ?? 0.7,
 			maxCandidatesPerMemory: options?.maxCandidatesPerMemory ?? 5,
 			llmBatchSize: options?.llmBatchSize ?? 20,
-			llmModel: options?.llmModel ?? "gemini-2.0-flash-exp",
+			llmModel: options?.llmModel ?? "gemini-3-flash-preview",
 			geminiApiKey: options?.geminiApiKey ?? process.env.GEMINI_API_KEY ?? "",
 			searchUrl: options?.searchUrl ?? process.env.SEARCH_URL ?? "http://localhost:6176",
 			authToken: options?.authToken ?? process.env.AUTH_TOKEN ?? "",
 		};
+		if (this.options.geminiApiKey) {
+			this.geminiClient = createGeminiClient({
+				apiKey: this.options.geminiApiKey,
+				model: this.options.llmModel,
+			});
+		}
 	}
 
 	/**
@@ -412,8 +408,8 @@ export class ConflictScanner {
 	private async classifyBatch(
 		pairs: Array<{ memory: MemoryCandidate; candidate: VectorCandidate }>,
 	): Promise<ConflictClassification[]> {
-		if (!this.options.geminiApiKey) {
-			this.logger.warn("No Gemini API key configured, skipping classification");
+		if (!this.geminiClient) {
+			this.logger.warn("No Gemini client configured, skipping classification");
 			return [];
 		}
 
@@ -444,53 +440,30 @@ export class ConflictScanner {
 	}
 
 	/**
-	 * Classify a single memory pair using Gemini
+	 * Classify a single memory pair using Gemini via Vercel AI SDK
 	 */
 	private async classifyPair(
 		memoryA: MemoryCandidate,
 		memoryB: VectorCandidate,
 	): Promise<ConflictClassification> {
+		if (!this.geminiClient) {
+			throw new Error("Gemini client not configured");
+		}
+
 		const prompt = this.buildClassificationPrompt(memoryA, memoryB);
 
-		const response = await fetch(
-			"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"x-goog-api-key": this.options.geminiApiKey,
-				},
-				body: JSON.stringify({
-					contents: [{ parts: [{ text: prompt }] }],
-					generationConfig: {
-						responseMimeType: "application/json",
-						responseSchema: CONFLICT_CLASSIFICATION_SCHEMA,
-					},
-				}),
-			},
-		);
-
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`Gemini API error: ${response.status} ${errorText}`);
-		}
-
-		const data = await response.json();
-		const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-		if (!text) {
-			throw new Error("No text in Gemini response");
-		}
-
-		const parsed = JSON.parse(text);
+		const result = await this.geminiClient.generateStructuredOutput({
+			prompt,
+			schema: ConflictClassificationSchema,
+		});
 
 		return {
 			memoryA,
 			memoryB,
-			relation: parsed.relation,
-			confidence: Math.max(0, Math.min(1, parsed.confidence)),
-			reasoning: parsed.reasoning,
-			suggestedAction: parsed.suggestedAction,
+			relation: result.relation,
+			confidence: Math.max(0, Math.min(1, result.confidence)),
+			reasoning: result.reasoning,
+			suggestedAction: result.suggestedAction,
 		};
 	}
 

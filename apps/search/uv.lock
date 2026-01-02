@@ -403,7 +403,7 @@ requires-dist = [
     { name = "flashrank", marker = "extra == 'local'", specifier = ">=0.2.10" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "huggingface-hub", extras = ["inference"], specifier = ">=0.20.0" },
-    { name = "litellm", specifier = ">=1.80.10" },
+    { name = "litellm", specifier = ">=1.80.11" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.19.1" },
     { name = "nats-py", specifier = ">=2.9.0" },
     { name = "numpy", specifier = ">=2.0.0" },

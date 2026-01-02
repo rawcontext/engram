@@ -1,3 +1,4 @@
+import { createGeminiClient, type GeminiClient } from "@engram/common/clients";
 import type { Entity, EntityRepository } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -85,7 +86,7 @@ export class EntityResolverService {
 	private readonly server: McpServer;
 	private readonly logger: Logger;
 	private readonly config: EntityResolverConfig;
-	private readonly geminiApiKey?: string;
+	private readonly geminiClient?: GeminiClient;
 
 	constructor(
 		entityRepo: EntityRepository,
@@ -99,7 +100,10 @@ export class EntityResolverService {
 		this.server = server;
 		this.logger = logger;
 		this.config = { ...DEFAULT_CONFIG, ...config };
-		this.geminiApiKey = config.geminiApiKey || process.env.GEMINI_API_KEY;
+		const geminiApiKey = config.geminiApiKey || process.env.GEMINI_API_KEY;
+		if (geminiApiKey) {
+			this.geminiClient = createGeminiClient({ apiKey: geminiApiKey });
+		}
 	}
 
 	/**
@@ -381,40 +385,20 @@ export class EntityResolverService {
 	}
 
 	/**
-	 * Confirm entity match using Gemini API.
+	 * Confirm entity match using Gemini API via Vercel AI SDK.
 	 */
 	private async confirmWithGemini(extractedName: string, existingName: string): Promise<boolean> {
-		if (!this.geminiApiKey) {
-			this.logger.debug("Gemini API key not configured, skipping LLM confirmation");
+		if (!this.geminiClient) {
+			this.logger.debug("Gemini client not configured, skipping LLM confirmation");
 			return false;
 		}
 
 		const prompt = this.buildConfirmationPrompt(extractedName, existingName);
 
-		const response = await fetch(
-			"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"x-goog-api-key": this.geminiApiKey,
-				},
-				body: JSON.stringify({
-					contents: [{ parts: [{ text: prompt }] }],
-					generationConfig: {
-						maxOutputTokens: 10,
-						temperature: 0,
-					},
-				}),
-			},
-		);
-
-		if (!response.ok) {
-			throw new Error(`Gemini API error: ${response.status}`);
-		}
-
-		const data = await response.json();
-		const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+		const text = await this.geminiClient.generateText({
+			prompt,
+			maxTokens: 10,
+		});
 
 		if (!text) {
 			return false;

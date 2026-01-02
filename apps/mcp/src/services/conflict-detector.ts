@@ -1,5 +1,7 @@
+import { createGeminiClient, type GeminiClient } from "@engram/common/clients";
 import type { Logger } from "@engram/logger";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 
 /**
  * Types and interfaces for memory conflict detection
@@ -85,35 +87,18 @@ export interface ConflictDetectionResult {
 }
 
 /**
- * JSON schema for conflict detection LLM response
+ * Zod schema for conflict detection LLM response
  */
-const CONFLICT_DETECTION_SCHEMA = {
-	type: "object",
-	properties: {
-		relation: {
-			type: "string",
-			enum: ["contradiction", "supersedes", "augments", "duplicate", "independent"],
-			description: "Type of relationship between memories",
-		},
-		confidence: {
-			type: "number",
-			minimum: 0,
-			maximum: 1,
-			description: "Confidence score in the classification",
-		},
-		reasoning: {
-			type: "string",
-			description: "Human-readable explanation of the relationship",
-		},
-		suggestedAction: {
-			type: "string",
-			enum: ["keep_both", "invalidate_old", "skip_new", "merge"],
-			description: "Recommended action based on the relationship",
-		},
-	},
-	required: ["relation", "confidence", "reasoning", "suggestedAction"],
-	additionalProperties: false,
-} as const;
+const ConflictDetectionSchema = z.object({
+	relation: z
+		.enum(["contradiction", "supersedes", "augments", "duplicate", "independent"])
+		.describe("Type of relationship between memories"),
+	confidence: z.number().min(0).max(1).describe("Confidence score in the classification"),
+	reasoning: z.string().describe("Human-readable explanation of the relationship"),
+	suggestedAction: z
+		.enum(["keep_both", "invalidate_old", "skip_new", "merge"])
+		.describe("Recommended action based on the relationship"),
+});
 
 /**
  * Service for detecting conflicts between new and existing memories.
@@ -125,12 +110,15 @@ const CONFLICT_DETECTION_SCHEMA = {
 export class ConflictDetectorService {
 	private server: McpServer;
 	private logger: Logger;
-	private geminiApiKey?: string;
+	private geminiClient?: GeminiClient;
 
 	constructor(server: McpServer, logger: Logger, geminiApiKey?: string) {
 		this.server = server;
 		this.logger = logger;
-		this.geminiApiKey = geminiApiKey || process.env.GEMINI_API_KEY;
+		const apiKey = geminiApiKey || process.env.GEMINI_API_KEY;
+		if (apiKey) {
+			this.geminiClient = createGeminiClient({ apiKey });
+		}
 	}
 
 	/**
@@ -239,53 +227,23 @@ export class ConflictDetectorService {
 	}
 
 	/**
-	 * Classify the relationship using Gemini via LiteLLM.
-	 * Uses JSON schema response_format for structured output.
+	 * Classify the relationship using Gemini via Vercel AI SDK.
+	 * Uses Zod schema for structured output.
 	 */
 	async classifyWithGemini(prompt: string): Promise<string> {
-		if (!this.geminiApiKey) {
+		if (!this.geminiClient) {
 			throw new Error("GEMINI_API_KEY not configured for conflict detection");
 		}
 
-		this.logger.debug("Classifying conflict via Gemini with LiteLLM");
+		this.logger.debug("Classifying conflict via Gemini");
 
-		// Use LiteLLM-compatible API endpoint
-		const response = await fetch(
-			"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"x-goog-api-key": this.geminiApiKey,
-				},
-				body: JSON.stringify({
-					contents: [
-						{
-							parts: [{ text: prompt }],
-						},
-					],
-					generationConfig: {
-						responseMimeType: "application/json",
-						responseSchema: CONFLICT_DETECTION_SCHEMA,
-					},
-				}),
-			},
-		);
+		const result = await this.geminiClient.generateStructuredOutput({
+			prompt,
+			schema: ConflictDetectionSchema,
+		});
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`Gemini API error: ${response.status} ${errorText}`);
-		}
-
-		const data = await response.json();
-
-		// Extract text from Gemini response format
-		const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-		if (!text) {
-			throw new Error("No text in Gemini response");
-		}
-
-		return text;
+		// Return as JSON string to maintain compatibility with parseResponse
+		return JSON.stringify(result);
 	}
 
 	/**
