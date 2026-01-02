@@ -10,7 +10,7 @@
  * @see https://pmc.ncbi.nlm.nih.gov/articles/PMC12092450/
  */
 
-import type { MemoryType } from "@engram/graph/models";
+import type { MemoryType } from "@engram/graph";
 
 // =============================================================================
 // Constants
