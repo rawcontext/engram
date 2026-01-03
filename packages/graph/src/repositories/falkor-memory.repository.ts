@@ -1,5 +1,7 @@
 import { createNodeLogger } from "@engram/logger";
 import type { FalkorNode } from "@engram/storage";
+import { MemoryQueryBuilder } from "../generated/query-builders";
+import type { Memory as GeneratedMemory } from "../generated/types";
 import { FalkorBaseRepository } from "./falkor-base";
 import type { MemoryRepository } from "./memory.repository";
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from "./types";
@@ -43,60 +45,97 @@ type MemoryNodeProps = {
  * Supports both legacy (single-tenant) and multi-tenant modes via TenantContext.
  */
 export class FalkorMemoryRepository extends FalkorBaseRepository implements MemoryRepository {
+	/**
+	 * Create a new MemoryQueryBuilder using the inherited query client.
+	 */
+	private memoryQuery(): MemoryQueryBuilder {
+		return new MemoryQueryBuilder(this.queryClient);
+	}
+
+	/**
+	 * Map generated Memory type (snake_case) to domain Memory type (camelCase).
+	 */
+	private mapGeneratedToDomain(gen: GeneratedMemory): Memory {
+		return {
+			id: gen.id,
+			content: gen.content,
+			contentHash: gen.content_hash,
+			type: gen.type,
+			tags: Array.isArray(gen.tags) ? gen.tags : [],
+			sourceSessionId: gen.source_session_id,
+			sourceTurnId: gen.source_turn_id,
+			source: gen.source,
+			project: gen.project,
+			workingDir: gen.working_dir,
+			embedding: gen.embedding,
+			// Decay metadata
+			lastAccessed: gen.last_accessed,
+			accessCount: gen.access_count ?? 0,
+			decayScore: gen.decay_score ?? 1.0,
+			decayUpdatedAt: gen.decay_updated_at,
+			pinned: gen.pinned ?? false,
+			// Bitemporal
+			vtStart: gen.vt_start,
+			vtEnd: gen.vt_end,
+			ttStart: gen.tt_start,
+			ttEnd: gen.tt_end,
+		};
+	}
+
 	async findById(id: string): Promise<Memory | null> {
-		const results = await this.query<{ m: FalkorNode<MemoryNodeProps> }>(
-			`MATCH (m:Memory {id: $id}) WHERE m.tt_end = ${this.maxDate} RETURN m`,
-			{ id },
-		);
-		if (!results[0]?.m) return null;
-		return this.mapToMemory(results[0].m);
+		const result = await this.memoryQuery().where({ id }).whereCurrent().first();
+		if (!result) return null;
+		return this.mapGeneratedToDomain(result);
 	}
 
 	async findByType(type: string): Promise<Memory[]> {
-		const results = await this.query<{ m: FalkorNode<MemoryNodeProps> }>(
-			`MATCH (m:Memory {type: $type}) WHERE m.tt_end = ${this.maxDate} RETURN m ORDER BY m.vt_start DESC`,
-			{ type },
-		);
-		return results.map((r) => this.mapToMemory(r.m));
+		const results = await this.memoryQuery()
+			.where({ type: type as GeneratedMemory["type"] })
+			.whereCurrent()
+			.orderBy("vt_start", "DESC")
+			.execute();
+		return results.map((r) => this.mapGeneratedToDomain(r));
 	}
 
 	async findByTag(tag: string): Promise<Memory[]> {
-		const results = await this.query<{ m: FalkorNode<MemoryNodeProps> }>(
-			`MATCH (m:Memory) WHERE m.tt_end = ${this.maxDate} AND $tag IN m.tags RETURN m ORDER BY m.vt_start DESC`,
-			{ tag },
-		);
-		return results.map((r) => this.mapToMemory(r.m));
+		const results = await this.memoryQuery()
+			.hasTag(tag)
+			.whereCurrent()
+			.orderBy("vt_start", "DESC")
+			.execute();
+		return results.map((r) => this.mapGeneratedToDomain(r));
 	}
 
 	async findByProject(project: string): Promise<Memory[]> {
-		const results = await this.query<{ m: FalkorNode<MemoryNodeProps> }>(
-			`MATCH (m:Memory {project: $project}) WHERE m.tt_end = ${this.maxDate} RETURN m ORDER BY m.vt_start DESC`,
-			{ project },
-		);
-		return results.map((r) => this.mapToMemory(r.m));
+		const results = await this.memoryQuery()
+			.whereProject(project)
+			.whereCurrent()
+			.orderBy("vt_start", "DESC")
+			.execute();
+		return results.map((r) => this.mapGeneratedToDomain(r));
 	}
 
 	async findByWorkingDir(workingDir: string): Promise<Memory[]> {
-		const results = await this.query<{ m: FalkorNode<MemoryNodeProps> }>(
-			`MATCH (m:Memory {working_dir: $workingDir}) WHERE m.tt_end = ${this.maxDate} RETURN m ORDER BY m.vt_start DESC`,
-			{ workingDir },
-		);
-		return results.map((r) => this.mapToMemory(r.m));
+		const results = await this.memoryQuery()
+			.whereWorkingDir(workingDir)
+			.whereCurrent()
+			.orderBy("vt_start", "DESC")
+			.execute();
+		return results.map((r) => this.mapGeneratedToDomain(r));
 	}
 
 	async findBySession(sessionId: string): Promise<Memory[]> {
-		const results = await this.query<{ m: FalkorNode<MemoryNodeProps> }>(
-			`MATCH (m:Memory {source_session_id: $sessionId}) WHERE m.tt_end = ${this.maxDate} RETURN m ORDER BY m.vt_start DESC`,
-			{ sessionId },
-		);
-		return results.map((r) => this.mapToMemory(r.m));
+		const results = await this.memoryQuery()
+			.whereSourceSessionId(sessionId)
+			.whereCurrent()
+			.orderBy("vt_start", "DESC")
+			.execute();
+		return results.map((r) => this.mapGeneratedToDomain(r));
 	}
 
 	async findActive(): Promise<Memory[]> {
-		const results = await this.query<{ m: FalkorNode<MemoryNodeProps> }>(
-			`MATCH (m:Memory) WHERE m.tt_end = ${this.maxDate} RETURN m ORDER BY m.vt_start DESC`,
-		);
-		return results.map((r) => this.mapToMemory(r.m));
+		const results = await this.memoryQuery().whereCurrent().orderBy("vt_start", "DESC").execute();
+		return results.map((r) => this.mapGeneratedToDomain(r));
 	}
 
 	async create(input: CreateMemoryInput): Promise<Memory> {

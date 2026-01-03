@@ -287,7 +287,7 @@ function generateFieldFilterMethod(
 			lines.push(`\t\tconst param = this.nextParamName();`);
 			lines.push(`\t\tthis.params[param] = value;`);
 			lines.push(
-				`\t\treturn this.addRawCondition(\`$\{value} IN \${this.nodeAlias}.${fieldName}\`);`,
+				`\t\treturn this.addRawCondition(\`$\${param} IN \${this.nodeAlias}.${fieldName}\`);`,
 			);
 			lines.push(`\t}`);
 			break;

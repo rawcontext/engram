@@ -2114,9 +2114,10 @@ describe("FalkorMemoryRepository", () => {
 		});
 
 		it("should return mapped memory when found", async () => {
+			// Uses query builder with alias 'n'
 			mockClient.query.mockResolvedValueOnce([
 				{
-					m: {
+					n: {
 						id: 1,
 						labels: ["Memory"],
 						properties: {
@@ -2146,9 +2147,10 @@ describe("FalkorMemoryRepository", () => {
 
 	describe("findByType", () => {
 		it("should find memories by type", async () => {
+			// Uses query builder with alias 'n'
 			mockClient.query.mockResolvedValueOnce([
 				{
-					m: {
+					n: {
 						id: 1,
 						labels: ["Memory"],
 						properties: {
@@ -2178,7 +2180,7 @@ describe("FalkorMemoryRepository", () => {
 		it("should find memories by tag", async () => {
 			mockClient.query.mockResolvedValueOnce([
 				{
-					m: {
+					n: {
 						id: 1,
 						labels: ["Memory"],
 						properties: {
@@ -2295,10 +2297,10 @@ describe("FalkorMemoryRepository", () => {
 
 	describe("update", () => {
 		it("should update memory content", async () => {
-			// First call for findById
+			// First call for findById (uses query builder with alias 'n')
 			mockClient.query.mockResolvedValueOnce([
 				{
-					m: {
+					n: {
 						id: 1,
 						labels: ["Memory"],
 						properties: {
@@ -2354,10 +2356,10 @@ describe("FalkorMemoryRepository", () => {
 
 	describe("delete", () => {
 		it("should soft delete memory", async () => {
-			// First call for findById
+			// First call for findById (uses query builder with alias 'n')
 			mockClient.query.mockResolvedValueOnce([
 				{
-					m: {
+					n: {
 						id: 1,
 						labels: ["Memory"],
 						properties: {
@@ -2397,7 +2399,7 @@ describe("FalkorMemoryRepository", () => {
 		it("should find memories by project", async () => {
 			mockClient.query.mockResolvedValueOnce([
 				{
-					m: {
+					n: {
 						id: 1,
 						labels: ["Memory"],
 						properties: {
@@ -2428,7 +2430,7 @@ describe("FalkorMemoryRepository", () => {
 		it("should find all active memories", async () => {
 			mockClient.query.mockResolvedValueOnce([
 				{
-					m: {
+					n: {
 						id: 1,
 						labels: ["Memory"],
 						properties: {
@@ -2446,7 +2448,7 @@ describe("FalkorMemoryRepository", () => {
 					},
 				},
 				{
-					m: {
+					n: {
 						id: 2,
 						labels: ["Memory"],
 						properties: {

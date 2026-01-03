@@ -42,10 +42,10 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 			};
 
 			spyOn(mockClient, "query")
-				// First call: findById
+				// First call: findById (uses query builder with alias 'n')
 				.mockResolvedValueOnce([
 					{
-						m: {
+						n: {
 							properties: {
 								id: existingMemory.id,
 								content: existingMemory.content,
@@ -61,7 +61,7 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 						} as FalkorNode,
 					},
 				])
-				// Second call: invalidate query
+				// Second call: invalidate query (uses raw Cypher with alias 'm')
 				.mockResolvedValueOnce([
 					{
 						m: {
@@ -104,10 +104,10 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 			};
 
 			spyOn(mockClient, "query")
-				// First call: findById
+				// First call: findById (uses query builder with alias 'n')
 				.mockResolvedValueOnce([
 					{
-						m: {
+						n: {
 							properties: {
 								id: existingMemory.id,
 								content: existingMemory.content,
@@ -123,7 +123,7 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 						} as FalkorNode,
 					},
 				])
-				// Second call: invalidate query
+				// Second call: invalidate query (uses raw Cypher with alias 'm')
 				.mockResolvedValueOnce([
 					{
 						m: {
@@ -151,11 +151,11 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 			const memoryId = "mem-123";
 			const replacementId = "mem-456";
 
-			// Mock findById
+			// Mock findById (uses query builder with alias 'n')
 			spyOn(mockClient, "query")
 				.mockResolvedValueOnce([
 					{
-						m: {
+						n: {
 							properties: {
 								id: memoryId,
 								content: "Test",
@@ -171,7 +171,7 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 						} as FalkorNode,
 					},
 				])
-				// Invalidate query
+				// Invalidate query (uses raw Cypher with alias 'm')
 				.mockResolvedValueOnce([{ m: {} }])
 				// REPLACES edge creation
 				.mockResolvedValueOnce([]);
@@ -197,11 +197,11 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 		it("should not create REPLACES edge when replacedById is not provided", async () => {
 			const memoryId = "mem-123";
 
-			// Mock findById and invalidate query
+			// Mock findById (uses query builder with alias 'n') and invalidate query
 			spyOn(mockClient, "query")
 				.mockResolvedValueOnce([
 					{
-						m: {
+						n: {
 							properties: {
 								id: memoryId,
 								content: "Test",
@@ -217,6 +217,7 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 						} as FalkorNode,
 					},
 				])
+				// Invalidate query (uses raw Cypher with alias 'm')
 				.mockResolvedValueOnce([{ m: {} }]);
 
 			await repository.invalidate(memoryId);
@@ -415,10 +416,10 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 				ttEnd: MAX_DATE,
 			};
 
-			// Mock query to return only active memories
+			// Mock query to return only active memories (uses query builder with alias 'n')
 			spyOn(mockClient, "query").mockResolvedValueOnce([
 				{
-					m: {
+					n: {
 						properties: {
 							id: activeMemory.id,
 							content: activeMemory.content,
@@ -479,9 +480,10 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 				ttEnd: MAX_DATE,
 			};
 
+			// Uses query builder with alias 'n'
 			spyOn(mockClient, "query").mockResolvedValueOnce([
 				{
-					m: {
+					n: {
 						properties: {
 							id: memory2.id,
 							content: memory2.content,
@@ -497,7 +499,7 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 					} as FalkorNode,
 				},
 				{
-					m: {
+					n: {
 						properties: {
 							id: memory1.id,
 							content: memory1.content,
@@ -529,9 +531,10 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 			// Setup: In reality, invalidated memories have vt_end = now (not MAX_DATE)
 			// findActive filters by tt_end = MAX_DATE which excludes invalidated ones
 
+			// Uses query builder with alias 'n'
 			spyOn(mockClient, "query").mockResolvedValueOnce([
 				{
-					m: {
+					n: {
 						properties: {
 							id: "mem-active",
 							content: "Only active",
@@ -574,10 +577,10 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 
 			// Step 1: Invalidate old memory
 			spyOn(mockClient, "query")
-				// findById for invalidate
+				// findById for invalidate (uses query builder with alias 'n')
 				.mockResolvedValueOnce([
 					{
-						m: {
+						n: {
 							properties: {
 								id: oldMemoryId,
 								content: "Old content",
@@ -593,11 +596,11 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 						} as FalkorNode,
 					},
 				])
-				// invalidate query
+				// invalidate query (uses raw Cypher with alias 'm')
 				.mockResolvedValueOnce([{ m: {} }])
 				// REPLACES edge creation
 				.mockResolvedValueOnce([])
-				// findReplacements query
+				// findReplacements query (uses raw Cypher with alias 'm')
 				.mockResolvedValueOnce([
 					{
 						m: {
@@ -616,10 +619,10 @@ describe("FalkorMemoryRepository - Invalidation", () => {
 						} as FalkorNode,
 					},
 				])
-				// findActive query
+				// findActive query (uses query builder with alias 'n')
 				.mockResolvedValueOnce([
 					{
-						m: {
+						n: {
 							properties: {
 								id: newMemoryId,
 								content: "New content",
