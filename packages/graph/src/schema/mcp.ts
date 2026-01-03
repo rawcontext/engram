@@ -622,6 +622,21 @@ export class Tool<
 // =============================================================================
 
 /**
+ * A Tool with any valid parameter types.
+ *
+ * Note: We use `any` here because of function contravariance. The Tool's handler
+ * function takes an input parameter, and for subtyping to work correctly, we need
+ * `any` rather than a structural type. A structural type like `Record<string, Param<any>>`
+ * would require the handler's input to be assignable FROM `{ [x: string]: any }`,
+ * which fails because specific input types like `{ text: string }` require
+ * properties that index signatures don't guarantee.
+ *
+ * This is safe in practice because defineTools preserves the actual Tool types
+ * through the generic T parameter - we just need `any` to satisfy the extends constraint.
+ */
+export type AnyTool = Tool<any, any, any>;
+
+/**
  * A collection of named tools.
  */
 export type ToolCollection<T extends Record<string, Tool>> = T;
@@ -735,7 +750,7 @@ function tool<
  * });
  * ```
  */
-function defineTools<T extends Record<string, Tool>>(tools: T): ToolCollection<T> {
+function defineTools<T extends Record<string, AnyTool>>(tools: T): ToolCollection<T> {
 	return tools;
 }
 
