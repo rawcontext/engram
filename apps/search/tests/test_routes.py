@@ -307,7 +307,9 @@ class TestSearchEndpoint:
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
+                headers={
+                    "Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"
+                },
             ) as client:
                 response = await client.post(
                     "/v1/search/query",
@@ -379,7 +381,9 @@ class TestEmbedEndpoint:
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
+                headers={
+                    "Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"
+                },
             ) as client:
                 response = await client.post(
                     "/v1/search/embed",
@@ -490,7 +494,9 @@ class TestMultiQuerySearchEndpoint:
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
+                headers={
+                    "Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"
+                },
             ) as client:
                 response = await client.post(
                     "/v1/search/multi-query",
@@ -577,7 +583,9 @@ class TestSessionAwareSearchEndpoint:
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
+                headers={
+                    "Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"
+                },
             ) as client:
                 response = await client.post(
                     "/v1/search/session-aware",
@@ -695,7 +703,9 @@ class TestMemoryIndexEndpoint:
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
+                headers={
+                    "Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"
+                },
             ) as client:
                 response = await client.post(
                     "/v1/search/index-memory",
@@ -727,7 +737,9 @@ class TestMemoryIndexEndpoint:
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
+                headers={
+                    "Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"
+                },
             ) as client:
                 response = await client.post(
                     "/v1/search/index-memory",
@@ -835,7 +847,9 @@ class TestRecreateCollectionEndpoint:
             async with AsyncClient(
                 transport=transport,
                 base_url="http://test",
-                headers={"Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"},
+                headers={
+                    "Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"
+                },
             ) as client:
                 response = await client.post("/v1/search/admin/engram_memory/recreate")
 
@@ -1133,3 +1147,289 @@ class TestMemoryCollectionTypeFiltering:
         assert "vt_end" in condition_keys, "vt_end filter missing"
         assert "project" in condition_keys, "project filter missing"
         assert "timestamp" in condition_keys, "timestamp filter missing"
+
+
+class TestConflictCandidatesEndpoint:
+    """Tests for /conflict-candidates endpoint."""
+
+    async def test_conflict_candidates_success(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test successful conflict candidate search."""
+        # Mock embedder
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        # Mock Qdrant query_points response with conflict candidates
+        mock_point1 = MagicMock()
+        mock_point1.id = "candidate-1"
+        mock_point1.score = 0.92
+        mock_point1.payload = {
+            "node_id": "01JGABCD1111111111111111111",
+            "content": "Similar memory content",
+            "type": "fact",
+            "vt_start": 1704067200000,
+        }
+
+        mock_point2 = MagicMock()
+        mock_point2.id = "candidate-2"
+        mock_point2.score = 0.78
+        mock_point2.payload = {
+            "node_id": "01JGABCD2222222222222222222",
+            "content": "Another similar memory",
+            "type": "decision",
+            "vt_start": 1704153600000,
+        }
+
+        mock_qdrant_result = MagicMock()
+        mock_qdrant_result.points = [mock_point1, mock_point2]
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(return_value=mock_qdrant_result)
+
+        response = await client.post(
+            "/v1/search/conflict-candidates",
+            json={
+                "content": "Test memory content for deduplication",
+                "project": "engram",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 2
+        assert data[0]["id"] == "01JGABCD1111111111111111111"
+        assert data[0]["score"] == 0.92
+        assert data[0]["content"] == "Similar memory content"
+        assert data[0]["type"] == "fact"
+        assert data[1]["id"] == "01JGABCD2222222222222222222"
+        assert data[1]["score"] == 0.78
+
+        # Verify query_points was called with correct params
+        mock_qdrant.client.query_points.assert_called_once()
+        call_args = mock_qdrant.client.query_points.call_args
+        assert call_args.kwargs["collection_name"] == "engram_memory"
+        assert call_args.kwargs["limit"] == 10
+        assert call_args.kwargs["score_threshold"] == 0.65
+        assert call_args.kwargs["with_payload"] is True
+
+    async def test_conflict_candidates_no_project_filter(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test conflict search without project filter."""
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        mock_qdrant_result = MagicMock()
+        mock_qdrant_result.points = []
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(return_value=mock_qdrant_result)
+
+        response = await client.post(
+            "/v1/search/conflict-candidates",
+            json={
+                "content": "Test memory content",
+                # No project filter
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 0
+
+        # Verify org_id filter is still applied (mandatory)
+        call_args = mock_qdrant.client.query_points.call_args
+        query_filter = call_args.kwargs.get("query_filter")
+        assert query_filter is not None
+
+        # Should only have org_id condition (no project)
+        assert len(query_filter.must) == 1
+        assert query_filter.must[0].key == "org_id"
+
+    async def test_conflict_candidates_with_project_filter(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test conflict search applies project filter correctly."""
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        mock_qdrant_result = MagicMock()
+        mock_qdrant_result.points = []
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(return_value=mock_qdrant_result)
+
+        response = await client.post(
+            "/v1/search/conflict-candidates",
+            json={
+                "content": "Test memory content",
+                "project": "my-project",
+            },
+        )
+
+        assert response.status_code == 200
+
+        # Verify both org_id and project filters are applied
+        call_args = mock_qdrant.client.query_points.call_args
+        query_filter = call_args.kwargs.get("query_filter")
+        assert query_filter is not None
+        assert len(query_filter.must) == 2
+
+        # Find conditions by key
+        condition_keys = {c.key for c in query_filter.must}
+        assert "org_id" in condition_keys
+        assert "project" in condition_keys
+
+        # Verify project value
+        for condition in query_filter.must:
+            if condition.key == "project":
+                assert condition.match.value == "my-project"
+
+    async def test_conflict_candidates_no_embedder_factory(self) -> None:
+        """Test conflict search when embedder factory not initialized."""
+        app = FastAPI()
+        app.include_router(router)
+        # Have qdrant but no embedder_factory
+        app.state.qdrant = MagicMock()
+
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
+
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={
+                    "Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"
+                },
+            ) as client:
+                response = await client.post(
+                    "/v1/search/conflict-candidates",
+                    json={"content": "Test content"},
+                )
+
+            assert response.status_code == 503
+            assert "embedder factory not initialized" in response.json()["detail"]
+
+    async def test_conflict_candidates_no_qdrant(self) -> None:
+        """Test conflict search when Qdrant not initialized."""
+        app = FastAPI()
+        app.include_router(router)
+        # Have embedder_factory but no qdrant
+        app.state.embedder_factory = MagicMock()
+
+        mock_handler = AsyncMock()
+        mock_handler.validate = AsyncMock(return_value=MOCK_AUTH_CONTEXT)
+
+        with patch("src.middleware.auth._auth_handler", mock_handler):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers={
+                    "Authorization": "Bearer egm_oauth_abcdef1234567890abcdef1234567890_X7kM2p"
+                },
+            ) as client:
+                response = await client.post(
+                    "/v1/search/conflict-candidates",
+                    json={"content": "Test content"},
+                )
+
+            assert response.status_code == 503
+            assert "Qdrant not initialized" in response.json()["detail"]
+
+    async def test_conflict_candidates_embedding_error(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test conflict search handles embedding errors."""
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(side_effect=Exception("Embedding failed"))
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        response = await client.post(
+            "/v1/search/conflict-candidates",
+            json={"content": "Test content"},
+        )
+
+        assert response.status_code == 500
+        assert "Conflict candidate search failed" in response.json()["detail"]
+
+    async def test_conflict_candidates_qdrant_error(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test conflict search handles Qdrant query errors."""
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(side_effect=Exception("Qdrant error"))
+
+        response = await client.post(
+            "/v1/search/conflict-candidates",
+            json={"content": "Test content"},
+        )
+
+        assert response.status_code == 500
+        assert "Conflict candidate search failed" in response.json()["detail"]
+
+    async def test_conflict_candidates_uses_correct_threshold(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test conflict search uses score_threshold=0.65."""
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        mock_qdrant_result = MagicMock()
+        mock_qdrant_result.points = []
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(return_value=mock_qdrant_result)
+
+        await client.post(
+            "/v1/search/conflict-candidates",
+            json={"content": "Test content"},
+        )
+
+        # Verify threshold is 0.65 as specified in routes.py
+        call_args = mock_qdrant.client.query_points.call_args
+        assert call_args.kwargs["score_threshold"] == 0.65
+
+    async def test_conflict_candidates_fallback_to_point_id(
+        self, client: AsyncClient, mock_qdrant, mock_embedder_factory
+    ) -> None:
+        """Test conflict search falls back to point ID when node_id is missing."""
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        mock_embedder_factory.get_embedder = AsyncMock(return_value=mock_embedder)
+
+        # Point without node_id in payload
+        mock_point = MagicMock()
+        mock_point.id = "fallback-uuid"
+        mock_point.score = 0.80
+        mock_point.payload = {
+            "content": "Memory without node_id",
+            "type": "context",
+            # No node_id
+        }
+
+        mock_qdrant_result = MagicMock()
+        mock_qdrant_result.points = [mock_point]
+        mock_qdrant.client = MagicMock()
+        mock_qdrant.client.query_points = AsyncMock(return_value=mock_qdrant_result)
+
+        response = await client.post(
+            "/v1/search/conflict-candidates",
+            json={"content": "Test content"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        # Should fall back to point.id when node_id is missing
+        assert data[0]["id"] == "fallback-uuid"
+        assert data[0]["type"] == "context"
+        # vt_start defaults to 0 when missing
+        assert data[0]["vt_start"] == 0
