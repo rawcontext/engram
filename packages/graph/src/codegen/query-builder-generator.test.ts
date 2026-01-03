@@ -232,9 +232,10 @@ describe("factory objects", () => {
 	it("generates static factory objects for each node", () => {
 		const code = generateQueryBuilders(testSchema);
 
-		expect(code).toContain("export const Session = {");
-		expect(code).toContain("export const Memory = {");
-		expect(code).toContain("export const Entity = {");
+		// Factory objects are named {Node}Queries to avoid conflicts with type exports
+		expect(code).toContain("export const SessionQueries = {");
+		expect(code).toContain("export const MemoryQueries = {");
+		expect(code).toContain("export const EntityQueries = {");
 	});
 
 	it("generates query() factory method", () => {
@@ -272,7 +273,7 @@ describe("factory objects", () => {
 	it("can disable factory methods", () => {
 		const code = generateQueryBuilders(testSchema, { generateFactoryMethods: false });
 
-		expect(code).not.toContain("export const Session = {");
+		expect(code).not.toContain("export const SessionQueries = {");
 		expect(code).not.toContain("findById");
 	});
 });

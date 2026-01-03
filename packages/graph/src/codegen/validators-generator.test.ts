@@ -61,13 +61,17 @@ describe("validators-generator", () => {
 				edges: {},
 			});
 
-			const code = generateValidators(schema);
+			// Types are disabled by default (generated in types.ts instead)
+			const codeDefault = generateValidators(schema);
+			expect(codeDefault).not.toContain("export type Test =");
 
-			expect(code).toContain("export type Test = z.infer<typeof TestSchema>;");
-			expect(code).toContain(
+			// Types can be explicitly enabled
+			const codeWithTypes = generateValidators(schema, { includeTypes: true });
+			expect(codeWithTypes).toContain("export type Test = z.infer<typeof TestSchema>;");
+			expect(codeWithTypes).toContain(
 				"export type CreateTestInput = z.infer<typeof CreateTestInputSchema>;",
 			);
-			expect(code).toContain(
+			expect(codeWithTypes).toContain(
 				"export type UpdateTestInput = z.infer<typeof UpdateTestInputSchema>;",
 			);
 		});
@@ -289,7 +293,12 @@ describe("validators-generator", () => {
 			expect(code).toContain("export const TestEdgePropertiesSchema = z.object({");
 			expect(code).toContain("weight: z.number().min(0).max(1),");
 			expect(code).toContain("context: z.string().optional(),");
-			expect(code).toContain(
+			// Types are disabled by default
+			expect(code).not.toContain("export type TestEdgeProperties =");
+
+			// Types can be enabled
+			const codeWithTypes = generateValidators(schema, { includeTypes: true });
+			expect(codeWithTypes).toContain(
 				"export type TestEdgeProperties = z.infer<typeof TestEdgePropertiesSchema>;",
 			);
 		});
@@ -390,9 +399,10 @@ describe("validators-generator", () => {
 			expect(code).toContain("export const MemorySchema");
 			expect(code).toContain("export const EntitySchema");
 			expect(code).toContain("export const MENTIONSPropertiesSchema");
-			expect(code).toContain("export type Memory");
-			expect(code).toContain("export type Entity");
-			expect(code).toContain("export type MENTIONSProperties");
+			// Types are disabled by default (generated separately in types.ts)
+			expect(code).not.toContain("export type Memory =");
+			expect(code).not.toContain("export type Entity =");
+			expect(code).not.toContain("export type MENTIONSProperties =");
 
 			// Check specific field mappings
 			expect(code).toContain(

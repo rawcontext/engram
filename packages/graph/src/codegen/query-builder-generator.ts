@@ -447,6 +447,7 @@ function generateQueryBuilderClass(
 
 /**
  * Generate static factory object for a node type.
+ * Note: Factory objects are named `{Node}Queries` to avoid conflicts with type exports.
  */
 function generateFactoryObject(
 	nodeName: string,
@@ -455,6 +456,7 @@ function generateFactoryObject(
 ): string {
 	const lines: string[] = [];
 	const className = `${nodeName}QueryBuilder`;
+	const factoryName = `${nodeName}Queries`;
 
 	if (config.includeComments) {
 		lines.push(`/**`);
@@ -463,20 +465,20 @@ function generateFactoryObject(
 		lines.push(` * @example`);
 		lines.push(` * \`\`\`typescript`);
 		lines.push(` * // Find by ID`);
-		lines.push(` * const node = await ${nodeName}.findById(client, 'id-123');`);
+		lines.push(` * const node = await ${factoryName}.findById(client, 'id-123');`);
 		lines.push(` *`);
 		lines.push(` * // Query with conditions`);
-		lines.push(` * const nodes = await ${nodeName}.query(client)`);
+		lines.push(` * const nodes = await ${factoryName}.query(client)`);
 		lines.push(` *   .whereCurrent()`);
 		lines.push(` *   .execute();`);
 		lines.push(` *`);
 		lines.push(` * // Time-travel query`);
-		lines.push(` * const historical = await ${nodeName}.asOf(client, 'id-123', timestamp);`);
+		lines.push(` * const historical = await ${factoryName}.asOf(client, 'id-123', timestamp);`);
 		lines.push(` * \`\`\``);
 		lines.push(` */`);
 	}
 
-	lines.push(`export const ${nodeName} = {`);
+	lines.push(`export const ${factoryName} = {`);
 
 	// query() - create a new query builder
 	if (config.includeComments) {

@@ -217,13 +217,14 @@ describe("generateRepositories", () => {
 		test("handles required and optional fields", () => {
 			const code = generateRepositories(simpleSchema);
 			expect(code).toContain("content: input.content,");
-			expect(code).toContain("if (input.sourceSessionId !== undefined)");
+			// Generated types use snake_case, so optional field access uses snake_case
+			expect(code).toContain("if (input.source_session_id !== undefined)");
 		});
 
 		test("handles default values", () => {
 			const code = generateRepositories(fullSchema);
-			// Session has agentType with default
-			expect(code).toContain('input.agentType ?? "unknown"');
+			// Session has agent_type with default, uses snake_case
+			expect(code).toContain('input.agent_type ?? "unknown"');
 		});
 
 		test("can disable create generation", () => {
@@ -268,18 +269,20 @@ describe("generateRepositories", () => {
 			expect(code).toContain("private mapToMemory(node: FalkorNode<MemoryNodeProps>): Memory");
 		});
 
-		test("maps snake_case to camelCase", () => {
+		test("maps snake_case fields directly", () => {
 			const code = generateRepositories(simpleSchema);
-			expect(code).toContain("contentHash: props.content_hash,");
-			expect(code).toContain("sourceSessionId: props.source_session_id,");
+			// Generated types use snake_case, so mapping uses snake_case on both sides
+			expect(code).toContain("content_hash: props.content_hash,");
+			expect(code).toContain("source_session_id: props.source_session_id,");
 		});
 
-		test("maps bitemporal fields", () => {
+		test("maps bitemporal fields in snake_case", () => {
 			const code = generateRepositories(simpleSchema);
-			expect(code).toContain("vtStart: props.vt_start,");
-			expect(code).toContain("vtEnd: props.vt_end,");
-			expect(code).toContain("ttStart: props.tt_start,");
-			expect(code).toContain("ttEnd: props.tt_end,");
+			// Generated types use snake_case for bitemporal fields
+			expect(code).toContain("vt_start: props.vt_start,");
+			expect(code).toContain("vt_end: props.vt_end,");
+			expect(code).toContain("tt_start: props.tt_start,");
+			expect(code).toContain("tt_end: props.tt_end,");
 		});
 	});
 

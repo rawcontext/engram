@@ -28,7 +28,8 @@ import type { Field } from "../schema/types";
 export interface GeneratorConfig {
 	/**
 	 * Whether to include type exports (z.infer<typeof Schema>).
-	 * @default true
+	 * Set to false when types.ts is also generated to avoid duplicate exports.
+	 * @default false
 	 */
 	includeTypes?: boolean;
 
@@ -57,7 +58,7 @@ export interface GeneratorConfig {
 }
 
 const DEFAULT_CONFIG: Required<GeneratorConfig> = {
-	includeTypes: true,
+	includeTypes: false,
 	generateCreateInputs: true,
 	generateUpdateInputs: true,
 	generateEdgeSchemas: true,

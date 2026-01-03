@@ -6,7 +6,6 @@
  * and query execution against FalkorDB.
  */
 
-import type { BaseNode } from "../models/base";
 import { MAX_DATE } from "../utils/time";
 import type {
 	AnyCondition,
@@ -17,6 +16,15 @@ import type {
 	SortDirection,
 } from "./types";
 import { isRawCondition } from "./types";
+
+/**
+ * Minimal interface for queryable node types.
+ * This is used instead of BaseNode to avoid requiring FalkorDB-internal
+ * properties like `labels` in generated domain types.
+ */
+export interface QueryableNode {
+	id: string;
+}
 
 /**
  * Abstract base class for all generated query builders.
@@ -47,7 +55,7 @@ import { isRawCondition } from "./types";
  *   .execute();
  * ```
  */
-export abstract class BaseQueryBuilder<T extends BaseNode> {
+export abstract class BaseQueryBuilder<T extends QueryableNode> {
 	/**
 	 * The node label for this query builder (e.g., "Session", "Turn").
 	 * Must be set by subclasses.

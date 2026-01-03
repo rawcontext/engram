@@ -384,10 +384,10 @@ function generateRepositoryClass(
 		lines.push(`\t\t\tid,`);
 
 		// Add required fields
+		// Note: Generated types use snake_case (matching FalkorDB), so we access input.snake_case
 		for (const [fieldName, field] of Object.entries(nodeDef.fields)) {
 			if (fieldName === "id") continue;
 			const snakeField = camelToSnake(fieldName);
-			const camelField = snakeToCamel(fieldName);
 
 			if (field.config.optional) {
 				// Optional fields are handled separately
@@ -400,11 +400,11 @@ function generateRepositoryClass(
 					typeof field.config.defaultValue === "string"
 						? `"${field.config.defaultValue}"`
 						: JSON.stringify(field.config.defaultValue);
-				lines.push(`\t\t\t${snakeField}: input.${camelField} ?? ${defaultVal},`);
+				lines.push(`\t\t\t${snakeField}: input.${snakeField} ?? ${defaultVal},`);
 			} else if (field.kind === "array") {
-				lines.push(`\t\t\t${snakeField}: input.${camelField} ?? [],`);
+				lines.push(`\t\t\t${snakeField}: input.${snakeField} ?? [],`);
 			} else {
-				lines.push(`\t\t\t${snakeField}: input.${camelField},`);
+				lines.push(`\t\t\t${snakeField}: input.${snakeField},`);
 			}
 		}
 
@@ -421,14 +421,14 @@ function generateRepositoryClass(
 		lines.push("");
 
 		// Handle optional fields
+		// Note: Generated types use snake_case (matching FalkorDB)
 		for (const [fieldName, field] of Object.entries(nodeDef.fields)) {
 			if (fieldName === "id") continue;
 			if (!field.config.optional) continue;
 
 			const snakeField = camelToSnake(fieldName);
-			const camelField = snakeToCamel(fieldName);
 			lines.push(
-				`\t\tif (input.${camelField} !== undefined) nodeProps.${snakeField} = input.${camelField};`,
+				`\t\tif (input.${snakeField} !== undefined) nodeProps.${snakeField} = input.${snakeField};`,
 			);
 		}
 
@@ -494,6 +494,7 @@ function generateRepositoryClass(
 	}
 
 	// Generate mapping method
+	// Note: Generated types use snake_case (matching FalkorDB), so we map directly
 	lines.push(`\t/**`);
 	lines.push(`\t * Map FalkorDB node properties to ${nodeName} domain object.`);
 	lines.push(`\t */`);
@@ -505,16 +506,16 @@ function generateRepositoryClass(
 	for (const [fieldName, _field] of Object.entries(nodeDef.fields)) {
 		if (fieldName === "id") continue;
 		const snakeField = camelToSnake(fieldName);
-		const camelField = snakeToCamel(fieldName);
-		lines.push(`\t\t\t${camelField}: props.${snakeField},`);
+		// Generated types use snake_case, so map directly
+		lines.push(`\t\t\t${snakeField}: props.${snakeField},`);
 	}
 
 	if (nodeDef.config.bitemporal) {
 		lines.push(`\t\t\t// Bitemporal fields`);
-		lines.push(`\t\t\tvtStart: props.vt_start,`);
-		lines.push(`\t\t\tvtEnd: props.vt_end,`);
-		lines.push(`\t\t\tttStart: props.tt_start,`);
-		lines.push(`\t\t\tttEnd: props.tt_end,`);
+		lines.push(`\t\t\tvt_start: props.vt_start,`);
+		lines.push(`\t\t\tvt_end: props.vt_end,`);
+		lines.push(`\t\t\ttt_start: props.tt_start,`);
+		lines.push(`\t\t\ttt_end: props.tt_end,`);
 	}
 
 	lines.push(`\t\t};`);
