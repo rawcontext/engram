@@ -314,6 +314,13 @@ export const MemoryNode = node({
 
 	// Semantic retrieval
 	embedding: field.array(field.float()).optional(),
+
+	// Decay metadata (for memory prioritization)
+	last_accessed: field.timestamp().optional(),
+	access_count: field.int().default(0),
+	decay_score: field.float().default(1.0),
+	decay_updated_at: field.timestamp().optional(),
+	pinned: field.boolean().default(false),
 });
 
 /**
