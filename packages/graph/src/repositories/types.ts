@@ -412,3 +412,59 @@ export interface Community {
 	ttStart: number;
 	ttEnd: number;
 }
+
+// =============================================================================
+// ConflictReport Repository Types
+// =============================================================================
+
+export const CreateConflictReportInputSchema = z.object({
+	memoryIdA: z.string(), // ULID of first memory (typically older)
+	memoryIdB: z.string(), // ULID of second memory (typically newer)
+	relation: z.enum(["contradiction", "supersedes", "augments", "duplicate", "independent"]),
+	confidence: z.number().min(0).max(1),
+	reasoning: z.string(),
+	modelUsed: z.string(),
+	suggestedAction: z.enum(["invalidate_a", "invalidate_b", "keep_both", "merge"]),
+	scanId: z.string(), // Execution ID of the scan job
+	scannedAt: z.number(), // Epoch ms when conflict was detected
+	orgId: z.string(), // Organization ID for filtering
+	project: z.string().optional(), // Optional project filter
+});
+
+export type CreateConflictReportInput = z.infer<typeof CreateConflictReportInputSchema>;
+
+export const ResolveConflictReportInputSchema = z.object({
+	status: z.enum(["confirmed", "dismissed", "auto_resolved"]),
+	reviewedBy: z.string().optional(),
+	resolutionAction: z.enum(["invalidate_a", "invalidate_b", "keep_both", "merge"]).optional(),
+});
+
+export type ResolveConflictReportInput = z.infer<typeof ResolveConflictReportInputSchema>;
+
+/**
+ * ConflictReport entity returned from repository.
+ * Represents background-detected memory conflicts pending review.
+ */
+export interface ConflictReport {
+	id: string;
+	memoryIdA: string;
+	memoryIdB: string;
+	relation: string;
+	confidence: number;
+	reasoning: string;
+	modelUsed: string;
+	status: string;
+	reviewedAt?: number;
+	reviewedBy?: string;
+	suggestedAction: string;
+	resolutionAction?: string;
+	scanId: string;
+	scannedAt: number;
+	orgId: string;
+	project?: string;
+	// Bitemporal
+	vtStart: number;
+	vtEnd: number;
+	ttStart: number;
+	ttEnd: number;
+}
