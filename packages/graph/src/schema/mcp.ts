@@ -767,6 +767,243 @@ function defineTools<T extends Record<string, Tool>>(tools: T): ToolCollection<T
  * });
  * ```
  */
+// =============================================================================
+// JSON Schema Generation
+// =============================================================================
+
+/**
+ * JSON Schema type definitions for MCP tool schemas.
+ */
+export interface JsonSchema {
+	type?: string;
+	description?: string;
+	properties?: Record<string, JsonSchema>;
+	items?: JsonSchema;
+	enum?: string[];
+	required?: string[];
+	default?: unknown;
+	minimum?: number;
+	maximum?: number;
+	minLength?: number;
+	maxLength?: number;
+}
+
+/**
+ * Convert a single param to JSON Schema.
+ *
+ * @example
+ * ```typescript
+ * const schema = paramToJsonSchema(mcp.param.string("Description"));
+ * // { type: "string", description: "Description" }
+ * ```
+ */
+export function paramToJsonSchema(p: Param): JsonSchema {
+	const schema: JsonSchema = {};
+
+	// Add description if present
+	if (p.config.description) {
+		schema.description = p.config.description;
+	}
+
+	// Add default if present
+	if (p.config.defaultValue !== undefined) {
+		schema.default = p.config.defaultValue;
+	}
+
+	switch (p.kind) {
+		case "string": {
+			schema.type = "string";
+			const stringConfig = p.config as StringParamConfig;
+			if (stringConfig.maxLength !== undefined) {
+				schema.maxLength = stringConfig.maxLength;
+			}
+			if (stringConfig.minLength !== undefined) {
+				schema.minLength = stringConfig.minLength;
+			}
+			break;
+		}
+
+		case "int": {
+			schema.type = "integer";
+			const intConfig = p.config as IntParamConfig;
+			if (intConfig.min !== undefined) {
+				schema.minimum = intConfig.min;
+			}
+			if (intConfig.max !== undefined) {
+				schema.maximum = intConfig.max;
+			}
+			break;
+		}
+
+		case "float": {
+			schema.type = "number";
+			const floatConfig = p.config as FloatParamConfig;
+			if (floatConfig.min !== undefined) {
+				schema.minimum = floatConfig.min;
+			}
+			if (floatConfig.max !== undefined) {
+				schema.maximum = floatConfig.max;
+			}
+			break;
+		}
+
+		case "boolean": {
+			schema.type = "boolean";
+			break;
+		}
+
+		case "array": {
+			schema.type = "array";
+			const arrayConfig = p.config as ArrayParamConfig<unknown>;
+			schema.items = paramToJsonSchema(arrayConfig.inner);
+			break;
+		}
+
+		case "enum": {
+			schema.type = "string";
+			const enumConfig = p.config as EnumParamConfig<string>;
+			schema.enum = [...enumConfig.values];
+			break;
+		}
+
+		case "object": {
+			schema.type = "object";
+			const objectConfig = p.config as ObjectParamConfig<Record<string, Param>>;
+			const { properties, required } = paramsToJsonSchema(objectConfig.properties);
+			schema.properties = properties;
+			if (required.length > 0) {
+				schema.required = required;
+			}
+			break;
+		}
+	}
+
+	return schema;
+}
+
+/**
+ * Convert a record of params to JSON Schema properties and required array.
+ *
+ * @example
+ * ```typescript
+ * const { properties, required } = paramsToJsonSchema({
+ *   content: mcp.param.string("Content"),
+ *   tags: mcp.param.array(mcp.param.string()).optional(),
+ * });
+ * // properties: { content: { type: "string", ... }, tags: { type: "array", ... } }
+ * // required: ["content"]
+ * ```
+ */
+export function paramsToJsonSchema(params: Record<string, Param>): {
+	properties: Record<string, JsonSchema>;
+	required: string[];
+} {
+	const properties: Record<string, JsonSchema> = {};
+	const required: string[] = [];
+
+	for (const [key, param] of Object.entries(params)) {
+		properties[key] = paramToJsonSchema(param);
+
+		// Add to required if not optional
+		if (!param.config.optional) {
+			required.push(key);
+		}
+	}
+
+	return { properties, required };
+}
+
+/**
+ * Convert tool input/output schema to a complete JSON Schema object.
+ *
+ * @example
+ * ```typescript
+ * const schema = inputToJsonSchema({
+ *   content: mcp.param.string("The content"),
+ *   type: mcp.param.enum(["a", "b"]).optional(),
+ * });
+ * // {
+ * //   type: "object",
+ * //   properties: { content: {...}, type: {...} },
+ * //   required: ["content"]
+ * // }
+ * ```
+ */
+export function inputToJsonSchema(input: Record<string, Param>): JsonSchema {
+	const { properties, required } = paramsToJsonSchema(input);
+
+	const schema: JsonSchema = {
+		type: "object",
+		properties,
+	};
+
+	if (required.length > 0) {
+		schema.required = required;
+	}
+
+	return schema;
+}
+
+/**
+ * MCP tool registration info with JSON Schema.
+ * This is the format expected by MCP server.registerTool() low-level API.
+ */
+export interface ToolRegistration {
+	name: string;
+	description: string;
+	inputSchema: JsonSchema;
+	outputSchema?: JsonSchema;
+	annotations?: ToolAnnotations;
+}
+
+/**
+ * Convert a Tool to MCP tool registration format.
+ *
+ * @example
+ * ```typescript
+ * const registration = toolToRegistration("remember", rememberTool);
+ * // {
+ * //   name: "remember",
+ * //   description: "Store a memory...",
+ * //   inputSchema: { type: "object", properties: {...}, required: [...] },
+ * //   outputSchema: { type: "object", properties: {...} },
+ * // }
+ * ```
+ */
+export function toolToRegistration(name: string, t: Tool): ToolRegistration {
+	const registration: ToolRegistration = {
+		name,
+		description: t.description,
+		inputSchema: inputToJsonSchema(t.input),
+	};
+
+	if (t.output && Object.keys(t.output).length > 0) {
+		registration.outputSchema = inputToJsonSchema(t.output);
+	}
+
+	if (t.annotations) {
+		registration.annotations = t.annotations;
+	}
+
+	return registration;
+}
+
+/**
+ * Convert a tool collection to an array of MCP tool registrations.
+ *
+ * @example
+ * ```typescript
+ * const registrations = toolCollectionToRegistrations(engramTools);
+ * // [
+ * //   { name: "remember", description: "...", inputSchema: {...} },
+ * //   { name: "recall", description: "...", inputSchema: {...} },
+ * // ]
+ * ```
+ */
+export function toolCollectionToRegistrations(tools: Record<string, Tool>): ToolRegistration[] {
+	return Object.entries(tools).map(([name, tool]) => toolToRegistration(name, tool));
+}
+
 export const mcp = {
 	/**
 	 * Parameter type factory.
@@ -782,4 +1019,29 @@ export const mcp = {
 	 * Define a collection of MCP tools.
 	 */
 	defineTools,
+
+	/**
+	 * Convert a param to JSON Schema.
+	 */
+	paramToJsonSchema,
+
+	/**
+	 * Convert param record to JSON Schema properties.
+	 */
+	paramsToJsonSchema,
+
+	/**
+	 * Convert input schema to complete JSON Schema object.
+	 */
+	inputToJsonSchema,
+
+	/**
+	 * Convert a tool to MCP registration format.
+	 */
+	toolToRegistration,
+
+	/**
+	 * Convert tool collection to registration array.
+	 */
+	toolCollectionToRegistrations,
 } as const;

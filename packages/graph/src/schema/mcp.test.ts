@@ -1,5 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { type InferParamShape, type InferParamType, mcp, type Simplify } from "./mcp";
+import {
+	type InferParamShape,
+	type InferParamType,
+	inputToJsonSchema,
+	mcp,
+	paramsToJsonSchema,
+	paramToJsonSchema,
+	type Simplify,
+	toolCollectionToRegistrations,
+	toolToRegistration,
+} from "./mcp";
 
 describe("mcp.param", () => {
 	describe("string", () => {
@@ -556,5 +566,321 @@ describe("real-world examples", () => {
 		expect(engramTools.recall.title).toBe("Recall");
 		expect(engramTools.query.title).toBe("Query");
 		expect(engramTools.query.annotations?.readOnlyHint).toBe(true);
+	});
+});
+
+describe("JSON Schema generation", () => {
+	describe("paramToJsonSchema", () => {
+		test("converts string param", () => {
+			const schema = paramToJsonSchema(mcp.param.string("A description"));
+			expect(schema).toEqual({
+				type: "string",
+				description: "A description",
+			});
+		});
+
+		test("converts string param with constraints", () => {
+			const schema = paramToJsonSchema(mcp.param.string().min(1).max(100));
+			expect(schema).toEqual({
+				type: "string",
+				minLength: 1,
+				maxLength: 100,
+			});
+		});
+
+		test("converts string param with default", () => {
+			const schema = paramToJsonSchema(mcp.param.string().default("hello"));
+			expect(schema).toEqual({
+				type: "string",
+				default: "hello",
+			});
+		});
+
+		test("converts int param", () => {
+			const schema = paramToJsonSchema(mcp.param.int("Count"));
+			expect(schema).toEqual({
+				type: "integer",
+				description: "Count",
+			});
+		});
+
+		test("converts int param with constraints", () => {
+			const schema = paramToJsonSchema(mcp.param.int().min(1).max(100).default(10));
+			expect(schema).toEqual({
+				type: "integer",
+				minimum: 1,
+				maximum: 100,
+				default: 10,
+			});
+		});
+
+		test("converts float param", () => {
+			const schema = paramToJsonSchema(mcp.param.float("Score").min(0).max(1));
+			expect(schema).toEqual({
+				type: "number",
+				description: "Score",
+				minimum: 0,
+				maximum: 1,
+			});
+		});
+
+		test("converts boolean param", () => {
+			const schema = paramToJsonSchema(mcp.param.boolean("Is enabled").default(true));
+			expect(schema).toEqual({
+				type: "boolean",
+				description: "Is enabled",
+				default: true,
+			});
+		});
+
+		test("converts array param", () => {
+			const schema = paramToJsonSchema(mcp.param.array(mcp.param.string(), "Tags"));
+			expect(schema).toEqual({
+				type: "array",
+				description: "Tags",
+				items: { type: "string" },
+			});
+		});
+
+		test("converts nested array param", () => {
+			const schema = paramToJsonSchema(mcp.param.array(mcp.param.array(mcp.param.int())));
+			expect(schema).toEqual({
+				type: "array",
+				items: {
+					type: "array",
+					items: { type: "integer" },
+				},
+			});
+		});
+
+		test("converts enum param", () => {
+			const schema = paramToJsonSchema(
+				mcp.param.enum(["decision", "insight", "preference"] as const, "Memory type"),
+			);
+			expect(schema).toEqual({
+				type: "string",
+				description: "Memory type",
+				enum: ["decision", "insight", "preference"],
+			});
+		});
+
+		test("converts object param", () => {
+			const schema = paramToJsonSchema(
+				mcp.param.object(
+					{
+						name: mcp.param.string("User name"),
+						age: mcp.param.int().optional(),
+					},
+					"User info",
+				),
+			);
+			expect(schema).toEqual({
+				type: "object",
+				description: "User info",
+				properties: {
+					name: { type: "string", description: "User name" },
+					age: { type: "integer" },
+				},
+				required: ["name"],
+			});
+		});
+
+		test("converts nested object param", () => {
+			const schema = paramToJsonSchema(
+				mcp.param.object({
+					outer: mcp.param.object({
+						inner: mcp.param.string(),
+					}),
+				}),
+			);
+			expect(schema).toEqual({
+				type: "object",
+				properties: {
+					outer: {
+						type: "object",
+						properties: {
+							inner: { type: "string" },
+						},
+						required: ["inner"],
+					},
+				},
+				required: ["outer"],
+			});
+		});
+	});
+
+	describe("paramsToJsonSchema", () => {
+		test("converts params record with required tracking", () => {
+			const { properties, required } = paramsToJsonSchema({
+				content: mcp.param.string("Content"),
+				type: mcp.param.enum(["a", "b"] as const).optional(),
+				tags: mcp.param.array(mcp.param.string()).optional(),
+			});
+
+			expect(properties).toEqual({
+				content: { type: "string", description: "Content" },
+				type: { type: "string", enum: ["a", "b"] },
+				tags: { type: "array", items: { type: "string" } },
+			});
+			expect(required).toEqual(["content"]);
+		});
+
+		test("handles all required params", () => {
+			const { required } = paramsToJsonSchema({
+				a: mcp.param.string(),
+				b: mcp.param.int(),
+			});
+			expect(required).toEqual(["a", "b"]);
+		});
+
+		test("handles all optional params", () => {
+			const { required } = paramsToJsonSchema({
+				a: mcp.param.string().optional(),
+				b: mcp.param.int().optional(),
+			});
+			expect(required).toEqual([]);
+		});
+	});
+
+	describe("inputToJsonSchema", () => {
+		test("creates complete JSON Schema object", () => {
+			const schema = inputToJsonSchema({
+				query: mcp.param.string("Search query"),
+				limit: mcp.param.int().min(1).max(100).default(10),
+				filters: mcp.param.object({ type: mcp.param.string() }).optional(),
+			});
+
+			expect(schema).toEqual({
+				type: "object",
+				properties: {
+					query: { type: "string", description: "Search query" },
+					limit: { type: "integer", minimum: 1, maximum: 100, default: 10 },
+					filters: {
+						type: "object",
+						properties: { type: { type: "string" } },
+						required: ["type"],
+					},
+				},
+				required: ["query", "limit"],
+			});
+		});
+
+		test("omits required array when empty", () => {
+			const schema = inputToJsonSchema({
+				optional: mcp.param.string().optional(),
+			});
+
+			expect(schema).toEqual({
+				type: "object",
+				properties: {
+					optional: { type: "string" },
+				},
+			});
+			expect(schema.required).toBeUndefined();
+		});
+	});
+
+	describe("toolToRegistration", () => {
+		test("converts tool to registration format", () => {
+			const t = mcp.tool({
+				description: "Store a memory",
+				input: {
+					content: mcp.param.string("The content"),
+				},
+				output: {
+					id: mcp.param.string("Created ID"),
+					success: mcp.param.boolean(),
+				},
+			});
+
+			const registration = toolToRegistration("remember", t);
+
+			expect(registration).toEqual({
+				name: "remember",
+				description: "Store a memory",
+				inputSchema: {
+					type: "object",
+					properties: {
+						content: { type: "string", description: "The content" },
+					},
+					required: ["content"],
+				},
+				outputSchema: {
+					type: "object",
+					properties: {
+						id: { type: "string", description: "Created ID" },
+						success: { type: "boolean" },
+					},
+					required: ["id", "success"],
+				},
+			});
+		});
+
+		test("includes annotations when present", () => {
+			const t = mcp.tool({
+				description: "Read data",
+				input: {},
+				annotations: {
+					readOnlyHint: true,
+					idempotentHint: true,
+				},
+			});
+
+			const registration = toolToRegistration("query", t);
+
+			expect(registration.annotations).toEqual({
+				readOnlyHint: true,
+				idempotentHint: true,
+			});
+		});
+
+		test("omits outputSchema when not defined", () => {
+			const t = mcp.tool({
+				description: "Do something",
+				input: { param: mcp.param.string() },
+			});
+
+			const registration = toolToRegistration("action", t);
+
+			expect(registration.outputSchema).toBeUndefined();
+		});
+	});
+
+	describe("toolCollectionToRegistrations", () => {
+		test("converts tool collection to array of registrations", () => {
+			const tools = mcp.defineTools({
+				remember: mcp.tool({
+					description: "Store memory",
+					input: { content: mcp.param.string() },
+				}),
+				recall: mcp.tool({
+					description: "Search memories",
+					input: { query: mcp.param.string() },
+				}),
+			});
+
+			const registrations = toolCollectionToRegistrations(tools);
+
+			expect(registrations).toHaveLength(2);
+			expect(registrations[0].name).toBe("remember");
+			expect(registrations[0].description).toBe("Store memory");
+			expect(registrations[1].name).toBe("recall");
+			expect(registrations[1].description).toBe("Search memories");
+		});
+	});
+
+	describe("mcp namespace exports", () => {
+		test("exposes JSON Schema functions", () => {
+			expect(mcp.paramToJsonSchema).toBeDefined();
+			expect(mcp.paramsToJsonSchema).toBeDefined();
+			expect(mcp.inputToJsonSchema).toBeDefined();
+			expect(mcp.toolToRegistration).toBeDefined();
+			expect(mcp.toolCollectionToRegistrations).toBeDefined();
+		});
+
+		test("JSON Schema functions work via mcp namespace", () => {
+			const schema = mcp.paramToJsonSchema(mcp.param.string("Test"));
+			expect(schema).toEqual({ type: "string", description: "Test" });
+		});
 	});
 });
