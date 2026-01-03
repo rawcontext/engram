@@ -4,6 +4,7 @@ import { TenantAwareFalkorClient } from "@engram/storage";
 import type { Graph } from "falkordb";
 import { ulid } from "ulid";
 import { QueryBuilder } from "../queries/builder";
+import type { QueryClient } from "../runtime/types";
 import { createBitemporal, MAX_DATE, now } from "../utils/time";
 
 /**
@@ -209,5 +210,25 @@ export abstract class FalkorBaseRepository {
 	 */
 	protected get now(): number {
 		return now();
+	}
+
+	/**
+	 * Get a QueryClient adapter for use with generated query builders.
+	 * This allows repositories to use the type-safe query builder API
+	 * while maintaining access to the underlying graph client.
+	 *
+	 * @example
+	 * ```typescript
+	 * const results = await new MemoryQueryBuilder(this.queryClient)
+	 *   .whereType('decision')
+	 *   .whereCurrent()
+	 *   .execute();
+	 * ```
+	 */
+	protected get queryClient(): QueryClient {
+		return {
+			query: <T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> =>
+				this.query<T>(cypher, params ?? {}),
+		};
 	}
 }
