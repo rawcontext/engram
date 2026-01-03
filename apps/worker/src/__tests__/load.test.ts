@@ -20,9 +20,9 @@ import type {
 } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import type { FalkorClient } from "@engram/storage";
-import { CommunityDetectorConsumer, type CommunityDetectionJob } from "../jobs/community-detector";
-import { ConflictScannerConsumer, type ConflictScanJob } from "../jobs/conflict-scanner";
-import { DecayCalculatorConsumer, type DecayCalculationJob } from "../jobs/decay-calculator";
+import { type CommunityDetectionJob, CommunityDetectorConsumer } from "../jobs/community-detector";
+import { type ConflictScanJob, ConflictScannerConsumer } from "../jobs/conflict-scanner";
+import { type DecayCalculationJob, DecayCalculatorConsumer } from "../jobs/decay-calculator";
 
 // =============================================================================
 // Constants

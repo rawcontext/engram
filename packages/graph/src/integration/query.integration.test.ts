@@ -12,12 +12,12 @@
  */
 
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { QueryClient } from "../runtime/types";
-import { BaseQueryBuilder } from "../runtime/base-query-builder";
-import { MAX_DATE } from "../utils/time";
 import { generate } from "../codegen/generator";
-import { engramSchema } from "../schema/engram-schema";
 import type { BaseNode } from "../models/base";
+import { BaseQueryBuilder } from "../runtime/base-query-builder";
+import type { QueryClient } from "../runtime/types";
+import { engramSchema } from "../schema/engram-schema";
+import { MAX_DATE } from "../utils/time";
 
 // =============================================================================
 // Mock Factory

@@ -9,10 +9,10 @@
  */
 
 import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import type { FalkorCommunityRepository, Community } from "@engram/graph";
+import type { Community, FalkorCommunityRepository } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import type { FalkorClient } from "@engram/storage";
-import { CommunityDetectorConsumer, type CommunityDetectionJob } from "../jobs/community-detector";
+import { type CommunityDetectionJob, CommunityDetectorConsumer } from "../jobs/community-detector";
 
 // =============================================================================
 // Mocks

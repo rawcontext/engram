@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { Logger } from "@engram/logger";
 import type { FalkorClient } from "@engram/storage";
-import { DecayCalculatorConsumer, type DecayCalculationJob } from "../jobs/decay-calculator";
+import { type DecayCalculationJob, DecayCalculatorConsumer } from "../jobs/decay-calculator";
 
 // =============================================================================
 // Mocks

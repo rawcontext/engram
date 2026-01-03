@@ -12,7 +12,7 @@ import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { GeminiClient } from "@engram/common/clients";
 import type { FalkorConflictReportRepository, FalkorMemoryRepository, Memory } from "@engram/graph";
 import type { Logger } from "@engram/logger";
-import { ConflictScannerConsumer, type ConflictScanJob } from "../jobs/conflict-scanner";
+import { type ConflictScanJob, ConflictScannerConsumer } from "../jobs/conflict-scanner";
 
 // =============================================================================
 // Mocks

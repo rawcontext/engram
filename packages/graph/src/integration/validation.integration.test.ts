@@ -13,11 +13,11 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { spawn } from "bun";
-import { rm, mkdir } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { spawn } from "bun";
+import { findSimilar, validateCypherQuery, validateFileQueries } from "../codegen/bun-plugin";
 import { engramSchema } from "../schema/engram-schema";
-import { validateCypherQuery, validateFileQueries, findSimilar } from "../codegen/bun-plugin";
 
 // =============================================================================
 // Test Setup
