@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ElicitationService } from "../capabilities";
+import type { ICommunityRetriever } from "../services/community-retriever";
 import type { IMemoryRetriever } from "../services/interfaces";
 import { registerRecallTool } from "./recall";
 
@@ -381,6 +382,132 @@ describe("registerRecallTool", () => {
 
 			expect(mockElicitationService.selectMemory).not.toHaveBeenCalled();
 			expect(result.structuredContent.memories).toHaveLength(2);
+		});
+	});
+
+	describe("community summaries", () => {
+		let mockCommunityRetriever: ICommunityRetriever;
+
+		beforeEach(() => {
+			mockCommunityRetriever = {
+				search: mock(async () => []),
+			} as unknown as ICommunityRetriever;
+
+			registerRecallTool(
+				mockServer,
+				mockMemoryRetriever,
+				() => ({ project: "test-project" }),
+				mockElicitationService,
+				{ communityRetriever: mockCommunityRetriever },
+			);
+		});
+
+		it("should include communities in output when available", async () => {
+			const communities = [
+				{
+					id: "comm-1",
+					name: "Authentication Cluster",
+					summary: "Group of entities related to user authentication and authorization",
+					keywords: ["auth", "login", "OAuth"],
+					memberCount: 5,
+					memoryCount: 12,
+					score: 0.85,
+				},
+			];
+			spyOn(mockCommunityRetriever, "search").mockResolvedValue(communities);
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([]);
+
+			const result = (await registeredHandler({ query: "authentication" })) as any;
+
+			expect(mockCommunityRetriever.search).toHaveBeenCalledWith(
+				"authentication",
+				expect.objectContaining({
+					project: "test-project",
+					limit: 3,
+					threshold: 0.5,
+				}),
+			);
+			expect(result.structuredContent.communities).toHaveLength(1);
+			expect(result.structuredContent.communities[0].name).toBe("Authentication Cluster");
+			expect(result.structuredContent.communities[0].summary).toBe(
+				"Group of entities related to user authentication and authorization",
+			);
+		});
+
+		it("should not include communities when search returns empty", async () => {
+			spyOn(mockCommunityRetriever, "search").mockResolvedValue([]);
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([]);
+
+			const result = (await registeredHandler({ query: "test query" })) as any;
+
+			expect(result.structuredContent.communities).toBeUndefined();
+		});
+
+		it("should respect includeCommunities=false option", async () => {
+			spyOn(mockCommunityRetriever, "search").mockResolvedValue([]);
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([]);
+
+			await registeredHandler({ query: "test query", includeCommunities: false });
+
+			expect(mockCommunityRetriever.search).not.toHaveBeenCalled();
+		});
+
+		it("should use custom communityLimit and communityThreshold", async () => {
+			spyOn(mockCommunityRetriever, "search").mockResolvedValue([]);
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([]);
+
+			await registeredHandler({
+				query: "test query",
+				communityLimit: 5,
+				communityThreshold: 0.7,
+			});
+
+			expect(mockCommunityRetriever.search).toHaveBeenCalledWith(
+				"test query",
+				expect.objectContaining({
+					limit: 5,
+					threshold: 0.7,
+				}),
+			);
+		});
+
+		it("should handle community search failure gracefully", async () => {
+			spyOn(mockCommunityRetriever, "search").mockRejectedValue(new Error("Search failed"));
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([
+				{
+					id: "mem-1",
+					content: "Test memory",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+				},
+			]);
+
+			// Suppress console.error for this test
+			const consoleError = spyOn(console, "error").mockImplementation(() => {});
+
+			const result = (await registeredHandler({ query: "test query" })) as any;
+
+			expect(result.structuredContent.communities).toBeUndefined();
+			expect(result.structuredContent.memories).toHaveLength(1);
+
+			consoleError.mockRestore();
+		});
+
+		it("should not search communities when retriever is not provided", async () => {
+			// Re-register without community retriever
+			registerRecallTool(
+				mockServer,
+				mockMemoryRetriever,
+				() => ({ project: "test-project" }),
+				mockElicitationService,
+			);
+
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([]);
+
+			const result = (await registeredHandler({ query: "test query" })) as any;
+
+			expect(result.structuredContent.communities).toBeUndefined();
 		});
 	});
 });

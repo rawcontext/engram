@@ -66,6 +66,7 @@ import {
 } from "./resources";
 import { EngramCloudClient } from "./services/cloud";
 import { CloudEntityRepository } from "./services/cloud-entity-repository";
+import { CommunityRetrieverService } from "./services/community-retriever";
 import { ConflictAuditService } from "./services/conflict-audit";
 import { ConflictDetectorService } from "./services/conflict-detector";
 import { EntityEmbeddingService } from "./services/entity-embedding";
@@ -220,6 +221,9 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	// Initialize graph reranker for entity-based recall scoring
 	const graphReranker = new GraphRerankerService(entityRepository, entityExtractor, logger);
 
+	// Initialize community retriever for including community summaries in recall
+	const communityRetriever = new CommunityRetrieverService(cloudClient, config.searchUrl, logger);
+
 	// Initialize session context with default capabilities
 	// This will be updated when we receive client info
 	const sessionContext = createSessionContext({
@@ -273,6 +277,7 @@ export function createEngramMcpServer(options: EngramMcpServerOptions): EngramMc
 	registerRecallTool(mcpServer, memoryRetriever, getSessionContext, elicitation, {
 		graphExpansion,
 		graphReranker,
+		communityRetriever,
 	});
 
 	// Register sampling-based tools (available when client supports sampling)

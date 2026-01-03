@@ -1,6 +1,12 @@
 export { EngramCloudClient, type EngramCloudClientOptions } from "./cloud";
 export { CloudEntityRepository } from "./cloud-entity-repository";
 export {
+	CommunityRetrieverService,
+	type CommunitySearchOptions,
+	type CommunitySearchResult,
+	type ICommunityRetriever,
+} from "./community-retriever";
+export {
 	type AuditContext,
 	ConflictAuditService,
 	type LogConflictDecisionParams,

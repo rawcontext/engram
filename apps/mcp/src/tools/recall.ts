@@ -2,6 +2,7 @@ import { MemoryTypeEnum } from "@engram/graph";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ElicitationService } from "../capabilities";
+import type { ICommunityRetriever } from "../services/community-retriever";
 import type { GraphExpansionService } from "../services/graph-expansion";
 import type { GraphRerankerService } from "../services/graph-reranker";
 import type { IMemoryRetriever, RecallResult } from "../services/interfaces";
@@ -11,6 +12,8 @@ export interface RecallToolOptions {
 	graphExpansion?: GraphExpansionService;
 	/** Graph reranker service for entity-based scoring (optional) */
 	graphReranker?: GraphRerankerService;
+	/** Community retriever for including community summaries (optional) */
+	communityRetriever?: ICommunityRetriever;
 }
 
 export function registerRecallTool(
@@ -22,6 +25,7 @@ export function registerRecallTool(
 ) {
 	const graphExpansion = options?.graphExpansion;
 	const graphReranker = options?.graphReranker;
+	const communityRetriever = options?.communityRetriever;
 	server.registerTool(
 		"recall",
 		{
@@ -113,8 +117,43 @@ export function registerRecallTool(
 					.describe(
 						"Weight for graph-based scoring (0-1). Higher values give more influence to entity relationships. Formula: finalScore = vectorScore * (1 - weight) + graphScore * weight",
 					),
+				includeCommunities: z
+					.boolean()
+					.optional()
+					.default(true)
+					.describe(
+						"Include relevant community summaries in results. When enabled, searches community embeddings and prepends high-scoring community summaries that provide context about related entity clusters.",
+					),
+				communityLimit: z
+					.number()
+					.int()
+					.min(1)
+					.max(5)
+					.optional()
+					.default(3)
+					.describe("Maximum number of community summaries to include (default: 3)."),
+				communityThreshold: z
+					.number()
+					.min(0)
+					.max(1)
+					.optional()
+					.default(0.5)
+					.describe(
+						"Minimum similarity score for including a community (default: 0.5). Higher values return fewer but more relevant communities.",
+					),
 			},
 			outputSchema: {
+				communities: z
+					.array(
+						z.object({
+							id: z.string(),
+							name: z.string(),
+							summary: z.string(),
+							score: z.number(),
+							keywords: z.array(z.string()).optional(),
+						}),
+					)
+					.optional(),
 				memories: z.array(
 					z.object({
 						id: z.string(),
@@ -153,6 +192,9 @@ export function registerRecallTool(
 			includeEntities,
 			graphRerank,
 			graphWeight,
+			includeCommunities,
+			communityLimit,
+			communityThreshold,
 		}) => {
 			// Note: Don't auto-apply project filter from session context
 			// Memories may have been stored before roots were populated (with project: null)
@@ -250,6 +292,36 @@ export function registerRecallTool(
 				}
 			}
 
+			// Step 4: Community search (if enabled and service available)
+			let communities: Array<{
+				id: string;
+				name: string;
+				summary: string;
+				score: number;
+				keywords?: string[];
+			}> = [];
+
+			if ((includeCommunities ?? true) && communityRetriever) {
+				try {
+					const communityResults = await communityRetriever.search(query, {
+						project: filters?.project ?? context.project,
+						limit: communityLimit ?? 3,
+						threshold: communityThreshold ?? 0.5,
+					});
+
+					communities = communityResults.map((c) => ({
+						id: c.id,
+						name: c.name,
+						summary: c.summary,
+						score: c.score,
+						keywords: c.keywords.length > 0 ? c.keywords : undefined,
+					}));
+				} catch (error) {
+					// Community search is optional - log and continue
+					console.error("Community search failed:", error);
+				}
+			}
+
 			// If disambiguation is requested and we have multiple similar results, ask user to select
 			let selectedId: string | undefined;
 			let disambiguated = false;
@@ -292,6 +364,7 @@ export function registerRecallTool(
 								: selectedMemory;
 
 							const output = {
+								communities: communities.length > 0 ? communities : undefined,
 								memories: [formattedMemory],
 								query,
 								count: 1,
@@ -332,6 +405,7 @@ export function registerRecallTool(
 			});
 
 			const output = {
+				communities: communities.length > 0 ? communities : undefined,
 				memories: formattedMemories,
 				query,
 				count: memories.length,
