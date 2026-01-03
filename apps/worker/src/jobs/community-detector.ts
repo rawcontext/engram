@@ -416,16 +416,22 @@ export class CommunityDetectorConsumer extends BaseJobConsumer<CommunityDetectio
 		project: string,
 		orgId: string,
 	): Promise<void> {
-		// Note: This will be implemented when the summarizer is ready
-		// For now, just log the intent
+		const summarizationSubject = "engram.jobs.summarization";
+
+		await this.publishJob(summarizationSubject, {
+			communityId,
+			project,
+			orgId,
+		});
+
 		this.logger.debug(
 			{
 				communityId,
 				project,
 				orgId,
-				targetSubject: "engram.jobs.summarization",
+				targetSubject: summarizationSubject,
 			},
-			"Would publish summarization job (summarizer not yet implemented)",
+			"Published summarization job",
 		);
 	}
 }

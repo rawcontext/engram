@@ -275,6 +275,37 @@ export abstract class BaseJobConsumer<T> {
 	}
 
 	/**
+	 * Publish a job to another subject.
+	 *
+	 * Used for job chaining, e.g., community detection triggering summarization.
+	 *
+	 * @param subject - The NATS subject to publish to
+	 * @param job - The job payload (will be JSON serialized)
+	 */
+	protected async publishJob<J>(subject: string, job: J): Promise<void> {
+		if (!this.nc) {
+			// Log warning but don't throw - allows processing without NATS for testing
+			this.logger.warn(
+				{ subject, job },
+				"Cannot publish job: NATS connection not available (skipping in test mode)",
+			);
+			return;
+		}
+
+		const js = jetstream(this.nc);
+		const payload = JSON.stringify(job);
+
+		await js.publish(subject, payload, {
+			msgID: `job-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+		});
+
+		this.logger.debug(
+			{ subject, jobType: (job as Record<string, unknown>).constructor?.name },
+			"Published job",
+		);
+	}
+
+	/**
 	 * Disconnect from NATS and clean up resources
 	 */
 	async disconnect(): Promise<void> {
