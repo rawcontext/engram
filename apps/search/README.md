@@ -9,6 +9,7 @@ Python FastAPI service providing hybrid vector search, multi-tier reranking, and
 - **Multi-Query Expansion**: DMQR-RAG with paraphrase/keyword/stepback/decompose strategies
 - **Session-Aware**: Two-stage hierarchical retrieval (session summaries → turn content)
 - **Real-time Indexing**: NATS JetStream consumer, API key auth (PostgreSQL)
+- **Tiered Multitenancy**: Qdrant 1.16+ shard promotion for large tenants (20K+ vectors)
 
 ## Quick Start
 
@@ -55,6 +56,11 @@ EMBEDDER_DEVICE=cpu                            # cpu | cuda | mps | auto
 EMBEDDER_TEXT_MODEL=BAAI/bge-base-en-v1.5      # Dense embeddings
 RERANKER_ACCURATE_MODEL=BAAI/bge-reranker-v2-m3
 RERANKER_LLM_MODEL=gemini-3-flash-preview
+
+# Shard Management (Tiered Multitenancy)
+SHARD_PROMOTION_THRESHOLD=20000                # Vector count to promote tenant to dedicated shard
+SHARD_MAX_DEDICATED=1000                       # Max dedicated shards per cluster (Qdrant limit)
+SHARD_AUTO_PROMOTION=false                     # Auto-promote tenants (manual by default)
 ```
 
 **Note**: ML deps (torch, sentence-transformers) are optional. Use `uv sync --group local` for local inference.
@@ -70,8 +76,41 @@ src/
 ├── rerankers/       # FlashRank, cross-encoder, ColBERT, LLM
 ├── retrieval/       # Hybrid, multi-query, session-aware
 ├── indexing/        # NATS consumer, turns indexer
+├── services/        # Schema manager, shard manager (multitenancy)
 └── middleware/      # Auth, tracing, metrics
 ```
+
+## Tiered Multitenancy
+
+Engram Search uses Qdrant 1.16+ tiered multitenancy to optimize for both small and large tenants:
+
+- **Shared Fallback Shard**: All tenants start in a shared collection with `org_id` filtering (`is_tenant=true` index)
+- **Automatic Promotion**: When a tenant exceeds the threshold (default: 20K vectors), they can be promoted to a dedicated shard
+- **Zero Downtime**: Promotion uses `create_shard_key` API with automatic routing during migration
+
+**Usage:**
+```python
+from src.services import ShardManager, ShardManagerConfig
+
+# Initialize shard manager
+config = ShardManagerConfig(promotion_threshold=20_000)
+shard_manager = ShardManager(qdrant_client, config)
+
+# Check if tenant should be promoted
+should_promote = await shard_manager.should_promote_tenant("engram_turns", "org_123")
+
+# Promote tenant to dedicated shard
+if should_promote:
+    await shard_manager.promote_tenant_to_dedicated_shard("engram_turns", "org_123")
+
+# Get tenant statistics
+stats = await shard_manager.get_tenant_stats("engram_turns", "org_123")
+# Returns: vector_count, has_dedicated_shard, should_promote, percentage_of_threshold
+```
+
+**References:**
+- [Qdrant 1.16 Tiered Multitenancy](https://qdrant.tech/blog/qdrant-1.16.x/)
+- [Multitenancy Guide](https://qdrant.tech/documentation/guides/multitenancy/)
 
 ## Tech Stack
 

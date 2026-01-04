@@ -145,6 +145,24 @@ class Settings(BaseSettings):
         default=1000, description="Max budget in cents per hour for LLM reranking"
     )
 
+    # Shard management (Tiered Multitenancy)
+    shard_promotion_threshold: int = Field(
+        default=20_000,
+        description="Vector count threshold for promoting tenant to dedicated shard",
+    )
+    shard_max_dedicated: int = Field(
+        default=1000,
+        description="Maximum number of dedicated shards per cluster",
+    )
+    shard_replication_factor: int | None = Field(
+        default=None,
+        description="Replication factor for dedicated shards (optional)",
+    )
+    shard_auto_promotion: bool = Field(
+        default=False,
+        description="Automatically promote tenants when threshold is exceeded",
+    )
+
     # CORS
     cors_origins: list[str] = Field(
         default=["http://localhost:3000", "http://localhost:5000"],
