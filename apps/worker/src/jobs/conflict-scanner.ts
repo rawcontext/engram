@@ -26,6 +26,11 @@ import type {
 } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import { z } from "zod";
+import {
+	type ConflictSummary,
+	createWebhookNotifier,
+	type WebhookNotifier,
+} from "../services/webhook-notifier";
 import { BaseJobConsumer } from "./base";
 
 // =============================================================================
@@ -150,6 +155,7 @@ export class ConflictScannerConsumer extends BaseJobConsumer<ConflictScanJob> {
 	private conflictRepo: FalkorConflictReportRepository;
 	private gemini: GeminiClient;
 	private searchUrl: string;
+	private webhookNotifier: WebhookNotifier;
 
 	constructor(
 		logger: Logger,
@@ -158,12 +164,14 @@ export class ConflictScannerConsumer extends BaseJobConsumer<ConflictScanJob> {
 		gemini: GeminiClient,
 		searchUrl: string,
 		natsUrl?: string,
+		webhookNotifier?: WebhookNotifier,
 	) {
 		super(logger, natsUrl);
 		this.memoryRepo = memoryRepo;
 		this.conflictRepo = conflictRepo;
 		this.gemini = gemini;
 		this.searchUrl = searchUrl.replace(/\/$/, ""); // Remove trailing slash
+		this.webhookNotifier = webhookNotifier || createWebhookNotifier({ logger });
 	}
 
 	/**
@@ -269,6 +277,9 @@ export class ConflictScannerConsumer extends BaseJobConsumer<ConflictScanJob> {
 				},
 				"Created conflict reports",
 			);
+
+			// Step 5: Send webhook notification
+			await this.notifyConflicts(job, conflictReports);
 		}
 
 		// Log summary
@@ -289,6 +300,51 @@ export class ConflictScannerConsumer extends BaseJobConsumer<ConflictScanJob> {
 			},
 			"Conflict scan job completed",
 		);
+	}
+
+	/**
+	 * Send webhook notification for detected conflicts.
+	 *
+	 * @param job - The conflict scan job context
+	 * @param reports - Array of conflict reports to notify about
+	 */
+	private async notifyConflicts(
+		job: ConflictScanJob,
+		reports: CreateConflictReportInput[],
+	): Promise<void> {
+		// Convert reports to webhook-friendly summaries
+		const conflicts: ConflictSummary[] = reports
+			.filter((r) => r.relation !== "independent")
+			.map((r) => ({
+				memoryIdA: r.memoryIdA,
+				memoryIdB: r.memoryIdB,
+				relation: r.relation as ConflictSummary["relation"],
+				confidence: r.confidence,
+				reasoning: r.reasoning,
+				suggestedAction: r.suggestedAction as ConflictSummary["suggestedAction"],
+			}));
+
+		if (conflicts.length === 0) {
+			return;
+		}
+
+		const sent = await this.webhookNotifier.notifyConflicts({
+			project: job.project,
+			orgId: job.orgId,
+			scanId: job.scanId,
+			conflicts,
+		});
+
+		if (sent) {
+			this.logger.info(
+				{
+					conflictCount: conflicts.length,
+					project: job.project,
+					scanId: job.scanId,
+				},
+				"Conflict webhook notification sent",
+			);
+		}
 	}
 
 	/**
@@ -518,6 +574,7 @@ export function createConflictScannerConsumer(options: {
 	gemini: GeminiClient;
 	searchUrl: string;
 	natsUrl?: string;
+	webhookNotifier?: WebhookNotifier;
 }): ConflictScannerConsumer {
 	return new ConflictScannerConsumer(
 		options.logger,
@@ -526,5 +583,6 @@ export function createConflictScannerConsumer(options: {
 		options.gemini,
 		options.searchUrl,
 		options.natsUrl,
+		options.webhookNotifier,
 	);
 }
