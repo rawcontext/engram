@@ -13,11 +13,12 @@ export interface OAuthToken {
 	id: string;
 	accessTokenHash: string;
 	accessTokenPrefix: string;
-	userId: string;
+	/** User ID (null for client_credentials grant) */
+	userId?: string;
 	scopes: string[];
 	rateLimitRpm: number;
 	accessTokenExpiresAt: Date;
-	refreshTokenExpiresAt: Date;
+	refreshTokenExpiresAt?: Date;
 	createdAt: Date;
 	updatedAt: Date;
 	lastUsedAt?: Date;
@@ -37,11 +38,11 @@ interface DbOAuthToken {
 	id: string;
 	access_token_hash: string;
 	access_token_prefix: string;
-	user_id: string;
+	user_id?: string;
 	scopes: string[];
 	rate_limit_rpm: number;
 	access_token_expires_at: Date;
-	refresh_token_expires_at: Date;
+	refresh_token_expires_at?: Date;
 	created_at: Date;
 	updated_at: Date;
 	last_used_at?: Date;
@@ -85,7 +86,7 @@ export class OAuthTokenRepository {
 			        t.client_id_ref, t.org_id, t.org_slug,
 			        u.name as user_name, u.email as user_email
 			 FROM oauth_tokens t
-			 JOIN "user" u ON t.user_id = u.id
+			 LEFT JOIN "user" u ON t.user_id = u.id
 			 WHERE t.access_token_hash = $1`,
 			[tokenHash],
 		);

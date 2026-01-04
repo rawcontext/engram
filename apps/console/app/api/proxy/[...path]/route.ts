@@ -156,12 +156,10 @@ async function proxyRequest(request: NextRequest, { params }: ProxyParams) {
 		"Content-Type": "application/json",
 	};
 
-	// Add Authorization and DPoP if we have a token
+	// Add Authorization if we have a token
+	// Note: Using Bearer scheme - the API validates tokens directly, not via DPoP
 	if (accessToken) {
-		proxyHeaders.Authorization = `DPoP ${accessToken}`;
-		// Create DPoP proof for API request
-		const dpopProof = await createDPoPProof(request.method, url.toString());
-		proxyHeaders.DPoP = dpopProof;
+		proxyHeaders.Authorization = `Bearer ${accessToken}`;
 	}
 
 	// Forward the request

@@ -43,6 +43,17 @@ export interface OrganizationRoutesOptions {
 	logger: Logger;
 }
 
+/**
+ * Returns 401 error response for M2M tokens without userId.
+ * Organization endpoints require user authentication.
+ */
+function requireUserAuth(auth: OAuthAuthContext): string | null {
+	if (!auth.userId) {
+		return null; // M2M tokens not allowed
+	}
+	return auth.userId;
+}
+
 export function createOrganizationRoutes(options: OrganizationRoutesOptions) {
 	const { organizationRepo, logger } = options;
 	const app = new Hono<Env>();
@@ -51,6 +62,19 @@ export function createOrganizationRoutes(options: OrganizationRoutesOptions) {
 	app.post("/", requireScopes("org:write"), async (c) => {
 		try {
 			const auth = c.get("auth");
+			const userId = requireUserAuth(auth);
+			if (!userId) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "FORBIDDEN",
+							message: "Organization endpoints require user authentication",
+						},
+					},
+					403,
+				);
+			}
 			const body = await c.req.json();
 			const parsed = CreateOrganizationSchema.safeParse(body);
 
@@ -133,8 +157,21 @@ export function createOrganizationRoutes(options: OrganizationRoutesOptions) {
 	app.get("/", requireScopes("org:read"), async (c) => {
 		try {
 			const auth = c.get("auth");
+			const userId = requireUserAuth(auth);
+			if (!userId) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "FORBIDDEN",
+							message: "Organization endpoints require user authentication",
+						},
+					},
+					403,
+				);
+			}
 
-			const organizations = await organizationRepo.listForUser(auth.userId);
+			const organizations = await organizationRepo.listForUser(userId);
 
 			return c.json({
 				success: true,
@@ -150,10 +187,23 @@ export function createOrganizationRoutes(options: OrganizationRoutesOptions) {
 	app.get("/:id", requireScopes("org:read"), async (c) => {
 		try {
 			const auth = c.get("auth");
+			const userId = requireUserAuth(auth);
+			if (!userId) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "FORBIDDEN",
+							message: "Organization endpoints require user authentication",
+						},
+					},
+					403,
+				);
+			}
 			const id = c.req.param("id");
 
 			// Check if user has access to this organization
-			const hasAccess = await organizationRepo.hasAccess(auth.userId, id);
+			const hasAccess = await organizationRepo.hasAccess(userId, id);
 			if (!hasAccess) {
 				return c.json(
 					{
@@ -196,6 +246,19 @@ export function createOrganizationRoutes(options: OrganizationRoutesOptions) {
 	app.put("/:id", requireScopes("org:write"), async (c) => {
 		try {
 			const auth = c.get("auth");
+			const userId = requireUserAuth(auth);
+			if (!userId) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "FORBIDDEN",
+							message: "Organization endpoints require user authentication",
+						},
+					},
+					403,
+				);
+			}
 			const id = c.req.param("id");
 			const body = await c.req.json();
 			const parsed = UpdateOrganizationSchema.safeParse(body);
@@ -215,7 +278,7 @@ export function createOrganizationRoutes(options: OrganizationRoutesOptions) {
 			}
 
 			// Check if user has access to this organization
-			const hasAccess = await organizationRepo.hasAccess(auth.userId, id);
+			const hasAccess = await organizationRepo.hasAccess(userId, id);
 			if (!hasAccess) {
 				return c.json(
 					{
@@ -299,10 +362,23 @@ export function createOrganizationRoutes(options: OrganizationRoutesOptions) {
 	app.delete("/:id", requireScopes("org:write"), async (c) => {
 		try {
 			const auth = c.get("auth");
+			const userId = requireUserAuth(auth);
+			if (!userId) {
+				return c.json(
+					{
+						success: false,
+						error: {
+							code: "FORBIDDEN",
+							message: "Organization endpoints require user authentication",
+						},
+					},
+					403,
+				);
+			}
 			const id = c.req.param("id");
 
 			// Check if user has access to this organization
-			const hasAccess = await organizationRepo.hasAccess(auth.userId, id);
+			const hasAccess = await organizationRepo.hasAccess(userId, id);
 			if (!hasAccess) {
 				return c.json(
 					{

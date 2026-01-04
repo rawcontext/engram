@@ -17,11 +17,11 @@ export interface AuthOptions {
 
 /**
  * OAuth-specific auth context with required tenant fields.
- * All OAuth tokens must have orgId, orgSlug, and userId.
+ * Client credentials tokens may not have a userId.
  */
 export interface OAuthAuthContext extends CommonAuthContext {
-	/** User ID (required for OAuth tokens) */
-	userId: string;
+	/** User ID (optional for client_credentials grant) */
+	userId?: string;
 	/** Organization ULID (required for OAuth tokens) */
 	orgId: string;
 	/** URL-safe organization slug (required for OAuth tokens) */
@@ -129,9 +129,12 @@ export function auth(options: AuthOptions) {
 		}
 		c.set("auth", result.context);
 
-		// Create tenant context from auth context
-		const tenantContext = createTenantContext(result.context);
-		c.set("tenant", tenantContext);
+		// Create tenant context from auth context (only if userId is present)
+		// Client credentials (M2M) tokens don't have a userId, so tenant context is not set
+		if (result.context.userId) {
+			const tenantContext = createTenantContext(result.context);
+			c.set("tenant", tenantContext);
+		}
 
 		await next();
 	};
@@ -203,13 +206,14 @@ async function validateOAuthToken(
 		clientId: validatedToken.clientId,
 		orgId: validatedToken.orgId,
 		orgSlug: validatedToken.orgSlug,
-		user: validatedToken.user
-			? {
-					id: validatedToken.userId,
-					name: validatedToken.user.name,
-					email: validatedToken.user.email,
-				}
-			: undefined,
+		user:
+			validatedToken.user && validatedToken.userId
+				? {
+						id: validatedToken.userId,
+						name: validatedToken.user.name,
+						email: validatedToken.user.email,
+					}
+				: undefined,
 	};
 
 	logger.debug(
