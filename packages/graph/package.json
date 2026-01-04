@@ -13,13 +13,6 @@
 		"ulid": "^3.0.2",
 		"@engram/storage": "*"
 	},
-	"turbo": {
-		"build": {
-			"outputs": [
-				"src/generated/**"
-			]
-		}
-	},
 	"scripts": {
 		"build": "bun run generate",
 		"generate": "bun run src/codegen/cli.ts",
