@@ -9,17 +9,18 @@
 import { NextResponse } from "next/server";
 
 // Service configuration for production
+// Each service has its own internal hostname in Docker network
 const SERVICES = {
 	api: {
 		url: process.env.ENGRAM_API_URL || "http://api:6174",
 		path: "/v1/health",
 	},
 	search: {
-		url: process.env.ENGRAM_API_URL || "http://api:6174",
+		url: process.env.SEARCH_URL || "http://search:6176",
 		path: "/v1/search/health",
 	},
 	tuner: {
-		url: process.env.ENGRAM_API_URL || "http://api:6174",
+		url: process.env.TUNER_URL || "http://tuner:6177",
 		path: "/v1/tuner/health",
 	},
 	observatory: {

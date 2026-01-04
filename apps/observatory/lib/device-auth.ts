@@ -774,13 +774,18 @@ export async function generateClientToken(
 	const accessTokenExpiresAt = new Date(Date.now() + CLIENT_TOKEN_EXPIRES_IN * 1000);
 
 	// Store token record (NO refresh token per RFC 6749 §4.4)
+	// M2M tokens use "system" organization for infrastructure access
+	const SYSTEM_ORG_ID = "00000000000000000000000000"; // 26-char ULID-compatible system org
+	const SYSTEM_ORG_SLUG = "system";
+
 	await pool.query(
 		`INSERT INTO oauth_tokens (
 			access_token_hash, access_token_prefix,
 			client_id_ref, grant_type, dpop_jkt, scopes,
 			access_token_expires_at,
-			refresh_token_hash, refresh_token_expires_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL)`,
+			refresh_token_hash, refresh_token_expires_at,
+			org_id, org_slug
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, $8, $9)`,
 		[
 			accessTokenHash,
 			accessTokenPrefix,
@@ -789,6 +794,8 @@ export async function generateClientToken(
 			dpopJwkThumbprint,
 			scopes,
 			accessTokenExpiresAt,
+			SYSTEM_ORG_ID,
+			SYSTEM_ORG_SLUG,
 		],
 	);
 

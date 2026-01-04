@@ -115,7 +115,15 @@ async function main() {
 	// Admin routes - cache management, NATS streams, cross-tenant access
 	protectedRoutes.route(
 		"/admin",
-		createAdminRoutes({ logger, redisUrl: config.redisUrl, memoryService, auditClient }),
+		createAdminRoutes({
+			logger,
+			redisUrl: config.redisUrl,
+			memoryService,
+			auditClient,
+			graphClient,
+			postgresClient,
+			searchUrl: config.searchUrl,
+		}),
 	);
 
 	// Alerts routes - alert rules, notification channels, history
