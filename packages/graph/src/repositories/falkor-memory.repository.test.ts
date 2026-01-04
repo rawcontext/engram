@@ -4,6 +4,313 @@ import { MAX_DATE } from "../utils/time";
 import { FalkorMemoryRepository } from "./falkor-memory.repository";
 import type { Memory } from "./types";
 
+describe("FalkorMemoryRepository - Query Methods", () => {
+	let mockClient: GraphClient;
+	let repository: FalkorMemoryRepository;
+	const mockNow = 1640000000000;
+
+	beforeEach(() => {
+		mockClient = {
+			connect: mock(async () => {}),
+			disconnect: mock(async () => {}),
+			query: mock(async () => []),
+			isConnected: mock(() => true),
+		} as unknown as GraphClient;
+
+		repository = new FalkorMemoryRepository(mockClient);
+	});
+
+	describe("findBySession", () => {
+		it("should return memories linked to a session", async () => {
+			const sessionId = "session-123";
+			const memory: Memory = {
+				id: "mem-1",
+				content: "Session memory",
+				contentHash: "hash1",
+				type: "context",
+				tags: ["test"],
+				source: "user",
+				sourceSessionId: sessionId,
+				accessCount: 0,
+				decayScore: 1.0,
+				pinned: false,
+				vtStart: mockNow,
+				vtEnd: MAX_DATE,
+				ttStart: mockNow,
+				ttEnd: MAX_DATE,
+			};
+
+			spyOn(mockClient, "query").mockResolvedValueOnce([
+				{
+					n: {
+						properties: {
+							id: memory.id,
+							content: memory.content,
+							content_hash: memory.contentHash,
+							type: memory.type,
+							tags: memory.tags,
+							source: memory.source,
+							source_session_id: sessionId,
+							vt_start: memory.vtStart,
+							vt_end: memory.vtEnd,
+							tt_start: memory.ttStart,
+							tt_end: memory.ttEnd,
+						},
+					} as FalkorNode,
+				},
+			]);
+
+			const result = await repository.findBySession(sessionId);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].sourceSessionId).toBe(sessionId);
+		});
+
+		it("should return empty array when no memories for session", async () => {
+			spyOn(mockClient, "query").mockResolvedValueOnce([]);
+
+			const result = await repository.findBySession("nonexistent-session");
+
+			expect(result).toEqual([]);
+		});
+	});
+
+	describe("findByProject", () => {
+		it("should return memories for a project", async () => {
+			const project = "engram";
+			const memory: Memory = {
+				id: "mem-1",
+				content: "Project memory",
+				contentHash: "hash1",
+				type: "context",
+				tags: [],
+				source: "user",
+				project: project,
+				accessCount: 0,
+				decayScore: 1.0,
+				pinned: false,
+				vtStart: mockNow,
+				vtEnd: MAX_DATE,
+				ttStart: mockNow,
+				ttEnd: MAX_DATE,
+			};
+
+			spyOn(mockClient, "query").mockResolvedValueOnce([
+				{
+					n: {
+						properties: {
+							id: memory.id,
+							content: memory.content,
+							content_hash: memory.contentHash,
+							type: memory.type,
+							tags: memory.tags,
+							source: memory.source,
+							project: project,
+							vt_start: memory.vtStart,
+							vt_end: memory.vtEnd,
+							tt_start: memory.ttStart,
+							tt_end: memory.ttEnd,
+						},
+					} as FalkorNode,
+				},
+			]);
+
+			const result = await repository.findByProject(project);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].project).toBe(project);
+		});
+	});
+
+	describe("findByWorkingDir", () => {
+		it("should return memories for a working directory", async () => {
+			const workingDir = "/Users/test/project";
+			const memory: Memory = {
+				id: "mem-1",
+				content: "Working dir memory",
+				contentHash: "hash1",
+				type: "context",
+				tags: [],
+				source: "user",
+				workingDir: workingDir,
+				accessCount: 0,
+				decayScore: 1.0,
+				pinned: false,
+				vtStart: mockNow,
+				vtEnd: MAX_DATE,
+				ttStart: mockNow,
+				ttEnd: MAX_DATE,
+			};
+
+			spyOn(mockClient, "query").mockResolvedValueOnce([
+				{
+					n: {
+						properties: {
+							id: memory.id,
+							content: memory.content,
+							content_hash: memory.contentHash,
+							type: memory.type,
+							tags: memory.tags,
+							source: memory.source,
+							working_dir: workingDir,
+							vt_start: memory.vtStart,
+							vt_end: memory.vtEnd,
+							tt_start: memory.ttStart,
+							tt_end: memory.ttEnd,
+						},
+					} as FalkorNode,
+				},
+			]);
+
+			const result = await repository.findByWorkingDir(workingDir);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].workingDir).toBe(workingDir);
+		});
+	});
+});
+
+describe("FalkorMemoryRepository - Update with Retry Logic", () => {
+	let mockClient: GraphClient;
+	let repository: FalkorMemoryRepository;
+	const mockNow = 1640000000000;
+
+	beforeEach(() => {
+		mockClient = {
+			connect: mock(async () => {}),
+			disconnect: mock(async () => {}),
+			query: mock(async () => []),
+			isConnected: mock(() => true),
+		} as unknown as GraphClient;
+
+		repository = new FalkorMemoryRepository(mockClient);
+	});
+
+	describe("update", () => {
+		it("should retry on concurrent modification error", async () => {
+			const memoryId = "mem-123";
+			const existingMemory = {
+				id: memoryId,
+				content: "Old content",
+				content_hash: "hash",
+				type: "context",
+				tags: [],
+				source: "user",
+				vt_start: mockNow - 1000,
+				vt_end: MAX_DATE,
+				tt_start: mockNow - 1000,
+				tt_end: MAX_DATE,
+			};
+
+			const querySpy = spyOn(mockClient, "query");
+
+			// First attempt: findById succeeds
+			querySpy.mockResolvedValueOnce([{ n: { properties: existingMemory } as FalkorNode }]);
+			// First attempt: close fails with concurrent modification (count = 0)
+			querySpy.mockResolvedValueOnce([{ count: 0 }]);
+
+			// Second attempt: findById succeeds
+			querySpy.mockResolvedValueOnce([{ n: { properties: existingMemory } as FalkorNode }]);
+			// Second attempt: close succeeds
+			querySpy.mockResolvedValueOnce([{ count: 1 }]);
+			// Second attempt: create new version
+			querySpy.mockResolvedValueOnce([
+				{
+					m: {
+						properties: {
+							id: "new-id",
+							content: "New content",
+							content_hash: "hash",
+							type: "context",
+							tags: [],
+							source: "user",
+							vt_start: mockNow,
+							vt_end: MAX_DATE,
+							tt_start: mockNow,
+							tt_end: MAX_DATE,
+						},
+					} as FalkorNode,
+				},
+			]);
+			// Second attempt: create REPLACES edge
+			querySpy.mockResolvedValueOnce([]);
+
+			const result = await repository.update(memoryId, { content: "New content" });
+
+			expect(result.content).toBe("New content");
+			// Verify retried (at least 4 query calls: 2 for first attempt, 4 for second)
+			expect(querySpy.mock.calls.length).toBeGreaterThanOrEqual(4);
+		});
+
+		it("should throw after max retries on persistent concurrent modification", async () => {
+			const memoryId = "mem-123";
+			const existingMemory = {
+				id: memoryId,
+				content: "Content",
+				content_hash: "hash",
+				type: "context",
+				tags: [],
+				source: "user",
+				vt_start: mockNow - 1000,
+				vt_end: MAX_DATE,
+				tt_start: mockNow - 1000,
+				tt_end: MAX_DATE,
+			};
+
+			const querySpy = spyOn(mockClient, "query");
+
+			// All 3 attempts fail with concurrent modification
+			for (let i = 0; i < 3; i++) {
+				querySpy.mockResolvedValueOnce([{ n: { properties: existingMemory } as FalkorNode }]);
+				querySpy.mockResolvedValueOnce([{ count: 0 }]); // concurrent modification
+			}
+
+			await expect(repository.update(memoryId, { content: "New" })).rejects.toThrow(
+				/Failed to update memory.*after 3 attempts due to concurrent modifications/,
+			);
+		});
+
+		it("should throw immediately on non-retryable error", async () => {
+			const memoryId = "mem-123";
+			const existingMemory = {
+				id: memoryId,
+				content: "Content",
+				content_hash: "hash",
+				type: "context",
+				tags: [],
+				source: "user",
+				vt_start: mockNow - 1000,
+				vt_end: MAX_DATE,
+				tt_start: mockNow - 1000,
+				tt_end: MAX_DATE,
+			};
+
+			const querySpy = spyOn(mockClient, "query");
+			// findById succeeds
+			querySpy.mockResolvedValueOnce([{ n: { properties: existingMemory } as FalkorNode }]);
+			// Close query throws non-retryable error
+			querySpy.mockRejectedValueOnce(new Error("Database connection lost"));
+
+			await expect(repository.update(memoryId, { content: "New" })).rejects.toThrow(
+				"Database connection lost",
+			);
+
+			// Should not retry - only 2 query calls
+			expect(querySpy.mock.calls.length).toBe(2);
+		});
+
+		it("should throw Memory not found if memory doesn't exist", async () => {
+			const memoryId = "nonexistent";
+
+			spyOn(mockClient, "query").mockResolvedValueOnce([]); // findById returns empty
+
+			await expect(repository.update(memoryId, { content: "New" })).rejects.toThrow(
+				`Memory not found: ${memoryId}`,
+			);
+		});
+	});
+});
+
 describe("FalkorMemoryRepository - Invalidation", () => {
 	let mockClient: GraphClient;
 	let repository: FalkorMemoryRepository;

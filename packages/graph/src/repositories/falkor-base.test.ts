@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import type { TenantContext } from "@engram/common/types";
 import type { GraphClient } from "@engram/storage";
+import { TenantAwareFalkorClient } from "@engram/storage";
+import type { Graph } from "falkordb";
 import { MAX_DATE } from "../utils/time";
 import { FalkorBaseRepository } from "./falkor-base";
 
@@ -50,6 +53,22 @@ class TestRepository extends FalkorBaseRepository {
 
 	public testNow() {
 		return this.now;
+	}
+
+	public testGetTenantGraph() {
+		return this.getTenantGraph();
+	}
+
+	public testIsTenantMode() {
+		return this.isTenantMode();
+	}
+
+	public testGetTenantContext() {
+		return this.getTenantContext();
+	}
+
+	public testQueryClient() {
+		return this.queryClient;
 	}
 }
 
@@ -310,6 +329,122 @@ describe("FalkorBaseRepository", () => {
 
 			expect(result).toBeGreaterThanOrEqual(before);
 			expect(result).toBeLessThanOrEqual(after);
+		});
+	});
+
+	describe("isTenantMode", () => {
+		it("should return false in legacy mode", () => {
+			expect(repository.testIsTenantMode()).toBe(false);
+		});
+
+		it("should return true when using TenantAwareFalkorClient with context", () => {
+			const mockTenantClient = Object.create(TenantAwareFalkorClient.prototype);
+			const tenantContext: TenantContext = { orgId: "org-123", orgSlug: "my-org" };
+			const tenantRepo = new TestRepository(mockTenantClient, tenantContext);
+
+			expect(tenantRepo.testIsTenantMode()).toBe(true);
+		});
+
+		it("should return false when TenantAwareFalkorClient used without context", () => {
+			const mockTenantClient = Object.create(TenantAwareFalkorClient.prototype);
+			const tenantRepo = new TestRepository(mockTenantClient);
+
+			expect(tenantRepo.testIsTenantMode()).toBe(false);
+		});
+	});
+
+	describe("getTenantContext", () => {
+		it("should throw error in legacy mode", () => {
+			expect(() => repository.testGetTenantContext()).toThrow(
+				"Tenant mode not enabled. Pass TenantAwareFalkorClient and TenantContext to constructor.",
+			);
+		});
+
+		it("should return tenant context in tenant mode", () => {
+			const mockTenantClient = Object.create(TenantAwareFalkorClient.prototype);
+			const tenantContext: TenantContext = { orgId: "org-123", orgSlug: "my-org" };
+			const tenantRepo = new TestRepository(mockTenantClient, tenantContext);
+
+			const result = tenantRepo.testGetTenantContext();
+			expect(result).toEqual(tenantContext);
+		});
+	});
+
+	describe("getTenantGraph", () => {
+		it("should throw error in legacy mode", async () => {
+			await expect(repository.testGetTenantGraph()).rejects.toThrow(
+				"Tenant mode not enabled. Pass TenantAwareFalkorClient and TenantContext to constructor.",
+			);
+		});
+
+		it("should return graph in tenant mode", async () => {
+			const mockGraph = { query: mock(async () => ({ data: [] })) } as unknown as Graph;
+			const mockTenantClient = Object.create(TenantAwareFalkorClient.prototype);
+			mockTenantClient.ensureTenantGraph = mock(async () => mockGraph);
+
+			const tenantContext: TenantContext = { orgId: "org-123", orgSlug: "my-org" };
+			const tenantRepo = new TestRepository(mockTenantClient, tenantContext);
+
+			const result = await tenantRepo.testGetTenantGraph();
+			expect(result).toBe(mockGraph);
+			expect(mockTenantClient.ensureTenantGraph).toHaveBeenCalledWith(tenantContext);
+		});
+	});
+
+	describe("query in tenant mode", () => {
+		it("should execute query through tenant graph", async () => {
+			const mockData = [{ id: "123", name: "test" }];
+			const mockGraph = {
+				query: mock(async () => ({ data: mockData })),
+			} as unknown as Graph;
+
+			const mockTenantClient = Object.create(TenantAwareFalkorClient.prototype);
+			mockTenantClient.ensureTenantGraph = mock(async () => mockGraph);
+
+			const tenantContext: TenantContext = { orgId: "org-123", orgSlug: "my-org" };
+			const tenantRepo = new TestRepository(mockTenantClient, tenantContext);
+
+			const result = await tenantRepo.testQuery("MATCH (n) RETURN n", { id: "123" });
+
+			expect(mockTenantClient.ensureTenantGraph).toHaveBeenCalledWith(tenantContext);
+			expect(mockGraph.query).toHaveBeenCalledWith("MATCH (n) RETURN n", {
+				params: { id: "123" },
+			});
+			expect(result).toEqual(mockData);
+		});
+
+		it("should throw error when neither client is initialized", async () => {
+			// Create a repository that bypasses constructor type checking
+			const brokenRepo = Object.create(TestRepository.prototype);
+
+			await expect(brokenRepo.testQuery("MATCH (n) RETURN n")).rejects.toThrow(
+				"Repository not properly initialized with GraphClient or TenantAwareFalkorClient",
+			);
+		});
+	});
+
+	describe("queryClient", () => {
+		it("should return QueryClient adapter", async () => {
+			const mockData = [{ id: "123" }];
+			spyOn(mockClient, "query").mockResolvedValueOnce(mockData);
+
+			const client = repository.testQueryClient();
+			expect(client).toHaveProperty("query");
+			expect(typeof client.query).toBe("function");
+
+			const result = await client.query("MATCH (n) RETURN n", { id: "123" });
+			expect(result).toEqual(mockData);
+		});
+
+		it("should work without params", async () => {
+			const mockData = [{ count: 5 }];
+			spyOn(mockClient, "query").mockResolvedValueOnce(mockData);
+
+			const client = repository.testQueryClient();
+			const result = await client.query("MATCH (n) RETURN count(n)");
+
+			expect(mockClient.query).toHaveBeenCalledWith("MATCH (n) RETURN count(n)", {});
+			expect(result).toEqual(mockData);
 		});
 	});
 });

@@ -26,6 +26,16 @@ class TestQueryBuilder extends BaseQueryBuilder<TestNode> {
 	olderThan(age: number): this {
 		return this.addCondition("age", ">", age);
 	}
+
+	// Expose protected cloneState for testing
+	testCloneState() {
+		return this.cloneState();
+	}
+
+	// Expose protected addRawCondition for testing
+	withRawCondition(cypher: string): this {
+		return this.addRawCondition(cypher);
+	}
 }
 
 // Mock client factory
@@ -238,6 +248,27 @@ describe("BaseQueryBuilder", () => {
 		});
 	});
 
+	describe("addRawCondition", () => {
+		it("should add raw Cypher condition", () => {
+			const client = createMockClient();
+			const builder = new TestQueryBuilder(client);
+
+			const cypher = builder.withRawCondition("exists(n.email)").toCypher();
+
+			expect(cypher).toContain("WHERE exists(n.email)");
+		});
+
+		it("should combine raw conditions with other conditions", () => {
+			const client = createMockClient();
+			const builder = new TestQueryBuilder(client);
+
+			const cypher = builder.byName("Alice").withRawCondition("size(n.tags) > 0").toCypher();
+
+			expect(cypher).toContain("n.name = $p0");
+			expect(cypher).toContain("AND size(n.tags) > 0");
+		});
+	});
+
 	describe("getParams", () => {
 		it("should return a copy of params", () => {
 			const client = createMockClient();
@@ -423,6 +454,71 @@ describe("BaseQueryBuilder", () => {
 				.reset();
 
 			expect(result).toBe(builder);
+		});
+	});
+
+	describe("cloneState", () => {
+		it("should clone all state properties", () => {
+			const client = createMockClient();
+			const builder = new TestQueryBuilder(client);
+
+			builder.where({ name: "Alice" }).limit(10).offset(5).orderBy("age", "DESC");
+
+			const cloned = builder.testCloneState();
+
+			expect(cloned.conditions).toHaveLength(1);
+			expect(cloned.params.p0).toBe("Alice");
+			expect(cloned.limit).toBe(10);
+			expect(cloned.offset).toBe(5);
+			expect(cloned.orderBy).toEqual({ field: "age", direction: "DESC" });
+		});
+
+		it("should create independent copy of conditions", () => {
+			const client = createMockClient();
+			const builder = new TestQueryBuilder(client);
+
+			builder.where({ name: "Alice" });
+			const cloned = builder.testCloneState();
+
+			// Modify original builder
+			builder.where({ type: "admin" });
+
+			// Cloned state should be unaffected
+			expect(cloned.conditions).toHaveLength(1);
+		});
+
+		it("should create independent copy of params", () => {
+			const client = createMockClient();
+			const builder = new TestQueryBuilder(client);
+
+			builder.where({ name: "Alice" });
+			const cloned = builder.testCloneState();
+
+			// Modify original builder's params
+			builder.where({ age: 30 });
+
+			// Cloned params should be unaffected
+			expect(Object.keys(cloned.params)).toHaveLength(1);
+			expect(cloned.params.p0).toBe("Alice");
+		});
+
+		it("should handle undefined orderBy", () => {
+			const client = createMockClient();
+			const builder = new TestQueryBuilder(client);
+
+			const cloned = builder.testCloneState();
+
+			expect(cloned.orderBy).toBeUndefined();
+		});
+
+		it("should preserve paramCounter", () => {
+			const client = createMockClient();
+			const builder = new TestQueryBuilder(client);
+
+			builder.where({ name: "Alice", age: 30, type: "user" });
+			const cloned = builder.testCloneState();
+
+			expect(cloned.paramCounter).toBe(3);
 		});
 	});
 });
