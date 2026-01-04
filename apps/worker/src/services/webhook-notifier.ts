@@ -122,7 +122,7 @@ export class WebhookNotifier {
 	 * Default implementation to get webhook config from environment.
 	 * Falls back to CONFLICT_WEBHOOK_URL if set.
 	 */
-	private async defaultGetWebhookConfig(orgId: string): Promise<OrgWebhookConfig | null> {
+	private async defaultGetWebhookConfig(_orgId: string): Promise<OrgWebhookConfig | null> {
 		const webhookUrl = process.env.CONFLICT_WEBHOOK_URL;
 		if (!webhookUrl) {
 			return null;

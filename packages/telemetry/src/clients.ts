@@ -4,7 +4,7 @@
  * Provides tracing wrappers for external API clients (FalkorDB, NATS, PostgreSQL, etc.)
  */
 
-import { type SpanStatusCode, trace } from "@opentelemetry/api";
+import type { SpanStatusCode } from "@opentelemetry/api";
 import { getTracer } from "./tracer";
 
 /**

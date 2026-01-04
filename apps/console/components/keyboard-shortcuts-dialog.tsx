@@ -57,7 +57,7 @@ export function KeyboardShortcutsDialog({
 									<div className="flex items-center gap-3">
 										<kbd className="inline-flex items-center gap-1 px-2 py-1 text-xs font-mono bg-muted rounded min-w-[3rem] justify-center">
 											{shortcut.key.split(" ").map((k, i) => (
-												<span key={i}>
+												<span key={`${shortcut.key}-${k}`}>
 													{i > 0 && <span className="text-muted-foreground mx-0.5">+</span>}
 													{k}
 												</span>

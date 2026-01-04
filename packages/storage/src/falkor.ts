@@ -154,8 +154,8 @@ export class FalkorClient implements GraphClient {
 		if (!this.graph) throw new Error("Graph connection failed");
 
 		return traceDbOperation("query", "falkordb", cypher, async () => {
-			const result = await this.graph!.query(cypher, { params });
-			return result.data as FalkorResult<T>;
+			const result = await this.graph?.query(cypher, { params });
+			return result?.data as FalkorResult<T>;
 		});
 	}
 

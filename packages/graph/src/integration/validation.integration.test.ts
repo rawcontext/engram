@@ -15,7 +15,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { spawn } from "bun";
 import { findSimilar, validateCypherQuery, validateFileQueries } from "../codegen/bun-plugin";
 import { engramSchema } from "../schema/engram-schema";
 

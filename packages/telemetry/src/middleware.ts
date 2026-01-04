@@ -5,7 +5,7 @@
  * create spans for incoming HTTP requests.
  */
 
-import { type SpanStatusCode, trace } from "@opentelemetry/api";
+import type { SpanStatusCode } from "@opentelemetry/api";
 import type { Context as HonoContext, MiddlewareHandler } from "hono";
 import { getTracer } from "./tracer";
 

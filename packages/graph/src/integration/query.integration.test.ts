@@ -436,8 +436,7 @@ describe("Integration: Query Lifecycle", () => {
 				const now = Date.now();
 
 				// Close old version
-				const closeOldCypher =
-					`MATCH (m:Memory {id: $id}) WHERE m.tt_end = ${MAX_DATE} ` + "SET m.tt_end = $now";
+				const closeOldCypher = `MATCH (m:Memory {id: $id}) WHERE m.tt_end = ${MAX_DATE} SET m.tt_end = $now`;
 
 				// Create new version
 				const createNewCypher =

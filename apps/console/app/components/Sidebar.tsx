@@ -46,9 +46,12 @@ export function Sidebar() {
 
 			{/* Mobile Overlay */}
 			{mobileMenuOpen && (
-				<div
-					className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+				<button
+					type="button"
+					className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity cursor-default"
 					onClick={() => setMobileMenuOpen(false)}
+					onKeyDown={(e) => e.key === "Escape" && setMobileMenuOpen(false)}
+					aria-label="Close menu"
 				/>
 			)}
 

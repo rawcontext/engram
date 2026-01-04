@@ -8,7 +8,7 @@
  * 4. Trigger summarization jobs for communities
  */
 
-import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { Community, FalkorCommunityRepository } from "@engram/graph";
 import type { Logger } from "@engram/logger";
 import type { FalkorClient } from "@engram/storage";

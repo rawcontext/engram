@@ -297,7 +297,7 @@ describe("ConflictScannerConsumer", () => {
 			mockMemoryRepo.findByProject.mockResolvedValueOnce(memories);
 
 			// Each memory returns the other as a candidate
-			global.fetch = mock(async (url, options) => {
+			global.fetch = mock(async (_url, options) => {
 				const body = JSON.parse(options?.body as string);
 				const otherId = body.content.includes("tabs") ? "mem-2" : "mem-1";
 				return new Response(
@@ -388,7 +388,7 @@ describe("ConflictScannerConsumer", () => {
 			mockMemoryRepo.findByProject.mockResolvedValueOnce(memories);
 
 			// Each memory returns 2 candidates
-			global.fetch = mock(async (url, options) => {
+			global.fetch = mock(async (_url, options) => {
 				const body = JSON.parse(options?.body as string);
 				const sourceId = memories.find((m) => m.content === body.content)?.id || "unknown";
 				const candidates = memories

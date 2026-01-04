@@ -5,12 +5,12 @@
  */
 
 import {
+	context,
+	propagation,
 	type Span,
 	type SpanOptions,
 	SpanStatusCode,
 	type Tracer,
-	context,
-	propagation,
 	trace,
 } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";

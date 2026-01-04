@@ -15,11 +15,13 @@
 	},
 	"turbo": {
 		"build": {
-			"outputs": []
+			"outputs": [
+				"src/generated/**"
+			]
 		}
 	},
 	"scripts": {
-		"build": "echo 'Build success'",
+		"build": "bun run generate",
 		"generate": "bun run src/codegen/cli.ts",
 		"generate:dry": "bun run src/codegen/cli.ts --dry-run",
 		"typecheck": "tsgo --noEmit",

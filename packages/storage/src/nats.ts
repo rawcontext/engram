@@ -206,9 +206,10 @@ export class NatsClient implements MessageClient {
 
 		return traceNatsOperation("publish", subject, async () => {
 			try {
-				const pubAck = await this.js!.publish(subject, JSON.stringify(message), {
+				const pubAck = await this.js?.publish(subject, JSON.stringify(message), {
 					msgID: key,
 				});
+				if (!pubAck) throw new Error("JetStream publish returned no ack");
 				console.log(
 					`[NATS] Published to ${subject}, seq=${pubAck.seq}, dup=${pubAck.duplicate}, msgID=${key.substring(0, 8)}`,
 				);

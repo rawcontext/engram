@@ -14,7 +14,6 @@ import {
 	loadTelemetryConfig,
 	shutdownTracing,
 	traceNatsOperation,
-	tracingMiddleware,
 } from "@engram/telemetry";
 import { authenticateRequest, closeAuth, initAuth } from "./auth";
 

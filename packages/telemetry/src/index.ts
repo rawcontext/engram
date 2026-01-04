@@ -11,7 +11,15 @@
  * - WebSocket connection tracing
  */
 
-export { type TelemetryConfig, loadTelemetryConfig } from "./config";
+export {
+	traceDbOperation,
+	traceHttpCall,
+	traceJob,
+	traceMcpTool,
+	traceNatsOperation,
+} from "./clients";
+export { loadTelemetryConfig, type TelemetryConfig } from "./config";
+export { traceWebSocket, tracingMiddleware } from "./middleware";
 export {
 	getCurrentSpan,
 	getTracePropagationHeaders,
@@ -23,11 +31,3 @@ export {
 	withSpan,
 	withSpanSync,
 } from "./tracer";
-export { tracingMiddleware, traceWebSocket } from "./middleware";
-export {
-	traceDbOperation,
-	traceHttpCall,
-	traceJob,
-	traceMcpTool,
-	traceNatsOperation,
-} from "./clients";
