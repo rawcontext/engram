@@ -15,7 +15,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
 					<AppSidebar />
 					<SidebarInset>
 						<SiteHeader />
-						<main className="flex-1 p-6">{children}</main>
+						<main className="flex-1 p-4 md:p-6">{children}</main>
 					</SidebarInset>
 				</SidebarProvider>
 			</StreamingProvider>

@@ -254,14 +254,20 @@ const QUICK_ACTIONS = [
 
 function QuickActions() {
 	return (
-		<div className="flex items-center gap-2">
+		<div className="flex items-center gap-2 overflow-x-auto pb-1">
 			{QUICK_ACTIONS.map((action) => {
 				const Icon = action.icon;
 				return (
-					<Button key={action.id} variant="outline" size="sm" asChild className="gap-2">
+					<Button
+						key={action.id}
+						variant="outline"
+						size="sm"
+						asChild
+						className="gap-2 flex-shrink-0 min-h-[44px]"
+					>
 						<Link href={action.href}>
 							<Icon className="h-4 w-4" />
-							<span className="font-mono text-xs">{action.label}</span>
+							<span className="font-mono text-xs hidden sm:inline">{action.label}</span>
 						</Link>
 					</Button>
 				);
@@ -475,16 +481,17 @@ export default function OverviewPage() {
 			<AlertBanner alerts={alerts} isLoading={isLoading} />
 
 			{/* Page Header with Quick Actions */}
-			<div className="flex items-center justify-between flex-wrap gap-4">
-				<div>
-					<h1 className="text-2xl font-semibold">System Overview</h1>
-					<p className="text-sm text-muted-foreground mt-1">Real-time infrastructure monitoring</p>
-				</div>
-				<div className="flex items-center gap-4">
-					<QuickActions />
+			<div className="space-y-4">
+				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+					<div>
+						<h1 className="text-xl md:text-2xl font-semibold">System Overview</h1>
+						<p className="text-sm text-muted-foreground mt-1">
+							Real-time infrastructure monitoring
+						</p>
+					</div>
 					<Badge
 						variant={firingAlerts.length > 0 ? "secondary" : "default"}
-						className={`font-mono ${
+						className={`font-mono self-start sm:self-auto ${
 							firingAlerts.length > 0
 								? "bg-amber-500/10 text-amber-500"
 								: "bg-green-500/10 text-green-500"
@@ -495,6 +502,7 @@ export default function OverviewPage() {
 							: "All Systems Operational"}
 					</Badge>
 				</div>
+				<QuickActions />
 			</div>
 
 			{/* Key Metrics */}

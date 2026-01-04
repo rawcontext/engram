@@ -78,10 +78,8 @@ function SessionCard({
 			onClick={onClick}
 			onMouseEnter={onHover}
 			onMouseLeave={onLeave}
+			className="flex flex-col p-4 md:p-[14px_16px] rounded-lg md:rounded-[10px] cursor-pointer text-left transition-all relative overflow-hidden min-h-[88px] active:scale-[0.98]"
 			style={{
-				display: "flex",
-				flexDirection: "column",
-				padding: "14px 16px",
 				background: isHovered
 					? `linear-gradient(135deg, ${accentColorRgba} 0.08), rgba(15, 20, 30, 0.8))`
 					: "rgba(15, 20, 30, 0.6)",
@@ -91,10 +89,6 @@ function SessionCard({
 					: isLive
 						? "1px solid rgba(34, 197, 94, 0.25)"
 						: "1px solid rgba(71, 85, 105, 0.2)",
-				borderRadius: "10px",
-				cursor: "pointer",
-				textAlign: "left",
-				transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
 				animation: `cardReveal 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.06}s both`,
 				boxShadow: isHovered
 					? `0 4px 24px ${accentColorRgba} 0.12), inset 0 1px 0 ${accentColorRgba} 0.1)`
@@ -102,8 +96,6 @@ function SessionCard({
 						? "0 2px 12px rgba(34, 197, 94, 0.1)"
 						: "0 2px 8px rgba(0, 0, 0, 0.2)",
 				transform: isHovered ? "translateY(-2px)" : "translateY(0)",
-				position: "relative",
-				overflow: "hidden",
 			}}
 		>
 			{/* Top glow line on hover */}
@@ -408,14 +400,8 @@ export function SessionBrowser() {
 						</span>
 					</div>
 
-					{/* Live Sessions Grid */}
-					<div
-						style={{
-							display: "grid",
-							gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-							gap: "12px",
-						}}
-					>
+					{/* Live Sessions Grid - Responsive: 1 col mobile, 2 cols tablet, 3+ desktop */}
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
 						{activeSessions.map((session, index) => (
 							<SessionCard
 								key={`live-${session.id}-${index}`}
@@ -488,14 +474,8 @@ export function SessionBrowser() {
 						</span>
 					</div>
 
-					{/* Recent Sessions Grid */}
-					<div
-						style={{
-							display: "grid",
-							gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-							gap: "12px",
-						}}
-					>
+					{/* Recent Sessions Grid - Responsive: 1 col mobile, 2 cols tablet, 3+ desktop */}
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
 						{recentSessions.map((session, index) => (
 							<SessionCard
 								key={`recent-${session.id}-${index}`}

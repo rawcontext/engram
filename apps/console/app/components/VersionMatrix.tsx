@@ -133,31 +133,42 @@ function VersionRow({ info }: { info: VersionInfo }) {
 	return (
 		<Link
 			href={`/services/${info.service.toLowerCase()}`}
-			className="grid grid-cols-[1fr_100px_100px_90px] items-center py-2.5 px-3 -mx-3 rounded-md hover:bg-secondary transition-colors group"
+			className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_100px_100px_90px] items-center gap-3 md:gap-0 py-3 md:py-2.5 px-3 -mx-3 rounded-md hover:bg-secondary transition-colors group min-h-[44px]"
 		>
 			{/* Service Name */}
 			<div className="flex items-center gap-2.5">
-				<Icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+				<Icon className="w-5 h-5 md:w-4 md:h-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
 				<span className="text-sm text-foreground group-hover:text-primary transition-colors">
 					{info.service}
 				</span>
-				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+				<span className="hidden md:inline text-[10px] uppercase tracking-wider text-muted-foreground">
 					{info.type}
 				</span>
 			</div>
 
-			{/* Current Version */}
-			<div className="font-mono text-xs text-secondary-foreground tabular-nums">{info.current}</div>
+			{/* Version Info - Stacked on mobile, columns on desktop */}
+			<div className="flex flex-col md:hidden gap-1">
+				<div className="flex items-center gap-2">
+					<span className="font-mono text-xs text-muted-foreground">v{info.current}</span>
+					<StatusBadge status={info.status} />
+				</div>
+				{needsUpdate && <span className="font-mono text-xs text-amber-500">→ v{info.latest}</span>}
+			</div>
 
-			{/* Latest Version */}
+			{/* Current Version - Desktop only */}
+			<div className="hidden md:block font-mono text-xs text-secondary-foreground tabular-nums">
+				{info.current}
+			</div>
+
+			{/* Latest Version - Desktop only */}
 			<div
-				className={`font-mono text-xs tabular-nums ${needsUpdate ? "text-primary" : "text-muted-foreground"}`}
+				className={`hidden md:block font-mono text-xs tabular-nums ${needsUpdate ? "text-primary" : "text-muted-foreground"}`}
 			>
 				{info.latest}
 			</div>
 
-			{/* Status */}
-			<div className="flex justify-end">
+			{/* Status - Desktop only */}
+			<div className="hidden md:flex justify-end">
 				<StatusBadge status={info.status} />
 			</div>
 		</Link>
@@ -182,11 +193,11 @@ export function VersionMatrix({ showHeader = true, filterType = "all" }: Version
 	};
 
 	return (
-		<div className="bg-card border border-border rounded-lg p-5">
+		<div className="bg-card border border-border rounded-lg p-4 md:p-5">
 			{showHeader && (
-				<div className="flex items-center justify-between mb-4">
+				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
 					<h3 className="font-display text-lg text-foreground">Version Matrix</h3>
-					<div className="flex items-center gap-4 text-xs font-mono">
+					<div className="flex items-center gap-3 md:gap-4 text-xs font-mono">
 						<span className="text-green-500">{stats.current} current</span>
 						{stats.update > 0 && <span className="text-amber-500">{stats.update} updates</span>}
 						{stats.outdated > 0 && (
@@ -196,8 +207,8 @@ export function VersionMatrix({ showHeader = true, filterType = "all" }: Version
 				</div>
 			)}
 
-			{/* Table Header */}
-			<div className="grid grid-cols-[1fr_100px_100px_90px] items-center py-2 px-3 -mx-3 border-b border-secondary mb-1">
+			{/* Table Header - Desktop only */}
+			<div className="hidden md:grid grid-cols-[1fr_100px_100px_90px] items-center py-2 px-3 -mx-3 border-b border-secondary mb-1">
 				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">Service</span>
 				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
 				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">Latest</span>

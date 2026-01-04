@@ -79,115 +79,35 @@ export default function HomePage() {
 	// Show search results above session browser when actively searching (3+ chars)
 	const showSearchResults = mode === "search" && searchQuery.trim().length >= 3;
 
-	// Header/Footer heights for safe area calculation
-	const HEADER_HEIGHT = 140;
-	const FOOTER_HEIGHT = 48;
-
 	return (
-		<div
-			style={{
-				position: "relative",
-				minHeight: "100vh",
-				overflow: "hidden",
-				display: "flex",
-				flexDirection: "column",
-				alignItems: "center",
-				paddingTop: `${HEADER_HEIGHT + 24}px`,
-				paddingBottom: `${FOOTER_HEIGHT + 24}px`,
-			}}
-		>
+		<div className="min-h-screen overflow-hidden flex flex-col items-center pt-[120px] pb-[72px] md:pt-[164px] md:pb-[72px]">
 			{/* Fixed Header - Safe Area */}
-			<header
-				style={{
-					position: "fixed",
-					top: 0,
-					left: 0,
-					right: 0,
-					height: `${HEADER_HEIGHT}px`,
-					zIndex: 50,
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					background: `linear-gradient(
-						180deg,
-						rgba(8, 10, 15, 0.35) 0%,
-						rgba(15, 20, 30, 0.3) 100%
-					)`,
-					backdropFilter: "blur(8px) saturate(150%)",
-					WebkitBackdropFilter: "blur(8px) saturate(150%)",
-					borderBottom: "1px solid rgba(0, 245, 212, 0.15)",
-					boxShadow:
-						"inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,0,0,0.1), 0 4px 30px rgba(0,0,0,0.3)",
-				}}
-			>
+			<header className="fixed top-0 left-0 right-0 h-[90px] md:h-[140px] z-50 flex items-center justify-center bg-gradient-to-b from-[rgba(8,10,15,0.35)] to-[rgba(15,20,30,0.3)] backdrop-blur-md border-b border-[rgba(0,245,212,0.15)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_-1px_0_rgba(0,0,0,0.1),0_4px_30px_rgba(0,0,0,0.3)]">
 				{/* Inner container matching body width */}
-				<div
-					style={{
-						width: "100%",
-						maxWidth: "1600px",
-						padding: "0 2rem",
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "space-between",
-					}}
-				>
+				<div className="w-full max-w-[1600px] px-4 md:px-8 flex items-center justify-between">
 					{/* Gradient accent line at bottom */}
-					<div
-						style={{
-							position: "absolute",
-							bottom: 0,
-							left: "50%",
-							transform: "translateX(-50%)",
-							width: "100%",
-							maxWidth: "1600px",
-							padding: "0 2rem",
-							pointerEvents: "none",
-						}}
-					>
-						<div
-							style={{
-								width: "300px",
-								height: "1px",
-								background: "linear-gradient(90deg, rgba(251,191,36,0.4), transparent)",
-							}}
-						/>
+					<div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[1600px] px-4 md:px-8 pointer-events-none">
+						<div className="w-[150px] md:w-[300px] h-px bg-gradient-to-r from-[rgba(251,191,36,0.4)] to-transparent" />
 					</div>
 
 					{/* Left side: Logo and branding */}
-					<div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+					<div className="flex items-center gap-2 md:gap-6">
 						{/* Logo */}
 						<EngramLogo />
 
 						{/* Name & Tagline */}
-						<div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-							<h1
-								className="font-display text-glow"
-								style={{
-									fontSize: "2rem",
-									fontWeight: 700,
-									letterSpacing: "0.1em",
-									marginBottom: "0.25rem",
-									lineHeight: 1,
-								}}
-							>
+						<div className="flex flex-col justify-center">
+							<h1 className="font-display text-glow text-lg md:text-[2rem] font-bold tracking-[0.1em] mb-0.5 md:mb-1 leading-none">
 								ENGRAM
 							</h1>
-							<p
-								style={{
-									color: "rgb(148,163,184)",
-									fontSize: "0.65rem",
-									letterSpacing: "0.3em",
-									textTransform: "uppercase",
-									lineHeight: 1,
-								}}
-							>
+							<p className="text-[rgb(148,163,184)] text-[0.5rem] md:text-[0.65rem] tracking-[0.2em] md:tracking-[0.3em] uppercase leading-none">
 								Neural Observatory
 							</p>
 						</div>
 					</div>
 
 					{/* Right side: Org Selector + User Menu */}
-					<div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+					<div className="flex items-center gap-2 md:gap-4">
 						<OrgSelector />
 						<UserMenu />
 					</div>
@@ -195,32 +115,12 @@ export default function HomePage() {
 			</header>
 
 			{/* Full-width content container */}
-			<div
-				className="relative z-10"
-				style={{
-					position: "relative",
-					zIndex: 10,
-					width: "100%",
-					maxWidth: "1600px",
-					padding: "0 2rem",
-				}}
-			>
+			<div className="relative z-10 w-full max-w-[1600px] px-4 md:px-8">
 				<div
-					className={`w-full transition-all duration-1000 ${mounted ? "opacity-100" : "opacity-0"}`}
-					style={{
-						width: "100%",
-						transform: mounted ? "translateY(0)" : "translateY(2rem)",
-					}}
+					className={`w-full transition-all duration-1000 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
 				>
 					{/* Search Input + Settings - constrained to same width */}
-					<div
-						style={{
-							width: "100%",
-							maxWidth: "600px",
-							margin: "0 auto",
-							marginBottom: "2rem",
-						}}
-					>
+					<div className="w-full max-w-[600px] mx-auto mb-6 md:mb-8">
 						<SearchInput
 							value={searchQuery}
 							onChange={setSearchQuery}
@@ -232,20 +132,14 @@ export default function HomePage() {
 						/>
 
 						{/* Settings Row - Below search, aligned right */}
-						<div
-							style={{
-								display: "flex",
-								justifyContent: "flex-end",
-								marginTop: "12px",
-							}}
-						>
+						<div className="flex justify-end mt-3">
 							<SearchSettings settings={searchSettings} onChange={handleSettingsChange} />
 						</div>
 					</div>
 
 					{/* Search Results (shown above sessions when searching) */}
 					{showSearchResults && (
-						<div style={{ marginBottom: "2rem" }}>
+						<div className="mb-6 md:mb-8">
 							<SearchResults
 								results={results}
 								meta={meta}
