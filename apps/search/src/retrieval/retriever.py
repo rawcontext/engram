@@ -511,8 +511,8 @@ class SearchRetriever:
                 models.FieldCondition(
                     key="timestamp",
                     range=models.Range(
-                        gte=time_range.start,
-                        lte=time_range.end,
+                        gte=time_range["start"],
+                        lte=time_range["end"],
                     ),
                 )
             )
