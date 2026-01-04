@@ -1,44 +1,23 @@
 import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-
-// Skip when running from root because mock.module conflicts with test-preload.ts
-// Run from packages/temporal for these tests: cd packages/temporal && bun test
-const isTemporalRoot = process.cwd().includes("packages/temporal");
-const describeOrSkip = isTemporalRoot ? describe : describe.skip;
-
-// Mock @engram/storage before importing the unit under test
-const mockBlobStoreLoad = mock(async () => "{}");
-const mockBlobStoreSave = mock(async () => "blob://ref");
-const mockFalkorClientQuery = mock(async () => []);
-
-mock.module("@engram/storage", () => ({
-	createBlobStore: () => ({
-		load: mockBlobStoreLoad,
-		save: mockBlobStoreSave,
-	}),
-	createFalkorClient: () => ({
-		query: mockFalkorClientQuery,
-		connect: mock(async () => {}),
-		disconnect: mock(async () => {}),
-		isConnected: mock(() => false),
-	}),
-}));
-
-// Import after mocking
 import type { GraphClient } from "@engram/storage";
 import { createRehydrator, Rehydrator } from "./rehydrator";
 
-describeOrSkip("Rehydrator", () => {
+describe("Rehydrator", () => {
 	let mockFalkorQuery: ReturnType<typeof mock>;
 	let mockGraphClient: GraphClient;
 	let rehydrator: Rehydrator;
+	let mockBlobStore: { load: ReturnType<typeof mock>; save: ReturnType<typeof mock> };
 
 	beforeEach(() => {
 		mockFalkorQuery = mock(async () => []);
 		mockGraphClient = {
 			query: mockFalkorQuery,
 		} as unknown as GraphClient;
-		rehydrator = new Rehydrator({ graphClient: mockGraphClient });
-		mockBlobStoreLoad.mockClear();
+		mockBlobStore = {
+			load: mock(async () => "{}"),
+			save: mock(async () => "blob://ref"),
+		};
+		rehydrator = new Rehydrator({ graphClient: mockGraphClient, blobStore: mockBlobStore });
 	});
 
 	it("should return empty VFS if no snapshots found", async () => {
@@ -77,14 +56,14 @@ describeOrSkip("Rehydrator", () => {
 		const mockSnapshot = ["blob-ref-123", 1000];
 		// First call: snapshot found, second call: no diffs
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
-		mockBlobStoreLoad.mockResolvedValueOnce(
+		mockBlobStore.load.mockResolvedValueOnce(
 			JSON.stringify({ root: { name: "", type: "directory", children: {} } }),
 		);
 
 		await rehydrator.rehydrate("session-1");
 
 		expect(mockFalkorQuery).toHaveBeenCalled();
-		expect(mockBlobStoreLoad).toHaveBeenCalledWith("blob-ref-123");
+		expect(mockBlobStore.load).toHaveBeenCalledWith("blob-ref-123");
 	});
 
 	it("should apply diffs in order after snapshot", async () => {
@@ -115,7 +94,7 @@ describeOrSkip("Rehydrator", () => {
 	it("should pass lastSnapshotTime to diff query", async () => {
 		const mockSnapshot = ["blob-ref-123", 5000];
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
-		mockBlobStoreLoad.mockResolvedValueOnce(
+		mockBlobStore.load.mockResolvedValueOnce(
 			JSON.stringify({ root: { name: "", type: "directory", children: {} } }),
 		);
 
@@ -135,7 +114,7 @@ describeOrSkip("Rehydrator", () => {
 		const jsonContent = JSON.stringify({
 			root: { name: "", type: "directory", children: { "test.txt": { name: "test.txt" } } },
 		});
-		mockBlobStoreLoad.mockResolvedValueOnce(jsonContent);
+		mockBlobStore.load.mockResolvedValueOnce(jsonContent);
 
 		const vfs = await rehydrator.rehydrate("session-1");
 		expect(vfs).toBeDefined();
@@ -145,7 +124,7 @@ describeOrSkip("Rehydrator", () => {
 		const mockSnapshot = ["blob-ref-invalid", 1000];
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
 
-		mockBlobStoreLoad.mockResolvedValueOnce("invalid data that is neither gzip nor JSON");
+		mockBlobStore.load.mockResolvedValueOnce("invalid data that is neither gzip nor JSON");
 
 		await expect(rehydrator.rehydrate("session-1")).rejects.toThrow("Failed to load VFS snapshot");
 	});
@@ -303,7 +282,7 @@ describeOrSkip("Rehydrator", () => {
 			return originalParse(text);
 		});
 
-		mockBlobStoreLoad.mockResolvedValueOnce("not valid json or gzip");
+		mockBlobStore.load.mockResolvedValueOnce("not valid json or gzip");
 
 		await expect(rehydrator.rehydrate("session-1")).rejects.toThrow("Failed to load VFS snapshot");
 

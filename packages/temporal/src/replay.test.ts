@@ -1,32 +1,9 @@
 import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-
-// Skip when running from root because mock.module conflicts with test-preload.ts
-// Run from packages/temporal for these tests: cd packages/temporal && bun test
-const isTemporalRoot = process.cwd().includes("packages/temporal");
-const describeOrSkip = isTemporalRoot ? describe : describe.skip;
-
-// Mock @engram/storage before importing
-const mockBlobStoreRead = mock(async () => "{}");
-const mockBlobStoreWrite = mock(async () => {});
-
-mock.module("@engram/storage", () => ({
-	createBlobStore: () => ({
-		read: mockBlobStoreRead,
-		write: mockBlobStoreWrite,
-	}),
-	createFalkorClient: () => ({
-		query: mock(async () => []),
-		connect: mock(async () => {}),
-		disconnect: mock(async () => {}),
-		isConnected: mock(() => false),
-	}),
-}));
-
-// Import after mocking
-import type { FalkorClient } from "@engram/storage";
+import type { FalkorClient, GraphClient } from "@engram/storage";
 import { ReplayEngine } from "./replay";
+import { Rehydrator } from "./rehydrator";
 
-describeOrSkip("ReplayEngine", () => {
+describe("ReplayEngine", () => {
 	let mockFalkorQuery: ReturnType<typeof mock>;
 	let mockFalkor: FalkorClient;
 	let engine: ReplayEngine;
