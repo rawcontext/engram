@@ -6,6 +6,11 @@
 
 set -e
 
+# Ensure @engram/graph generated files exist before running tests
+# These are gitignored and must be regenerated on CI
+echo "Building @engram/graph to generate required files..."
+bunx turbo run build --filter=@engram/graph
+
 # Files that use mock.module("pg") and fail in CI due to Bun limitations
 # Also excludes files with ResourceTemplate import which fails on Linux bun
 EXCLUDED_FILES=(
