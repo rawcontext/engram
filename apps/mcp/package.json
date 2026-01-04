@@ -40,6 +40,7 @@
 		"access": "public"
 	},
 	"dependencies": {
+		"@engram/telemetry": "*",
 		"@modelcontextprotocol/sdk": "^1.25.1",
 		"chokidar": "^4.0.3",
 		"express": "^5.0.1",

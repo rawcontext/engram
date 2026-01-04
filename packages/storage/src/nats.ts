@@ -1,3 +1,4 @@
+import { traceNatsOperation } from "@engram/telemetry";
 import { type JetStreamClient, jetstream, jetstreamManager } from "@nats-io/jetstream";
 import { connect, type NatsConnection, type Subscription } from "@nats-io/transport-node";
 import type { Consumer, ConsumerConfig, Message, MessageClient, Producer } from "./interfaces";
@@ -202,17 +203,20 @@ export class NatsClient implements MessageClient {
 		await this.ensureConnected();
 		if (!this.js) throw new Error("JetStream not connected");
 		const subject = this.topicToSubject(topic);
-		try {
-			const pubAck = await this.js.publish(subject, JSON.stringify(message), {
-				msgID: key,
-			});
-			console.log(
-				`[NATS] Published to ${subject}, seq=${pubAck.seq}, dup=${pubAck.duplicate}, msgID=${key.substring(0, 8)}`,
-			);
-		} catch (err) {
-			console.error(`[NATS] Publish failed to ${subject}, msgID=${key.substring(0, 8)}:`, err);
-			throw err;
-		}
+
+		return traceNatsOperation("publish", subject, async () => {
+			try {
+				const pubAck = await this.js!.publish(subject, JSON.stringify(message), {
+					msgID: key,
+				});
+				console.log(
+					`[NATS] Published to ${subject}, seq=${pubAck.seq}, dup=${pubAck.duplicate}, msgID=${key.substring(0, 8)}`,
+				);
+			} catch (err) {
+				console.error(`[NATS] Publish failed to ${subject}, msgID=${key.substring(0, 8)}:`, err);
+				throw err;
+			}
+		});
 	}
 
 	async disconnect(): Promise<void> {

@@ -6,6 +6,7 @@
 		"@engram/logger": "*",
 		"@engram/storage": "*",
 		"@engram/graph": "*",
+		"@engram/telemetry": "*",
 		"@modelcontextprotocol/sdk": "^1.25.1",
 		"zod": "^4.2.1"
 	},

@@ -1,5 +1,11 @@
 import { createNodeLogger } from "@engram/logger";
 import { FalkorClient, PostgresClient, TenantAwareFalkorClient } from "@engram/storage";
+import {
+	initTracing,
+	loadTelemetryConfig,
+	shutdownTracing,
+	tracingMiddleware,
+} from "@engram/telemetry";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -34,6 +40,14 @@ async function main() {
 	});
 
 	logger.info({ port: config.port }, "Starting Engram Cloud API");
+
+	// Initialize OpenTelemetry tracing
+	const telemetryConfig = loadTelemetryConfig({
+		serviceName: "engram-api",
+		serviceVersion: "0.0.1",
+	});
+	initTracing(telemetryConfig);
+	logger.info({ enabled: telemetryConfig.enabled }, "Tracing initialized");
 
 	// Initialize database clients
 	const graphClient = new FalkorClient(config.falkordbUrl);
@@ -76,6 +90,7 @@ async function main() {
 	// Global middleware
 	app.use("*", cors());
 	app.use("*", honoLogger());
+	app.use("*", tracingMiddleware());
 
 	// Health routes (no auth)
 	app.route("/v1", createHealthRoutes());
@@ -158,6 +173,7 @@ async function main() {
 		await auditClient.close();
 		await graphClient.disconnect();
 		await postgresClient.disconnect();
+		await shutdownTracing();
 		process.exit(0);
 	};
 

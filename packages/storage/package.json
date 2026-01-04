@@ -17,6 +17,7 @@
 		"@types/pg": "^8.16.0"
 	},
 	"dependencies": {
+		"@engram/telemetry": "*",
 		"@google-cloud/storage": "^7.18.0",
 		"falkordb": "^6.4.1",
 		"pg": "^8.16.3"

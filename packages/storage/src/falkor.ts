@@ -1,5 +1,6 @@
 import type { TenantContext } from "@engram/common/types";
 import { getTenantGraphName } from "@engram/common/types";
+import { traceDbOperation } from "@engram/telemetry";
 import { FalkorDB, type Graph } from "falkordb";
 import type { GraphClient } from "./interfaces";
 
@@ -151,8 +152,11 @@ export class FalkorClient implements GraphClient {
 		// After connect(), graph is guaranteed to be set
 		// istanbul ignore next - Defensive check: connect() will either set graph or throw
 		if (!this.graph) throw new Error("Graph connection failed");
-		const result = await this.graph.query(cypher, { params });
-		return result.data as FalkorResult<T>;
+
+		return traceDbOperation("query", "falkordb", cypher, async () => {
+			const result = await this.graph!.query(cypher, { params });
+			return result.data as FalkorResult<T>;
+		});
 	}
 
 	async disconnect(): Promise<void> {
