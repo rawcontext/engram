@@ -1,13 +1,25 @@
-"""Tests for shard manager (tiered multitenancy)."""
+"""Tests for shard manager (tiered multitenancy).
+
+These are integration tests that require a running Qdrant instance.
+They will be skipped in CI where Qdrant is not available.
+"""
 
 import contextlib
+import os
 
 import pytest
 from qdrant_client.http import models
+from qdrant_client.http.exceptions import ResponseHandlingException
 
 from src.clients.qdrant import QdrantClientWrapper
 from src.config import Settings
 from src.services.shard_manager import ShardManager, ShardManagerConfig
+
+# Skip all tests in this module if Qdrant is not available (CI environment)
+pytestmark = pytest.mark.skipif(
+    os.environ.get("CI") == "true",
+    reason="Qdrant integration tests skipped in CI (no Qdrant instance)",
+)
 
 
 @pytest.fixture
@@ -26,6 +38,9 @@ async def qdrant_client(settings: Settings) -> QdrantClientWrapper:
     client = QdrantClientWrapper(settings)
     try:
         await client.connect()
+    except (ResponseHandlingException, ConnectionError, OSError) as e:
+        pytest.skip(f"Qdrant not available: {e}")
+    try:
         yield client
     finally:
         await client.close()

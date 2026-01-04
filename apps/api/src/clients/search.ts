@@ -117,24 +117,35 @@ export class SearchClient {
 
 		this.logger.debug({ url, query: options.text.slice(0, 50) }, "Sending search request");
 
-		return traceHttpCall("POST", url, async () => {
-			const response = await fetch(url, {
-				method: "POST",
-				headers: this.getHeaders(),
-				body: JSON.stringify(requestBody),
+		try {
+			return await traceHttpCall("POST", url, async () => {
+				const response = await fetch(url, {
+					method: "POST",
+					headers: this.getHeaders(),
+					body: JSON.stringify(requestBody),
+				});
+
+				if (!response.ok) {
+					const errorText = await response.text();
+					const error = new Error(
+						`Search request failed with status ${response.status}: ${errorText}`,
+					);
+					this.logger.error({ status: response.status, url }, "Search request failed");
+					throw error;
+				}
+
+				const data = (await response.json()) as SearchResponse;
+
+				this.logger.debug({ total: data.total, took_ms: data.took_ms }, "Search request completed");
+
+				return data;
 			});
-
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(`Search request failed with status ${response.status}: ${errorText}`);
+		} catch (error) {
+			if (error instanceof Error && !error.message.startsWith("Search request failed")) {
+				this.logger.error({ error: error.message, url }, "Search request error");
 			}
-
-			const data = (await response.json()) as SearchResponse;
-
-			this.logger.debug({ total: data.total, took_ms: data.took_ms }, "Search request completed");
-
-			return data;
-		});
+			throw error;
+		}
 	}
 
 	/**
