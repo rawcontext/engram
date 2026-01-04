@@ -7,6 +7,14 @@ import {
 	TenantAwareFalkorClient,
 } from "@engram/storage";
 import { createNatsPubSubPublisher, type NatsPubSubPublisher } from "@engram/storage/nats";
+import {
+	initTracing,
+	loadTelemetryConfig,
+	shutdownTracing,
+	traceDbOperation,
+	traceJob,
+	traceNatsOperation,
+} from "@engram/telemetry";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -206,14 +214,17 @@ let turnCleanupIntervalId: NodeJS.Timeout | null = null;
 export function startPruningJob(): NodeJS.Timeout {
 	// Start the periodic job
 	pruningIntervalId = setInterval(async () => {
-		try {
-			logger.info({ retentionDays: RETENTION_DAYS }, "Starting scheduled graph pruning...");
-			const retentionMs = RETENTION_DAYS * 24 * 60 * 60 * 1000;
-			const deleted = await pruner.pruneHistory({ retentionMs });
-			logger.info({ deleted, retentionDays: RETENTION_DAYS }, "Graph pruning complete");
-		} catch (error) {
-			logger.error({ err: error }, "Graph pruning failed");
-		}
+		await traceJob("graph-pruning", async () => {
+			try {
+				logger.info({ retentionDays: RETENTION_DAYS }, "Starting scheduled graph pruning...");
+				const retentionMs = RETENTION_DAYS * 24 * 60 * 60 * 1000;
+				const deleted = await pruner.pruneHistory({ retentionMs });
+				logger.info({ deleted, retentionDays: RETENTION_DAYS }, "Graph pruning complete");
+			} catch (error) {
+				logger.error({ err: error }, "Graph pruning failed");
+				throw error;
+			}
+		});
 	}, PRUNE_INTERVAL_MS);
 	return pruningIntervalId;
 }
@@ -221,11 +232,14 @@ export function startPruningJob(): NodeJS.Timeout {
 export function startTurnCleanupJob(): NodeJS.Timeout {
 	// Clean up stale turns every 5 minutes (turns inactive for 30 mins)
 	turnCleanupIntervalId = setInterval(async () => {
-		try {
-			await turnAggregator.cleanupStaleTurns(30 * 60 * 1000);
-		} catch (error) {
-			logger.error({ err: error }, "Turn cleanup failed");
-		}
+		await traceJob("turn-cleanup", async () => {
+			try {
+				await turnAggregator.cleanupStaleTurns(30 * 60 * 1000);
+			} catch (error) {
+				logger.error({ err: error }, "Turn cleanup failed");
+				throw error;
+			}
+		});
 	}, TURN_CLEANUP_INTERVAL_MS);
 	return turnCleanupIntervalId;
 }
@@ -305,9 +319,12 @@ export async function handlePersistenceMessage({ message }: { message: any }) {
 		await falkor.connect();
 
 		// 1. Check if session already exists
-		const existingSession = await falkor.query(`MATCH (s:Session {id: $sessionId}) RETURN s`, {
-			sessionId,
-		});
+		const existingSession = await traceDbOperation(
+			"query",
+			"falkordb",
+			"MATCH (s:Session {id: $sessionId})",
+			async () => falkor.query(`MATCH (s:Session {id: $sessionId}) RETURN s`, { sessionId }),
+		);
 		const isNewSession =
 			!existingSession || (Array.isArray(existingSession) && existingSession.length === 0);
 
@@ -316,9 +333,11 @@ export async function handlePersistenceMessage({ message }: { message: any }) {
 		const workingDir = event.metadata?.working_dir || null;
 		const gitRemote = event.metadata?.git_remote || null;
 		const agentType = event.metadata?.agent_type || "unknown";
+		const userId = event.metadata?.user_id || "unknown";
 
-		await falkor.query(
-			`MERGE (s:Session {id: $sessionId})
+		await traceDbOperation("merge", "falkordb", "MERGE (s:Session {id: $sessionId})", async () =>
+			falkor.query(
+				`MERGE (s:Session {id: $sessionId})
                      ON CREATE SET
                         s.started_at = $now,
                         s.last_event_at = $now,
@@ -333,14 +352,15 @@ export async function handlePersistenceMessage({ message }: { message: any }) {
                         s.working_dir = COALESCE($workingDir, s.working_dir),
                         s.git_remote = COALESCE($gitRemote, s.git_remote),
                         s.agent_type = CASE WHEN $agentType <> 'unknown' THEN $agentType ELSE s.agent_type END`,
-			{
-				sessionId,
-				now,
-				userId: event.metadata?.user_id || "unknown",
-				workingDir,
-				gitRemote,
-				agentType,
-			},
+				{
+					sessionId,
+					now,
+					userId,
+					workingDir,
+					gitRemote,
+					agentType,
+				},
+			),
 		);
 
 		// 3. If new session, publish to global sessions subject for homepage (via NATS pub/sub)
@@ -349,7 +369,7 @@ export async function handlePersistenceMessage({ message }: { message: any }) {
 			await natsPubSub.publishGlobalSessionEvent("session_created", {
 				id: sessionId,
 				title: null,
-				userId: event.metadata?.user_id || "unknown",
+				userId,
 				startedAt: now,
 				lastEventAt: now,
 				eventCount: 1,
@@ -374,11 +394,13 @@ export async function handlePersistenceMessage({ message }: { message: any }) {
 		const content = event.content || event.thought || "";
 		const role = event.role || "system";
 
-		await nats.sendEvent("memory.node_created", eventId, {
-			id: eventId,
-			labels: ["Turn"],
-			session_id: sessionId,
-			properties: { content, role, type },
+		await traceNatsOperation("publish", "memory.node_created", async () => {
+			await nats.sendEvent("memory.node_created", eventId, {
+				id: eventId,
+				labels: ["Turn"],
+				session_id: sessionId,
+				properties: { content, role, type },
+			});
 		});
 	} catch (e) {
 		const errorMessage = e instanceof Error ? e.message : String(e);
@@ -445,6 +467,7 @@ export async function startPersistenceConsumer() {
 		logger.info("NATS pub/sub publisher disconnected");
 		await falkor.disconnect();
 		logger.info("FalkorDB disconnected");
+		await shutdownTracing();
 		process.exit(0);
 	};
 
@@ -532,6 +555,14 @@ export { server };
  * Exported for testing.
  */
 export async function main() {
+	// Initialize OpenTelemetry tracing
+	const telemetryConfig = loadTelemetryConfig({
+		serviceName: "engram-memory",
+		serviceVersion: "0.0.0",
+	});
+	initTracing(telemetryConfig);
+	logger.info({ enabled: telemetryConfig.enabled }, "Tracing initialized");
+
 	await falkor.connect();
 	startPruningJob();
 	startTurnCleanupJob();

@@ -9,7 +9,7 @@ import asyncio
 import contextlib
 import logging
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 from qdrant_client.http import models
@@ -20,6 +20,9 @@ from src.clients.qdrant import QdrantClientWrapper
 from src.config import Settings
 from src.embedders.factory import EmbedderFactory
 from src.indexing.batch import BatchConfig, BatchQueue, Document
+
+if TYPE_CHECKING:
+    from src.services.shard_manager import ShardManager
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +50,8 @@ class TurnsIndexer:
     1. Dense embeddings for semantic search (BGE-small, 384 dims)
     2. Sparse embeddings (SPLADE) for keyword-based search
     3. ColBERT multi-vector embeddings for late interaction (optional)
+
+    Optionally checks and promotes tenants to dedicated shards after indexing.
     """
 
     def __init__(
@@ -54,6 +59,7 @@ class TurnsIndexer:
         qdrant_client: QdrantClientWrapper,
         embedder_factory: EmbedderFactory,
         config: TurnsIndexerConfig | None = None,
+        shard_manager: "ShardManager | None" = None,
     ) -> None:
         """Initialize the turns indexer.
 
@@ -61,10 +67,12 @@ class TurnsIndexer:
             qdrant_client: Qdrant client wrapper.
             embedder_factory: Factory for creating embedder instances.
             config: Indexer configuration.
+            shard_manager: Optional shard manager for automatic promotion.
         """
         self.qdrant = qdrant_client
         self.embedders = embedder_factory
         self.config = config or TurnsIndexerConfig()
+        self.shard_manager = shard_manager
 
     async def index_documents(self, documents: list[Document]) -> int:
         """Index a batch of turn documents with multi-vector embeddings.
@@ -127,11 +135,41 @@ class TurnsIndexer:
             )
 
             logger.info(f"Successfully indexed {len(documents)} turn documents")
+
+            # Check for shard promotion after indexing
+            if self.shard_manager is not None:
+                await self._check_shard_promotions(documents)
+
             return len(documents)
 
         except Exception as e:
             logger.error(f"Error indexing turn documents: {e}", exc_info=True)
             return 0
+
+    async def _check_shard_promotions(self, documents: list[Document]) -> None:
+        """Check if any org_ids in the indexed documents should be promoted to dedicated shards.
+
+        Args:
+            documents: List of documents that were just indexed.
+        """
+        if self.shard_manager is None:
+            return
+
+        # Collect unique org_ids from the batch
+        org_ids = {doc.org_id for doc in documents if doc.org_id}
+
+        for org_id in org_ids:
+            try:
+                promoted = await self.shard_manager.check_and_promote_if_needed(
+                    self.config.collection_name, org_id
+                )
+                if promoted:
+                    logger.info(
+                        f"Auto-promoted tenant '{org_id}' to dedicated shard after indexing"
+                    )
+            except Exception as e:
+                # Log but don't fail indexing if promotion fails
+                logger.warning(f"Failed to check/promote tenant '{org_id}': {e}")
 
     def _build_point(
         self,

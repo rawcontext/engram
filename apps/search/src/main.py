@@ -24,9 +24,17 @@ from src.rerankers import RerankerRouter
 from src.retrieval import SearchRetriever
 from src.retrieval.multi_query import MultiQueryRetriever
 from src.retrieval.session import SessionAwareRetriever
-from src.services import SchemaManager, get_memory_collection_schema, get_turns_collection_schema
+from src.services import (
+    SchemaManager,
+    ShardManager,
+    ShardManagerConfig,
+    ShardRegistry,
+    get_memory_collection_schema,
+    get_turns_collection_schema,
+)
 from src.utils.logging import configure_logging, get_logger
 from src.utils.metrics import SERVICE_INFO
+from src.utils.otel import init_tracing, instrument_fastapi, instrument_httpx, shutdown_tracing
 from src.utils.tracing import TracingMiddleware
 
 # Configure structured logging
@@ -56,6 +64,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         None after startup, before shutdown.
     """
     settings = get_settings()
+
+    # Initialize OpenTelemetry tracing
+    init_tracing(service_name="engram-search", service_version="0.1.0")
+    instrument_httpx()  # Instrument outbound HTTP calls
 
     # Initialize auth handler if enabled
     auth_handler: AuthHandler | None = None
@@ -131,6 +143,40 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         app.state.schema_manager = schema_manager
 
+        # Initialize shard registry for tracking promoted tenants
+        shard_registry: ShardRegistry | None = None
+        if settings.falkordb_url:
+            # Use FalkorDB URL as PostgreSQL URL (they share the same DB in dev)
+            # In production, this would be a dedicated PostgreSQL connection
+            try:
+                # Extract PostgreSQL URL from environment or settings
+                import os
+
+                pg_url = os.getenv(
+                    "SHARD_REGISTRY_DATABASE_URL",
+                    "postgresql://postgres:postgres@localhost:6183/engram",
+                )
+                shard_registry = ShardRegistry(pg_url)
+                await shard_registry.connect()
+                app.state.shard_registry = shard_registry
+                logger.info("Shard registry initialized with PostgreSQL")
+            except Exception as e:
+                logger.warning(f"Failed to initialize shard registry: {e}")
+                logger.info("Shard manager will operate without persistent registry")
+                shard_registry = None
+
+        # Initialize shard manager for tiered multitenancy
+        shard_config = ShardManagerConfig(
+            promotion_threshold=settings.shard_promotion_threshold,
+            max_dedicated_shards=settings.shard_max_dedicated,
+            replication_factor=settings.shard_replication_factor,
+        )
+        shard_manager = ShardManager(qdrant_client, shard_config, shard_registry)
+        app.state.shard_manager = shard_manager
+        logger.info(
+            f"Shard manager initialized (promotion threshold: {settings.shard_promotion_threshold})"
+        )
+
     except Exception as e:
         logger.error(f"Failed to initialize Qdrant client: {e}")
         logger.warning("Service starting in degraded mode without Qdrant")
@@ -196,6 +242,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                     qdrant_client=app.state.qdrant,
                     embedder_factory=embedder_factory,
                     config=turns_indexer_config,
+                    shard_manager=shard_manager if settings.shard_auto_promotion else None,
                 )
                 app.state.turns_indexer = turns_indexer
 
@@ -286,6 +333,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             logger.error(f"Error unloading embedder models: {e}")
 
+    # Close shard registry
+    if hasattr(app.state, "shard_registry") and app.state.shard_registry is not None:
+        try:
+            await app.state.shard_registry.disconnect()
+            logger.info("Shard registry closed successfully")
+        except Exception as e:
+            logger.error(f"Error closing shard registry: {e}")
+
     # Close Qdrant client
     if hasattr(app.state, "qdrant") and app.state.qdrant is not None:
         try:
@@ -301,6 +356,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info("Auth handler closed successfully")
         except Exception as e:
             logger.error(f"Error closing auth handler: {e}")
+
+    # Shutdown OpenTelemetry tracing
+    shutdown_tracing()
 
     logger.info("Engram Search Service shutdown complete")
 
@@ -338,6 +396,9 @@ def create_app() -> FastAPI:
 
     # Include API router
     app.include_router(router)
+
+    # Instrument FastAPI for OpenTelemetry (after all routes are added)
+    instrument_fastapi(app)
 
     return app
 

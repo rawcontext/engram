@@ -12,6 +12,7 @@ from tuner.config import get_settings
 from tuner.core import get_storage
 from tuner.middleware.auth import AuthHandler, set_auth_handler
 from tuner.utils.logging import configure_logging, get_logger
+from tuner.utils.otel import init_tracing, instrument_fastapi, shutdown_tracing
 
 configure_logging(json_format=True)
 logger = get_logger(__name__)
@@ -24,6 +25,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     Initializes and cleans up resources like database connections.
     """
     settings = get_settings()
+
+    # Initialize OpenTelemetry tracing
+    init_tracing(service_name="engram-tuner", service_version="0.1.0")
 
     # Initialize auth handler if enabled
     auth_handler: AuthHandler | None = None
@@ -63,6 +67,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         except Exception as e:
             logger.error("Error closing auth handler", error=str(e))
 
+    # Shutdown OpenTelemetry tracing
+    shutdown_tracing()
+
     # Cleanup (storage cleanup handled by SQLAlchemy connection pool)
 
 
@@ -89,6 +96,9 @@ def create_app() -> FastAPI:
 
     # Include API router
     app.include_router(router)
+
+    # Instrument FastAPI for OpenTelemetry
+    instrument_fastapi(app)
 
     return app
 

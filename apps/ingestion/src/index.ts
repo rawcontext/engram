@@ -9,6 +9,13 @@ import {
 } from "@engram/parser";
 import { createNatsClient } from "@engram/storage";
 import { createNatsPubSubPublisher } from "@engram/storage/nats";
+import {
+	initTracing,
+	loadTelemetryConfig,
+	shutdownTracing,
+	traceNatsOperation,
+	tracingMiddleware,
+} from "@engram/telemetry";
 import { authenticateRequest, closeAuth, initAuth } from "./auth";
 
 /**
@@ -270,7 +277,9 @@ export class IngestionProcessor {
 		const validatedEvent = ParsedStreamEventSchema.parse(parsedEvent);
 
 		// 7. Publish validated event (use event_id as deduplication key, not sessionId)
-		await this.natsClient.sendEvent("parsed_events", validatedEvent.event_id, validatedEvent);
+		await traceNatsOperation("publish", "parsed_events", async () => {
+			await this.natsClient.sendEvent("parsed_events", validatedEvent.event_id, validatedEvent);
+		});
 
 		this.logger.info(
 			{ eventId: validatedEvent.event_id, originalEventId: rawEvent.event_id, sessionId },
@@ -508,6 +517,14 @@ export function createIngestionServer(port = 6175, maxBodySize = 50 * 1024 * 102
 const isMainModule =
 	import.meta.url === `file://${process.argv[1]}` || process.env.NODE_ENV === "production";
 if (isMainModule) {
+	// Initialize OpenTelemetry tracing
+	const telemetryConfig = loadTelemetryConfig({
+		serviceName: "engram-ingestion",
+		serviceVersion: "0.0.0",
+	});
+	initTracing(telemetryConfig);
+	logger.info({ enabled: telemetryConfig.enabled }, "Tracing initialized");
+
 	// Initialize authentication
 	initAuth({
 		enabled: process.env.AUTH_ENABLED !== "false",
@@ -526,8 +543,9 @@ if (isMainModule) {
 
 	// Handle shutdown
 	const handleShutdown = async (signal: string) => {
-		logger.info({ signal }, "Shutting down auth...");
+		logger.info({ signal }, "Shutting down...");
 		await closeAuth();
+		await shutdownTracing();
 	};
 	process.on("SIGTERM", () => handleShutdown("SIGTERM"));
 	process.on("SIGINT", () => handleShutdown("SIGINT"));

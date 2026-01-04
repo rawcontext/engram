@@ -1,0 +1,25 @@
+{
+	"name": "@engram/telemetry",
+	"version": "0.0.0",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@opentelemetry/api": "^1.9.0",
+		"@opentelemetry/sdk-trace-base": "^1.28.0",
+		"@opentelemetry/sdk-trace-node": "^1.28.0",
+		"@opentelemetry/exporter-trace-otlp-http": "^0.56.0",
+		"@opentelemetry/resources": "^1.28.0",
+		"@opentelemetry/semantic-conventions": "^1.28.0",
+		"@opentelemetry/instrumentation": "^0.56.0",
+		"@opentelemetry/instrumentation-http": "^0.56.0"
+	},
+	"devDependencies": {
+		"@types/bun": "1.3.5",
+		"@typescript/native-preview": "^7.0.0-dev.20251220.1"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	}
+}

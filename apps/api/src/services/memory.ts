@@ -1,6 +1,7 @@
 import { QdrantCollections, type TenantContext } from "@engram/common";
 import type { Logger } from "@engram/logger";
 import type { GraphClient, QueryParams, TenantAwareFalkorClient } from "@engram/storage";
+import { traceDbOperation } from "@engram/telemetry";
 import { ulid } from "ulid";
 import { SearchClient } from "../clients/search";
 
@@ -148,16 +149,26 @@ export class MemoryService {
 		params: Record<string, unknown>,
 		tenantContext?: TenantContext,
 	): Promise<T[]> {
-		// Use tenant-specific graph when context is available
-		if (this.tenantClient && tenantContext) {
-			const graph = await this.tenantClient.ensureTenantGraph(tenantContext);
-			// Cast params to QueryParams (compatible types for FalkorDB)
-			const result = await graph.query(cypher, { params: params as QueryParams });
-			return result.data as T[];
-		}
+		// Determine operation type from cypher
+		const normalizedCypher = cypher.trim().toUpperCase();
+		const operation = normalizedCypher.startsWith("CREATE")
+			? "create"
+			: normalizedCypher.startsWith("MERGE")
+				? "merge"
+				: "query";
 
-		// Fall back to default graph
-		return this.graphClient.query<T>(cypher, params);
+		return traceDbOperation(operation, "falkordb", cypher.slice(0, 100), async () => {
+			// Use tenant-specific graph when context is available
+			if (this.tenantClient && tenantContext) {
+				const graph = await this.tenantClient.ensureTenantGraph(tenantContext);
+				// Cast params to QueryParams (compatible types for FalkorDB)
+				const result = await graph.query(cypher, { params: params as QueryParams });
+				return result.data as T[];
+			}
+
+			// Fall back to default graph
+			return this.graphClient.query<T>(cypher, params);
+		});
 	}
 
 	/**

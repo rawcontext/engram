@@ -29,6 +29,12 @@ dependencies = [
     "prometheus-client>=0.23.1",
     # Database (for API key auth)
     "asyncpg>=0.30.0",
+    # OpenTelemetry
+    "opentelemetry-api>=1.29.0",
+    "opentelemetry-sdk>=1.29.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.29.0",
+    "opentelemetry-instrumentation-fastapi>=0.50b0",
+    "opentelemetry-instrumentation-httpx>=0.50b0",
 ]
 
 [project.optional-dependencies]

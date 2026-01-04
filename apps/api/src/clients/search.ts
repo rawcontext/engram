@@ -9,6 +9,7 @@
 
 import type { QdrantCollectionName } from "@engram/common";
 import type { Logger } from "@engram/logger";
+import { traceHttpCall } from "@engram/telemetry";
 
 export interface SearchFilters {
 	session_id?: string;
@@ -116,7 +117,7 @@ export class SearchClient {
 
 		this.logger.debug({ url, query: options.text.slice(0, 50) }, "Sending search request");
 
-		try {
+		return traceHttpCall("POST", url, async () => {
 			const response = await fetch(url, {
 				method: "POST",
 				headers: this.getHeaders(),
@@ -133,10 +134,7 @@ export class SearchClient {
 			this.logger.debug({ total: data.total, took_ms: data.took_ms }, "Search request completed");
 
 			return data;
-		} catch (error) {
-			this.logger.error({ error, url }, "Search request failed");
-			throw error;
-		}
+		});
 	}
 
 	/**
@@ -174,7 +172,7 @@ export class SearchClient {
 
 		this.logger.debug({ url, id: options.id }, "Sending memory index request");
 
-		try {
+		return traceHttpCall("POST", url, async () => {
 			const response = await fetch(url, {
 				method: "POST",
 				headers: this.getHeaders(),
@@ -191,9 +189,6 @@ export class SearchClient {
 			this.logger.debug({ id: data.id, took_ms: data.took_ms }, "Memory indexed");
 
 			return data;
-		} catch (error) {
-			this.logger.error({ error, url }, "Memory index request failed");
-			throw error;
-		}
+		});
 	}
 }

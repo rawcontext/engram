@@ -20,6 +20,10 @@ from src.api.schemas import (
     SessionAwareRequest,
     SessionAwareResponse,
     SessionAwareResult,
+    ShardPromoteRequest,
+    ShardPromoteResponse,
+    ShardRegistryStatsResponse,
+    TenantShardStatsResponse,
 )
 from src.config import get_settings
 from src.middleware.auth import ApiKeyContext, optional_scope
@@ -902,4 +906,192 @@ async def recreate_collection(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Collection recreate failed: {str(e)}",
+        ) from e
+
+
+# ============================================================================
+# Shard Management Admin Endpoints
+# ============================================================================
+
+
+@router.get("/admin/shards/stats", response_model=ShardRegistryStatsResponse)
+async def get_shard_registry_stats(
+    request: Request,
+    api_key: ApiKeyContext = admin_auth,
+) -> ShardRegistryStatsResponse:
+    """Get shard registry statistics.
+
+    Args:
+        request: FastAPI request object with app state.
+        api_key: Authenticated API key context (admin scope required).
+
+    Returns:
+        Shard registry statistics.
+    """
+    shard_registry = getattr(request.app.state, "shard_registry", None)
+
+    if shard_registry is None:
+        return ShardRegistryStatsResponse(total_shards=0, by_collection={})
+
+    try:
+        stats = await shard_registry.get_stats()
+        return ShardRegistryStatsResponse(
+            total_shards=stats.get("total_shards", 0),
+            by_collection=stats.get("by_collection", {}),
+        )
+    except Exception as e:
+        logger.error(f"Failed to get shard registry stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get shard registry stats: {str(e)}",
+        ) from e
+
+
+@router.get("/admin/tenants/{org_id}/shard-status", response_model=TenantShardStatsResponse)
+async def get_tenant_shard_status(
+    request: Request,
+    org_id: str,
+    collection_name: str = "engram_turns",
+    api_key: ApiKeyContext = admin_auth,
+) -> TenantShardStatsResponse:
+    """Get shard status for a specific tenant.
+
+    Args:
+        request: FastAPI request object with app state.
+        org_id: Organization ID to check.
+        collection_name: Collection name (default: engram_turns).
+        api_key: Authenticated API key context (admin scope required).
+
+    Returns:
+        Tenant shard statistics.
+    """
+    shard_manager = getattr(request.app.state, "shard_manager", None)
+
+    if shard_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Shard manager not initialized",
+        )
+
+    try:
+        stats = await shard_manager.get_tenant_stats(collection_name, org_id)
+        return TenantShardStatsResponse(
+            org_id=stats["org_id"],
+            collection_name=stats["collection_name"],
+            vector_count=stats["vector_count"],
+            has_dedicated_shard=stats["has_dedicated_shard"],
+            should_promote=stats["should_promote"],
+            promotion_threshold=stats["promotion_threshold"],
+            percentage_of_threshold=stats["percentage_of_threshold"],
+        )
+    except Exception as e:
+        logger.error(f"Failed to get tenant shard status: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get tenant shard status: {str(e)}",
+        ) from e
+
+
+@router.post("/admin/tenants/promote", response_model=ShardPromoteResponse)
+async def promote_tenant_to_shard(
+    request: Request,
+    promote_request: ShardPromoteRequest,
+    api_key: ApiKeyContext = admin_auth,
+) -> ShardPromoteResponse:
+    """Manually promote a tenant to a dedicated shard.
+
+    Args:
+        request: FastAPI request object with app state.
+        promote_request: Promotion request with org_id and collection_name.
+        api_key: Authenticated API key context (admin scope required).
+
+    Returns:
+        Promotion result.
+    """
+    shard_manager = getattr(request.app.state, "shard_manager", None)
+
+    if shard_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Shard manager not initialized",
+        )
+
+    try:
+        # Check if already has shard
+        has_shard = await shard_manager.has_dedicated_shard(
+            promote_request.collection_name, promote_request.org_id
+        )
+
+        if has_shard:
+            return ShardPromoteResponse(
+                success=False,
+                org_id=promote_request.org_id,
+                collection_name=promote_request.collection_name,
+                message="Tenant already has dedicated shard",
+            )
+
+        # Promote tenant
+        await shard_manager.promote_tenant_to_dedicated_shard(
+            promote_request.collection_name, promote_request.org_id
+        )
+
+        logger.info(
+            f"Manually promoted tenant '{promote_request.org_id}' to dedicated shard "
+            f"in collection '{promote_request.collection_name}'"
+        )
+
+        return ShardPromoteResponse(
+            success=True,
+            org_id=promote_request.org_id,
+            collection_name=promote_request.collection_name,
+            message="Tenant promoted to dedicated shard",
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to promote tenant: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to promote tenant: {str(e)}",
+        ) from e
+
+
+@router.post("/admin/tenants/{org_id}/check-promote")
+async def check_and_promote_tenant(
+    request: Request,
+    org_id: str,
+    collection_name: str = "engram_turns",
+    api_key: ApiKeyContext = admin_auth,
+) -> dict[str, bool | str]:
+    """Check if tenant should be promoted and promote if needed.
+
+    Args:
+        request: FastAPI request object with app state.
+        org_id: Organization ID to check and potentially promote.
+        collection_name: Collection name (default: engram_turns).
+        api_key: Authenticated API key context (admin scope required).
+
+    Returns:
+        Result of check and promotion.
+    """
+    shard_manager = getattr(request.app.state, "shard_manager", None)
+
+    if shard_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Shard manager not initialized",
+        )
+
+    try:
+        promoted = await shard_manager.check_and_promote_if_needed(collection_name, org_id)
+        return {
+            "org_id": org_id,
+            "collection_name": collection_name,
+            "promoted": promoted,
+            "message": "Tenant promoted to dedicated shard" if promoted else "No promotion needed",
+        }
+    except Exception as e:
+        logger.error(f"Failed to check and promote tenant: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to check and promote tenant: {str(e)}",
         ) from e

@@ -194,3 +194,42 @@ class ConflictCandidateResponse(BaseModel):
     type: str = Field(description="Memory type (decision/context/insight/preference/fact)")
     score: float = Field(description="Similarity score")
     vt_start: int = Field(description="Valid time start timestamp (milliseconds since epoch)")
+
+
+# Shard management schemas
+class TenantShardStatsResponse(BaseModel):
+    """Tenant shard statistics response."""
+
+    org_id: str = Field(description="Organization ID")
+    collection_name: str = Field(description="Collection name")
+    vector_count: int = Field(description="Number of vectors for this tenant")
+    has_dedicated_shard: bool = Field(description="Whether tenant has dedicated shard")
+    should_promote: bool = Field(description="Whether tenant should be promoted")
+    promotion_threshold: int = Field(description="Current promotion threshold")
+    percentage_of_threshold: float = Field(description="Percentage of promotion threshold reached")
+
+
+class ShardPromoteRequest(BaseModel):
+    """Request to manually promote a tenant to dedicated shard."""
+
+    org_id: str = Field(description="Organization ID to promote")
+    collection_name: str = Field(
+        default="engram_turns",
+        description="Collection name (default: engram_turns)",
+    )
+
+
+class ShardPromoteResponse(BaseModel):
+    """Response from shard promotion."""
+
+    success: bool = Field(description="Whether promotion succeeded")
+    org_id: str = Field(description="Organization ID")
+    collection_name: str = Field(description="Collection name")
+    message: str = Field(description="Status message")
+
+
+class ShardRegistryStatsResponse(BaseModel):
+    """Shard registry statistics."""
+
+    total_shards: int = Field(description="Total number of dedicated shards")
+    by_collection: dict[str, int] = Field(description="Shard count by collection")
