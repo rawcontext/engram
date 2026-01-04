@@ -271,6 +271,7 @@ services:
       - ENGRAM_AUTH_URL=https://observatory.engram.rawcontext.com
       - ENGRAM_CLIENT_ID=engram-console
       - ENGRAM_CLIENT_SECRET=${ENGRAM_CONSOLE_CLIENT_SECRET}
+      - HETZNER_API_TOKEN=${HETZNER_API_TOKEN}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=https://console.engram.rawcontext.com
       - NEXT_PUBLIC_BETTER_AUTH_URL=https://console.engram.rawcontext.com

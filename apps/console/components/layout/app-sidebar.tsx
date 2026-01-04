@@ -11,6 +11,7 @@ import {
 	Terminal,
 	Wrench,
 } from "lucide-react";
+import Link from "next/link";
 import type * as React from "react";
 
 import { NavMain } from "@/components/layout/nav-main";
@@ -44,7 +45,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton size="lg" asChild>
-							<a href="/" className="group">
+							<Link href="/" className="group">
 								<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet shadow-lg shadow-primary/20">
 									<Terminal className="size-4 text-primary-foreground" />
 								</div>
@@ -54,7 +55,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 										Engram
 									</span>
 								</div>
-							</a>
+							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
