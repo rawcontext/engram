@@ -214,17 +214,17 @@ let turnCleanupIntervalId: NodeJS.Timeout | null = null;
 export function startPruningJob(): NodeJS.Timeout {
 	// Start the periodic job
 	pruningIntervalId = setInterval(async () => {
-		await traceJob("graph-pruning", async () => {
-			try {
+		try {
+			await traceJob("graph-pruning", async () => {
 				logger.info({ retentionDays: RETENTION_DAYS }, "Starting scheduled graph pruning...");
 				const retentionMs = RETENTION_DAYS * 24 * 60 * 60 * 1000;
 				const deleted = await pruner.pruneHistory({ retentionMs });
 				logger.info({ deleted, retentionDays: RETENTION_DAYS }, "Graph pruning complete");
-			} catch (error) {
-				logger.error({ err: error }, "Graph pruning failed");
-				throw error;
-			}
-		});
+			});
+		} catch (error) {
+			// Log but don't re-throw - interval callbacks can't propagate errors
+			logger.error({ err: error }, "Graph pruning failed");
+		}
 	}, PRUNE_INTERVAL_MS);
 	return pruningIntervalId;
 }
@@ -232,14 +232,14 @@ export function startPruningJob(): NodeJS.Timeout {
 export function startTurnCleanupJob(): NodeJS.Timeout {
 	// Clean up stale turns every 5 minutes (turns inactive for 30 mins)
 	turnCleanupIntervalId = setInterval(async () => {
-		await traceJob("turn-cleanup", async () => {
-			try {
+		try {
+			await traceJob("turn-cleanup", async () => {
 				await turnAggregator.cleanupStaleTurns(30 * 60 * 1000);
-			} catch (error) {
-				logger.error({ err: error }, "Turn cleanup failed");
-				throw error;
-			}
-		});
+			});
+		} catch (error) {
+			// Log but don't re-throw - interval callbacks can't propagate errors
+			logger.error({ err: error }, "Turn cleanup failed");
+		}
 	}, TURN_CLEANUP_INTERVAL_MS);
 	return turnCleanupIntervalId;
 }
