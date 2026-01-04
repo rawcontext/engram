@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { EngramLogo } from "./components/EngramLogo";
+import { OrgSelector } from "./components/OrgSelector";
 import { SearchInput } from "./components/SearchInput";
 import { SearchResults } from "./components/SearchResults";
 import { SearchSettings, type SearchSettingsState } from "./components/SearchSettings";
@@ -185,8 +186,11 @@ export default function HomePage() {
 						</div>
 					</div>
 
-					{/* Right side: User Menu */}
-					<UserMenu />
+					{/* Right side: Org Selector + User Menu */}
+					<div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+						<OrgSelector />
+						<UserMenu />
+					</div>
 				</div>
 			</header>
 

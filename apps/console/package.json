@@ -48,8 +48,8 @@
 		"typescript": "5.9.3"
 	},
 	"scripts": {
-		"dev": "next dev --turbopack --port 6185",
-		"start": "next start --port 6185",
+		"dev": "bun run server.ts",
+		"start": "NODE_ENV=production bun run server.ts",
 		"build": "next build",
 		"typecheck": "tsgo --noEmit",
 		"lint": "biome check .",
