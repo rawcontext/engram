@@ -126,6 +126,7 @@
         "engram-mcp": "dist/index.js",
       },
       "dependencies": {
+        "@engram/graph": "*",
         "@engram/telemetry": "*",
         "@modelcontextprotocol/sdk": "^1.25.1",
         "chokidar": "^4.0.3",
