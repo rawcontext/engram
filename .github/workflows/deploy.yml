@@ -349,7 +349,7 @@ jobs:
 
       - name: Cleanup conflicting paths
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             # Remove conflicting paths and fix permissions
             sudo rm -rf /opt/engram/configs/Caddyfile 2>/dev/null || true
             # Ensure configs directory exists with correct ownership
@@ -375,7 +375,7 @@ jobs:
 
       - name: Create .env file on server
         run: |
-          ssh engram@${{ env.DOMAIN }} "cat > /opt/engram/.env << 'ENVEOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} "cat > /opt/engram/.env << 'ENVEOF'
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
@@ -393,7 +393,7 @@ jobs:
 
       - name: Fix postgres permissions and run migrations
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
 
             # Ensure postgres data directory has correct permissions (UID 70 for alpine)
@@ -442,7 +442,7 @@ jobs:
 
       - name: Deploy API
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying API..."
             docker compose -f docker-compose.prod.yml build api
@@ -477,7 +477,7 @@ jobs:
 
       - name: Deploy Search
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Search..."
             docker compose -f docker-compose.prod.yml build --no-cache search
@@ -507,7 +507,7 @@ jobs:
 
       - name: Deploy Tuner
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Tuner..."
             docker compose -f docker-compose.prod.yml build --no-cache tuner
@@ -542,7 +542,7 @@ jobs:
 
       - name: Deploy Observatory
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Observatory..."
             docker compose -f docker-compose.prod.yml build observatory
@@ -572,7 +572,7 @@ jobs:
 
       - name: Deploy Console
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Console..."
             docker compose -f docker-compose.prod.yml build console
@@ -602,7 +602,7 @@ jobs:
 
       - name: Deploy Ingestion
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Ingestion..."
             docker compose -f docker-compose.prod.yml build ingestion
@@ -632,7 +632,7 @@ jobs:
 
       - name: Deploy Memory
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
             echo "Building and deploying Memory..."
             docker compose -f docker-compose.prod.yml build memory
@@ -662,7 +662,7 @@ jobs:
 
       - name: Deploy Infrastructure Services
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             cd /opt/engram
 
             # Create data directories at /var/lib/engram (outside Docker build context)
@@ -729,7 +729,7 @@ jobs:
           CADDY_CHANGED: ${{ needs.changes.outputs.caddy }}
           DOCKER_COMPOSE_CHANGED: ${{ needs.changes.outputs.docker_compose }}
         run: |
-          ssh engram@${{ env.DOMAIN }} << EOF
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << EOF
             cd /opt/engram
 
             # Check if Caddy is already running
@@ -775,7 +775,7 @@ jobs:
 
       - name: Prune old Docker images
         run: |
-          ssh engram@${{ env.DOMAIN }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 engram@${{ env.DOMAIN }} << 'EOF'
             echo "Pruning unused Docker images..."
             docker image prune -af
             echo ""

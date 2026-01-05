@@ -1,7 +1,24 @@
+# syntax=docker/dockerfile:1.4
 FROM oven/bun:1.3.5 AS builder
 WORKDIR /app
+
+# Copy package files first for better caching
+COPY package.json bun.lock turbo.json ./
+COPY apps/console/package.json apps/console/
+COPY apps/observatory/package.json apps/observatory/
+COPY packages/common/package.json packages/common/
+COPY packages/events/package.json packages/events/
+COPY packages/graph/package.json packages/graph/
+COPY packages/logger/package.json packages/logger/
+COPY packages/storage/package.json packages/storage/
+
+# Install with BuildKit cache mount for faster rebuilds
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install
+
+# Copy source code
 COPY . .
-RUN bun install
+
 # Build-time env vars needed for Next.js page collection (overridden at runtime)
 ENV BETTER_AUTH_URL=http://localhost:3000
 ENV BETTER_AUTH_SECRET=build-time-placeholder
