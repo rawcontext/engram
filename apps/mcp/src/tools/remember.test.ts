@@ -590,6 +590,47 @@ describe("registerRememberTool", () => {
 			);
 		});
 
+		it("should match extracted entities via aliases", async () => {
+			// Test case where the resolved entity name differs from extracted name
+			// but matches via an alias
+			spyOn(mockExtractor, "extract").mockResolvedValue({
+				entities: [{ name: "postgres", type: "technology", context: "database system" }],
+				relationships: [],
+				took_ms: 100,
+				model_used: "gpt-4",
+			});
+			spyOn(mockResolver, "resolveBatch").mockResolvedValue([
+				{
+					entity: {
+						id: "entity-pg",
+						name: "PostgreSQL", // Different from extracted "postgres"
+						type: "technology",
+						aliases: ["postgres", "pg", "psql"], // But "postgres" is in aliases
+					},
+					isNew: false, // Matched via alias
+				},
+			]);
+
+			const result = (await registeredHandler({
+				content: "Using postgres as database",
+			})) as any;
+
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.stored).toBe(true);
+			expect(parsed.entities).toHaveLength(1);
+			expect(parsed.entities[0].name).toBe("PostgreSQL"); // Resolved canonical name
+
+			// Verify MENTIONS edge was created with the context from extracted entity
+			expect(mockCloudClient.query).toHaveBeenCalledWith(
+				expect.stringContaining("CREATE (m)-[:MENTIONS"),
+				expect.objectContaining({
+					entityId: "entity-pg",
+					context: "database system", // Context from extracted entity
+				}),
+				undefined,
+			);
+		});
+
 		it("should handle relationship creation failure gracefully", async () => {
 			spyOn(mockExtractor, "extract").mockResolvedValue({
 				entities: [
