@@ -38,9 +38,11 @@ describe("ClaudeJSONLWatcher", () => {
 
 	afterEach(async () => {
 		await watcher?.stop();
+		// Wait for any pending file operations to complete before cleanup
+		await new Promise((resolve) => setTimeout(resolve, 100));
 		// Clean up temp files
 		try {
-			await fs.promises.rm(tempDir, { recursive: true });
+			await fs.promises.rm(tempDir, { recursive: true, force: true });
 		} catch {
 			// Ignore cleanup errors
 		}

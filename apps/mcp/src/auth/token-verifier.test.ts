@@ -263,8 +263,8 @@ describeOrSkip("IntrospectionTokenVerifier", () => {
 			expect(fetchSpy).toHaveBeenCalledTimes(1);
 
 			// Wait for cache to expire (cacheTtlMs is 100ms)
-			// Use 500ms to reliably ensure expiration even under parallel test load
-			await new Promise((resolve) => setTimeout(resolve, 500));
+			// Use 1000ms to reliably ensure expiration even under heavy parallel test load
+			await new Promise((resolve) => setTimeout(resolve, 1000));
 
 			// Second call - should hit the endpoint again
 			await verifier.verify("expires-token");
