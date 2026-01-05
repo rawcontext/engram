@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { isHttpTransport, isStdioTransport, createTransport } from "./index";
 import type { Config } from "../config";
+import { createTransport, isHttpTransport, isStdioTransport } from "./index";
 
 // Mock StdioServerTransport
 mock.module("@modelcontextprotocol/sdk/server/stdio.js", () => ({

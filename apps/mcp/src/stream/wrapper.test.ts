@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { EventEmitter } from "node:events";
 import type { RawStreamEvent, StreamDelta } from "./types";
 

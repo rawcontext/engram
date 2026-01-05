@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { FalkorClient, GraphClient } from "@engram/storage";
-import { ReplayEngine } from "./replay";
 import { Rehydrator } from "./rehydrator";
+import { ReplayEngine } from "./replay";
 
 describe("ReplayEngine", () => {
 	let mockFalkorQuery: ReturnType<typeof mock>;

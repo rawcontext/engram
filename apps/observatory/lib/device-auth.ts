@@ -765,6 +765,13 @@ export async function generateClientToken(
 	tokenType: "DPoP";
 	scope: string;
 }> {
+	// Look up client name from oauth_clients table
+	const clientResult = await pool.query<{ client_id: string }>(
+		`SELECT client_id FROM oauth_clients WHERE id = $1`,
+		[clientId],
+	);
+	const clientName = clientResult.rows[0]?.client_id || "unknown";
+
 	const accessToken = generateClientAccessToken();
 	const accessTokenHash = hashToken(accessToken);
 	const accessTokenPrefix = `${accessToken.slice(0, 20)}...`;
@@ -781,14 +788,15 @@ export async function generateClientToken(
 	await pool.query(
 		`INSERT INTO oauth_tokens (
 			access_token_hash, access_token_prefix,
-			client_id_ref, grant_type, dpop_jkt, scopes,
+			client_id, client_id_ref, grant_type, dpop_jkt, scopes,
 			access_token_expires_at,
 			refresh_token_hash, refresh_token_expires_at,
 			org_id, org_slug
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, $8, $9)`,
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, NULL, $9, $10)`,
 		[
 			accessTokenHash,
 			accessTokenPrefix,
+			clientName,
 			clientId,
 			"client_credentials",
 			dpopJwkThumbprint,

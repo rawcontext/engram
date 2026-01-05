@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { EventEmitter } from "node:events";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { EventEmitter } from "node:events";
 import type { ClaudeHistoryEntry } from "./types";
 
 // Mock chokidar watcher

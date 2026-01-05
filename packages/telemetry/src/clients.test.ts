@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import * as tracer from "./tracer";
 import {
 	traceDbOperation,
 	traceHttpCall,
@@ -7,6 +6,7 @@ import {
 	traceMcpTool,
 	traceNatsOperation,
 } from "./clients";
+import * as tracer from "./tracer";
 
 describe("Client Tracing Functions", () => {
 	let mockSpan: {

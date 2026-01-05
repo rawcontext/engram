@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { traceWebSocket, tracingMiddleware } from "./middleware";
 import * as tracer from "./tracer";
-import { tracingMiddleware, traceWebSocket } from "./middleware";
 
 describe("Middleware Module", () => {
 	let mockSpan: {
