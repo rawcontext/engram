@@ -332,4 +332,60 @@ describe("DeduplicationEngine", () => {
 			expect(engine.shouldIngest({ ...baseKey, source: "file-watcher" })).toBe(false);
 		});
 	});
+
+	describe("cleanup", () => {
+		it("should remove expired entries during cleanup", async () => {
+			const cleanupEngine = new DeduplicationEngine({
+				ttlMs: 50, // 50ms TTL
+				maxEntries: 100,
+				cleanupIntervalMs: 30, // Cleanup every 30ms
+			});
+
+			// Add an entry
+			cleanupEngine.shouldIngest({
+				sessionId: "session-1",
+				timestamp: Date.now(),
+				contentHash: "cleanup-test",
+				source: "hook",
+			});
+
+			expect(cleanupEngine.getStats().entries).toBe(1);
+
+			// Wait for TTL to expire and cleanup to run
+			await new Promise((r) => setTimeout(r, 100));
+
+			// Entry should be cleaned up
+			expect(cleanupEngine.getStats().entries).toBe(0);
+			expect(cleanupEngine.isDuplicate("session-1", "cleanup-test")).toBe(false);
+
+			cleanupEngine.stop();
+		});
+
+		it("should not remove unexpired entries", async () => {
+			const cleanupEngine = new DeduplicationEngine({
+				ttlMs: 5000, // 5s TTL
+				maxEntries: 100,
+				cleanupIntervalMs: 30, // Cleanup every 30ms
+			});
+
+			// Add an entry
+			cleanupEngine.shouldIngest({
+				sessionId: "session-1",
+				timestamp: Date.now(),
+				contentHash: "fresh-entry",
+				source: "hook",
+			});
+
+			expect(cleanupEngine.getStats().entries).toBe(1);
+
+			// Wait for cleanup to run (but TTL not expired)
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Entry should still be there
+			expect(cleanupEngine.getStats().entries).toBe(1);
+			expect(cleanupEngine.isDuplicate("session-1", "fresh-entry")).toBe(true);
+
+			cleanupEngine.stop();
+		});
+	});
 });
