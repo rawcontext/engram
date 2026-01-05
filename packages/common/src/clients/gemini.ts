@@ -219,15 +219,17 @@ export class GeminiClient {
 		return withRetry(
 			async () => {
 				try {
+					// Cast schema to satisfy AI SDK's FlexibleSchema type constraint
+					// This is safe because z.ZodSchema<T> is compatible at runtime
 					const result = await generateObject({
 						model: this.google(modelName),
-						schema: options.schema,
+						schema: options.schema as z.ZodObject<z.ZodRawShape>,
 						prompt: options.prompt,
 						system: options.systemInstruction,
 						temperature: options.temperature,
 					});
 
-					return result.object;
+					return result.object as T;
 				} catch (error) {
 					throw new GeminiError(
 						`Gemini API request failed: ${error instanceof Error ? error.message : String(error)}`,

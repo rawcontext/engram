@@ -15,7 +15,7 @@
 		"croner": "^9.1.0",
 		"hono": "^4.11.3",
 		"prom-client": "^15.1.3",
-		"zod": "^4.2.1"
+		"zod": "4.2.1"
 	},
 	"devDependencies": {
 		"@engram/tsconfig": "*",

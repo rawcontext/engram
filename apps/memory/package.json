@@ -8,7 +8,7 @@
 		"@engram/graph": "*",
 		"@engram/telemetry": "*",
 		"@modelcontextprotocol/sdk": "^1.25.1",
-		"zod": "^4.2.1"
+		"zod": "4.2.1"
 	},
 	"devDependencies": {
 		"@types/node": "^25.0.3",

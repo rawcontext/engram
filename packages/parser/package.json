@@ -11,7 +11,7 @@
 	"dependencies": {
 		"@engram/events": "*",
 		"@engram/common": "*",
-		"zod": "^4.2.1"
+		"zod": "4.2.1"
 	},
 	"turbo": {
 		"build": {

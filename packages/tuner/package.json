@@ -16,7 +16,7 @@
 		"@engram/common": "*",
 		"@engram/logger": "*",
 		"commander": "^14.0.2",
-		"zod": "^4.2.1"
+		"zod": "4.2.1"
 	},
 	"turbo": {
 		"build": {

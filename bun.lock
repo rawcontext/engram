@@ -28,7 +28,7 @@
         "shadcn": "^3.6.2",
         "tsx": "^4.21.0",
         "turbo": "^2.7.2",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "peerDependencies": {
         "typescript": "^5.9.3",
@@ -45,7 +45,7 @@
         "@hono/node-server": "^1.19.7",
         "hono": "^4.11.3",
         "ulid": "^3.0.2",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@engram/tsconfig": "*",
@@ -112,7 +112,7 @@
         "@engram/storage": "*",
         "@engram/telemetry": "*",
         "pg": "^8.16.3",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@engram/tsconfig": "*",
@@ -135,7 +135,7 @@
         "pino": "^10.1.0",
         "pino-pretty": "^13.1.3",
         "ulid": "^3.0.2",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@engram/tsconfig": "*",
@@ -153,7 +153,7 @@
         "@engram/storage": "*",
         "@engram/telemetry": "*",
         "@modelcontextprotocol/sdk": "^1.25.1",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@engram/tsconfig": "*",
@@ -192,7 +192,7 @@
         "swr": "^2.3.8",
         "thread-stream": "^4.0.0",
         "three": "^0.182.0",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@testing-library/dom": "^10.4.1",
@@ -225,7 +225,7 @@
         "croner": "^9.1.0",
         "hono": "^4.11.3",
         "prom-client": "^15.1.3",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@engram/tsconfig": "*",
@@ -263,7 +263,7 @@
       "name": "@engram/events",
       "version": "0.0.0",
       "dependencies": {
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@engram/tsconfig": "*",
@@ -276,7 +276,7 @@
       "dependencies": {
         "@engram/storage": "*",
         "ulid": "^3.0.2",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@engram/tsconfig": "*",
@@ -305,7 +305,7 @@
       "dependencies": {
         "@engram/common": "*",
         "@engram/events": "*",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@engram/tsconfig": "*",
@@ -354,7 +354,7 @@
       "dependencies": {
         "@engram/storage": "*",
         "@engram/vfs": "*",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@engram/tsconfig": "*",
@@ -375,7 +375,7 @@
         "@engram/common": "*",
         "@engram/logger": "*",
         "commander": "^14.0.2",
-        "zod": "^4.2.1",
+        "zod": "4.2.1",
       },
       "devDependencies": {
         "@engram/tsconfig": "*",
@@ -408,7 +408,7 @@
     },
   },
   "overrides": {
-    "zod": "^4.2.1",
+    "zod": "4.2.1",
   },
   "packages": {
     "@ai-sdk/gateway": ["@ai-sdk/gateway@3.0.5", "", { "dependencies": { "@ai-sdk/provider": "3.0.1", "@ai-sdk/provider-utils": "4.0.2", "@vercel/oidc": "3.0.5" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-AtxA1wcoKTHr9uFoC5KZEXqJP4SMW4j3VbcliUECUYssbWbePJ9+b3AaCny1lxf1xhDK9EIyAgBOKhXoQSr9nA=="],
@@ -2381,7 +2381,7 @@
 
     "yoctocolors-cjs": ["yoctocolors-cjs@2.1.3", "", {}, "sha512-U/PBtDf35ff0D8X8D0jfdzHYEPFxAI7jJlxZXwCSez5M3190m+QobIfh+sWDWSHMCWWJN2AWamkegn6vr6YBTw=="],
 
-    "zod": ["zod@4.3.5", "", {}, "sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g=="],
+    "zod": ["zod@4.2.1", "", {}, "sha512-0wZ1IRqGGhMP76gLqz8EyfBXKk0J2qo2+H3fi4mcUP/KtTocoX08nmIAHl1Z2kJIZbZee8KOpBCSNPRgauucjw=="],
 
     "zod-to-json-schema": ["zod-to-json-schema@3.25.1", "", { "peerDependencies": { "zod": "^3.25 || ^4" } }, "sha512-pM/SU9d3YAggzi6MtR4h7ruuQlqKtad8e9S0fmxcMi+ueAK5Korys/aWcV9LIIHTVbj01NdzxcnXSN+O74ZIVA=="],
 

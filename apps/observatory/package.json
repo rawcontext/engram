@@ -31,7 +31,7 @@
 		"swr": "^2.3.8",
 		"thread-stream": "^4.0.0",
 		"three": "^0.182.0",
-		"zod": "^4.2.1"
+		"zod": "4.2.1"
 	},
 	"devDependencies": {
 		"@testing-library/dom": "^10.4.1",
