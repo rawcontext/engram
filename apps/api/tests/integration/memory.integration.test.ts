@@ -13,9 +13,6 @@ import { OAuthTokenRepository } from "../../src/db/oauth-tokens";
 import { createMemoryRoutes } from "../../src/routes/memory";
 import { MemoryService } from "../../src/services/memory";
 import {
-	TEST_ACCESS_TOKEN,
-	TEST_ORG,
-	TEST_USER,
 	authHeader,
 	getFalkorDBUrl,
 	getPostgresUrl,
@@ -24,6 +21,9 @@ import {
 	startFalkorDBContainer,
 	startPostgresContainer,
 	stopAllContainers,
+	TEST_ACCESS_TOKEN,
+	TEST_ORG,
+	TEST_USER,
 } from "./fixtures";
 
 // Skip all tests if integration tests are not enabled

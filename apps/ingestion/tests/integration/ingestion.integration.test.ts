@@ -9,10 +9,12 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { createNatsClient } from "@engram/storage";
+// Import auth functions directly (not mocked)
+import { authenticateRequest, closeAuth, initAuth } from "../../src/auth";
 import {
 	authHeader,
-	getPostgresUrl,
 	getNatsUrl,
+	getPostgresUrl,
 	initializeDatabase,
 	shouldRunIntegrationTests,
 	startNatsContainer,
@@ -23,16 +25,13 @@ import {
 	TEST_USER,
 } from "./fixtures";
 
-// Import auth functions directly (not mocked)
-import { authenticateRequest, closeAuth, initAuth } from "../../src/auth";
-
 const runTests = shouldRunIntegrationTests();
 
 describe.skipIf(!runTests)("Ingestion Integration Tests", () => {
 	let serverPort: number;
 	let server: ReturnType<typeof Bun.serve> | null = null;
 	let natsClient: ReturnType<typeof createNatsClient> | null = null;
-	let receivedEvents: unknown[] = [];
+	const receivedEvents: unknown[] = [];
 
 	beforeAll(async () => {
 		console.log("Starting integration test setup...");

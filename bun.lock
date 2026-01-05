@@ -162,8 +162,11 @@
         "zod": "4.2.1",
       },
       "devDependencies": {
+        "@engram/common": "*",
         "@engram/tsconfig": "*",
         "@types/node": "^25.0.3",
+        "falkordb": "^6.4.1",
+        "testcontainers": "^10.25.0",
       },
     },
     "apps/observatory": {

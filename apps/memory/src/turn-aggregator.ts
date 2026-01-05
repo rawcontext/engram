@@ -497,6 +497,7 @@ export class TurnAggregator {
 						timestamp: Date.now(),
 						vt_start: turn.createdAt,
 						org_id: turn.orgId, // Propagate org_id for tenant isolation
+						org_slug: turn.orgSlug, // Propagate org_slug for tenant naming
 					});
 				} catch (e) {
 					this.logger.error(
