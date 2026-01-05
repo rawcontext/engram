@@ -2,21 +2,12 @@
 FROM oven/bun:1.3.5 AS builder
 WORKDIR /app
 
-# Copy package files first for better caching
-COPY package.json bun.lock turbo.json ./
-COPY apps/api/package.json apps/api/
-COPY packages/common/package.json packages/common/
-COPY packages/events/package.json packages/events/
-COPY packages/graph/package.json packages/graph/
-COPY packages/logger/package.json packages/logger/
-COPY packages/storage/package.json packages/storage/
+# Copy everything for dependency resolution and codegen
+COPY . .
 
 # Install with BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install
-
-# Copy source code
-COPY . .
 
 # Generate graph query builders
 RUN bun run --filter=@engram/graph generate
