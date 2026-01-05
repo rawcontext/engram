@@ -569,6 +569,142 @@ describe("DeviceFlowClient", () => {
 	});
 });
 
+describe("openBrowser", () => {
+	// Test openBrowser functionality by testing startDeviceFlow with openBrowser: true
+	// This requires mocking exec and platform
+
+	let mockLogger: any;
+	let mockTokenCache: any;
+	let originalFetch: typeof fetch;
+	let execMock: ReturnType<typeof mock>;
+	let platformMock: ReturnType<typeof mock>;
+
+	beforeEach(() => {
+		originalFetch = globalThis.fetch;
+		mockLogger = {
+			debug: mock(() => {}),
+			info: mock(() => {}),
+			warn: mock(() => {}),
+			error: mock(() => {}),
+		};
+		mockTokenCache = {
+			getAccessToken: mock(() => null),
+			getRefreshToken: mock(() => null),
+			needsRefresh: mock(() => false),
+			hasValidTokens: mock(() => false),
+			updateTokens: mock(() => {}),
+		};
+	});
+
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+		mock.restore();
+	});
+
+	it("should open browser on darwin with 'open' command", async () => {
+		// Mock platform to return darwin
+		execMock = mock((cmd: string, callback: (err: Error | null) => void) => {
+			callback(null);
+		});
+		platformMock = mock(() => "darwin");
+
+		mock.module("node:child_process", () => ({
+			exec: execMock,
+		}));
+		mock.module("node:os", () => ({
+			platform: platformMock,
+			arch: () => "x64",
+			release: () => "test",
+		}));
+
+		// Re-import to get mocked version
+		const { DeviceFlowClient } = await import("./device-flow");
+
+		const client = new DeviceFlowClient({
+			apiUrl: "https://observatory.test.com",
+			clientId: "test-client",
+			logger: mockLogger,
+			tokenCache: mockTokenCache,
+		});
+
+		globalThis.fetch = mock(() =>
+			Promise.resolve({
+				ok: true,
+				json: () =>
+					Promise.resolve({
+						device_code: "test-code",
+						user_code: "BROWSER-TEST",
+						verification_uri: "https://auth.test.com/device",
+						interval: 0,
+						expires_in: 1800,
+					}),
+			} as Response),
+		);
+
+		// Start flow but don't wait for completion - we just want to trigger openBrowser
+		const flowPromise = client.startDeviceFlow({ openBrowser: true });
+
+		// Let the browser open happen
+		await new Promise((r) => setTimeout(r, 50));
+
+		// Check exec was called with open command
+		expect(execMock).toHaveBeenCalledWith(expect.stringContaining("open"), expect.any(Function));
+
+		// Clean up by simulating token response
+		await flowPromise.catch(() => {});
+	});
+
+	it("should log debug when browser fails to open", async () => {
+		execMock = mock((cmd: string, callback: (err: Error | null) => void) => {
+			callback(new Error("Command failed"));
+		});
+		platformMock = mock(() => "darwin");
+
+		mock.module("node:child_process", () => ({
+			exec: execMock,
+		}));
+		mock.module("node:os", () => ({
+			platform: platformMock,
+			arch: () => "x64",
+			release: () => "test",
+		}));
+
+		const { DeviceFlowClient } = await import("./device-flow");
+
+		const client = new DeviceFlowClient({
+			apiUrl: "https://observatory.test.com",
+			clientId: "test-client",
+			logger: mockLogger,
+			tokenCache: mockTokenCache,
+		});
+
+		globalThis.fetch = mock(() =>
+			Promise.resolve({
+				ok: true,
+				json: () =>
+					Promise.resolve({
+						device_code: "test-code",
+						user_code: "FAIL-TEST",
+						verification_uri: "https://auth.test.com/device",
+						interval: 0,
+						expires_in: 1800,
+					}),
+			} as Response),
+		);
+
+		const flowPromise = client.startDeviceFlow({ openBrowser: true });
+
+		await new Promise((r) => setTimeout(r, 50));
+
+		expect(mockLogger.debug).toHaveBeenCalledWith(
+			expect.objectContaining({ error: expect.any(Error) }),
+			"Could not open browser automatically",
+		);
+
+		await flowPromise.catch(() => {});
+	});
+});
+
 describe("hasValidCredentials", () => {
 	it("should check TokenCache for valid tokens", () => {
 		const mockLogger = {
