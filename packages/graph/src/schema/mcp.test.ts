@@ -101,6 +101,12 @@ describe("mcp.param", () => {
 			expect(p.config.defaultValue).toBe(10);
 			expect(p.config.optional).toBe(true);
 		});
+
+		test("supports describe modifier", () => {
+			const p = mcp.param.int().describe("Updated description");
+			expect(p.kind).toBe("int");
+			expect(p.config.description).toBe("Updated description");
+		});
 	});
 
 	describe("float", () => {
@@ -109,11 +115,44 @@ describe("mcp.param", () => {
 			expect(p.kind).toBe("float");
 		});
 
+		test("creates a float param with description", () => {
+			const p = mcp.param.float("Score value");
+			expect(p.kind).toBe("float");
+			expect(p.config.description).toBe("Score value");
+		});
+
 		test("supports min and max modifiers", () => {
 			const p = mcp.param.float().min(0.0).max(1.0);
 			expect(p.kind).toBe("float");
 			expect(p.config.min).toBe(0.0);
 			expect(p.config.max).toBe(1.0);
+		});
+
+		test("supports optional modifier", () => {
+			const p = mcp.param.float().optional();
+			expect(p.kind).toBe("float");
+			expect(p.config.optional).toBe(true);
+		});
+
+		test("supports default modifier", () => {
+			const p = mcp.param.float().default(0.5);
+			expect(p.kind).toBe("float");
+			expect(p.config.defaultValue).toBe(0.5);
+		});
+
+		test("supports describe modifier", () => {
+			const p = mcp.param.float().describe("Updated description");
+			expect(p.kind).toBe("float");
+			expect(p.config.description).toBe("Updated description");
+		});
+
+		test("supports chaining modifiers", () => {
+			const p = mcp.param.float("Score").min(0).max(1).default(0.5).optional();
+			expect(p.kind).toBe("float");
+			expect(p.config.min).toBe(0);
+			expect(p.config.max).toBe(1);
+			expect(p.config.defaultValue).toBe(0.5);
+			expect(p.config.optional).toBe(true);
 		});
 	});
 
@@ -133,6 +172,18 @@ describe("mcp.param", () => {
 			const p = mcp.param.boolean().default(true);
 			expect(p.kind).toBe("boolean");
 			expect(p.config.defaultValue).toBe(true);
+		});
+
+		test("supports optional modifier", () => {
+			const p = mcp.param.boolean().optional();
+			expect(p.kind).toBe("boolean");
+			expect(p.config.optional).toBe(true);
+		});
+
+		test("supports describe modifier", () => {
+			const p = mcp.param.boolean().describe("Updated description");
+			expect(p.kind).toBe("boolean");
+			expect(p.config.description).toBe("Updated description");
 		});
 	});
 
