@@ -1054,24 +1054,24 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "asyncpg", specifier = ">=0.30.0" },
-    { name = "fastapi", specifier = ">=0.126.0" },
+    { name = "asyncpg", specifier = ">=0.31.0" },
+    { name = "fastapi", specifier = ">=0.128.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
-    { name = "opentelemetry-api", specifier = ">=1.29.0" },
-    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.29.0" },
-    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.50b0" },
-    { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
+    { name = "opentelemetry-api", specifier = ">=1.39.1" },
+    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.39.1" },
+    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.60b1" },
+    { name = "opentelemetry-sdk", specifier = ">=1.39.1" },
     { name = "optuna", specifier = ">=4.6.0" },
     { name = "optuna-dashboard", specifier = ">=0.20.0" },
-    { name = "psycopg2-binary", specifier = ">=2.9.10" },
+    { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.3.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.10" },
-    { name = "structlog", specifier = ">=25.0.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.38.0" },
+    { name = "structlog", specifier = ">=25.5.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.40.0" },
 ]
 provides-extras = ["dev"]
 

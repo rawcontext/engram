@@ -270,7 +270,7 @@ export class GeminiClient {
 						prompt: options.prompt,
 						system: options.systemInstruction,
 						temperature: options.temperature,
-						maxTokens: options.maxTokens,
+						maxOutputTokens: options.maxTokens,
 					});
 
 					return result.text;

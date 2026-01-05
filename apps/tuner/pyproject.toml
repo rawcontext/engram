@@ -5,20 +5,20 @@ description = "Hyperparameter optimization service for Engram search"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi>=0.126.0",
-    "uvicorn[standard]>=0.38.0",
+    "fastapi>=0.128.0",
+    "uvicorn[standard]>=0.40.0",
     "optuna>=4.6.0",
     "optuna-dashboard>=0.20.0",
-    "psycopg2-binary>=2.9.10",
-    "asyncpg>=0.30.0",
+    "psycopg2-binary>=2.9.11",
+    "asyncpg>=0.31.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
-    "structlog>=25.0.0",
+    "structlog>=25.5.0",
     # OpenTelemetry
-    "opentelemetry-api>=1.29.0",
-    "opentelemetry-sdk>=1.29.0",
-    "opentelemetry-exporter-otlp-proto-http>=1.29.0",
-    "opentelemetry-instrumentation-fastapi>=0.50b0",
+    "opentelemetry-api>=1.39.1",
+    "opentelemetry-sdk>=1.39.1",
+    "opentelemetry-exporter-otlp-proto-http>=1.39.1",
+    "opentelemetry-instrumentation-fastapi>=0.60b1",
 ]
 
 [project.optional-dependencies]
