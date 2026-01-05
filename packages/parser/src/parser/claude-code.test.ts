@@ -210,6 +210,158 @@ describe("ClaudeCodeParser", () => {
 		});
 	});
 
+	describe("hook events", () => {
+		it("should parse SessionStart hook event", () => {
+			const payload = {
+				hook_event_name: "SessionStart",
+				session_id: "session-123",
+				source: "startup",
+				cwd: "/home/user/project",
+			};
+
+			const result = parser.parse(payload);
+
+			expect(result).not.toBeNull();
+			expect(result?.type).toBe("content");
+			expect(result?.content).toContain("[Session Started: startup]");
+			expect(result?.content).toContain("cwd=/home/user/project");
+			expect(result?.session).toEqual({ id: "session-123" });
+		});
+
+		it("should parse SessionStart hook event without cwd", () => {
+			const payload = {
+				hook_event_name: "SessionStart",
+				session_id: "session-123",
+				source: "resume",
+			};
+
+			const result = parser.parse(payload);
+
+			expect(result).not.toBeNull();
+			expect(result?.type).toBe("content");
+			expect(result?.content).toBe("[Session Started: resume]");
+		});
+
+		it("should parse SessionEnd hook event", () => {
+			const payload = {
+				hook_event_name: "SessionEnd",
+				session_id: "session-123",
+				reason: "user_exit",
+			};
+
+			const result = parser.parse(payload);
+
+			expect(result).not.toBeNull();
+			expect(result?.type).toBe("stop");
+			expect(result?.stopReason).toBe("user_exit");
+			expect(result?.session).toEqual({ id: "session-123" });
+		});
+
+		it("should parse SessionEnd hook event without reason", () => {
+			const payload = {
+				hook_event_name: "SessionEnd",
+				session_id: "session-123",
+			};
+
+			const result = parser.parse(payload);
+
+			expect(result).not.toBeNull();
+			expect(result?.stopReason).toBe("session_end");
+		});
+
+		it("should parse PostToolUse hook event", () => {
+			const payload = {
+				hook_event_name: "PostToolUse",
+				session_id: "session-123",
+				tool_use_id: "toolu_abc123",
+				tool_name: "Read",
+				tool_input: { file_path: "/path/to/file.txt" },
+			};
+
+			const result = parser.parse(payload);
+
+			expect(result).not.toBeNull();
+			expect(result?.type).toBe("tool_call");
+			expect(result?.toolCall?.id).toBe("toolu_abc123");
+			expect(result?.toolCall?.name).toBe("Read");
+			expect(result?.toolCall?.args).toBe('{"file_path":"/path/to/file.txt"}');
+		});
+
+		it("should parse PostToolUse hook event without tool_input", () => {
+			const payload = {
+				hook_event_name: "PostToolUse",
+				session_id: "session-123",
+				tool_use_id: "toolu_abc123",
+				tool_name: "Read",
+			};
+
+			const result = parser.parse(payload);
+
+			expect(result).not.toBeNull();
+			expect(result?.toolCall?.args).toBeUndefined();
+		});
+
+		it("should parse Stop hook event", () => {
+			const payload = {
+				hook_event_name: "Stop",
+				session_id: "session-123",
+			};
+
+			const result = parser.parse(payload);
+
+			expect(result).not.toBeNull();
+			expect(result?.type).toBe("stop");
+			expect(result?.stopReason).toBe("agent_stop");
+		});
+
+		it("should parse UserPromptSubmit hook event", () => {
+			const payload = {
+				hook_event_name: "UserPromptSubmit",
+				session_id: "session-123",
+				prompt: "Hello, Claude!",
+			};
+
+			const result = parser.parse(payload);
+
+			expect(result).not.toBeNull();
+			expect(result?.type).toBe("content");
+			expect(result?.role).toBe("user");
+			expect(result?.content).toBe("Hello, Claude!");
+		});
+
+		it("should parse UserPromptSubmit hook event without prompt", () => {
+			const payload = {
+				hook_event_name: "UserPromptSubmit",
+				session_id: "session-123",
+			};
+
+			const result = parser.parse(payload);
+
+			expect(result).not.toBeNull();
+			expect(result?.content).toBe("");
+		});
+
+		it("should return null for unknown hook event type", () => {
+			const payload = {
+				hook_event_name: "UnknownHookEvent",
+				session_id: "session-123",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid hook event schema", () => {
+			const payload = {
+				hook_event_name: 123, // Invalid type
+				session_id: "session-123",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+	});
+
 	describe("unknown events", () => {
 		it("should return null for unknown event types", () => {
 			const payload = {
