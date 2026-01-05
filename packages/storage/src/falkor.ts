@@ -234,10 +234,26 @@ export class TenantAwareFalkorClient {
 		const graph = await this.selectTenantGraph(ctx);
 
 		// FalkorDB creates graph on first query
-		// Ensure required indexes exist (CREATE INDEX IF NOT EXISTS is idempotent)
-		await graph.query("CREATE INDEX IF NOT EXISTS FOR (s:Session) ON (s.id)");
-		await graph.query("CREATE INDEX IF NOT EXISTS FOR (t:Turn) ON (t.id)");
-		await graph.query("CREATE INDEX IF NOT EXISTS FOR (m:Memory) ON (m.id)");
+		// Ensure required indexes exist
+		// FalkorDB uses different syntax: CREATE INDEX FOR (n:Label) ON (n.property)
+		// Index creation will fail if index already exists, so we catch and ignore those errors
+		const indexes = [
+			"CREATE INDEX FOR (s:Session) ON (s.id)",
+			"CREATE INDEX FOR (t:Turn) ON (t.id)",
+			"CREATE INDEX FOR (m:Memory) ON (m.id)",
+		];
+
+		for (const indexQuery of indexes) {
+			try {
+				await graph.query(indexQuery);
+			} catch (err) {
+				// Index may already exist - FalkorDB throws an error in this case
+				const error = err as Error;
+				if (!error.message?.includes("already indexed")) {
+					throw err;
+				}
+			}
+		}
 
 		return graph;
 	}

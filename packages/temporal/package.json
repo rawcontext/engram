@@ -6,7 +6,8 @@
 	"types": "./src/index.ts",
 	"devDependencies": {
 		"@types/node": "^25.0.3",
-		"@engram/tsconfig": "*"
+		"@engram/tsconfig": "*",
+		"testcontainers": "^10.16.0"
 	},
 	"dependencies": {
 		"zod": "4.2.1",

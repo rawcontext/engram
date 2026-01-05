@@ -5,9 +5,18 @@
  * It mocks module-level singletons (NATS, FalkorDB, Logger) BEFORE test files import them,
  * solving the Bun mock.module singleton interception limitation.
  *
+ * For integration tests, set RUN_INTEGRATION_TESTS=1 to bypass all mocks and use real implementations.
+ *
  * @see https://bun.sh/docs/test/mocks#preload
  */
 import { mock } from "bun:test";
+
+// Skip all mocking when running integration tests with real containers
+const isIntegrationTest = process.env.RUN_INTEGRATION_TESTS === "1";
+
+if (isIntegrationTest) {
+	console.log("[test-preload] Integration test mode: skipping all mocks");
+}
 
 // =============================================================================
 // PostgreSQL Mocks (for Observatory OAuth tests)
@@ -17,16 +26,18 @@ import { mock } from "bun:test";
 // The pg package doesn't export Pool from its ESM entry point, so we mock it here
 const mockPgQuery = mock(async () => ({ rows: [] }));
 
-mock.module("pg", () => ({
-	Pool: class MockPool {
-		query = mockPgQuery;
-	},
-	default: {
+if (!isIntegrationTest) {
+	mock.module("pg", () => ({
 		Pool: class MockPool {
 			query = mockPgQuery;
 		},
-	},
-}));
+		default: {
+			Pool: class MockPool {
+				query = mockPgQuery;
+			},
+		},
+	}));
+}
 
 // =============================================================================
 // FalkorDB Mocks
@@ -74,11 +85,13 @@ const createFalkorClientMock = Object.assign(() => mockFalkorClient, {
 	},
 });
 
-mock.module("@engram/storage/falkor", () => ({
-	createFalkorClient: createFalkorClientMock,
-	FalkorClient: MockFalkorClient,
-	TenantAwareFalkorClient: MockTenantAwareFalkorClient,
-}));
+if (!isIntegrationTest) {
+	mock.module("@engram/storage/falkor", () => ({
+		createFalkorClient: createFalkorClientMock,
+		FalkorClient: MockFalkorClient,
+		TenantAwareFalkorClient: MockTenantAwareFalkorClient,
+	}));
+}
 
 // Also mock blob store
 const mockBlobStore = {
@@ -135,14 +148,16 @@ const createBlobStoreMock = Object.assign(() => mockBlobStore, {
 });
 
 // Mock the main @engram/storage entry point (re-exports)
-mock.module("@engram/storage", () => ({
-	createFalkorClient: createFalkorClientMock,
-	FalkorClient: MockFalkorClient,
-	TenantAwareFalkorClient: MockTenantAwareFalkorClient,
-	createBlobStore: createBlobStoreMock,
-	createNatsClient: createNatsClientMock,
-	NatsClient: MockNatsClient,
-}));
+if (!isIntegrationTest) {
+	mock.module("@engram/storage", () => ({
+		createFalkorClient: createFalkorClientMock,
+		FalkorClient: MockFalkorClient,
+		TenantAwareFalkorClient: MockTenantAwareFalkorClient,
+		createBlobStore: createBlobStoreMock,
+		createNatsClient: createNatsClientMock,
+		NatsClient: MockNatsClient,
+	}));
+}
 
 // =============================================================================
 // NATS Mocks
@@ -166,18 +181,20 @@ const mockNatsPubSubSubscriber = {
 	disconnect: mockNatsDisconnect,
 };
 
-mock.module("@engram/storage/nats", () => ({
-	createNatsPubSubSubscriber: mock(() => mockNatsPubSubSubscriber),
-	createNatsPubSubPublisher: mock(() => ({
-		connect: mock(async () => {}),
-		publishSessionUpdate: mock(async () => {}),
-		publishGlobalSessionEvent: mock(async () => {}),
-		publishConsumerStatus: mock(async () => {}),
-		disconnect: mock(async () => {}),
-	})),
-	createNatsClient: mock(() => mockNatsClientInstance),
-	NatsClient: MockNatsClient,
-}));
+if (!isIntegrationTest) {
+	mock.module("@engram/storage/nats", () => ({
+		createNatsPubSubSubscriber: mock(() => mockNatsPubSubSubscriber),
+		createNatsPubSubPublisher: mock(() => ({
+			connect: mock(async () => {}),
+			publishSessionUpdate: mock(async () => {}),
+			publishGlobalSessionEvent: mock(async () => {}),
+			publishConsumerStatus: mock(async () => {}),
+			disconnect: mock(async () => {}),
+		})),
+		createNatsClient: mock(() => mockNatsClientInstance),
+		NatsClient: MockNatsClient,
+	}));
+}
 
 // =============================================================================
 // Logger Mocks
@@ -199,13 +216,15 @@ const mockLogger = {
 	fatal: mockLoggerFatal,
 };
 
-mock.module("@engram/logger", () => ({
-	createNodeLogger: mock(() => mockLogger),
-	pino: {
-		destination: mock((_fd: number) => ({ write: mock() })),
-	},
-	withTraceContext: mock((logger: unknown, _context: unknown) => logger),
-}));
+if (!isIntegrationTest) {
+	mock.module("@engram/logger", () => ({
+		createNodeLogger: mock(() => mockLogger),
+		pino: {
+			destination: mock((_fd: number) => ({ write: mock() })),
+		},
+		withTraceContext: mock((logger: unknown, _context: unknown) => logger),
+	}));
+}
 
 // =============================================================================
 // Observatory Path Alias Mocks (@lib/* -> ./lib/*)
@@ -213,50 +232,52 @@ mock.module("@engram/logger", () => ({
 
 // Mock @lib/device-auth to prevent module resolution errors in bun test
 // This is needed because bun doesn't resolve Next.js path aliases
-mock.module("@lib/device-auth", () => ({
-	generateDeviceCode: mock(() => "test-device-code"),
-	generateUserCode: mock(() => "ABCD-EFGH"),
-	generateAccessToken: mock(() => "egm_oauth_test_token"),
-	generateRefreshToken: mock(() => "egm_refresh_test_token"),
-	generateClientToken: mock(async () => ({
-		accessToken: "egm_client_test_token",
-		expiresIn: 3600,
-		tokenType: "DPoP",
-		scope: "memory:read",
-	})),
-	hashToken: mock((token: string) => `hashed_${token}`),
-	validateTokenChecksum: mock(() => true),
-	normalizeUserCode: mock((code: string) => code.toUpperCase().replace(/-/g, "")),
-	createDeviceCode: mock(async () => ({})),
-	findDeviceCodeByUserCode: mock(async () => null),
-	findDeviceCode: mock(async () => null),
-	authorizeDeviceCode: mock(async () => true),
-	denyDeviceCode: mock(async () => true),
-	updatePollTimestamp: mock(async () => ({ shouldSlowDown: false })),
-	pollForToken: mock(async () => ({})),
-	issueTokens: mock(async () => ({})),
-	refreshAccessToken: mock(async () => ({})),
-	validateAccessToken: mock(async () => null),
-	revokeToken: mock(async () => true),
-	listUserTokens: mock(async () => []),
-	computeTokenChecksum: mock(() => "abc123"),
-}));
+if (!isIntegrationTest) {
+	mock.module("@lib/device-auth", () => ({
+		generateDeviceCode: mock(() => "test-device-code"),
+		generateUserCode: mock(() => "ABCD-EFGH"),
+		generateAccessToken: mock(() => "egm_oauth_test_token"),
+		generateRefreshToken: mock(() => "egm_refresh_test_token"),
+		generateClientToken: mock(async () => ({
+			accessToken: "egm_client_test_token",
+			expiresIn: 3600,
+			tokenType: "DPoP",
+			scope: "memory:read",
+		})),
+		hashToken: mock((token: string) => `hashed_${token}`),
+		validateTokenChecksum: mock(() => true),
+		normalizeUserCode: mock((code: string) => code.toUpperCase().replace(/-/g, "")),
+		createDeviceCode: mock(async () => ({})),
+		findDeviceCodeByUserCode: mock(async () => null),
+		findDeviceCode: mock(async () => null),
+		authorizeDeviceCode: mock(async () => true),
+		denyDeviceCode: mock(async () => true),
+		updatePollTimestamp: mock(async () => ({ shouldSlowDown: false })),
+		pollForToken: mock(async () => ({})),
+		issueTokens: mock(async () => ({})),
+		refreshAccessToken: mock(async () => ({})),
+		validateAccessToken: mock(async () => null),
+		revokeToken: mock(async () => true),
+		listUserTokens: mock(async () => []),
+		computeTokenChecksum: mock(() => "abc123"),
+	}));
 
-// Mock @lib/dpop for DPoP proof validation
-mock.module("@lib/dpop", () => ({
-	validateDPoPProof: mock(async () => ({ valid: true, jwkThumbprint: "test-thumbprint" })),
-	createDPoPProof: mock(async () => "test-dpop-jwt"),
-}));
+	// Mock @lib/dpop for DPoP proof validation
+	mock.module("@lib/dpop", () => ({
+		validateDPoPProof: mock(async () => ({ valid: true, jwkThumbprint: "test-thumbprint" })),
+		createDPoPProof: mock(async () => "test-dpop-jwt"),
+	}));
 
-// Mock @lib/client-registration for client validation
-mock.module("@lib/client-registration", () => ({
-	validateClientCredentials: mock(async () => ({
-		valid: false,
-		error: "Client not found",
-	})),
-	registerClient: mock(async () => ({})),
-	getClient: mock(async () => null),
-}));
+	// Mock @lib/client-registration for client validation
+	mock.module("@lib/client-registration", () => ({
+		validateClientCredentials: mock(async () => ({
+			valid: false,
+			error: "Client not found",
+		})),
+		registerClient: mock(async () => ({})),
+		getClient: mock(async () => null),
+	}));
+}
 
 // =============================================================================
 // Export mocks for test files to access

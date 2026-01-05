@@ -45,17 +45,20 @@ export class Rehydrator {
 			WHERE s.snapshot_at <= $targetTime
 			  AND s.vt_start <= $targetTime AND s.vt_end > $targetTime
 			  AND s.tt_end = 253402300799000
-			RETURN s.vfs_state_blob_ref, s.snapshot_at
+			RETURN s.vfs_state_blob_ref AS blobRef, s.snapshot_at AS snapshotAt
 			ORDER BY s.snapshot_at DESC
 			LIMIT 1
 		`;
-		const snapshots = await this.graphClient.query(snapshotQuery, { sessionId, targetTime });
+		const snapshots = await this.graphClient.query<{ blobRef: string; snapshotAt: number }>(
+			snapshotQuery,
+			{ sessionId, targetTime },
+		);
 		let lastSnapshotTime = 0;
 
 		if (snapshots && Array.isArray(snapshots) && snapshots.length > 0) {
 			const snap = snapshots[0];
-			const blobRef = snap[0] as string;
-			lastSnapshotTime = snap[1] as number;
+			const blobRef = snap.blobRef;
+			lastSnapshotTime = snap.snapshotAt;
 
 			// Load Blob
 			const blobContent = await this.blobStore.load(blobRef);
