@@ -293,6 +293,25 @@ CREATE TRIGGER oauth_clients_updated_at
     EXECUTE FUNCTION update_oauth_clients_updated_at();
 
 -- =============================================================================
+-- SERVICE CLIENT SEEDING
+-- =============================================================================
+-- Service clients for M2M authentication are NOT seeded here to avoid
+-- committing secrets. Run scripts/seed-service-clients.sql after deployment:
+--
+--   # Generate secret and hash
+--   export SECRET="$(openssl rand -hex 32)"
+--   export SECRET_HASH="$(echo -n "$SECRET" | sha256sum | cut -d' ' -f1)"
+--
+--   # Seed clients
+--   docker exec -i engram-postgres-1 psql -U engram -d engram \
+--     -v secret_hash="'$SECRET_HASH'" < scripts/seed-service-clients.sql
+--
+--   # Update .env with the secret for each service
+--   ENGRAM_CONSOLE_CLIENT_SECRET=$SECRET
+--   ENGRAM_API_CLIENT_SECRET=$SECRET
+--   etc.
+
+-- =============================================================================
 -- CLEANUP FUNCTIONS
 -- =============================================================================
 

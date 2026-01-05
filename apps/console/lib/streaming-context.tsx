@@ -42,6 +42,9 @@ interface StreamingContextValue {
 
 const StreamingContext = createContext<StreamingContextValue | null>(null);
 
+/** Grace period before showing "connecting" during navigation (ms) */
+const NAVIGATION_GRACE_PERIOD = 500;
+
 function getAggregateStatus(sources: Map<string, StreamingSource>): StreamingStatus {
 	if (sources.size === 0) return "connecting";
 
@@ -57,6 +60,9 @@ function getAggregateStatus(sources: Map<string, StreamingSource>): StreamingSta
 
 export function StreamingProvider({ children }: { children: ReactNode }) {
 	const [sources, setSources] = useState<Map<string, StreamingSource>>(new Map());
+	// Track the last "good" status to use during navigation transitions
+	const [lastGoodStatus, setLastGoodStatus] = useState<StreamingStatus>("connecting");
+	const graceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const registerSource = useCallback(
 		(id: string, name: string, status: StreamingStatus, lastUpdate: Date | null) => {
@@ -77,7 +83,37 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
 		});
 	}, []);
 
-	const aggregateStatus = getAggregateStatus(sources);
+	const rawAggregateStatus = getAggregateStatus(sources);
+
+	// Debounce transitions to "connecting" to prevent flicker during navigation
+	useEffect(() => {
+		if (rawAggregateStatus !== "connecting") {
+			// We have a real status - clear any pending grace timeout and update
+			if (graceTimeoutRef.current) {
+				clearTimeout(graceTimeoutRef.current);
+				graceTimeoutRef.current = null;
+			}
+			setLastGoodStatus(rawAggregateStatus);
+		} else if (lastGoodStatus !== "connecting") {
+			// Transitioning to "connecting" - wait for grace period before showing it
+			if (!graceTimeoutRef.current) {
+				graceTimeoutRef.current = setTimeout(() => {
+					setLastGoodStatus("connecting");
+					graceTimeoutRef.current = null;
+				}, NAVIGATION_GRACE_PERIOD);
+			}
+		}
+
+		return () => {
+			if (graceTimeoutRef.current) {
+				clearTimeout(graceTimeoutRef.current);
+			}
+		};
+	}, [rawAggregateStatus, lastGoodStatus]);
+
+	// Use the debounced status for display
+	const aggregateStatus = rawAggregateStatus === "connecting" ? lastGoodStatus : rawAggregateStatus;
+
 	const isAnyLive = Array.from(sources.values()).some((s) => s.status === "live");
 	const isAllLive =
 		sources.size > 0 && Array.from(sources.values()).every((s) => s.status === "live");
