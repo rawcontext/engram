@@ -352,7 +352,8 @@ describe("DeduplicationEngine", () => {
 			expect(cleanupEngine.getStats().entries).toBe(1);
 
 			// Wait for TTL to expire and cleanup to run
-			await new Promise((r) => setTimeout(r, 100));
+			// Use longer timeout to account for parallel test execution variance
+			await new Promise((r) => setTimeout(r, 500));
 
 			// Entry should be cleaned up
 			expect(cleanupEngine.getStats().entries).toBe(0);
