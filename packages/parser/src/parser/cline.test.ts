@@ -144,6 +144,45 @@ describe("ClineParser", () => {
 			expect(result?.usage).toEqual({ input: 500, output: 150, cacheRead: 0, cacheWrite: 0 });
 			expect(result?.cost).toBe(0.001);
 		});
+
+		it("should return null for zero token counts", () => {
+			const payload = {
+				type: "say",
+				text: JSON.stringify({
+					tokensIn: 0,
+					tokensOut: 0,
+					cost: 0,
+				}),
+				ts: 1765240790000,
+				say: "api_req_finished",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for invalid JSON text", () => {
+			const payload = {
+				type: "say",
+				text: "not valid json",
+				ts: 1765240790000,
+				say: "api_req_finished",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
+
+		it("should return null for missing text field", () => {
+			const payload = {
+				type: "say",
+				ts: 1765240790000,
+				say: "api_req_finished",
+			};
+
+			const result = parser.parse(payload);
+			expect(result).toBeNull();
+		});
 	});
 
 	describe("tool events", () => {
