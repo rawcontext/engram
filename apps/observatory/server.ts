@@ -70,8 +70,10 @@ app.prepare().then(() => {
 				}
 			}
 
-			// Proxy all other requests to Next.js
-			const nextUrl = new URL(req.url.replace(`:${port}`, `:${nextPort}`));
+			// Proxy all other requests to Next.js on localhost
+			// We must use localhost explicitly to avoid proxy loops when the request
+			// comes in with an external Host header (e.g., observatory.engram.rawcontext.com)
+			const nextUrl = new URL(`http://localhost:${nextPort}${pathname}${url.search}`);
 			return fetch(nextUrl, {
 				method: req.method,
 				headers: req.headers,
