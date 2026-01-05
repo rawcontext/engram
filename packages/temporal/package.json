@@ -11,6 +11,9 @@
 	},
 	"dependencies": {
 		"zod": "4.2.1",
+		"@engram/common": "*",
+		"@engram/graph": "*",
+		"@engram/logger": "*",
 		"@engram/storage": "*",
 		"@engram/vfs": "*"
 	},

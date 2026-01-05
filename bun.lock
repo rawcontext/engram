@@ -363,6 +363,9 @@
       "name": "@engram/temporal",
       "version": "0.0.0",
       "dependencies": {
+        "@engram/common": "*",
+        "@engram/graph": "*",
+        "@engram/logger": "*",
         "@engram/storage": "*",
         "@engram/vfs": "*",
         "zod": "4.2.1",

@@ -1831,8 +1831,8 @@ describeOrSkip("graph-queries", () => {
 			// Act
 			await getSessionsForWebSocket();
 
-			// Assert
-			expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("LIMIT"), { limit: 50 });
+			// Assert - QueryBuilder uses parameterized limits with suffix
+			expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("LIMIT"), { limit_0: 50 });
 		});
 
 		it("should respect custom limit", async () => {
@@ -1842,8 +1842,8 @@ describeOrSkip("graph-queries", () => {
 			// Act
 			await getSessionsForWebSocket(25);
 
-			// Assert
-			expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("LIMIT"), { limit: 25 });
+			// Assert - QueryBuilder uses parameterized limits with suffix
+			expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("LIMIT"), { limit_0: 25 });
 		});
 
 		it("should use lastEventAt from row when session has no last_event_at", async () => {

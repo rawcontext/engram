@@ -132,6 +132,7 @@ describe("QueryBuilder", () => {
 		const qb = new QueryBuilder();
 		const { cypher } = qb.return("1").build();
 
-		expect(cypher).toBe("MATCH  RETURN 1");
+		// QueryBuilder now omits empty MATCH clauses
+		expect(cypher).toBe("RETURN 1");
 	});
 });

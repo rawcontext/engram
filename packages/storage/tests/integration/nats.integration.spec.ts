@@ -7,9 +7,9 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import {
-	NatsClient,
 	createNatsPubSubPublisher,
 	createNatsPubSubSubscriber,
+	NatsClient,
 	type SessionUpdate,
 } from "../../src/nats";
 import {

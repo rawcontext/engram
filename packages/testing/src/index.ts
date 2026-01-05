@@ -37,6 +37,7 @@ import { mock } from "bun:test";
 
 // Simplified Mock type alias for common use cases
 type Mock = BunMock<(...args: unknown[]) => unknown>;
+
 import type {
 	FileTouchNode,
 	ObservationNode,
@@ -512,7 +513,8 @@ class PromiseResolvedError extends Error {
  */
 export async function expectToReject<E extends Error>(
 	promise: Promise<unknown>,
-	errorType: new (...args: unknown[]) => E,
+	// biome-ignore lint/suspicious/noExplicitAny: Constructor types need any[] for variance compatibility with built-in error constructors
+	errorType: new (...args: any[]) => E,
 	messageMatch?: string | RegExp,
 ): Promise<E> {
 	try {

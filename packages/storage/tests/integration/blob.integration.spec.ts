@@ -7,10 +7,10 @@
  * Run with: RUN_INTEGRATION_TESTS=1 bun test packages/storage/tests/integration/blob.integration.spec.ts
  */
 
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { FileSystemBlobStore, GCSBlobStore, createBlobStore } from "../../src/blob";
+import { createBlobStore, FileSystemBlobStore, GCSBlobStore } from "../../src/blob";
 import { shouldRunIntegrationTests } from "./fixtures";
 
 // Skip all tests if integration tests are not enabled

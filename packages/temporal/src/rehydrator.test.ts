@@ -53,7 +53,7 @@ describe("Rehydrator", () => {
 	});
 
 	it("should attempt to load snapshot if found", async () => {
-		const mockSnapshot = ["blob-ref-123", 1000];
+		const mockSnapshot = { blobRef: "blob-ref-123", snapshotAt: 1000 };
 		// First call: snapshot found, second call: no diffs
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
 		mockBlobStore.load.mockResolvedValueOnce(
@@ -92,7 +92,7 @@ describe("Rehydrator", () => {
 	});
 
 	it("should pass lastSnapshotTime to diff query", async () => {
-		const mockSnapshot = ["blob-ref-123", 5000];
+		const mockSnapshot = { blobRef: "blob-ref-123", snapshotAt: 5000 };
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
 		mockBlobStore.load.mockResolvedValueOnce(
 			JSON.stringify({ root: { name: "", type: "directory", children: {} } }),
@@ -108,7 +108,7 @@ describe("Rehydrator", () => {
 	});
 
 	it("should handle snapshot loading with JSON fallback when gzip fails", async () => {
-		const mockSnapshot = ["blob-ref-json", 1000];
+		const mockSnapshot = { blobRef: "blob-ref-json", snapshotAt: 1000 };
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
 
 		const jsonContent = JSON.stringify({
@@ -121,7 +121,7 @@ describe("Rehydrator", () => {
 	});
 
 	it("should throw RehydrationError when both gzip and JSON parsing fail", async () => {
-		const mockSnapshot = ["blob-ref-invalid", 1000];
+		const mockSnapshot = { blobRef: "blob-ref-invalid", snapshotAt: 1000 };
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
 
 		mockBlobStore.load.mockResolvedValueOnce("invalid data that is neither gzip nor JSON");
@@ -265,7 +265,7 @@ describe("Rehydrator", () => {
 	});
 
 	it("should handle non-Error exception when JSON parsing fails", async () => {
-		const mockSnapshot = ["blob-ref-invalid", 1000];
+		const mockSnapshot = { blobRef: "blob-ref-invalid", snapshotAt: 1000 };
 		mockFalkorQuery.mockResolvedValueOnce([mockSnapshot]).mockResolvedValueOnce([]);
 
 		// Mock JSON.parse to throw a non-Error value

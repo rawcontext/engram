@@ -5,11 +5,11 @@
  * Supports both testcontainers (CI) and existing dev containers (local dev).
  */
 
-import { FalkorDB, type Graph } from "falkordb";
-import { connect, type NatsConnection } from "@nats-io/transport-node";
 import { jetstream, jetstreamManager } from "@nats-io/jetstream";
-import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
+import { connect, type NatsConnection } from "@nats-io/transport-node";
+import { FalkorDB, type Graph } from "falkordb";
 import pg from "pg";
+import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 
 // Container instances (session-scoped)
 let falkordbContainer: StartedTestContainer | null = null;
