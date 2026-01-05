@@ -280,12 +280,27 @@ describe("registerSessionResource", () => {
 	});
 
 	describe("list handler", () => {
-		beforeEach(() => {
-			registerSessionResource(mockServer, mockClient, () => ({}));
-		});
+		// Create isolated setup for each test to avoid parallel execution pollution
+		const createTestSetup = () => {
+			let capturedTemplate: { listCallback: () => Promise<{ resources: unknown[] }> };
+			const testMockClient: IEngramClient = {
+				query: mock(async () => []),
+			} as unknown as IEngramClient;
+			const testMockServer: McpServer = {
+				registerResource: mock((name, template, _options, _handler) => {
+					if (name === "session-transcript") {
+						capturedTemplate = template;
+					}
+				}),
+			} as unknown as McpServer;
+
+			registerSessionResource(testMockServer, testMockClient, () => ({}));
+			return { mockClient: testMockClient, listCallback: capturedTemplate!.listCallback };
+		};
 
 		it("should query for active sessions", async () => {
-			spyOn(mockClient, "query").mockResolvedValue([
+			const { mockClient: testClient, listCallback } = createTestSetup();
+			spyOn(testClient, "query").mockResolvedValue([
 				{
 					s: {
 						properties: {
@@ -310,9 +325,9 @@ describe("registerSessionResource", () => {
 				},
 			]);
 
-			const result = await transcriptTemplate.listCallback();
+			const result = await listCallback();
 
-			expect(mockClient.query).toHaveBeenCalledWith(
+			expect(testClient.query).toHaveBeenCalledWith(
 				expect.stringContaining("MATCH (s:Session)"),
 				expect.objectContaining({ now: expect.any(Number), limit: 50 }),
 			);
@@ -320,8 +335,9 @@ describe("registerSessionResource", () => {
 		});
 
 		it("should format session resources with uri, name, and description", async () => {
+			const { mockClient: testClient, listCallback } = createTestSetup();
 			const timestamp = 1704153600000; // 2024-01-02
-			spyOn(mockClient, "query").mockResolvedValue([
+			spyOn(testClient, "query").mockResolvedValue([
 				{
 					s: {
 						properties: {
@@ -335,7 +351,7 @@ describe("registerSessionResource", () => {
 				},
 			]);
 
-			const result = await transcriptTemplate.listCallback();
+			const result = await listCallback();
 
 			const resource = result.resources[0] as any;
 			expect(resource.uri).toBe("session://session-abc/transcript");
@@ -345,8 +361,9 @@ describe("registerSessionResource", () => {
 		});
 
 		it("should use default name when session has no title", async () => {
+			const { mockClient: testClient, listCallback } = createTestSetup();
 			const timestamp = 1704153600000;
-			spyOn(mockClient, "query").mockResolvedValue([
+			spyOn(testClient, "query").mockResolvedValue([
 				{
 					s: {
 						properties: {
@@ -360,7 +377,7 @@ describe("registerSessionResource", () => {
 				},
 			]);
 
-			const result = await transcriptTemplate.listCallback();
+			const result = await listCallback();
 
 			const resource = result.resources[0] as any;
 			const expectedDate = new Date(timestamp).toLocaleDateString();
@@ -368,7 +385,8 @@ describe("registerSessionResource", () => {
 		});
 
 		it("should handle description without working_dir", async () => {
-			spyOn(mockClient, "query").mockResolvedValue([
+			const { mockClient: testClient, listCallback } = createTestSetup();
+			spyOn(testClient, "query").mockResolvedValue([
 				{
 					s: {
 						properties: {
@@ -382,24 +400,26 @@ describe("registerSessionResource", () => {
 				},
 			]);
 
-			const result = await transcriptTemplate.listCallback();
+			const result = await listCallback();
 
 			const resource = result.resources[0] as any;
 			expect(resource.description).not.toContain(" in ");
 		});
 
 		it("should return empty array when query returns null", async () => {
-			spyOn(mockClient, "query").mockResolvedValue(null as any);
+			const { mockClient: testClient, listCallback } = createTestSetup();
+			spyOn(testClient, "query").mockResolvedValue(null as any);
 
-			const result = await transcriptTemplate.listCallback();
+			const result = await listCallback();
 
 			expect(result.resources).toEqual([]);
 		});
 
 		it("should return empty array when no sessions exist", async () => {
-			spyOn(mockClient, "query").mockResolvedValue([]);
+			const { mockClient: testClient, listCallback } = createTestSetup();
+			spyOn(testClient, "query").mockResolvedValue([]);
 
-			const result = await transcriptTemplate.listCallback();
+			const result = await listCallback();
 
 			expect(result.resources).toEqual([]);
 		});

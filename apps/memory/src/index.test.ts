@@ -22,35 +22,41 @@ const describeOrSkip = isMemoryRoot ? describe : describe.skip;
 // Import real GraphPruner before any mocking
 import { GraphPruner } from "@engram/graph";
 
-// Mock pruneHistory on prototype (preserves class identity, avoids module cache pollution)
+// Only set up mocks when running from apps/memory to avoid polluting other tests
 const mockPruneHistory = mock(async () => ({ deleted: 10 }));
-const originalPruneHistory = GraphPruner.prototype.pruneHistory;
-GraphPruner.prototype.pruneHistory = mockPruneHistory;
-
+let originalPruneHistory: typeof GraphPruner.prototype.pruneHistory | undefined;
 const mockMcpServer = {
 	tool: mock(),
 	connect: mock(async () => {}),
 };
 
-mock.module("@modelcontextprotocol/sdk/server/mcp.js", () => ({
-	McpServer: class {
-		tool = mockMcpServer.tool;
-		connect = mockMcpServer.connect;
-	},
-	// Include ResourceTemplate so other test files importing it don't crash when this
-	// module mock is active in Bun's parallel test runner.
-	ResourceTemplate: class {},
-}));
+if (isMemoryRoot) {
+	// Mock pruneHistory on prototype (preserves class identity, avoids module cache pollution)
+	originalPruneHistory = GraphPruner.prototype.pruneHistory;
+	GraphPruner.prototype.pruneHistory = mockPruneHistory;
 
-mock.module("@modelcontextprotocol/sdk/server/stdio.js", () => ({
-	StdioServerTransport: mock(),
-}));
+	mock.module("@modelcontextprotocol/sdk/server/mcp.js", () => ({
+		McpServer: class {
+			tool = mockMcpServer.tool;
+			connect = mockMcpServer.connect;
+		},
+		// Include ResourceTemplate so other test files importing it don't crash when this
+		// module mock is active in Bun's parallel test runner.
+		ResourceTemplate: class {},
+	}));
+
+	mock.module("@modelcontextprotocol/sdk/server/stdio.js", () => ({
+		StdioServerTransport: mock(),
+	}));
+}
 
 // Restore original pruneHistory after all tests to prevent pollution
 // Note: We don't call mock.restore() here because it can interfere with
 // other test files running in parallel that use the same preload mocks
 afterAll(() => {
-	GraphPruner.prototype.pruneHistory = originalPruneHistory;
+	if (originalPruneHistory) {
+		GraphPruner.prototype.pruneHistory = originalPruneHistory;
+	}
 });
 
 import { createNodeLogger } from "@engram/logger";
@@ -366,7 +372,7 @@ describe("Memory Service Deps", () => {
 	});
 });
 
-describe("MCP Server", () => {
+describeOrSkip("MCP Server", () => {
 	it("should export server instance", () => {
 		expect(server).toBeDefined();
 	});
@@ -378,7 +384,7 @@ describe("MCP Server", () => {
 	});
 });
 
-describe("Module-level functions", () => {
+describeOrSkip("Module-level functions", () => {
 	beforeEach(() => {
 		mockPruneHistory.mockClear();
 	});

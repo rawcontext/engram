@@ -146,12 +146,25 @@ describe("registerMemoryResource", () => {
 	});
 
 	describe("list handler", () => {
-		beforeEach(() => {
-			registerMemoryResource(mockServer, mockClient);
-		});
+		// Create isolated setup for each test to avoid parallel execution pollution
+		const createTestSetup = () => {
+			let capturedTemplate: { listCallback: () => Promise<{ resources: unknown[] }> };
+			const testMockClient: IEngramClient = {
+				query: mock(async () => []),
+			} as unknown as IEngramClient;
+			const testMockServer: McpServer = {
+				registerResource: mock((_name, template, _options, _handler) => {
+					capturedTemplate = template;
+				}),
+			} as unknown as McpServer;
+
+			registerMemoryResource(testMockServer, testMockClient);
+			return { mockClient: testMockClient, listCallback: capturedTemplate!.listCallback };
+		};
 
 		it("should query for all memories", async () => {
-			spyOn(mockClient, "query").mockResolvedValue([
+			const { mockClient: testClient, listCallback } = createTestSetup();
+			spyOn(testClient, "query").mockResolvedValue([
 				{
 					m: {
 						properties: {
@@ -175,9 +188,9 @@ describe("registerMemoryResource", () => {
 				},
 			]);
 
-			const result = await resourceTemplate.listCallback();
+			const result = await listCallback();
 
-			expect(mockClient.query).toHaveBeenCalledWith(
+			expect(testClient.query).toHaveBeenCalledWith(
 				expect.stringContaining("MATCH (m:Memory)"),
 				expect.objectContaining({ now: expect.any(Number), limit: 100 }),
 			);
@@ -185,8 +198,9 @@ describe("registerMemoryResource", () => {
 		});
 
 		it("should format memory resources with uri, name, and description", async () => {
+			const { mockClient: testClient, listCallback } = createTestSetup();
 			const timestamp = 1704067200000;
-			spyOn(mockClient, "query").mockResolvedValue([
+			spyOn(testClient, "query").mockResolvedValue([
 				{
 					m: {
 						properties: {
@@ -199,7 +213,7 @@ describe("registerMemoryResource", () => {
 				},
 			]);
 
-			const result = await resourceTemplate.listCallback();
+			const result = await listCallback();
 
 			expect(result.resources[0]).toEqual({
 				uri: "memory://mem-123",
@@ -209,8 +223,9 @@ describe("registerMemoryResource", () => {
 		});
 
 		it("should truncate long content in preview", async () => {
+			const { mockClient: testClient, listCallback } = createTestSetup();
 			const longContent = "A".repeat(150);
-			spyOn(mockClient, "query").mockResolvedValue([
+			spyOn(testClient, "query").mockResolvedValue([
 				{
 					m: {
 						properties: {
@@ -223,23 +238,25 @@ describe("registerMemoryResource", () => {
 				},
 			]);
 
-			const result = await resourceTemplate.listCallback();
+			const result = await listCallback();
 
 			expect((result.resources[0] as any).name).toBe(`insight: ${"A".repeat(100)}...`);
 		});
 
 		it("should return empty array when query returns null", async () => {
-			spyOn(mockClient, "query").mockResolvedValue(null as any);
+			const { mockClient: testClient, listCallback } = createTestSetup();
+			spyOn(testClient, "query").mockResolvedValue(null as any);
 
-			const result = await resourceTemplate.listCallback();
+			const result = await listCallback();
 
 			expect(result.resources).toEqual([]);
 		});
 
 		it("should return empty array when no memories exist", async () => {
-			spyOn(mockClient, "query").mockResolvedValue([]);
+			const { mockClient: testClient, listCallback } = createTestSetup();
+			spyOn(testClient, "query").mockResolvedValue([]);
 
-			const result = await resourceTemplate.listCallback();
+			const result = await listCallback();
 
 			expect(result.resources).toEqual([]);
 		});
