@@ -1,0 +1,5 @@
+# Integration tests don't use mocks - they connect to real databases
+# No preload to avoid the global mock.module() calls
+
+[test]
+timeout = 120000
