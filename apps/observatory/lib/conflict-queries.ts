@@ -1,3 +1,4 @@
+import { QueryBuilder } from "@engram/graph";
 import { createFalkorClient, type FalkorNode, type QueryParams } from "@engram/storage/falkor";
 
 // Singleton FalkorDB client
@@ -124,25 +125,31 @@ export async function getConflictReports(options: {
 
 	const whereClause = conditions.join(" AND ");
 
-	// Get total count
-	const countQuery = `
-		MATCH (c:ConflictReport)
-		WHERE ${whereClause}
-		RETURN count(c) as total
-	`;
-	const countResult = await falkor.query<{ total: number }>(countQuery, params);
+	// Get total count (using QueryBuilder)
+	const countBuilder = new QueryBuilder()
+		.match("(c:ConflictReport)")
+		.where(whereClause)
+		.return("count(c) as total")
+		.setParams(params);
+	const countQuery = countBuilder.build();
+	const countResult = await falkor.query<{ total: number }>(countQuery.cypher, countQuery.params);
 	const total = countResult?.[0]?.total ?? 0;
 
-	// Get conflict reports
-	const query = `
-		MATCH (c:ConflictReport)
-		WHERE ${whereClause}
-		RETURN c
-		ORDER BY c.scanned_at DESC
-		SKIP ${offset} LIMIT ${limit}
-	`;
+	// Get conflict reports (using QueryBuilder - fixes SKIP/LIMIT injection vulnerability)
+	const queryBuilder = new QueryBuilder()
+		.match("(c:ConflictReport)")
+		.where(whereClause)
+		.return("c")
+		.orderBy("c.scanned_at", "DESC")
+		.skip(offset)
+		.limit(limit)
+		.setParams(params);
+	const query = queryBuilder.build();
 
-	const result = await falkor.query<{ c: FalkorNode<ConflictReportNodeProps> }>(query, params);
+	const result = await falkor.query<{ c: FalkorNode<ConflictReportNodeProps> }>(
+		query.cypher,
+		query.params,
+	);
 
 	const conflicts: ConflictWithMemories[] = [];
 
@@ -175,13 +182,17 @@ export async function getConflictReports(options: {
 export async function getConflictById(id: string): Promise<ConflictWithMemories | null> {
 	await falkor.connect();
 
-	const query = `
-		MATCH (c:ConflictReport {id: $id})
-		WHERE c.tt_end = ${MAX_DATE}
-		RETURN c
-	`;
+	const query = new QueryBuilder()
+		.match("(c:ConflictReport {id: $id})")
+		.where(`c.tt_end = ${MAX_DATE}`)
+		.return("c")
+		.setParam("id", id)
+		.build();
 
-	const result = await falkor.query<{ c: FalkorNode<ConflictReportNodeProps> }>(query, { id });
+	const result = await falkor.query<{ c: FalkorNode<ConflictReportNodeProps> }>(
+		query.cypher,
+		query.params,
+	);
 
 	if (!result?.[0]?.c?.properties) {
 		return null;
@@ -205,13 +216,14 @@ export async function getConflictById(id: string): Promise<ConflictWithMemories 
  * Get memory by ID
  */
 async function getMemoryById(id: string): Promise<Memory | null> {
-	const query = `
-		MATCH (m:Memory {id: $id})
-		WHERE m.tt_end = ${MAX_DATE}
-		RETURN m
-	`;
+	const query = new QueryBuilder()
+		.match("(m:Memory {id: $id})")
+		.where(`m.tt_end = ${MAX_DATE}`)
+		.return("m")
+		.setParam("id", id)
+		.build();
 
-	const result = await falkor.query<{ m: FalkorNode<MemoryNodeProps> }>(query, { id });
+	const result = await falkor.query<{ m: FalkorNode<MemoryNodeProps> }>(query.cypher, query.params);
 
 	if (!result?.[0]?.m?.properties) {
 		return null;
@@ -259,6 +271,8 @@ export async function resolveConflictReport(
 		params.resolutionAction = input.resolutionAction;
 	}
 
+	// TODO: Migrate to QueryBuilder when SET clause support is added (engram-33ptl)
+	// Using raw query with safe parameterization for now
 	const query = `
 		MATCH (c:ConflictReport {id: $id})
 		WHERE c.tt_end = ${MAX_DATE}
@@ -281,13 +295,14 @@ export async function resolveConflictReport(
 export async function getConflictStats(orgId: string): Promise<ConflictStats> {
 	await falkor.connect();
 
-	const query = `
-		MATCH (c:ConflictReport {org_id: $orgId})
-		WHERE c.tt_end = ${MAX_DATE}
-		RETURN c.status as status, count(c) as count
-	`;
+	const query = new QueryBuilder()
+		.match("(c:ConflictReport {org_id: $orgId})")
+		.where(`c.tt_end = ${MAX_DATE}`)
+		.return("c.status as status, count(c) as count")
+		.setParam("orgId", orgId)
+		.build();
 
-	const result = await falkor.query<{ status: string; count: number }>(query, { orgId });
+	const result = await falkor.query<{ status: string; count: number }>(query.cypher, query.params);
 
 	const stats: ConflictStats = {
 		pending: 0,
@@ -326,6 +341,8 @@ export async function invalidateMemory(id: string): Promise<void> {
 
 	const now = Date.now();
 
+	// TODO: Migrate to QueryBuilder when SET clause support is added (engram-33ptl)
+	// Using raw query with safe parameterization for now
 	const query = `
 		MATCH (m:Memory {id: $id})
 		WHERE m.tt_end = ${MAX_DATE}

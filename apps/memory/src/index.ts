@@ -1,4 +1,4 @@
-import { GraphPruner } from "@engram/graph";
+import { GraphPruner, QueryBuilder } from "@engram/graph";
 import { createNodeLogger, type Logger, pino, withTraceContext } from "@engram/logger";
 import {
 	createFalkorClient,
@@ -319,16 +319,22 @@ export async function handlePersistenceMessage({ message }: { message: any }) {
 		await falkor.connect();
 
 		// 1. Check if session already exists
+		const sessionQuery = new QueryBuilder()
+			.match("(s:Session {id: $sessionId})")
+			.return("s")
+			.setParam("sessionId", sessionId)
+			.build();
 		const existingSession = await traceDbOperation(
 			"query",
 			"falkordb",
 			"MATCH (s:Session {id: $sessionId})",
-			async () => falkor.query(`MATCH (s:Session {id: $sessionId}) RETURN s`, { sessionId }),
+			async () => falkor.query(sessionQuery.cypher, sessionQuery.params),
 		);
 		const isNewSession =
 			!existingSession || (Array.isArray(existingSession) && existingSession.length === 0);
 
 		// 2. Ensure Session Exists and update last_event_at + project context
+		// TODO: Migrate to QueryBuilder when MERGE/ON CREATE SET support is added (engram-33ptl)
 		const now = Date.now();
 		const workingDir = event.metadata?.working_dir || null;
 		const gitRemote = event.metadata?.git_remote || null;
@@ -524,7 +530,8 @@ server.tool(
 	async ({ session_id, limit }) => {
 		try {
 			await falkor.connect();
-			// Note: Using limit in Cypher string
+			// TODO: Migrate to QueryBuilder when variable-length path support is added (engram-33ptl)
+			// Uses [:NEXT*0..${limit}] which requires path traversal extension
 			const cypher = `
             MATCH (s:Session {id: $session_id})-[:TRIGGERS]->(first:Thought)
             MATCH p = (first)-[:NEXT*0..${limit}]->(t:Thought)

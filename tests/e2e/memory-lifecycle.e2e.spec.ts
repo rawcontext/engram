@@ -10,6 +10,8 @@
  * 6. Test time-travel with Rehydrator
  *
  * Run with: RUN_INTEGRATION_TESTS=1 bun test tests/e2e/memory-lifecycle.e2e.spec.ts
+ *
+ * TODO: Migrate test setup queries to QueryBuilder when CREATE support is added (engram-33ptl)
  */
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";

@@ -1,3 +1,4 @@
+import { QueryBuilder } from "@engram/graph";
 import {
 	createFalkorClient,
 	type FalkorEdge,
@@ -138,8 +139,9 @@ export async function getSessionLineage(sessionId: string): Promise<LineageData>
 	await falkor.connect();
 
 	// Query 1: Get the session and all connected nodes via path traversal
-	// Note: We use list comprehension with labels() and properties() to ensure correct parsing
-	// The FalkorDB JS client can misparse node labels from raw path node extraction
+	// Note: This query uses variable-length path patterns (*0..100) and list comprehensions
+	// which are not yet supported by QueryBuilder. Keeping as raw query with safe parameterization.
+	// TODO: Add path traversal support to QueryBuilder (engram-33ptl sub-task)
 	const query = `
 		MATCH (s:Session {id: $sessionId})
 		OPTIONAL MATCH p = (s)-${LINEAGE_EDGE_PATTERN}->(n)
@@ -151,33 +153,38 @@ export async function getSessionLineage(sessionId: string): Promise<LineageData>
 	const res = await falkor.query<LineageRow>(query, { sessionId });
 
 	// Query 2: Explicitly get HAS_TURN edges (path traversal may miss these in edge extraction)
-	const hasTurnQuery = `
-		MATCH (s:Session {id: $sessionId})-[r:HAS_TURN]->(t:Turn)
-		RETURN s.id as sourceId, t.id as targetId, type(r) as relType
-	`;
+	const hasTurnQuery = new QueryBuilder()
+		.match("(s:Session {id: $sessionId})-[r:HAS_TURN]->(t:Turn)")
+		.return("s.id as sourceId, t.id as targetId, type(r) as relType")
+		.setParam("sessionId", sessionId)
+		.build();
 	const hasTurnRes = await falkor.query<{ sourceId: string; targetId: string; relType: string }>(
-		hasTurnQuery,
-		{ sessionId },
+		hasTurnQuery.cypher,
+		hasTurnQuery.params,
 	);
 
 	// Query 3: Explicitly get INVOKES edges (Turn -> ToolCall)
-	const invokesQuery = `
-		MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[r:INVOKES]->(tc:ToolCall)
-		RETURN t.id as sourceId, tc.id as targetId, type(r) as relType
-	`;
+	const invokesQuery = new QueryBuilder()
+		.match("(s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[r:INVOKES]->(tc:ToolCall)")
+		.return("t.id as sourceId, tc.id as targetId, type(r) as relType")
+		.setParam("sessionId", sessionId)
+		.build();
 	const invokesRes = await falkor.query<{ sourceId: string; targetId: string; relType: string }>(
-		invokesQuery,
-		{ sessionId },
+		invokesQuery.cypher,
+		invokesQuery.params,
 	);
 
 	// Query 4: Explicitly get TRIGGERS edges (Reasoning -> ToolCall)
-	const triggersQuery = `
-		MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[:CONTAINS]->(r:Reasoning)-[e:TRIGGERS]->(tc:ToolCall)
-		RETURN r.id as sourceId, tc.id as targetId, type(e) as relType
-	`;
+	const triggersQuery = new QueryBuilder()
+		.match(
+			"(s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[:CONTAINS]->(r:Reasoning)-[e:TRIGGERS]->(tc:ToolCall)",
+		)
+		.return("r.id as sourceId, tc.id as targetId, type(e) as relType")
+		.setParam("sessionId", sessionId)
+		.build();
 	const triggersRes = await falkor.query<{ sourceId: string; targetId: string; relType: string }>(
-		triggersQuery,
-		{ sessionId },
+		triggersQuery.cypher,
+		triggersQuery.params,
 	);
 
 	const internalIdToUuid = new Map<number, string>();
@@ -306,33 +313,38 @@ export async function getSessionLineage(sessionId: string): Promise<LineageData>
 export async function getSessionTimeline(sessionId: string): Promise<TimelineData> {
 	await falkor.connect();
 
-	// Query 1: Get Turns
-	const turnsQuery = `
-		MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)
-		RETURN t
-		ORDER BY t.sequence_index ASC
-	`;
-	const turnsResult = await falkor.query<{ t?: FalkorNode }>(turnsQuery, { sessionId });
+	// Query 1: Get Turns (using QueryBuilder)
+	const turnsQuery = new QueryBuilder()
+		.match("(s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)")
+		.return("t")
+		.orderBy("t.sequence_index", "ASC")
+		.setParam("sessionId", sessionId)
+		.build();
+	const turnsResult = await falkor.query<{ t?: FalkorNode }>(turnsQuery.cypher, turnsQuery.params);
 
-	// Query 2: Get all Reasoning nodes for this session's Turns
-	const reasoningQuery = `
-		MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[:CONTAINS]->(r:Reasoning)
-		RETURN t.id as turnId, r
-		ORDER BY t.sequence_index ASC, r.sequence_index ASC
-	`;
-	const reasoningResult = await falkor.query<{ turnId?: string; r?: FalkorNode }>(reasoningQuery, {
-		sessionId,
-	});
+	// Query 2: Get all Reasoning nodes for this session's Turns (using QueryBuilder)
+	const reasoningQuery = new QueryBuilder()
+		.match("(s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[:CONTAINS]->(r:Reasoning)")
+		.return("t.id as turnId, r")
+		.orderBy("t.sequence_index", "ASC")
+		.setParam("sessionId", sessionId)
+		.build();
+	const reasoningResult = await falkor.query<{ turnId?: string; r?: FalkorNode }>(
+		reasoningQuery.cypher,
+		reasoningQuery.params,
+	);
 
-	// Query 3: Get all ToolCall nodes for this session's Turns
-	const toolCallQuery = `
-		MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[:INVOKES]->(tc:ToolCall)
-		RETURN t.id as turnId, tc
-		ORDER BY t.sequence_index ASC, tc.sequence_index ASC
-	`;
-	const toolCallResult = await falkor.query<{ turnId?: string; tc?: FalkorNode }>(toolCallQuery, {
-		sessionId,
-	});
+	// Query 3: Get all ToolCall nodes for this session's Turns (using QueryBuilder)
+	const toolCallQuery = new QueryBuilder()
+		.match("(s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)-[:INVOKES]->(tc:ToolCall)")
+		.return("t.id as turnId, tc")
+		.orderBy("t.sequence_index", "ASC")
+		.setParam("sessionId", sessionId)
+		.build();
+	const toolCallResult = await falkor.query<{ turnId?: string; tc?: FalkorNode }>(
+		toolCallQuery.cypher,
+		toolCallQuery.params,
+	);
 
 	// Build maps of turnId -> child nodes
 	// Type-safe: filter guarantees turnId/r/tc exist, use type assertions
@@ -468,16 +480,18 @@ export async function getAllSessions(options: {
 
 	await falkor.connect();
 
-	// Query sessions with turn count
-	const cypher = `
-		MATCH (s:Session)
-		RETURN s
-		ORDER BY s.started_at DESC
-		SKIP ${offset} LIMIT ${limit}
-	`;
+	// Query sessions with turn count (using QueryBuilder for safe parameterization)
+	const query = new QueryBuilder()
+		.match("(s:Session)")
+		.return("s")
+		.orderBy("s.started_at", "DESC")
+		.skip(offset)
+		.limit(limit)
+		.build();
 
 	const result = await falkor.query<{ s?: SessionNode; [key: number]: SessionNode | undefined }>(
-		cypher,
+		query.cypher,
+		query.params,
 	);
 
 	const sessions: SessionListItem[] = [];
@@ -490,22 +504,24 @@ export async function getAllSessions(options: {
 				const props = node.properties;
 				const sessionId = props.id;
 
-				// Get turn count
-				const countQuery = `
-					MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)
-					RETURN count(t) as cnt
-				`;
-				const countRes = await falkor.query<CountRow>(countQuery, { sessionId });
+				// Get turn count (using QueryBuilder)
+				const countQuery = new QueryBuilder()
+					.match("(s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)")
+					.return("count(t) as cnt")
+					.setParam("sessionId", sessionId)
+					.build();
+				const countRes = await falkor.query<CountRow>(countQuery.cypher, countQuery.params);
 				const eventCount = countRes?.[0]?.cnt ?? countRes?.[0]?.[0] ?? 0;
 
-				// Get preview from first turn
-				const previewQuery = `
-					MATCH (s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)
-					RETURN t.assistant_preview as preview
-					ORDER BY t.sequence_index ASC
-					LIMIT 1
-				`;
-				const previewRes = await falkor.query<PreviewRow>(previewQuery, { sessionId });
+				// Get preview from first turn (using QueryBuilder)
+				const previewQuery = new QueryBuilder()
+					.match("(s:Session {id: $sessionId})-[:HAS_TURN]->(t:Turn)")
+					.return("t.assistant_preview as preview")
+					.orderBy("t.sequence_index", "ASC")
+					.limit(1)
+					.setParam("sessionId", sessionId)
+					.build();
+				const previewRes = await falkor.query<PreviewRow>(previewQuery.cypher, previewQuery.params);
 				const preview = previewRes?.[0]?.preview ?? previewRes?.[0]?.[0] ?? null;
 
 				const lastEventAt = props.last_event_at ?? null;
@@ -525,8 +541,9 @@ export async function getAllSessions(options: {
 		}
 	}
 
-	// Get total count
-	const countResult = await falkor.query<TotalRow>("MATCH (s:Session) RETURN count(s) as total");
+	// Get total count (using QueryBuilder)
+	const totalQuery = new QueryBuilder().match("(s:Session)").return("count(s) as total").build();
+	const countResult = await falkor.query<TotalRow>(totalQuery.cypher, totalQuery.params);
 	const total = countResult?.[0]?.total ?? countResult?.[0]?.[0] ?? sessions.length;
 
 	// Separate active and recent
@@ -554,16 +571,17 @@ export async function getSessionsForWebSocket(
 ): Promise<{ active: SessionListItem[]; recent: SessionListItem[] }> {
 	await falkor.connect();
 
-	const cypher = `
-		MATCH (s:Session)
-		OPTIONAL MATCH (s)-[:HAS_TURN]->(t:Turn)
-		WITH s, count(t) as eventCount, max(t.vt_start) as lastEventAt
-		RETURN s, eventCount, lastEventAt
-		ORDER BY COALESCE(s.started_at, s.last_event_at) DESC
-		LIMIT $limit
-	`;
+	// Using QueryBuilder for safe parameterization
+	const query = new QueryBuilder()
+		.match("(s:Session)")
+		.optionalMatch("(s)-[:HAS_TURN]->(t:Turn)")
+		.with("s, count(t) as eventCount, max(t.vt_start) as lastEventAt")
+		.return("s, eventCount, lastEventAt")
+		.orderBy("COALESCE(s.started_at, s.last_event_at)", "DESC")
+		.limit(limit)
+		.build();
 
-	const result = await falkor.query<SessionsRow>(cypher, { limit });
+	const result = await falkor.query<SessionsRow>(query.cypher, query.params);
 
 	const active: SessionListItem[] = [];
 	const recent: SessionListItem[] = [];

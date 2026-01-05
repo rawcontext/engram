@@ -1,4 +1,5 @@
 import { RehydrationError } from "@engram/common";
+import { QueryBuilder } from "@engram/graph";
 import { createNodeLogger } from "@engram/logger";
 import {
 	type BlobStore,
@@ -40,18 +41,20 @@ export class Rehydrator {
 
 		// 1. Find latest Snapshot before targetTime for this session
 		// Include bitemporal validation to ensure we only get valid, non-deleted snapshots
-		const snapshotQuery = `
-			MATCH (s:Snapshot)-[:SNAPSHOT_OF]->(sess:Session {id: $sessionId})
-			WHERE s.snapshot_at <= $targetTime
-			  AND s.vt_start <= $targetTime AND s.vt_end > $targetTime
-			  AND s.tt_end = 253402300799000
-			RETURN s.vfs_state_blob_ref AS blobRef, s.snapshot_at AS snapshotAt
-			ORDER BY s.snapshot_at DESC
-			LIMIT 1
-		`;
+		const snapshotQuery = new QueryBuilder()
+			.match("(s:Snapshot)-[:SNAPSHOT_OF]->(sess:Session {id: $sessionId})")
+			.where("s.snapshot_at <= $targetTime")
+			.where("s.vt_start <= $targetTime AND s.vt_end > $targetTime")
+			.where("s.tt_end = 253402300799000")
+			.return("s.vfs_state_blob_ref AS blobRef, s.snapshot_at AS snapshotAt")
+			.orderBy("s.snapshot_at", "DESC")
+			.limit(1)
+			.setParam("sessionId", sessionId)
+			.setParam("targetTime", targetTime)
+			.build();
 		const snapshots = await this.graphClient.query<{ blobRef: string; snapshotAt: number }>(
-			snapshotQuery,
-			{ sessionId, targetTime },
+			snapshotQuery.cypher,
+			snapshotQuery.params,
 		);
 		let lastSnapshotTime = 0;
 
@@ -88,6 +91,8 @@ export class Rehydrator {
 		// Filter by session: DiffHunks linked to session through the thought chain
 		// Session -[:TRIGGERS]-> Thought -[:NEXT*]-> Thought -[:YIELDS]-> ToolCall -[:YIELDS]-> DiffHunk
 		// OR via direct PART_OF relationship if exists
+		// TODO: Migrate to QueryBuilder when variable-length path support is added (engram-33ptl)
+		// Uses [:NEXT*0..] which requires path traversal extension
 		const diffQuery = `
 			MATCH (sess:Session {id: $sessionId})-[:TRIGGERS]->(t:Thought)
 			OPTIONAL MATCH (t)-[:NEXT*0..]->(linked:Thought)
