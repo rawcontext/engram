@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { KeyboardShortcutsProvider } from "@/components/keyboard-shortcuts-provider";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { GlobalHealthPoller } from "@/components/layout/global-health-poller";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { StreamingProvider } from "@/lib/streaming-context";
@@ -11,6 +12,8 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
 	return (
 		<KeyboardShortcutsProvider>
 			<StreamingProvider>
+				{/* Global health poller lives in layout - never unmounts during navigation */}
+				<GlobalHealthPoller />
 				<SidebarProvider>
 					<AppSidebar />
 					<SidebarInset>
