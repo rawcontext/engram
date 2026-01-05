@@ -23,12 +23,10 @@ htmlcov/
 # Local configs (all local-only files organized here)
 configs/*
 !configs/Caddyfile
-!configs/beads/
-configs/beads/*.db*
-configs/beads/daemon.*
-configs/beads/*.log
-configs/beads/.local_version
-configs/beads/plans/
+
+# Beads issue tracking (local only)
+.beads
+configs/beads/
 
 # Symlinks to local configs
 .env*
