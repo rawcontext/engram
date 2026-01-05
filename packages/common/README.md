@@ -41,7 +41,7 @@ Foundation package providing type-safe utilities, structured error handling, sys
 - Auth types: `AuthContext`, `OAuthTokenContext`, `CachedTokens`
 - Configs: `OAuthConfig`, token patterns
 
-### Testing (`@engram/common/testing`)
+### Testing (`@engram/testing`)
 - **Mock Factories**: `createTestLogger`, `createTestGraphClient`, `createTestMessageClient`, `createTestRedisPublisher`, `createTestBlobStore`, `createTestProducer`, `createTestConsumer`
 - **Domain Fixtures**: `createTestSession`, `createTestTurn`, `createTestToolCall`, `createTestReasoning`, `createTestFileTouch`, `createTestObservation`
 - **Utilities**: `createTestId`, `createTestHash`, `createTestBitemporalProps`, `createDeferred`, `expectToReject`, `spyOnConsole`, `wait`
@@ -81,7 +81,7 @@ import { GraphTimeouts, ContentLimits } from "@engram/common";
 const timeout = GraphTimeouts.QUERY_MS; // 10,000
 
 // Testing
-import { createTestGraphClient, createTestSession } from "@engram/common/testing";
+import { createTestGraphClient, createTestSession } from "@engram/testing";
 const graphClient = createTestGraphClient({
   query: mock().mockResolvedValue([{ id: "123" }]),
 });

@@ -1,0 +1,34 @@
+{
+	"name": "@engram/testing",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"dependencies": {
+		"@engram/graph": "*",
+		"@engram/logger": "*",
+		"@engram/storage": "*"
+	},
+	"devDependencies": {
+		"@engram/tsconfig": "*",
+		"@types/bun": "*"
+	},
+	"turbo": {
+		"build": {
+			"outputs": []
+		}
+	},
+	"scripts": {
+		"build": "echo 'Build success'",
+		"typecheck": "tsgo --noEmit",
+		"lint": "biome check .",
+		"format": "biome format ."
+	}
+}

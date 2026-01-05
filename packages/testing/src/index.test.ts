@@ -30,7 +30,7 @@ import {
 	spyOnConsole,
 	// Test utilities
 	wait,
-} from "./index";
+} from "@engram/testing";
 
 // =============================================================================
 // ID and Hash Utilities

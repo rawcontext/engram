@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { createTestLogger } from "@engram/common/testing";
+import { createTestLogger } from "@engram/testing";
 import {
 	createSessionStore,
 	generateSecureSessionId,

@@ -258,8 +258,6 @@
       "name": "@engram/common",
       "version": "0.0.0",
       "dependencies": {
-        "@engram/graph": "*",
-        "@engram/storage": "*",
         "@google/generative-ai": "^0.24.1",
         "zod-to-json-schema": "^3.25.1",
       },
@@ -373,6 +371,19 @@
         "@engram/tsconfig": "*",
         "@types/node": "^25.0.3",
         "testcontainers": "^10.16.0",
+      },
+    },
+    "packages/testing": {
+      "name": "@engram/testing",
+      "version": "0.0.1",
+      "dependencies": {
+        "@engram/graph": "*",
+        "@engram/logger": "*",
+        "@engram/storage": "*",
+      },
+      "devDependencies": {
+        "@engram/tsconfig": "*",
+        "@types/bun": "*",
       },
     },
     "packages/tsconfig": {
@@ -562,6 +573,8 @@
     "@engram/telemetry": ["@engram/telemetry@workspace:packages/telemetry"],
 
     "@engram/temporal": ["@engram/temporal@workspace:packages/temporal"],
+
+    "@engram/testing": ["@engram/testing@workspace:packages/testing"],
 
     "@engram/tsconfig": ["@engram/tsconfig@workspace:packages/tsconfig"],
 

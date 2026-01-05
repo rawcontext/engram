@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { createTestLogger } from "@engram/common/testing";
+import { createTestLogger } from "@engram/testing";
 import { createTokenVerifier, IntrospectionTokenVerifier } from "./token-verifier";
 
 // Only skip timing-sensitive tests when running from root

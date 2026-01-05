@@ -1,5 +1,5 @@
 /**
- * @engram/common/testing - Shared test utilities and mock factories for the Engram system.
+ * @engram/testing - Shared test utilities and mock factories for the Engram system.
  *
  * This module provides reusable test infrastructure for integration and unit testing
  * across the monorepo. It includes mock factories for storage interfaces and
@@ -12,7 +12,7 @@
  *   createTestMessageClient,
  *   createTestSession,
  *   createTestTurn,
- * } from "@engram/common/testing";
+ * } from "@engram/testing";
  *
  * describe("MyService", () => {
  *   it("should handle session creation", async () => {
@@ -29,11 +29,14 @@
  * });
  * ```
  *
- * @module @engram/common/testing
+ * @module @engram/testing
  */
 
-import type { Mock } from "bun:test";
+import type { Mock as BunMock } from "bun:test";
 import { mock } from "bun:test";
+
+// Simplified Mock type alias for common use cases
+type Mock = BunMock<(...args: unknown[]) => unknown>;
 import type {
 	FileTouchNode,
 	ObservationNode,

@@ -1,6 +1,6 @@
 import type { Mock } from "bun:test";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { createTestGraphClient, createTestLogger } from "@engram/common/testing";
+import { createTestGraphClient, createTestLogger } from "@engram/testing";
 import type { ParsedStreamEvent } from "@engram/events";
 import type { GraphClient } from "@engram/storage";
 import type { EventHandler, EventHandlerRegistry, HandlerContext, HandlerResult } from "./handlers";

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { createTestLogger } from "@engram/common/testing";
+import { createTestLogger } from "@engram/testing";
 import type { Request, Response } from "express";
 import { optionalBearerAuth, requireBearerAuth, skipAuthForLocalhost } from "./middleware";
 import type { AccessToken, IntrospectionTokenVerifier } from "./token-verifier";
