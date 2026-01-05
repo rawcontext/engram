@@ -510,4 +510,406 @@ describe("registerRecallTool", () => {
 			expect(result.structuredContent.communities).toBeUndefined();
 		});
 	});
+
+	describe("graph expansion", () => {
+		let mockGraphExpansion: {
+			expand: ReturnType<typeof mock>;
+			rerank: ReturnType<typeof mock>;
+		};
+
+		beforeEach(() => {
+			mockGraphExpansion = {
+				expand: mock(async () => []),
+				rerank: mock(() => []),
+			};
+
+			registerRecallTool(
+				mockServer,
+				mockMemoryRetriever,
+				() => ({ project: "test-project" }),
+				mockElicitationService,
+				{ graphExpansion: mockGraphExpansion as any },
+			);
+		});
+
+		it("should call graph expansion when enabled", async () => {
+			const vectorResults = [
+				{
+					id: "mem-1",
+					content: "Test memory",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+				},
+			];
+			const expandedResults = [
+				{
+					id: "mem-1",
+					content: "Test memory",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+					source: "vector",
+					graphDistance: 0,
+				},
+				{
+					id: "mem-2",
+					content: "Graph expanded memory",
+					score: 0.7,
+					type: "insight",
+					created_at: "2024-01-02T00:00:00Z",
+					source: "graph",
+					graphDistance: 1,
+					sourceEntity: "TestEntity",
+				},
+			];
+
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue(vectorResults);
+			spyOn(mockGraphExpansion, "expand").mockResolvedValue(expandedResults);
+			spyOn(mockGraphExpansion, "rerank").mockReturnValue(expandedResults);
+
+			const result = (await registeredHandler({
+				query: "test query",
+				includeEntities: true,
+				graphDepth: 2,
+			})) as any;
+
+			expect(mockGraphExpansion.expand).toHaveBeenCalledWith("test query", vectorResults, {
+				graphDepth: 2,
+				maxQueryEntities: 5,
+				entityMatchThreshold: 0.7,
+				maxMemoriesPerEntity: 10,
+			});
+			expect(mockGraphExpansion.rerank).toHaveBeenCalledWith(expandedResults);
+			expect(result.structuredContent.graphExpanded).toBe(true);
+			expect(result.structuredContent.memories).toHaveLength(2);
+		});
+
+		it("should double the limit for vector search when graph expansion is enabled", async () => {
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([]);
+			spyOn(mockGraphExpansion, "expand").mockResolvedValue([]);
+			spyOn(mockGraphExpansion, "rerank").mockReturnValue([]);
+
+			await registeredHandler({
+				query: "test query",
+				limit: 5,
+				includeEntities: true,
+				graphDepth: 2,
+			});
+
+			// Should request 10 (2x the limit) from vector search
+			expect(mockMemoryRetriever.recall).toHaveBeenCalledWith("test query", 10, expect.any(Object));
+		});
+
+		it("should include graph metadata in expanded results", async () => {
+			const expandedResults = [
+				{
+					id: "mem-1",
+					content: "Graph memory",
+					score: 0.8,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+					source: "graph",
+					graphDistance: 2,
+					sourceEntity: "AuthEntity",
+					invalidated: false,
+					invalidatedAt: undefined,
+					replacedBy: null,
+				},
+			];
+
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([]);
+			spyOn(mockGraphExpansion, "expand").mockResolvedValue(expandedResults);
+			spyOn(mockGraphExpansion, "rerank").mockReturnValue(expandedResults);
+
+			const result = (await registeredHandler({
+				query: "auth query",
+				includeEntities: true,
+			})) as any;
+
+			expect(result.structuredContent.memories[0].source).toBe("graph");
+			expect(result.structuredContent.memories[0].graphDistance).toBe(2);
+			expect(result.structuredContent.memories[0].sourceEntity).toBe("AuthEntity");
+		});
+
+		it("should not expand when graphDepth is 0", async () => {
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([
+				{
+					id: "mem-1",
+					content: "Test",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+				},
+			]);
+
+			const result = (await registeredHandler({
+				query: "test query",
+				graphDepth: 0,
+			})) as any;
+
+			expect(mockGraphExpansion.expand).not.toHaveBeenCalled();
+			expect(result.structuredContent.graphExpanded).toBe(false);
+		});
+
+		it("should not expand when includeEntities is false", async () => {
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([
+				{
+					id: "mem-1",
+					content: "Test",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+				},
+			]);
+
+			const result = (await registeredHandler({
+				query: "test query",
+				includeEntities: false,
+			})) as any;
+
+			expect(mockGraphExpansion.expand).not.toHaveBeenCalled();
+			expect(result.structuredContent.graphExpanded).toBe(false);
+		});
+	});
+
+	describe("graph reranking", () => {
+		let mockGraphReranker: {
+			rerank: ReturnType<typeof mock>;
+			updateConfig: ReturnType<typeof mock>;
+		};
+
+		beforeEach(() => {
+			mockGraphReranker = {
+				rerank: mock(async () => []),
+				updateConfig: mock(() => {}),
+			};
+
+			registerRecallTool(
+				mockServer,
+				mockMemoryRetriever,
+				() => ({ project: "test-project" }),
+				mockElicitationService,
+				{ graphReranker: mockGraphReranker as any },
+			);
+		});
+
+		it("should apply graph reranking when enabled", async () => {
+			const memories = [
+				{
+					id: "mem-1",
+					content: "Memory 1",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+				},
+				{
+					id: "mem-2",
+					content: "Memory 2",
+					score: 0.8,
+					type: "insight",
+					created_at: "2024-01-02T00:00:00Z",
+				},
+			];
+			const rerankedResults = [
+				{
+					id: "mem-2",
+					content: "Memory 2",
+					score: 0.95,
+					type: "insight",
+					created_at: "2024-01-02T00:00:00Z",
+					source: "graph",
+					graphDistance: 1,
+					graphScore: 0.8,
+					connectingEntities: ["entity-1"],
+				},
+				{
+					id: "mem-1",
+					content: "Memory 1",
+					score: 0.85,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+					source: "vector",
+				},
+			];
+
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue(memories);
+			spyOn(mockGraphReranker, "rerank").mockResolvedValue(rerankedResults);
+
+			const result = (await registeredHandler({
+				query: "test query",
+				graphRerank: true,
+			})) as any;
+
+			expect(mockGraphReranker.rerank).toHaveBeenCalledWith("test query", memories, "test-project");
+			expect(result.structuredContent.graphReranked).toBe(true);
+			expect(result.structuredContent.memories[0].graphScore).toBe(0.8);
+			expect(result.structuredContent.memories[0].connectingEntities).toEqual(["entity-1"]);
+		});
+
+		it("should update graph weight when specified", async () => {
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([
+				{
+					id: "mem-1",
+					content: "Test",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+				},
+			]);
+			spyOn(mockGraphReranker, "rerank").mockResolvedValue([
+				{
+					id: "mem-1",
+					content: "Test",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+					source: "vector",
+				},
+			]);
+
+			await registeredHandler({
+				query: "test query",
+				graphRerank: true,
+				graphWeight: 0.5,
+			});
+
+			expect(mockGraphReranker.updateConfig).toHaveBeenCalledWith({ graphWeight: 0.5 });
+		});
+
+		it("should not rerank when graphRerank is false", async () => {
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([
+				{
+					id: "mem-1",
+					content: "Test",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+				},
+			]);
+
+			const result = (await registeredHandler({
+				query: "test query",
+				graphRerank: false,
+			})) as any;
+
+			expect(mockGraphReranker.rerank).not.toHaveBeenCalled();
+			expect(result.structuredContent.graphReranked).toBe(false);
+		});
+
+		it("should handle graph reranking failure gracefully", async () => {
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([
+				{
+					id: "mem-1",
+					content: "Test memory",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+				},
+			]);
+			spyOn(mockGraphReranker, "rerank").mockRejectedValue(new Error("Reranking failed"));
+
+			// Suppress console.error for this test
+			const consoleError = spyOn(console, "error").mockImplementation(() => {});
+
+			const result = (await registeredHandler({
+				query: "test query",
+				graphRerank: true,
+			})) as any;
+
+			// Should still return results without graph reranking
+			expect(result.structuredContent.memories).toHaveLength(1);
+			expect(result.structuredContent.graphReranked).toBe(false);
+			expect(consoleError).toHaveBeenCalled();
+
+			consoleError.mockRestore();
+		});
+
+		it("should use filter project when available instead of context project", async () => {
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([
+				{
+					id: "mem-1",
+					content: "Test",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+				},
+			]);
+			spyOn(mockGraphReranker, "rerank").mockResolvedValue([
+				{
+					id: "mem-1",
+					content: "Test",
+					score: 0.9,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+					source: "vector",
+				},
+			]);
+
+			await registeredHandler({
+				query: "test query",
+				graphRerank: true,
+				filters: { project: "filter-project" },
+			});
+
+			expect(mockGraphReranker.rerank).toHaveBeenCalledWith(
+				"test query",
+				expect.any(Array),
+				"filter-project",
+			);
+		});
+	});
+
+	describe("disambiguation with invalidated memories", () => {
+		beforeEach(() => {
+			mockElicitationService = {
+				enabled: true,
+				selectMemory: mock(async () => ({
+					accepted: true,
+					content: { selectedId: "mem-invalidated" },
+				})),
+			} as unknown as ElicitationService;
+
+			registerRecallTool(
+				mockServer,
+				mockMemoryRetriever,
+				() => ({ project: "test-project" }),
+				mockElicitationService,
+			);
+		});
+
+		it("should format invalidated memory with strikethrough when selected via disambiguation", async () => {
+			const memories = [
+				{
+					id: "mem-valid",
+					content: "Valid memory",
+					score: 0.95,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+				},
+				{
+					id: "mem-invalidated",
+					content: "Outdated content\nWith multiple lines",
+					score: 0.93,
+					type: "decision",
+					created_at: "2024-01-01T00:00:00Z",
+					invalidated: true,
+					invalidatedAt: 1704067200000,
+				},
+			];
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue(memories);
+
+			const result = (await registeredHandler({
+				query: "test query",
+				disambiguate: true,
+			})) as any;
+
+			expect(result.structuredContent.disambiguated).toBe(true);
+			expect(result.structuredContent.selectedId).toBe("mem-invalidated");
+			expect(result.structuredContent.memories).toHaveLength(1);
+			expect(result.structuredContent.memories[0].content).toBe(
+				"~~Outdated content~~\n~~With multiple lines~~",
+			);
+		});
+	});
 });
