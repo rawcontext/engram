@@ -2,12 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { createTestLogger } from "@engram/common/testing";
 import { createTokenVerifier, IntrospectionTokenVerifier } from "./token-verifier";
 
-// Skip timing-sensitive tests when running from root - parallel test execution
-// can cause timing interference. Run from apps/mcp for full test suite.
+// Only skip timing-sensitive tests when running from root
 const isMcpRoot = process.cwd().includes("apps/mcp");
-const describeOrSkip = isMcpRoot ? describe : describe.skip;
+const describeTimingSensitive = isMcpRoot ? describe : describe.skip;
 
-describeOrSkip("IntrospectionTokenVerifier", () => {
+describe("IntrospectionTokenVerifier", () => {
 	let verifier: IntrospectionTokenVerifier;
 	let logger: ReturnType<typeof createTestLogger>;
 	let fetchSpy: ReturnType<typeof spyOn>;
@@ -239,36 +238,39 @@ describeOrSkip("IntrospectionTokenVerifier", () => {
 			expect(logger.debug).toHaveBeenCalledWith("Token found in cache");
 		});
 
-		it("should remove expired cache entries", async () => {
-			fetchSpy
-				.mockResolvedValueOnce({
-					ok: true,
-					json: async () => ({
-						active: true,
-						client_id: "test-client",
-						aud: "https://mcp.example.com",
-					}),
-				} as Response)
-				.mockResolvedValueOnce({
-					ok: true,
-					json: async () => ({
-						active: true,
-						client_id: "test-client-2",
-						aud: "https://mcp.example.com",
-					}),
-				} as Response);
+		// This test is timing-sensitive due to the cache expiry wait
+		describeTimingSensitive("cache expiry", () => {
+			it("should remove expired cache entries", async () => {
+				fetchSpy
+					.mockResolvedValueOnce({
+						ok: true,
+						json: async () => ({
+							active: true,
+							client_id: "test-client",
+							aud: "https://mcp.example.com",
+						}),
+					} as Response)
+					.mockResolvedValueOnce({
+						ok: true,
+						json: async () => ({
+							active: true,
+							client_id: "test-client-2",
+							aud: "https://mcp.example.com",
+						}),
+					} as Response);
 
-			// First call
-			await verifier.verify("expires-token");
-			expect(fetchSpy).toHaveBeenCalledTimes(1);
+				// First call
+				await verifier.verify("expires-token");
+				expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-			// Wait for cache to expire (cacheTtlMs is 100ms)
-			// Use 1000ms to reliably ensure expiration even under heavy parallel test load
-			await new Promise((resolve) => setTimeout(resolve, 1000));
+				// Wait for cache to expire (cacheTtlMs is 100ms)
+				// Use 1000ms to reliably ensure expiration even under heavy parallel test load
+				await new Promise((resolve) => setTimeout(resolve, 1000));
 
-			// Second call - should hit the endpoint again
-			await verifier.verify("expires-token");
-			expect(fetchSpy).toHaveBeenCalledTimes(2);
+				// Second call - should hit the endpoint again
+				await verifier.verify("expires-token");
+				expect(fetchSpy).toHaveBeenCalledTimes(2);
+			});
 		});
 
 		it("should capture additional claims", async () => {
