@@ -395,3 +395,72 @@ describe("createSessionStore", () => {
 		store.shutdown();
 	});
 });
+
+describe("SessionStore cleanup", () => {
+	it("should automatically cleanup expired sessions", async () => {
+		const logger = createTestLogger();
+		const store = new SessionStore({
+			logger,
+			sessionTtlMs: 50, // Very short TTL for testing
+			maxSessionsPerUser: 10,
+			cleanupIntervalMs: 100, // Run cleanup every 100ms
+		});
+
+		const record = {
+			transport: { close: mock() } as any,
+			userId: "user-123",
+			clientId: "client-123",
+			scopes: [],
+			createdAt: Date.now(),
+			lastAccessAt: Date.now() - 200, // Already expired (200ms > 50ms TTL)
+		};
+
+		store.set("user-123:expired", record);
+
+		// Wait for cleanup interval to run
+		await new Promise((resolve) => setTimeout(resolve, 150));
+
+		// Session should be cleaned up
+		expect(store.size).toBe(0);
+		expect(logger.debug).toHaveBeenCalledWith(
+			expect.objectContaining({ expiredCount: 1 }),
+			"Session cleanup completed",
+		);
+
+		store.shutdown();
+	});
+
+	it("should not log when no sessions are cleaned up", async () => {
+		const logger = createTestLogger();
+		const store = new SessionStore({
+			logger,
+			sessionTtlMs: 10000, // Long TTL
+			maxSessionsPerUser: 10,
+			cleanupIntervalMs: 50, // Run cleanup every 50ms
+		});
+
+		const record = {
+			transport: { close: mock() } as any,
+			userId: "user-123",
+			clientId: "client-123",
+			scopes: [],
+			createdAt: Date.now(),
+			lastAccessAt: Date.now(), // Fresh session
+		};
+
+		store.set("user-123:fresh", record);
+
+		// Wait for cleanup to run
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		// Session should NOT be cleaned up
+		expect(store.size).toBe(1);
+
+		// Check that the debug log was NOT called with "Session cleanup completed"
+		const debugCalls = logger.debug.mock.calls;
+		const cleanupCall = debugCalls.find((call: any[]) => call[1] === "Session cleanup completed");
+		expect(cleanupCall).toBeUndefined();
+
+		store.shutdown();
+	});
+});
