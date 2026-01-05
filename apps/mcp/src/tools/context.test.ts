@@ -356,6 +356,72 @@ describe("registerContextTool", () => {
 		});
 	});
 
+	describe("handler - decision deduplication", () => {
+		it("should add unique decisions to context", async () => {
+			registerContextTool(
+				mockServer,
+				mockMemoryRetriever,
+				mockClient,
+				() => ({ project: "test-project" }),
+				mockSamplingService,
+			);
+
+			// First recall returns task-related memories
+			// Second recall returns unique decisions not already in context
+			spyOn(mockMemoryRetriever, "recall")
+				.mockResolvedValueOnce([
+					{ id: "mem-1", content: "Task related memory", score: 0.9, type: "fact" },
+				])
+				.mockResolvedValueOnce([
+					{
+						id: "decision-1",
+						content: "Architecture decision",
+						score: 0.85,
+						type: "decision",
+					},
+				]);
+
+			const result = (await registeredHandler({ task: "test task" })) as any;
+
+			// Should include both the original memory and the unique decision
+			expect(result.structuredContent.context).toContainEqual(
+				expect.objectContaining({
+					type: "fact",
+					source: "memory:mem-1",
+				}),
+			);
+			expect(result.structuredContent.context).toContainEqual(
+				expect.objectContaining({
+					type: "decision",
+					content: "Architecture decision",
+					source: "memory:decision-1",
+				}),
+			);
+		});
+
+		it("should not duplicate decisions already in context", async () => {
+			registerContextTool(
+				mockServer,
+				mockMemoryRetriever,
+				mockClient,
+				() => ({ project: "test-project" }),
+				mockSamplingService,
+			);
+
+			// Both calls return the same memory ID
+			spyOn(mockMemoryRetriever, "recall").mockResolvedValue([
+				{ id: "mem-1", content: "Same memory", score: 0.9, type: "decision" },
+			]);
+
+			const result = (await registeredHandler({ task: "test task" })) as any;
+
+			// Should only have one entry with this source
+			const sources = result.structuredContent.context.map((c: { source: string }) => c.source);
+			const mem1Count = sources.filter((s: string) => s === "memory:mem-1").length;
+			expect(mem1Count).toBe(1);
+		});
+	});
+
 	describe("handler - tenant context", () => {
 		it("should include tenant when org is available", async () => {
 			registerContextTool(
