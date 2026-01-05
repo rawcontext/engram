@@ -19,6 +19,9 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 # Copy source code
 COPY . .
 
+# Generate graph query builders
+RUN bun run --filter=@engram/graph generate
+
 # Build-time env vars needed for Next.js page collection (overridden at runtime)
 ENV BETTER_AUTH_URL=http://localhost:3000
 ENV BETTER_AUTH_SECRET=build-time-placeholder

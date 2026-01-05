@@ -18,6 +18,9 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 # Copy source code
 COPY . .
 
+# Generate graph query builders
+RUN bun run --filter=@engram/graph generate
+
 FROM oven/bun:1.3.5-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
