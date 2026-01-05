@@ -7,10 +7,12 @@ describe("registerMemoryResource", () => {
 	let mockServer: McpServer;
 	let mockClient: IEngramClient;
 	let registeredReadHandler: (uri: URL, params: Record<string, unknown>) => Promise<unknown>;
+	let resourceTemplate: { listCallback: () => Promise<{ resources: unknown[] }> };
 
 	beforeEach(() => {
 		mockServer = {
-			registerResource: mock((_name, _template, _options, handler) => {
+			registerResource: mock((_name, template, _options, handler) => {
+				resourceTemplate = template;
 				registeredReadHandler = handler;
 			}),
 		} as unknown as McpServer;
@@ -140,6 +142,106 @@ describe("registerMemoryResource", () => {
 
 			const parsed = JSON.parse(result.contents[0].text);
 			expect(parsed.created_at).toBe(new Date(timestamp).toISOString());
+		});
+	});
+
+	describe("list handler", () => {
+		beforeEach(() => {
+			registerMemoryResource(mockServer, mockClient);
+		});
+
+		it("should query for all memories", async () => {
+			spyOn(mockClient, "query").mockResolvedValue([
+				{
+					m: {
+						properties: {
+							id: "mem-1",
+							content: "First memory content",
+							type: "decision",
+							vt_start: 1704067200000,
+						},
+					},
+				},
+				{
+					m: {
+						properties: {
+							id: "mem-2",
+							content:
+								"Second memory content that is longer than 100 characters to test truncation behavior in the preview generation logic",
+							type: "insight",
+							vt_start: 1704153600000,
+						},
+					},
+				},
+			]);
+
+			const result = await resourceTemplate.listCallback();
+
+			expect(mockClient.query).toHaveBeenCalledWith(
+				expect.stringContaining("MATCH (m:Memory)"),
+				expect.objectContaining({ now: expect.any(Number), limit: 100 }),
+			);
+			expect(result.resources).toHaveLength(2);
+		});
+
+		it("should format memory resources with uri, name, and description", async () => {
+			const timestamp = 1704067200000;
+			spyOn(mockClient, "query").mockResolvedValue([
+				{
+					m: {
+						properties: {
+							id: "mem-123",
+							content: "Memory content here",
+							type: "decision",
+							vt_start: timestamp,
+						},
+					},
+				},
+			]);
+
+			const result = await resourceTemplate.listCallback();
+
+			expect(result.resources[0]).toEqual({
+				uri: "memory://mem-123",
+				name: "decision: Memory content here",
+				description: `Memory created ${new Date(timestamp).toISOString()}`,
+			});
+		});
+
+		it("should truncate long content in preview", async () => {
+			const longContent = "A".repeat(150);
+			spyOn(mockClient, "query").mockResolvedValue([
+				{
+					m: {
+						properties: {
+							id: "mem-long",
+							content: longContent,
+							type: "insight",
+							vt_start: 1704067200000,
+						},
+					},
+				},
+			]);
+
+			const result = await resourceTemplate.listCallback();
+
+			expect((result.resources[0] as any).name).toBe(`insight: ${"A".repeat(100)}...`);
+		});
+
+		it("should return empty array when query returns null", async () => {
+			spyOn(mockClient, "query").mockResolvedValue(null as any);
+
+			const result = await resourceTemplate.listCallback();
+
+			expect(result.resources).toEqual([]);
+		});
+
+		it("should return empty array when no memories exist", async () => {
+			spyOn(mockClient, "query").mockResolvedValue([]);
+
+			const result = await resourceTemplate.listCallback();
+
+			expect(result.resources).toEqual([]);
 		});
 	});
 });

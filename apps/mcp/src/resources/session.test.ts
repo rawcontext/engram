@@ -8,12 +8,14 @@ describe("registerSessionResource", () => {
 	let mockClient: IEngramClient;
 	let transcriptReadHandler: (uri: URL, params: Record<string, unknown>) => Promise<unknown>;
 	let summaryReadHandler: (uri: URL, params: Record<string, unknown>) => Promise<unknown>;
+	let transcriptTemplate: { listCallback: () => Promise<{ resources: unknown[] }> };
 
 	beforeEach(() => {
 		mockServer = {
-			registerResource: mock((name, _template, _options, handler) => {
+			registerResource: mock((name, template, _options, handler) => {
 				if (name === "session-transcript") {
 					transcriptReadHandler = handler;
+					transcriptTemplate = template;
 				} else if (name === "session-summary") {
 					summaryReadHandler = handler;
 				}
@@ -274,6 +276,148 @@ describe("registerSessionResource", () => {
 				expect.stringContaining("CONTAINS $project"),
 				expect.objectContaining({ project: "engram" }),
 			);
+		});
+	});
+
+	describe("list handler", () => {
+		beforeEach(() => {
+			registerSessionResource(mockServer, mockClient, () => ({}));
+		});
+
+		it("should query for active sessions", async () => {
+			spyOn(mockClient, "query").mockResolvedValue([
+				{
+					s: {
+						properties: {
+							id: "session-1",
+							title: "First Session",
+							agent_type: "claude-code",
+							working_dir: "/projects/app",
+							started_at: 1704153600000,
+						},
+					},
+				},
+				{
+					s: {
+						properties: {
+							id: "session-2",
+							title: null, // No title - should use default
+							agent_type: "openai-gpt",
+							working_dir: null,
+							started_at: 1704067200000,
+						},
+					},
+				},
+			]);
+
+			const result = await transcriptTemplate.listCallback();
+
+			expect(mockClient.query).toHaveBeenCalledWith(
+				expect.stringContaining("MATCH (s:Session)"),
+				expect.objectContaining({ now: expect.any(Number), limit: 50 }),
+			);
+			expect(result.resources).toHaveLength(2);
+		});
+
+		it("should format session resources with uri, name, and description", async () => {
+			const timestamp = 1704153600000; // 2024-01-02
+			spyOn(mockClient, "query").mockResolvedValue([
+				{
+					s: {
+						properties: {
+							id: "session-abc",
+							title: "My Session",
+							agent_type: "claude-code",
+							working_dir: "/projects/engram",
+							started_at: timestamp,
+						},
+					},
+				},
+			]);
+
+			const result = await transcriptTemplate.listCallback();
+
+			const resource = result.resources[0] as any;
+			expect(resource.uri).toBe("session://session-abc/transcript");
+			expect(resource.name).toBe("My Session");
+			expect(resource.description).toContain("claude-code session");
+			expect(resource.description).toContain("/projects/engram");
+		});
+
+		it("should use default name when session has no title", async () => {
+			const timestamp = 1704153600000;
+			spyOn(mockClient, "query").mockResolvedValue([
+				{
+					s: {
+						properties: {
+							id: "session-xyz",
+							title: null,
+							agent_type: "claude-code",
+							working_dir: null,
+							started_at: timestamp,
+						},
+					},
+				},
+			]);
+
+			const result = await transcriptTemplate.listCallback();
+
+			const resource = result.resources[0] as any;
+			const expectedDate = new Date(timestamp).toLocaleDateString();
+			expect(resource.name).toBe(`Session ${expectedDate}`);
+		});
+
+		it("should handle description without working_dir", async () => {
+			spyOn(mockClient, "query").mockResolvedValue([
+				{
+					s: {
+						properties: {
+							id: "session-123",
+							title: "Test",
+							agent_type: "claude-code",
+							working_dir: null,
+							started_at: 1704153600000,
+						},
+					},
+				},
+			]);
+
+			const result = await transcriptTemplate.listCallback();
+
+			const resource = result.resources[0] as any;
+			expect(resource.description).not.toContain(" in ");
+		});
+
+		it("should return empty array when query returns null", async () => {
+			spyOn(mockClient, "query").mockResolvedValue(null as any);
+
+			const result = await transcriptTemplate.listCallback();
+
+			expect(result.resources).toEqual([]);
+		});
+
+		it("should return empty array when no sessions exist", async () => {
+			spyOn(mockClient, "query").mockResolvedValue([]);
+
+			const result = await transcriptTemplate.listCallback();
+
+			expect(result.resources).toEqual([]);
+		});
+	});
+
+	describe("summary latest session", () => {
+		beforeEach(() => {
+			registerSessionResource(mockServer, mockClient, () => ({}));
+		});
+
+		it("should return error when no latest session found for summary", async () => {
+			spyOn(mockClient, "query").mockResolvedValue([]);
+
+			const uri = new URL("session://latest/summary");
+			const result = (await summaryReadHandler(uri, { session_id: "latest" })) as any;
+
+			const parsed = JSON.parse(result.contents[0].text);
+			expect(parsed.error).toContain("No sessions found");
 		});
 	});
 });

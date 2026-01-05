@@ -7,10 +7,12 @@ describe("registerFileHistoryResource", () => {
 	let mockServer: McpServer;
 	let mockClient: IEngramClient;
 	let registeredReadHandler: (uri: URL, params: Record<string, unknown>) => Promise<unknown>;
+	let resourceTemplate: { listCallback: () => Promise<{ resources: unknown[] }> };
 
 	beforeEach(() => {
 		mockServer = {
-			registerResource: mock((_name, _template, _options, handler) => {
+			registerResource: mock((_name, template, _options, handler) => {
+				resourceTemplate = template;
 				registeredReadHandler = handler;
 			}),
 		} as unknown as McpServer;
@@ -196,6 +198,86 @@ describe("registerFileHistoryResource", () => {
 
 			const parsed = JSON.parse(result.contents[0].text);
 			expect(parsed.history[0].agent_type).toBe("openai-gpt");
+		});
+	});
+
+	describe("list handler", () => {
+		beforeEach(() => {
+			registerFileHistoryResource(mockServer, mockClient);
+		});
+
+		it("should query for recently touched files", async () => {
+			spyOn(mockClient, "query").mockResolvedValue([
+				{
+					path: "/src/auth.ts",
+					last_touch: 1704153600000,
+					touch_count: 5,
+				},
+				{
+					path: "/src/api.ts",
+					last_touch: 1704067200000,
+					touch_count: 3,
+				},
+			]);
+
+			const result = await resourceTemplate.listCallback();
+
+			expect(mockClient.query).toHaveBeenCalledWith(
+				expect.stringContaining("MATCH (ft:FileTouch)"),
+				expect.objectContaining({ now: expect.any(Number), limit: 50 }),
+			);
+			expect(result.resources).toHaveLength(2);
+		});
+
+		it("should format file resources with uri, name, and description", async () => {
+			const lastTouch = 1704153600000;
+			spyOn(mockClient, "query").mockResolvedValue([
+				{
+					path: "/src/auth.ts",
+					last_touch: lastTouch,
+					touch_count: 5,
+				},
+			]);
+
+			const result = await resourceTemplate.listCallback();
+
+			const resource = result.resources[0] as any;
+			expect(resource.uri).toBe(`file-history://${encodeURIComponent("/src/auth.ts")}`);
+			expect(resource.name).toBe("/src/auth.ts");
+			expect(resource.description).toContain("5 changes");
+		});
+
+		it("should URL-encode file paths in URIs", async () => {
+			spyOn(mockClient, "query").mockResolvedValue([
+				{
+					path: "/src/path with spaces/file.ts",
+					last_touch: 1704153600000,
+					touch_count: 1,
+				},
+			]);
+
+			const result = await resourceTemplate.listCallback();
+
+			const resource = result.resources[0] as any;
+			expect(resource.uri).toBe(
+				`file-history://${encodeURIComponent("/src/path with spaces/file.ts")}`,
+			);
+		});
+
+		it("should return empty array when query returns null", async () => {
+			spyOn(mockClient, "query").mockResolvedValue(null as any);
+
+			const result = await resourceTemplate.listCallback();
+
+			expect(result.resources).toEqual([]);
+		});
+
+		it("should return empty array when no files exist", async () => {
+			spyOn(mockClient, "query").mockResolvedValue([]);
+
+			const result = await resourceTemplate.listCallback();
+
+			expect(result.resources).toEqual([]);
 		});
 	});
 });
