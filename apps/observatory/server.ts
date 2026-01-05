@@ -74,10 +74,21 @@ app.prepare().then(() => {
 			// We must use localhost explicitly to avoid proxy loops when the request
 			// comes in with an external Host header (e.g., observatory.engram.rawcontext.com)
 			const nextUrl = new URL(`http://localhost:${nextPort}${pathname}${url.search}`);
-			return fetch(nextUrl, {
+			// Request uncompressed response to avoid double-encoding when Caddy compresses
+			const headers = new Headers(req.headers);
+			headers.set("Accept-Encoding", "identity");
+			const response = await fetch(nextUrl, {
 				method: req.method,
-				headers: req.headers,
+				headers,
 				body: req.body,
+			});
+			// Return response without Content-Encoding header if it was identity
+			const newHeaders = new Headers(response.headers);
+			newHeaders.delete("Content-Encoding");
+			return new Response(response.body, {
+				status: response.status,
+				statusText: response.statusText,
+				headers: newHeaders,
 			});
 		},
 		websocket: {
