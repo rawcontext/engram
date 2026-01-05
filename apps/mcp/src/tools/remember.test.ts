@@ -372,6 +372,48 @@ describe("registerRememberTool", () => {
 			expect(parsed.stored).toBe(true);
 			expect(mockLogger.warn).toHaveBeenCalled();
 		});
+
+		it("should handle invalidation failure gracefully", async () => {
+			spyOn(mockCloudClient, "findConflictCandidates").mockResolvedValue([
+				{
+					id: "mem-old",
+					content: "Old version",
+					type: "decision",
+					score: 0.85,
+					vt_start: Date.now() - 86400000,
+				},
+			]);
+			spyOn(mockCloudClient, "query").mockResolvedValue([{ vt_end: Number.MAX_SAFE_INTEGER }]);
+			spyOn(mockConflictDetector, "detectConflicts").mockResolvedValue([
+				{
+					candidate: {
+						memoryId: "mem-old",
+						content: "Old version",
+						type: "decision",
+						vt_start: Date.now() - 86400000,
+						vt_end: Number.MAX_SAFE_INTEGER,
+						similarity: 0.85,
+					},
+					relation: "supersedes",
+					confidence: 0.8,
+					suggestedAction: "invalidate_old",
+					reasoning: "New version supersedes old",
+				},
+			]);
+			spyOn(mockCloudClient, "invalidateMemory").mockRejectedValue(
+				new Error("Invalidation failed"),
+			);
+
+			// Should not throw, just log warning
+			const result = (await registeredHandler({ content: "New version" })) as any;
+			const parsed = JSON.parse(result.content[0].text);
+
+			expect(parsed.stored).toBe(true);
+			expect(mockLogger.warn).toHaveBeenCalledWith(
+				expect.objectContaining({ memoryId: "mem-old" }),
+				"Failed to invalidate memory",
+			);
+		});
 	});
 
 	describe("entity extraction", () => {
@@ -516,6 +558,78 @@ describe("registerRememberTool", () => {
 					toId: "entity-session",
 				}),
 				undefined,
+			);
+		});
+
+		it("should handle MENTIONS edge creation failure gracefully", async () => {
+			spyOn(mockExtractor, "extract").mockResolvedValue({
+				entities: [{ name: "PostgreSQL", type: "technology", context: "database" }],
+				relationships: [],
+				took_ms: 100,
+				model_used: "gpt-4",
+			});
+			spyOn(mockResolver, "resolveBatch").mockResolvedValue([
+				{
+					entity: { id: "entity-pg", name: "PostgreSQL", type: "technology", aliases: [] },
+					isNew: true,
+				},
+			]);
+			// First call for MENTIONS edge fails
+			spyOn(mockCloudClient, "query").mockRejectedValueOnce(new Error("Edge creation failed"));
+
+			// Should not throw
+			const result = (await registeredHandler({
+				content: "Using PostgreSQL",
+			})) as any;
+
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.stored).toBe(true);
+			expect(mockLogger.warn).toHaveBeenCalledWith(
+				expect.objectContaining({ entityId: "entity-pg" }),
+				"Failed to create MENTIONS edge",
+			);
+		});
+
+		it("should handle relationship creation failure gracefully", async () => {
+			spyOn(mockExtractor, "extract").mockResolvedValue({
+				entities: [
+					{ name: "User", type: "entity", context: "user model" },
+					{ name: "Session", type: "entity", context: "session model" },
+				],
+				relationships: [{ from: "User", to: "Session", type: "HAS_MANY" }],
+				took_ms: 200,
+				model_used: "gpt-4",
+			});
+			spyOn(mockResolver, "resolveBatch").mockResolvedValue([
+				{
+					entity: { id: "entity-user", name: "User", type: "entity", aliases: [] },
+					isNew: true,
+				},
+				{
+					entity: { id: "entity-session", name: "Session", type: "entity", aliases: [] },
+					isNew: true,
+				},
+			]);
+			// MENTIONS edges succeed, then relationship fails
+			spyOn(mockCloudClient, "query")
+				.mockResolvedValueOnce([]) // First MENTIONS edge
+				.mockResolvedValueOnce([]) // Second MENTIONS edge
+				.mockRejectedValueOnce(new Error("Relationship creation failed")); // HAS_MANY relationship
+
+			// Should not throw
+			const result = (await registeredHandler({
+				content: "User has many sessions",
+			})) as any;
+
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.stored).toBe(true);
+			expect(mockLogger.warn).toHaveBeenCalledWith(
+				expect.objectContaining({
+					fromEntity: "User",
+					toEntity: "Session",
+					relType: "HAS_MANY",
+				}),
+				"Failed to create entity relationship",
 			);
 		});
 	});

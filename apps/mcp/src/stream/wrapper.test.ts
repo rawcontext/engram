@@ -474,5 +474,17 @@ describe("ClaudeCodeStreamWrapper", () => {
 			await executePromise;
 			// Just verify it doesn't throw
 		});
+
+		it("should timeout if process does not exit", async () => {
+			const executePromise = wrapper.execute({
+				prompt: "test prompt",
+				timeout: 50, // Very short timeout
+			});
+
+			// Don't emit close - let it timeout
+
+			await expect(executePromise).rejects.toThrow("Timeout after 50ms");
+			expect(mockChildProcess.kill).toHaveBeenCalledWith("SIGTERM");
+		});
 	});
 });
