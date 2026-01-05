@@ -43,6 +43,12 @@ describe("ConflictAuditService", () => {
 		type: "preference",
 	};
 
+	function createMockCloudClient(queryResponse: unknown = []) {
+		return {
+			query: mock(async () => queryResponse),
+		};
+	}
+
 	describe("logConflictDecision", () => {
 		it("should log a conflict decision with full context", () => {
 			const logger = createMockLogger();
@@ -240,6 +246,238 @@ describe("ConflictAuditService", () => {
 			expect(entry2.sessionId).toBe("session_new");
 			expect(entry2.project).toBe("new-project");
 			expect(entry2.orgId).toBe("org_new");
+		});
+	});
+
+	describe("graph persistence", () => {
+		it("should persist to graph when cloud client is available", async () => {
+			const logger = createMockLogger();
+			const cloudClient = createMockCloudClient();
+			const service = new ConflictAuditService(
+				logger,
+				{
+					sessionId: "session_123",
+					project: "test-project",
+					orgId: "org_123",
+					orgSlug: "test-org",
+				},
+				cloudClient as any,
+			);
+
+			service.logUserConfirmed({
+				newMemory,
+				conflictingMemory,
+				relation: "supersedes",
+				confidence: 0.85,
+				reasoning: "User confirmed",
+				suggestedAction: "invalidate_old",
+				elicitationAvailable: true,
+			});
+
+			// Wait for async graph persistence
+			await new Promise((r) => setTimeout(r, 50));
+
+			expect(cloudClient.query).toHaveBeenCalled();
+		});
+
+		it("should skip graph persistence when no cloud client", () => {
+			const logger = createMockLogger();
+			const service = new ConflictAuditService(logger);
+
+			service.logUserConfirmed({
+				newMemory,
+				conflictingMemory,
+				relation: "supersedes",
+				confidence: 0.85,
+				reasoning: "User confirmed",
+				suggestedAction: "invalidate_old",
+				elicitationAvailable: true,
+			});
+
+			// Check that debug log was called about skipping persistence
+			const debugCalls = logger.calls.filter((c) => c.level === "debug");
+			expect(debugCalls.some((c) => String(c.message).includes("skipping graph"))).toBe(true);
+		});
+
+		it("should handle graph persistence failure gracefully", async () => {
+			const logger = createMockLogger();
+			const cloudClient = {
+				query: mock(async () => {
+					throw new Error("Graph write failed");
+				}),
+			};
+			const service = new ConflictAuditService(
+				logger,
+				{ sessionId: "session_123", project: "test-project" },
+				cloudClient as any,
+			);
+
+			// Should not throw
+			service.logUserConfirmed({
+				newMemory,
+				conflictingMemory,
+				relation: "supersedes",
+				confidence: 0.85,
+				reasoning: "User confirmed",
+				suggestedAction: "invalidate_old",
+				elicitationAvailable: true,
+			});
+
+			// Wait for async graph persistence to fail
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Check that warn log was called about failure
+			const warnCalls = logger.calls.filter((c) => c.level === "warn");
+			expect(warnCalls.some((c) => String(c.message).includes("Failed to persist"))).toBe(true);
+		});
+	});
+
+	describe("model mapping", () => {
+		it("should map user_confirmed to mcp-elicitation", () => {
+			const logger = createMockLogger();
+			const cloudClient = createMockCloudClient();
+			const service = new ConflictAuditService(logger, {}, cloudClient as any);
+
+			service.logUserConfirmed({
+				newMemory,
+				conflictingMemory,
+				relation: "supersedes",
+				confidence: 0.85,
+				reasoning: "User confirmed",
+				suggestedAction: "invalidate_old",
+				elicitationAvailable: true,
+			});
+
+			// Check the query was called with mcp-elicitation model
+			expect(cloudClient.query).toHaveBeenCalledWith(
+				expect.stringContaining("ConflictDecision"),
+				expect.objectContaining({ modelUsed: "mcp-elicitation" }),
+				undefined,
+			);
+		});
+
+		it("should map user_declined to mcp-elicitation", () => {
+			const logger = createMockLogger();
+			const cloudClient = createMockCloudClient();
+			const service = new ConflictAuditService(logger, {}, cloudClient as any);
+
+			service.logUserDeclined({
+				newMemory,
+				conflictingMemory,
+				relation: "contradiction",
+				confidence: 0.78,
+				reasoning: "User declined",
+				suggestedAction: "invalidate_old",
+				elicitationAvailable: true,
+			});
+
+			expect(cloudClient.query).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ modelUsed: "mcp-elicitation" }),
+				undefined,
+			);
+		});
+
+		it("should map auto_applied to gemini model", () => {
+			const logger = createMockLogger();
+			const cloudClient = createMockCloudClient();
+			const service = new ConflictAuditService(logger, {}, cloudClient as any);
+
+			service.logAutoApplied({
+				newMemory,
+				conflictingMemory,
+				relation: "supersedes",
+				confidence: 0.91,
+				reasoning: "Auto-applied",
+				suggestedAction: "invalidate_old",
+				outcome: "invalidate_old",
+			});
+
+			expect(cloudClient.query).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ modelUsed: "gemini-3-flash-preview" }),
+				undefined,
+			);
+		});
+
+		it("should map duplicate_detected to gemini model", () => {
+			const logger = createMockLogger();
+			const cloudClient = createMockCloudClient();
+			const service = new ConflictAuditService(logger, {}, cloudClient as any);
+
+			service.logDuplicateDetected({
+				newMemory,
+				conflictingMemory,
+				relation: "duplicate",
+				confidence: 0.98,
+				reasoning: "Duplicate",
+				elicitationAvailable: true,
+			});
+
+			expect(cloudClient.query).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ modelUsed: "gemini-3-flash-preview" }),
+				undefined,
+			);
+		});
+
+		it("should map classification_failed appropriately", () => {
+			const logger = createMockLogger();
+			const cloudClient = createMockCloudClient();
+			const service = new ConflictAuditService(logger, {}, cloudClient as any);
+
+			service.logClassificationFailed(newMemory, conflictingMemory, "Timeout");
+
+			expect(cloudClient.query).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ modelUsed: "classification-failed" }),
+				undefined,
+			);
+		});
+	});
+
+	describe("outcome mapping", () => {
+		it("should map keep_both outcome", () => {
+			const logger = createMockLogger();
+			const cloudClient = createMockCloudClient();
+			const service = new ConflictAuditService(logger, {}, cloudClient as any);
+
+			service.logUserDeclined({
+				newMemory,
+				conflictingMemory,
+				relation: "contradiction",
+				confidence: 0.78,
+				reasoning: "Keep both",
+				suggestedAction: "invalidate_old",
+				elicitationAvailable: true,
+			});
+
+			expect(cloudClient.query).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ actionTaken: "keep_both" }),
+				undefined,
+			);
+		});
+
+		it("should map skip_new outcome", () => {
+			const logger = createMockLogger();
+			const cloudClient = createMockCloudClient();
+			const service = new ConflictAuditService(logger, {}, cloudClient as any);
+
+			service.logDuplicateDetected({
+				newMemory,
+				conflictingMemory,
+				relation: "duplicate",
+				confidence: 0.98,
+				reasoning: "Skip new",
+				elicitationAvailable: true,
+			});
+
+			expect(cloudClient.query).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ actionTaken: "skip_new" }),
+				undefined,
+			);
 		});
 	});
 });
